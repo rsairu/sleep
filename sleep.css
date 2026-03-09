@@ -67,6 +67,32 @@ body{
   display: flex;
   gap: 8px;
   align-items: center;
+  justify-content: space-between;
+}
+
+.nav-tabs {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.nav-github-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  opacity: 0.7;
+  transition: opacity 0.2s;
+  margin-left: auto;
+}
+
+.nav-github-link:hover {
+  opacity: 1;
+}
+
+.nav-github-icon {
+  width: 22px;
+  height: 22px;
 }
 
 .nav-tab {
