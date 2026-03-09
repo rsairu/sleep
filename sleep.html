@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Daily timeline</title>
+<link rel="stylesheet" href="sleep.css">
+</head>
+
+<body>
+  <div id="nav-container"></div>
+  <div id="timeline-section">
+    <aside id="timeline-legend-controls"></aside>
+    <div id="days-container"></div>
+  </div>
+
+  <script src="sleep-utils.js"></script>
+  <script src="sleep.js"></script>
+  <script>
+    // Add navigation bar
+    document.getElementById('nav-container').innerHTML = renderNavBar('timeline');
+  </script>
+</body>
+</html>

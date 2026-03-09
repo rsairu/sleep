@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sleep Stats</title>
+<link rel="stylesheet" href="sleep.css">
+</head>
+<body>
+  <div id="nav-container"></div>
+  <div class="container">
+    <h1>Monthly Sleep Statistics</h1>
+    <div id="stats-container"></div>
+  </div>
+
+  <script src="sleep-utils.js"></script>
+  <script src="stats.js"></script>
+  <script>
+    // Add navigation bar
+    document.getElementById('nav-container').innerHTML = renderNavBar('stats');
+  </script>
+</body>
+</html>
