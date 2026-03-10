@@ -125,7 +125,8 @@ const GITHUB_REPO_URL = 'https://github.com/rsairu/sleep/';
 function renderNavBar(currentPage) {
   const pages = [
     { id: 'dashboard', name: 'Dashboard', url: 'dashboard.html', icon: '🛌' },
-    { id: 'timeline', name: 'Daily Timeline', url: 'sleep.html', icon: '📅' },
+    { id: 'quality', name: 'Quality', url: 'quality.html', icon: '🟩' },
+    { id: 'timeline', name: 'Daily', url: 'sleep.html', icon: '📅' },
     { id: 'graph', name: 'Graphs', url: 'graph.html', icon: '📊' },
     { id: 'stats', name: 'Stats', url: 'stats.html', icon: '🔢' }
   ];

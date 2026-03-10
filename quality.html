@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sleep Quality History</title>
+<link rel="stylesheet" href="sleep.css">
+</head>
+<body>
+  <div id="nav-container"></div>
+  <div class="container">
+    <div id="quality-container"></div>
+  </div>
+
+  <script src="sleep-utils.js"></script>
+  <script src="sleep.js"></script>
+  <script src="quality.js"></script>
+  <script>
+    document.getElementById('nav-container').innerHTML = renderNavBar('quality');
+  </script>
+</body>
+</html>
