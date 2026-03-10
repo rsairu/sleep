@@ -92,8 +92,3 @@ Time is normalized as **minutes from midnight** (0–1440) everywhere, with expl
 | `stats.js` | Monthly aggregation and stat rendering |
 | `sleep.css` | Global styles and CSS variables |
 
----
-
-## Summary
-
-The project is a **static, data-in-JSON sleep tracker**: one shared data model and time/date utilities, four pages (dashboard, timeline, graphs, stats), and custom SVG visualizations with in-code regression for trends. No server, no database, and no npm/build step—suitable for opening the HTML (or a simple static server) and editing `sleep-data.json` to add or change days.
