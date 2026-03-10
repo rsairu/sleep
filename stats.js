@@ -167,7 +167,7 @@ function calculateMonthlyAverages(monthDays) {
     // Longest uninterrupted sleep
     longestUninterruptedSum += calculateLongestUninterrupted(day);
     
-    // First alarm to wake
+    // Alarm to wake
     const firstAlarmToWake = calculateFirstAlarmToWake(day);
     if (firstAlarmToWake !== null) {
       firstAlarmToWakeSum += firstAlarmToWake;

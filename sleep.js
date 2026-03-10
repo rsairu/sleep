@@ -9,12 +9,12 @@ const DATA_FILES = {
 
 // Time constants
 const MILLISECONDS_PER_DAY = 86400000;
-// Timeline starts at 22:00 previous day, so ticks are: 22 (previous day), 0, 4, 8, 12, 16, 20, 24 (current day)
-// In timeline minutes: 0, 120, 360, 600, 840, 1080, 1320, 1440
-const TIME_TICKS = [0, 120, 360, 600, 840, 1080, 1320, 1440]; // 22, 0, 4, 8, 12, 16, 20, 24 hours
-const TIMELINE_START_HOUR = 22; // Timeline starts at 22:00 previous day (1320 minutes from midnight)
-const TIMELINE_START_MINUTES = 1320; // 22:00 in minutes
-const PREVIOUS_DAY_DURATION = 120; // 2 hours from 22:00 to 00:00
+// Timeline runs 20:00 to 20:00 (24 hours). Ticks: 20 (start), 0, 4, 8, 12, 16, 20 (end)
+// In timeline minutes: 0, 240, 600, 840, 1080, 1320, 1440
+const TIME_TICKS = [0, 240, 600, 840, 1080, 1320, 1440]; // 20, 0, 4, 8, 12, 16, 20 hours
+const TIMELINE_START_HOUR = 20; // Timeline starts at 20:00 (1200 minutes from midnight)
+const TIMELINE_START_MINUTES = 1200; // 20:00 in minutes
+const PREVIOUS_DAY_DURATION = 240; // 4 hours from 20:00 to 00:00
 
 // Holidays data (loaded from holidays.json)
 let holidays = {};
@@ -100,17 +100,20 @@ function formatWeekRange(monday) {
 // Note: timeToMinutes is now in sleep-utils.js
 
 // Convert time (minutes from midnight) to timeline position
-// Timeline starts at 22:00 previous day (1320 minutes from midnight)
-// Times >= 1320 are on previous day portion (0-120 on timeline)
-// Times < 1320 are on current day portion (120-1440 on timeline)
+// Timeline runs 20:00 to 20:00 (24h). Times >= 20:00 (1200) → 0–239; times < 20:00 → 240–1439
 function timeToTimelinePosition(minutesFromMidnight) {
   if (minutesFromMidnight >= TIMELINE_START_MINUTES) {
-    // Time is on previous day (22:00-23:59)
+    // 20:00–23:59
     return minutesFromMidnight - TIMELINE_START_MINUTES;
   } else {
-    // Time is on current day (00:00-21:59)
+    // 00:00–19:59 (next day on timeline)
     return minutesFromMidnight + PREVIOUS_DAY_DURATION;
   }
+}
+
+// Bed time uses same timeline position as everything else (timeline now starts at 20:00)
+function bedMinutesForTimeline(bedMinutes) {
+  return timeToTimelinePosition(bedMinutes);
 }
 
 // Note: formatDuration and formatTime are now in sleep-utils.js
@@ -492,6 +495,8 @@ function renderDay(day, days, dayIndex, options) {
   if (isHolidayDay) dayClasses.push('holiday');
   if (isWeekendDay) dayClasses.push('weekend');
   
+  const dayOfWeek = getDateFromString(day.date, YEAR).toLocaleDateString('en-US', { weekday: 'short' });
+  
   // Check for deviations from recent averages
   const recentAverages = calculateRecentAverages(days, dayIndex);
   const deviations = checkDeviations(day, recentAverages);
@@ -502,16 +507,17 @@ function renderDay(day, days, dayIndex, options) {
   // Convert times to timeline positions
   const sleepStartPos = timeToTimelinePosition(sleepStart);
   const sleepEndPos = timeToTimelinePosition(sleepEnd);
-  const bedPos = timeToTimelinePosition(timeToMinutes(day.bed));
+  const bedMinutes = timeToMinutes(day.bed);
+  const bedPos = bedMinutesForTimeline(bedMinutes);
   
-  // Time tick labels: 22 (previous day), 0, 4, 8, 12, 16, 20, 24 (current day)
-  const tickLabels = [22, 0, 4, 8, 12, 16, 20, 24];
+  // Time tick labels: 20 (start), 0, 4, 8, 12, 16, 20 (end)
+  const tickLabels = [20, 0, 4, 8, 12, 16, 20];
   const barClass = 'bar' + (showTicks ? ' show-ticks' : '');
   
   let html = `
     <div class="day ${dayClasses.join(' ')}">
       <div class="day-content">
-        <div class="day-date">${day.date}${isHolidayDay ? ' 🎉' : ''}</div>
+        <div class="day-date">${day.date} ${dayOfWeek}${isHolidayDay ? ' 🎉' : ''}</div>
         <div class="day-bar-container">
           <div class="${barClass}">
             <!-- Faded overlay for previous day section (22:00-00:00) -->
@@ -552,7 +558,7 @@ function renderDay(day, days, dayIndex, options) {
           <div class="stat-row"><span class="stat-label">${highlightKeyword('fell asleep:', 'asleep')}</span><span class="stat-value">${day.sleepStart}</span></div>
           <div class="stat-row"><span class="stat-label">${highlightKeyword('sleep duration:', 'sleep')}</span><span class="stat-value">${formatDuration(sleepDuration)}</span></div>
           <div class="stat-row"><span class="stat-label">longest uninterrupted:</span><span class="stat-value">${formatDuration(longestUninterrupted)}</span></div>
-          ${firstAlarmToWake !== null ? `<div class="stat-row"><span class="stat-label">${highlightKeyword('first alarm to wake:', ['alarm', 'wake'])}</span><span class="stat-value ${firstAlarmToWake > ALARM_TO_WAKE_WARNING_THRESHOLD ? 'stat-warning' : ''}">${formatDuration(firstAlarmToWake)}</span></div>` : ''}
+          ${firstAlarmToWake !== null ? `<div class="stat-row"><span class="stat-label">${highlightKeyword('alarm to wake:', ['alarm', 'wake'])}</span><span class="stat-value ${firstAlarmToWake > ALARM_TO_WAKE_WARNING_THRESHOLD ? 'stat-warning' : ''}">${formatDuration(firstAlarmToWake)}</span></div>` : ''}
         </div>
       </div>
       ${deviationWarnings}
@@ -599,7 +605,7 @@ function renderAveragesStats(averages) {
         <div class="stat-row"><span class="stat-label">${highlightKeyword('fell asleep:', 'asleep')}</span><span class="stat-value">${formatTime(averages.avgBedtime)}</span></div>
     <div class="stat-row"><span class="stat-label">${highlightKeyword('sleep duration:', 'sleep')}</span><span class="stat-value">${formatDuration(averages.avgSleepDuration)}</span></div>
     <div class="stat-row"><span class="stat-label">longest uninterrupted:</span><span class="stat-value">${formatDuration(averages.avgLongestUninterrupted)}</span></div>
-    ${averages.avgFirstAlarmToWake !== null ? `<div class="stat-row"><span class="stat-label">${highlightKeyword('first alarm to wake:', ['alarm', 'wake'])}</span><span class="stat-value ${averages.avgFirstAlarmToWake > ALARM_TO_WAKE_WARNING_THRESHOLD ? 'stat-warning' : ''}">${formatDuration(averages.avgFirstAlarmToWake)}</span></div>` : ''}
+    ${averages.avgFirstAlarmToWake !== null ? `<div class="stat-row"><span class="stat-label">${highlightKeyword('alarm to wake:', ['alarm', 'wake'])}</span><span class="stat-value ${averages.avgFirstAlarmToWake > ALARM_TO_WAKE_WARNING_THRESHOLD ? 'stat-warning' : ''}">${formatDuration(averages.avgFirstAlarmToWake)}</span></div>` : ''}
   `;
 }
 
@@ -615,7 +621,7 @@ function renderAveragesColumn(averages, title) {
   `;
 }
 
-// Render last night column (single day: fell asleep, duration, longest uninterrupted, first alarm to wake)
+// Render last night column (single day: fell asleep, duration, longest uninterrupted, alarm to wake)
 function renderLastNightColumn(day) {
   const sleepDuration = calculateTotalSleep(day);
   const longestUninterrupted = calculateLongestUninterrupted(day);
@@ -627,7 +633,7 @@ function renderLastNightColumn(day) {
         <div class="stat-row"><span class="stat-label">${highlightKeyword('fell asleep:', 'asleep')}</span><span class="stat-value">${day.sleepStart}</span></div>
         <div class="stat-row"><span class="stat-label">${highlightKeyword('sleep duration:', 'sleep')}</span><span class="stat-value">${formatDuration(sleepDuration)}</span></div>
         <div class="stat-row"><span class="stat-label">longest uninterrupted:</span><span class="stat-value">${formatDuration(longestUninterrupted)}</span></div>
-        ${firstAlarmToWake !== null ? `<div class="stat-row"><span class="stat-label">${highlightKeyword('first alarm to wake:', ['alarm', 'wake'])}</span><span class="stat-value ${firstAlarmToWake > ALARM_TO_WAKE_WARNING_THRESHOLD ? 'stat-warning' : ''}">${formatDuration(firstAlarmToWake)}</span></div>` : ''}
+        ${firstAlarmToWake !== null ? `<div class="stat-row"><span class="stat-label">${highlightKeyword('alarm to wake:', ['alarm', 'wake'])}</span><span class="stat-value ${firstAlarmToWake > ALARM_TO_WAKE_WARNING_THRESHOLD ? 'stat-warning' : ''}">${formatDuration(firstAlarmToWake)}</span></div>` : ''}
       </div>
     </div>
   `;
@@ -640,7 +646,7 @@ function renderWeekSummary(days) {
   const avgSleepEnd = averages.avgSleepEnd;
   const avgSleepStartPos = timeToTimelinePosition(avgSleepStart);
   const avgSleepEndPos = timeToTimelinePosition(avgSleepEnd);
-  const tickLabels = [22, 0, 4, 8, 12, 16, 20, 24];
+  const tickLabels = [20, 0, 4, 8, 12, 16, 20];
   
   return `
     <div class="week-summary">
@@ -815,78 +821,148 @@ function getFlagColorClass(flagCount) {
   return 'flag-three-plus';
 }
 
-// Render calendar heatmap
-function renderCalendarHeatmap(year, flagMap, latestDataDate) {
-  const months = generateCalendarHeatmap(year, flagMap, latestDataDate);
-  
-  let html = `
-    <div class="calendar-heatmap-container">
-      <div class="calendar-heatmap-header">
-        <h3 class="calendar-heatmap-title">Sleep Quality history</h3>
-        <div class="calendar-heatmap-legend calendar-heatmap-legend--compact">
-          <div class="legend-colors-row">
-            <span class="legend-label">normal</span>
-            <div class="legend-colors">
-              <div class="legend-square flag-none"></div>
-              <div class="legend-square flag-one"></div>
-              <div class="legend-square flag-two"></div>
-              <div class="legend-square flag-three-plus"></div>
-            </div>
-            <span class="legend-label">worse</span>
-          </div>
-          <span class="legend-divider">·</span>
-          <div class="legend-meaning legend-meaning--inline">
-            <span class="legend-meaning-item">🛌 bed late</span>
-            <span class="legend-meaning-item">😴 asleep late</span>
-            <span class="legend-meaning-item">⌛ short</span>
-          </div>
-          <span class="legend-explanation legend-explanation--inline">(vs 7-day avg, 20+ min)</span>
-        </div>
+// Render a single month block (for heatmap). large: true adds --large class for 2x size on dashboard.
+function renderMonthBlock(month, large) {
+  const flagSlots = [
+    { emoji: '🛌', count: month.flagCounts['🛌'] },
+    { emoji: '😴', count: month.flagCounts['😴'] },
+    { emoji: '⌛', count: month.flagCounts['⌛'] }
+  ];
+  const flagHtml = flagSlots.map(f => `<span class="calendar-flag-slot"><span class="calendar-flag-emoji">${f.emoji}</span><span class="calendar-flag-num">${f.count}</span></span>`).join('');
+  const weekdayLabels = ['Su', 'M', 'T', 'W', 'R', 'F', 'Sa'].map(w => `<div class="calendar-weekday-label">${w}</div>`).join('');
+  const blockClass = 'calendar-month-block' + (large ? ' calendar-month-block--large' : '');
+  return `
+    <div class="${blockClass}">
+      <div class="calendar-month-header">
+        <div class="calendar-month-name">${month.name}</div>
+        <div class="calendar-month-flag-counter">${flagHtml}</div>
       </div>
+      <div class="calendar-weekday-cells calendar-weekday-cells--in-block">${weekdayLabels}</div>
+      ${month.weeks.map(weekRow => `
+        <div class="calendar-month-row">
+          <div class="calendar-days-row">
+            ${weekRow.map((day) => {
+              if (day === null) {
+                return `<div class="calendar-square empty"></div>`;
+              }
+              const colorClass = getFlagColorClass(day.flagCount);
+              const tooltip = day.flagCount > 0
+                ? `${day.dateStr}: ${day.flagTypes.join(' ')}`
+                : `${day.dateStr}: normal`;
+              return `<div class="calendar-square ${colorClass}" data-tooltip="${tooltip}" title="${tooltip}"><span class="calendar-square-day">${day.day}</span></div>`;
+            }).join('')}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+// Shared header and legend for sleep quality calendar (used by dashboard and quality page)
+function renderCalendarHeatmapHeader() {
+  return `
+    <div class="calendar-heatmap-header">
+      <h3 class="calendar-heatmap-title">Sleep Quality history</h3>
+      <div class="calendar-heatmap-legend calendar-heatmap-legend--compact">
+        <div class="legend-colors-row">
+          <span class="legend-label">normal</span>
+          <div class="legend-colors">
+            <div class="legend-square flag-none"></div>
+            <div class="legend-square flag-one"></div>
+            <div class="legend-square flag-two"></div>
+            <div class="legend-square flag-three-plus"></div>
+          </div>
+          <span class="legend-label">worse</span>
+        </div>
+        <span class="legend-divider">·</span>
+        <div class="legend-meaning legend-meaning--inline">
+          <span class="legend-meaning-item">🛌 bed late</span>
+          <span class="legend-meaning-item">😴 asleep late</span>
+          <span class="legend-meaning-item">⌛ short</span>
+        </div>
+        <span class="legend-explanation legend-explanation--inline">(vs 7-day avg, 20+ min)</span>
+      </div>
+    </div>
+  `;
+}
+
+// Dashboard: current month only (full container with header and legend)
+function renderCalendarHeatmapCurrentMonthOnly(year, flagMap, latestDataDate) {
+  const months = generateCalendarHeatmap(year, flagMap, latestDataDate);
+  const now = new Date();
+  const isCurrentYear = year === now.getFullYear();
+  const currentMonthIndex = isCurrentYear ? now.getMonth() : null;
+  const currentMonthBlock = currentMonthIndex !== null ? renderMonthBlock(months[currentMonthIndex], true) : '';
+
+  return `
+    <div class="calendar-heatmap-container calendar-heatmap-container--dashboard">
+      ${renderCalendarHeatmapHeader()}
+      <div class="calendar-heatmap">
+        ${currentMonthBlock ? `<div class="calendar-current-month-row">${currentMonthBlock}</div>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+// Dashboard inline: current month calendar only (no header, no legend)
+function renderCalendarCurrentMonthOnlyBlock(year, flagMap, latestDataDate) {
+  const months = generateCalendarHeatmap(year, flagMap, latestDataDate);
+  const now = new Date();
+  const isCurrentYear = year === now.getFullYear();
+  const currentMonthIndex = isCurrentYear ? now.getMonth() : null;
+  const currentMonthBlock = currentMonthIndex !== null ? renderMonthBlock(months[currentMonthIndex], true) : '';
+  if (!currentMonthBlock) return '';
+  return `
+    <div class="calendar-heatmap calendar-heatmap--inline">
+      <div class="calendar-current-month-row">${currentMonthBlock}</div>
+    </div>
+  `;
+}
+
+// Quality history page: all months in grid (no separate current-month row)
+function renderCalendarHeatmapFullHistory(year, flagMap, latestDataDate) {
+  const months = generateCalendarHeatmap(year, flagMap, latestDataDate);
+
+  return `
+    <div class="calendar-heatmap-container">
+      ${renderCalendarHeatmapHeader()}
       <div class="calendar-heatmap">
         <div class="calendar-month-grid">
-          ${months.map((month) => {
-            const flagSlots = [
-              { emoji: '🛌', count: month.flagCounts['🛌'] },
-              { emoji: '😴', count: month.flagCounts['😴'] },
-              { emoji: '⌛', count: month.flagCounts['⌛'] }
-            ];
-            const flagHtml = flagSlots.map(f => `<span class="calendar-flag-slot"><span class="calendar-flag-emoji">${f.emoji}</span><span class="calendar-flag-num">${f.count}</span></span>`).join('');
-            const weekdayLabels = ['Su', 'M', 'T', 'W', 'R', 'F', 'Sa'].map(w => `<div class="calendar-weekday-label">${w}</div>`).join('');
-            return `
-            <div class="calendar-month-block">
-              <div class="calendar-month-header">
-                <div class="calendar-month-name">${month.name}</div>
-                <div class="calendar-month-flag-counter">${flagHtml}</div>
-              </div>
-              <div class="calendar-weekday-cells calendar-weekday-cells--in-block">${weekdayLabels}</div>
-              ${month.weeks.map(weekRow => `
-                <div class="calendar-month-row">
-                  <div class="calendar-days-row">
-                    ${weekRow.map((day) => {
-                      if (day === null) {
-                        return `<div class="calendar-square empty"></div>`;
-                      }
-                      const colorClass = getFlagColorClass(day.flagCount);
-                      const tooltip = day.flagCount > 0
-                        ? `${day.dateStr}: ${day.flagTypes.join(' ')}`
-                        : `${day.dateStr}: normal`;
-                      return `<div class="calendar-square ${colorClass}" data-tooltip="${tooltip}" title="${tooltip}"><span class="calendar-square-day">${day.day}</span></div>`;
-                    }).join('')}
-                  </div>
-                </div>
-              `).join('')}
-            </div>
-            `;
-          }).join('')}
+          ${months.map((month) => renderMonthBlock(month, false)).join('')}
         </div>
       </div>
     </div>
   `;
-  return html;
 }
 
-// Render dashboard content: recent average, lifetime average, past three nights (timeline rows), sleep quality history.
+// Recommended sleep/wake window: recent average ± 30 minutes (same recent-days logic as dashboard).
+const PROJECTION_BAND_MINUTES = 30;
+
+function renderDashboardProjection(recentAverages) {
+  const sleepByLow = Math.max(0, recentAverages.avgBedtime - PROJECTION_BAND_MINUTES);
+  const sleepByHigh = Math.min(1440, recentAverages.avgBedtime + PROJECTION_BAND_MINUTES);
+  const wakeByLow = Math.max(0, recentAverages.avgSleepEnd - PROJECTION_BAND_MINUTES);
+  const wakeByHigh = Math.min(1440, recentAverages.avgSleepEnd + PROJECTION_BAND_MINUTES);
+
+  return `
+    <div class="dashboard-projection dashboard-projection--no-box">
+      <h2 class="dashboard-projection-title">Tonight</h2>
+      <p class="dashboard-projection-copy">(recommended per recent 3-day average ±${PROJECTION_BAND_MINUTES} min)</p>
+      <div class="dashboard-projection-grid">
+        <div class="dashboard-projection-item">
+          <span class="dashboard-projection-label"><span class="proj-keyword proj-sleep">🌙 Sleep</span> by</span>
+          <span class="dashboard-projection-range">${formatTime(sleepByLow)} – ${formatTime(sleepByHigh)}</span>
+        </div>
+        <div class="dashboard-projection-item dashboard-projection-item--wake">
+          <span class="dashboard-projection-label"><span class="proj-keyword proj-wake">🌅 Wake</span> by</span>
+          <span class="dashboard-projection-range">${formatTime(wakeByLow)} – ${formatTime(wakeByHigh)}</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// Render dashboard content: projection, recent average, lifetime average, past three nights (timeline rows), sleep quality history.
 // Used by dashboard.html; kept here to share calculation/render helpers.
 function renderDashboardContent(days) {
   if (!days || days.length === 0) {
@@ -898,14 +974,14 @@ function renderDashboardContent(days) {
 
   const flagMap = buildFlagCountMap(days);
   const latestDataDate = getLatestDataDate(days, YEAR);
-  const calendarHeatmap = renderCalendarHeatmap(YEAR, flagMap, latestDataDate);
+  const calendarBlockOnly = renderCalendarCurrentMonthOnlyBlock(YEAR, flagMap, latestDataDate);
 
   const lastNightHtml = renderLastNightColumn(days[0]);
   const pastThreeCount = Math.min(3, days.length);
   const pastThreeNightsHtml = pastThreeCount > 0
     ? `
+    <h2 class="dashboard-section-title">Past three nights</h2>
     <section class="dashboard-past-nights">
-      <h2 class="dashboard-section-title">Past three nights</h2>
       <div class="week-days">
         ${Array.from({ length: pastThreeCount }, (_, i) => renderDay(days[i], days, i, { showTicks: true })).join('')}
       </div>
@@ -915,6 +991,15 @@ function renderDashboardContent(days) {
 
   return `
     <div class="dashboard-content">
+      <div class="dashboard-top-row">
+        <div class="dashboard-top-col dashboard-top-col--tonight">
+          ${renderDashboardProjection(recentAverages)}
+        </div>
+        <div class="dashboard-top-col dashboard-top-col--calendar">
+          ${calendarBlockOnly}
+        </div>
+      </div>
+      <h2 class="dashboard-section-title">Averages</h2>
       <div class="dashboard-averages-panel">
         <div class="averages-container">
           ${lastNightHtml}
@@ -923,7 +1008,6 @@ function renderDashboardContent(days) {
         </div>
       </div>
       ${pastThreeNightsHtml}
-      ${calendarHeatmap}
     </div>
   `;
 }
