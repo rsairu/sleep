@@ -2,14 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sleep Graph</title>
-<link rel="stylesheet" href="sleep.css">
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div id="nav-container"></div>
   <div class="container">
-    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; flex-wrap: wrap; gap: 20px;">
-      <h1 style="margin: 0;">Sleep Graph</h1>
+    <div class="graph-page-header">
+      <h1>Sleep Graph</h1>
       <div class="show-hide-section">
         <div class="show-hide-title">show/hide</div>
         <label class="time-toggle">
@@ -47,10 +48,10 @@
     <div class="graph-container" id="graph-container">
       <svg id="graph-svg"></svg>
     </div>
-    <div class="graph-container" id="bar-chart-container" style="margin-top: 40px;">
+    <div class="graph-container chart-section" id="bar-chart-container">
       <svg id="bar-chart-svg"></svg>
     </div>
-    <div class="graph-container" id="delay-chart-container" style="margin-top: 40px;">
+    <div class="graph-container chart-section" id="delay-chart-container">
       <svg id="delay-chart-svg"></svg>
     </div>
   </div>
@@ -61,6 +62,7 @@
   <script>
     // Add navigation bar
     document.getElementById('nav-container').innerHTML = renderNavBar('graph');
+    initDayNightTheme();
     // Note: timeToMinutes and formatTime are now in sleep-utils.js
     // Use formatTime(minutes, true) for short midnight format ("00")
 
@@ -944,7 +946,7 @@
         barChartYAxis.setAttribute('class', 'axis');
         barChartG.appendChild(barChartYAxis);
 
-        // Draw Y-axis labels and ticks for bar chart
+        // Draw Y-axis labels and ticks for bar chart (left)
         sleepYTicks.forEach(tick => {
           const y = sleepYScale(tick);
           const tickLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -960,6 +962,34 @@
           label.setAttribute('y', y + 4);
           label.setAttribute('class', 'axis-label');
           label.setAttribute('text-anchor', 'end');
+          label.textContent = `${tick / 60}h`;
+          barChartG.appendChild(label);
+        });
+
+        // Draw right Y-axis line and labels for bar chart (same as time-to-bed graph)
+        const barChartYAxisRight = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        barChartYAxisRight.setAttribute('x1', barChartGraphWidth);
+        barChartYAxisRight.setAttribute('y1', 0);
+        barChartYAxisRight.setAttribute('x2', barChartGraphWidth);
+        barChartYAxisRight.setAttribute('y2', barChartGraphHeight);
+        barChartYAxisRight.setAttribute('class', 'axis');
+        barChartG.appendChild(barChartYAxisRight);
+
+        sleepYTicks.forEach(tick => {
+          const y = sleepYScale(tick);
+          const tickLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          tickLine.setAttribute('x1', barChartGraphWidth);
+          tickLine.setAttribute('y1', y);
+          tickLine.setAttribute('x2', barChartGraphWidth + 5);
+          tickLine.setAttribute('y2', y);
+          tickLine.setAttribute('class', 'axis');
+          barChartG.appendChild(tickLine);
+
+          const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          label.setAttribute('x', barChartGraphWidth + 10);
+          label.setAttribute('y', y + 4);
+          label.setAttribute('class', 'axis-label');
+          label.setAttribute('text-anchor', 'start');
           label.textContent = `${tick / 60}h`;
           barChartG.appendChild(label);
         });
@@ -1103,7 +1133,7 @@
         } catch (barChartError) {
           console.error('Error rendering bar chart:', barChartError);
           const errorDiv = document.createElement('div');
-          errorDiv.style.cssText = 'color: red; padding: 10px; background: rgba(255,0,0,0.1); margin: 10px 0;';
+          errorDiv.className = 'chart-error';
           errorDiv.textContent = 'Bar chart error: ' + barChartError.message;
           document.getElementById('bar-chart-container').appendChild(errorDiv);
         }
@@ -1202,7 +1232,7 @@
         delayChartYAxis.setAttribute('class', 'axis');
         delayChartG.appendChild(delayChartYAxis);
 
-        // Draw Y-axis labels and ticks for delay chart
+        // Draw Y-axis labels and ticks for delay chart (left)
         delayYTicks.forEach(tick => {
           const y = delayYScale(tick);
           const tickLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -1219,6 +1249,38 @@
           label.setAttribute('class', 'axis-label');
           label.setAttribute('text-anchor', 'end');
           // Show negative values with absolute value (e.g., -1h shows as "1")
+          if (tick < 0) {
+            label.textContent = `${Math.abs(tick / 60)}`;
+          } else {
+            label.textContent = `${tick / 60}h`;
+          }
+          delayChartG.appendChild(label);
+        });
+
+        // Draw right Y-axis line and labels for delay chart (same as time-to-bed graph)
+        const delayChartYAxisRight = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        delayChartYAxisRight.setAttribute('x1', delayChartGraphWidth);
+        delayChartYAxisRight.setAttribute('y1', maxNegativeY);
+        delayChartYAxisRight.setAttribute('x2', delayChartGraphWidth);
+        delayChartYAxisRight.setAttribute('y2', maxPositiveY);
+        delayChartYAxisRight.setAttribute('class', 'axis');
+        delayChartG.appendChild(delayChartYAxisRight);
+
+        delayYTicks.forEach(tick => {
+          const y = delayYScale(tick);
+          const tickLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          tickLine.setAttribute('x1', delayChartGraphWidth);
+          tickLine.setAttribute('y1', y);
+          tickLine.setAttribute('x2', delayChartGraphWidth + 5);
+          tickLine.setAttribute('y2', y);
+          tickLine.setAttribute('class', 'axis');
+          delayChartG.appendChild(tickLine);
+
+          const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          label.setAttribute('x', delayChartGraphWidth + 10);
+          label.setAttribute('y', y + 4);
+          label.setAttribute('class', 'axis-label');
+          label.setAttribute('text-anchor', 'start');
           if (tick < 0) {
             label.textContent = `${Math.abs(tick / 60)}`;
           } else {
@@ -1419,7 +1481,7 @@
         } catch (delayChartError) {
           console.error('Error rendering delay chart:', delayChartError);
           const errorDiv = document.createElement('div');
-          errorDiv.style.cssText = 'color: red; padding: 10px; background: rgba(255,0,0,0.1); margin: 10px 0;';
+          errorDiv.className = 'chart-error';
           errorDiv.textContent = 'Delay chart error: ' + delayChartError.message;
           document.getElementById('delay-chart-container').appendChild(errorDiv);
         }

@@ -599,7 +599,10 @@ Promise.all([
       renderMonthlyStats(monthData, monthStats, index)
     ).join('');
     
-    document.getElementById('stats-container').innerHTML = statsHtml;
+    const topAveragesHtml = typeof renderStatsTopAverages !== 'undefined'
+      ? renderStatsTopAverages(data.days)
+      : '';
+    document.getElementById('stats-container').innerHTML = topAveragesHtml + statsHtml;
     
     // Set up comparison selectors
     document.querySelectorAll('.month-comparison-select').forEach(select => {

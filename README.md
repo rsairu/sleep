@@ -13,7 +13,7 @@ Static, client-side web app for logging and visualizing sleep (bed time, sleep s
 | **Frontend** | Vanilla HTML5, CSS3, JavaScript (no frameworks) |
 | **Data** | JSON files loaded via `fetch()` |
 | **Charts** | SVG drawn in JS (no chart library) |
-| **Styling** | Single `sleep.css` with CSS variables (dark theme) |
+| **Styling** | Single `styles.css` with CSS variables (dark theme) |
 
 - **Data source:** `sleep-data.json` (object with a `days` array of daily records) and `holidays.json` (year → month → list of holiday days).
 - **Shared logic:** `sleep-utils.js` holds time math, date helpers, and `renderNavBar()`. `sleep.js` holds dashboard/timeline/heatmap logic and is the main "core" script. Page-specific scripts: `dashboard.js`, `quality.js`, `graph.js`, `stats.js`.
@@ -81,7 +81,7 @@ Time is normalized as **minutes from midnight** (0–1440) everywhere, with expl
 
 ### UI
 - Shared **nav bar** via `renderNavBar(currentPage)` (Dashboard, Quality, Daily, Graphs, Stats).
-- Dark theme in `sleep.css` (e.g. `--bg`, `--panel`, `--color-sleep`, `--color-alarm`).
+- Dark theme in `styles.css` (e.g. `--bg`, `--panel`, `--color-sleep`, `--color-alarm`).
 - Tooltips and day panels for graph hover.
 
 ---
@@ -99,5 +99,5 @@ Time is normalized as **minutes from midnight** (0–1440) everywhere, with expl
 | `quality.js` | Fetches data and calls `renderCalendarHeatmapFullHistory()` for full history |
 | `graph.js` | Fetches data, regression, SVG line/bar charts |
 | `stats.js` | Monthly aggregation and stat rendering |
-| `sleep.css` | Global styles and CSS variables |
+| `styles.css` | Global styles and CSS variables |
 

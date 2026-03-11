@@ -518,6 +518,12 @@ function renderDay(day, days, dayIndex, options) {
     <div class="day ${dayClasses.join(' ')}">
       <div class="day-content">
         <div class="day-date">${day.date} ${dayOfWeek}${isHolidayDay ? ' 🎉' : ''}</div>
+        <div class="day-stats">
+          <div class="stat-row"><span class="stat-label">${highlightKeyword('fell asleep:', 'asleep')}</span><span class="stat-value">${day.sleepStart}</span></div>
+          <div class="stat-row"><span class="stat-label">${highlightKeyword('sleep duration:', 'sleep')}</span><span class="stat-value">${formatDuration(sleepDuration)}</span></div>
+          <div class="stat-row"><span class="stat-label">longest uninterrupted:</span><span class="stat-value">${formatDuration(longestUninterrupted)}</span></div>
+          ${firstAlarmToWake !== null ? `<div class="stat-row"><span class="stat-label">${highlightKeyword('alarm to wake:', ['alarm', 'wake'])}</span><span class="stat-value ${firstAlarmToWake > ALARM_TO_WAKE_WARNING_THRESHOLD ? 'stat-warning' : ''}">${formatDuration(firstAlarmToWake)}</span></div>` : ''}
+        </div>
         <div class="day-bar-container">
           <div class="${barClass}">
             <!-- Faded overlay for previous day section (22:00-00:00) -->
@@ -554,12 +560,6 @@ function renderDay(day, days, dayIndex, options) {
   html += `<div class="event up" style="--m:${upPos}" data-tooltip="${day.sleepEnd} get up"></div>`;
   
   html += `</div></div>
-        <div class="day-stats">
-          <div class="stat-row"><span class="stat-label">${highlightKeyword('fell asleep:', 'asleep')}</span><span class="stat-value">${day.sleepStart}</span></div>
-          <div class="stat-row"><span class="stat-label">${highlightKeyword('sleep duration:', 'sleep')}</span><span class="stat-value">${formatDuration(sleepDuration)}</span></div>
-          <div class="stat-row"><span class="stat-label">longest uninterrupted:</span><span class="stat-value">${formatDuration(longestUninterrupted)}</span></div>
-          ${firstAlarmToWake !== null ? `<div class="stat-row"><span class="stat-label">${highlightKeyword('alarm to wake:', ['alarm', 'wake'])}</span><span class="stat-value ${firstAlarmToWake > ALARM_TO_WAKE_WARNING_THRESHOLD ? 'stat-warning' : ''}">${formatDuration(firstAlarmToWake)}</span></div>` : ''}
-        </div>
       </div>
       ${deviationWarnings}
     </div>`;
@@ -621,6 +621,22 @@ function renderAveragesColumn(averages, title) {
   `;
 }
 
+// Render top averages for stats page: recent (left) and lifetime (right) in split columns
+function renderStatsTopAverages(days) {
+  if (!days || days.length === 0) return '';
+  const recentDays = days.slice(0, Math.min(3, days.length));
+  const recentAverages = calculateAverages(recentDays);
+  const lifetimeAverages = calculateAverages(days);
+  return `
+    <div class="dashboard-averages-panel stats-top-averages">
+      <div class="averages-container">
+        ${renderAveragesColumn(recentAverages, '🕒 Recent average (3 days)')}
+        ${renderAveragesColumn(lifetimeAverages, '🌳 Lifetime average')}
+      </div>
+    </div>
+  `;
+}
+
 // Render last night column (single day: fell asleep, duration, longest uninterrupted, alarm to wake)
 function renderLastNightColumn(day) {
   const sleepDuration = calculateTotalSleep(day);
@@ -650,15 +666,16 @@ function renderWeekSummary(days) {
   
   return `
     <div class="week-summary">
+      <div class="week-summary-spacer"></div>
+      <div class="day-stats">
+        ${renderAveragesStats(averages)}
+      </div>
       <div class="week-summary-bar">
         <div class="bar">
           <div class="previous-day-overlay"></div>
           <div class="span sleep" style="--start:${avgSleepStartPos}; --end:${avgSleepEndPos}" data-tooltip="average sleep: ${formatTime(avgSleepStart)} - ${formatTime(avgSleepEnd)}"></div>
           ${TIME_TICKS.map((minutes, i) => `<div class="time-tick" style="--m:${minutes}"><span class="tick-label">${tickLabels[i]}</span></div>`).join('')}
         </div>
-      </div>
-      <div class="day-stats">
-        ${renderAveragesStats(averages)}
       </div>
     </div>
   `;
@@ -944,20 +961,39 @@ function renderDashboardProjection(recentAverages) {
   const wakeByLow = Math.max(0, recentAverages.avgSleepEnd - PROJECTION_BAND_MINUTES);
   const wakeByHigh = Math.min(1440, recentAverages.avgSleepEnd + PROJECTION_BAND_MINUTES);
 
+  const sleepTarget = recentAverages.avgBedtime;
+  const wakeTarget = recentAverages.avgSleepEnd;
+  const recommendedDurationMins = wakeTarget >= sleepTarget
+    ? wakeTarget - sleepTarget
+    : 1440 - sleepTarget + wakeTarget;
+
   return `
     <div class="dashboard-projection dashboard-projection--no-box">
-      <h2 class="dashboard-projection-title">Tonight</h2>
-      <p class="dashboard-projection-copy">(recommended per recent 3-day average ±${PROJECTION_BAND_MINUTES} min)</p>
+      <h2 class="dashboard-projection-title">Recommended tonight</h2>
+      <p class="dashboard-projection-copy">(recent three-day average ± ${PROJECTION_BAND_MINUTES} min)</p>
       <div class="dashboard-projection-grid">
         <div class="dashboard-projection-item">
-          <span class="dashboard-projection-label"><span class="proj-keyword proj-sleep">🌙 Sleep</span> by</span>
-          <span class="dashboard-projection-range">${formatTime(sleepByLow)} – ${formatTime(sleepByHigh)}</span>
+          <span class="dashboard-projection-label"><span class="proj-keyword proj-sleep">🌙 Sleep</span></span>
+          <div class="dashboard-projection-row">
+            <span class="dashboard-projection-bounds">${formatTime(sleepByLow)}</span>
+            <span class="dashboard-projection-sep">—</span>
+            <span class="dashboard-projection-target">${formatTime(sleepTarget)}</span>
+            <span class="dashboard-projection-sep">—</span>
+            <span class="dashboard-projection-bounds">${formatTime(sleepByHigh)}</span>
+          </div>
         </div>
         <div class="dashboard-projection-item dashboard-projection-item--wake">
-          <span class="dashboard-projection-label"><span class="proj-keyword proj-wake">🌅 Wake</span> by</span>
-          <span class="dashboard-projection-range">${formatTime(wakeByLow)} – ${formatTime(wakeByHigh)}</span>
+          <span class="dashboard-projection-label"><span class="proj-keyword proj-wake">🌅 Wake</span></span>
+          <div class="dashboard-projection-row">
+            <span class="dashboard-projection-bounds">${formatTime(wakeByLow)}</span>
+            <span class="dashboard-projection-sep">—</span>
+            <span class="dashboard-projection-target">${formatTime(wakeTarget)}</span>
+            <span class="dashboard-projection-sep">—</span>
+            <span class="dashboard-projection-bounds">${formatTime(wakeByHigh)}</span>
+          </div>
         </div>
       </div>
+      <p class="dashboard-projection-duration">(~${formatDuration(recommendedDurationMins)} sleep)</p>
     </div>
   `;
 }
@@ -968,7 +1004,6 @@ function renderDashboardContent(days) {
   if (!days || days.length === 0) {
     return '<p>No sleep data yet.</p>';
   }
-  const lifetimeAverages = calculateAverages(days);
   const recentDays = days.slice(0, Math.min(3, days.length));
   const recentAverages = calculateAverages(recentDays);
 
@@ -976,7 +1011,6 @@ function renderDashboardContent(days) {
   const latestDataDate = getLatestDataDate(days, YEAR);
   const calendarBlockOnly = renderCalendarCurrentMonthOnlyBlock(YEAR, flagMap, latestDataDate);
 
-  const lastNightHtml = renderLastNightColumn(days[0]);
   const pastThreeCount = Math.min(3, days.length);
   const pastThreeNightsHtml = pastThreeCount > 0
     ? `
@@ -989,6 +1023,18 @@ function renderDashboardContent(days) {
     `
     : '';
 
+  const sevenDaySectionHtml = `
+    <h2 class="dashboard-section-title">Last 7 days</h2>
+    <div class="dashboard-7d-row">
+      <div class="dashboard-7d-col">
+        <div class="dashboard-7d-graph-container" id="dashboard-7d-time-graph"></div>
+      </div>
+      <div class="dashboard-7d-col">
+        <div class="dashboard-7d-graph-container" id="dashboard-7d-duration-graph"></div>
+      </div>
+    </div>
+  `;
+
   return `
     <div class="dashboard-content">
       <div class="dashboard-top-row">
@@ -999,14 +1045,7 @@ function renderDashboardContent(days) {
           ${calendarBlockOnly}
         </div>
       </div>
-      <h2 class="dashboard-section-title">Averages</h2>
-      <div class="dashboard-averages-panel">
-        <div class="averages-container">
-          ${lastNightHtml}
-          ${renderAveragesColumn(recentAverages, '🕒 Recent average (3 days)')}
-          ${renderAveragesColumn(lifetimeAverages, '🌳 Lifetime average')}
-        </div>
-      </div>
+      ${sevenDaySectionHtml}
       ${pastThreeNightsHtml}
     </div>
   `;
