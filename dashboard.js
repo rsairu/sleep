@@ -10,6 +10,9 @@ if (dashboardContainer) {
     .then(([sleepData, holidaysData]) => {
       if (typeof holidays !== 'undefined') holidays = holidaysData;
       dashboardContainer.innerHTML = renderDashboardContent(sleepData.days);
+      if (typeof renderDashboard7DayGraphs === 'function') {
+        renderDashboard7DayGraphs(sleepData.days);
+      }
     })
     .catch(error => {
       console.error('Error loading dashboard data:', error);

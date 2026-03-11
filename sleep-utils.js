@@ -121,8 +121,109 @@ function normalizeTimeForComparison(minutes) {
 // Project repo (used in nav bar)
 const GITHUB_REPO_URL = 'https://github.com/rsairu/sleep/';
 
+// Day/night mode: sunrise and sunset in local time (hours 0-23, minutes 0-59)
+const SUNRISE_HOUR = 6;
+const SUNRISE_MINUTE = 0;
+const SUNSET_HOUR = 18;
+const SUNSET_MINUTE = 0;
+
+const THEME_OVERRIDE_KEY = 'sleep-app-theme-override';
+
+// Returns 'day' if current local time is between sunrise and sunset, else 'night'
+function getThemeFromTime() {
+  const now = new Date();
+  const minutesSinceMidnight = now.getHours() * 60 + now.getMinutes();
+  const sunriseMinutes = SUNRISE_HOUR * 60 + SUNRISE_MINUTE;
+  const sunsetMinutes = SUNSET_HOUR * 60 + SUNSET_MINUTE;
+  return minutesSinceMidnight >= sunriseMinutes && minutesSinceMidnight < sunsetMinutes ? 'day' : 'night';
+}
+
+// Returns current theme override from localStorage ('day' | 'night' | null)
+function getThemeOverride() {
+  try {
+    const v = localStorage.getItem(THEME_OVERRIDE_KEY);
+    return v === 'day' || v === 'night' ? v : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+// Sets theme override and saves to localStorage (null = auto)
+function setThemeOverride(theme) {
+  try {
+    if (theme === null) localStorage.removeItem(THEME_OVERRIDE_KEY);
+    else localStorage.setItem(THEME_OVERRIDE_KEY, theme);
+  } catch (_) {}
+}
+
+// Effective theme: override if set, otherwise from time
+function getEffectiveTheme() {
+  const override = getThemeOverride();
+  return override !== null ? override : getThemeFromTime();
+}
+
+// Applies day or night theme to the document; uses override if set. Returns effective theme.
+function applyDayNightTheme() {
+  const theme = getEffectiveTheme();
+  document.documentElement.dataset.theme = theme;
+  return theme;
+}
+
+// Sun icon: filled circle + rays (visible when filled)
+const SUN_ICON = '<svg class="nav-daynight-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM18.894 6.166a.75.75 0 00-1.06-1.06l-1.591 1.59a.75.75 0 101.06 1.061l1.591-1.59zM21.75 12a.75.75 0 01-.75.75h-2.25a.75.75 0 010-1.5H21a.75.75 0 01.75.75zM17.834 18.894a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 10-1.061 1.06l1.59 1.591zM12 18a.75.75 0 01.75.75V21a.75.75 0 01-1.5 0v-2.25A.75.75 0 0112 18zM7.758 17.303l-1.591 1.59a.75.75 0 001.06-1.061l1.591-1.59a.75.75 0 00-1.06-1.06zM6 12a.75.75 0 01-.75.75H3a.75.75 0 010-1.5h2.25A.75.75 0 016 12zM6.697 7.757l-1.59-1.591a.75.75 0 00-1.061 1.06l1.59 1.591a.75.75 0 001.061-1.06z"/></svg>';
+const MOON_ICON = '<svg class="nav-daynight-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z"/></svg>';
+
+function getDayNightTitle(theme, isOverride) {
+  if (theme === 'day') return isOverride ? 'Day mode (manual) — click to change' : 'Day mode (auto) — click to change';
+  return isOverride ? 'Night mode (manual) — click to change' : 'Night mode (auto) — click to change';
+}
+
+// Returns HTML for the day/night indicator icon (sun or moon)
+function getDayNightIconHTML(theme) {
+  const isOverride = getThemeOverride() !== null;
+  const title = getDayNightTitle(theme, isOverride);
+  const svg = theme === 'day' ? SUN_ICON : MOON_ICON;
+  return `<span id="nav-daynight" class="nav-daynight" role="button" title="${title}" aria-label="${title}">${svg}</span>`;
+}
+
+// Updates the nav daynight icon if the element exists (e.g. after theme tick or click)
+function updateDayNightIcon() {
+  const el = document.getElementById('nav-daynight');
+  if (!el) return;
+  const theme = getEffectiveTheme();
+  const isOverride = getThemeOverride() !== null;
+  el.title = getDayNightTitle(theme, isOverride);
+  el.innerHTML = theme === 'day' ? SUN_ICON : MOON_ICON;
+}
+
+// Cycle theme on icon click: auto -> day -> night -> auto
+function handleDayNightClick() {
+  const override = getThemeOverride();
+  const next = override === null ? 'day' : override === 'day' ? 'night' : null;
+  if (next === null) setThemeOverride(null);
+  else setThemeOverride(next);
+  applyDayNightTheme();
+  updateDayNightIcon();
+}
+
+// Initializes day/night theme, click handler, and timer to re-check (when in auto mode)
+function initDayNightTheme() {
+  applyDayNightTheme();
+  updateDayNightIcon();
+  const el = document.getElementById('nav-daynight');
+  if (el) el.addEventListener('click', handleDayNightClick);
+  setInterval(function () {
+    applyDayNightTheme();
+    updateDayNightIcon();
+  }, 60000);
+}
+
 // Render navigation bar
 function renderNavBar(currentPage) {
+  applyDayNightTheme();
+  const theme = getThemeFromTime();
+  const dayNightIcon = getDayNightIconHTML(theme);
+
   const pages = [
     { id: 'dashboard', name: 'Dashboard', url: 'dashboard.html', icon: '🛌' },
     { id: 'quality', name: 'Quality', url: 'quality.html', icon: '🟩' },
@@ -138,6 +239,7 @@ function renderNavBar(currentPage) {
 
   const githubIcon = `<svg class="nav-github-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>`;
   const githubLink = `<a href="${GITHUB_REPO_URL}" class="nav-github-link" target="_blank" rel="noopener noreferrer" title="View on GitHub">${githubIcon}</a>`;
+  const navRight = `<div class="nav-right">${dayNightIcon}${githubLink}</div>`;
 
-  return `<div class="nav-bar"><div class="nav-tabs">${navItems}</div>${githubLink}</div>`;
+  return `<div class="nav-bar"><div class="nav-tabs">${navItems}</div>${navRight}</div>`;
 }

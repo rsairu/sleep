@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Dashboard</title>
-<link rel="stylesheet" href="sleep.css">
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div id="nav-container"></div>
@@ -13,9 +14,11 @@
 
   <script src="sleep-utils.js"></script>
   <script src="sleep.js"></script>
+  <script src="dashboard-7d-graphs.js"></script>
   <script src="dashboard.js"></script>
   <script>
     document.getElementById('nav-container').innerHTML = renderNavBar('dashboard');
+    initDayNightTheme();
   </script>
 </body>
 </html>

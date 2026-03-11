@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sleep Quality History</title>
-<link rel="stylesheet" href="sleep.css">
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div id="nav-container"></div>
@@ -16,6 +17,7 @@
   <script src="quality.js"></script>
   <script>
     document.getElementById('nav-container').innerHTML = renderNavBar('quality');
+    initDayNightTheme();
   </script>
 </body>
 </html>
