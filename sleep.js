@@ -9,12 +9,12 @@ const DATA_FILES = {
 
 // Time constants
 const MILLISECONDS_PER_DAY = 86400000;
-// Timeline runs 20:00 to 20:00 (24 hours). Ticks: 20 (start), 0, 4, 8, 12, 16, 20 (end)
-// In timeline minutes: 0, 240, 600, 840, 1080, 1320, 1440
-const TIME_TICKS = [0, 240, 600, 840, 1080, 1320, 1440]; // 20, 0, 4, 8, 12, 16, 20 hours
-const TIMELINE_START_HOUR = 20; // Timeline starts at 20:00 (1200 minutes from midnight)
-const TIMELINE_START_MINUTES = 1200; // 20:00 in minutes
-const PREVIOUS_DAY_DURATION = 240; // 4 hours from 20:00 to 00:00
+// Timeline runs 21:00 to 21:00 (24 hours). Ticks: 21 (start), 0, 4, 8, 12, 16, 21 (end)
+// In timeline minutes: 0, 180, 420, 660, 900, 1140, 1440
+const TIME_TICKS = [0, 180, 420, 660, 900, 1140, 1440]; // 21, 0, 4, 8, 12, 16, 21 hours
+const TIMELINE_START_HOUR = 21; // Timeline starts at 21:00 (1260 minutes from midnight)
+const TIMELINE_START_MINUTES = 1260; // 21:00 in minutes
+const PREVIOUS_DAY_DURATION = 180; // 3 hours from 21:00 to 00:00
 
 // Holidays data (loaded from holidays.json)
 let holidays = {};
@@ -100,18 +100,18 @@ function formatWeekRange(monday) {
 // Note: timeToMinutes is now in sleep-utils.js
 
 // Convert time (minutes from midnight) to timeline position
-// Timeline runs 20:00 to 20:00 (24h). Times >= 20:00 (1200) → 0–239; times < 20:00 → 240–1439
+// Timeline runs 21:00 to 21:00 (24h). Times >= 21:00 (1260) → 0–179; times < 21:00 → 180–1439
 function timeToTimelinePosition(minutesFromMidnight) {
   if (minutesFromMidnight >= TIMELINE_START_MINUTES) {
-    // 20:00–23:59
+    // 21:00–23:59
     return minutesFromMidnight - TIMELINE_START_MINUTES;
   } else {
-    // 00:00–19:59 (next day on timeline)
+    // 00:00–20:59 (next day on timeline)
     return minutesFromMidnight + PREVIOUS_DAY_DURATION;
   }
 }
 
-// Bed time uses same timeline position as everything else (timeline now starts at 20:00)
+// Bed time uses same timeline position as everything else (timeline now starts at 21:00)
 function bedMinutesForTimeline(bedMinutes) {
   return timeToTimelinePosition(bedMinutes);
 }
@@ -510,8 +510,8 @@ function renderDay(day, days, dayIndex, options) {
   const bedMinutes = timeToMinutes(day.bed);
   const bedPos = bedMinutesForTimeline(bedMinutes);
   
-  // Time tick labels: 20 (start), 0, 4, 8, 12, 16, 20 (end)
-  const tickLabels = [20, 0, 4, 8, 12, 16, 20];
+  // Time tick labels: 21 (start), 0, 4, 8, 12, 16, 21 (end)
+  const tickLabels = [21, 0, 4, 8, 12, 16, 21];
   const barClass = 'bar' + (showTicks ? ' show-ticks' : '');
   
   let html = `
@@ -526,7 +526,7 @@ function renderDay(day, days, dayIndex, options) {
         </div>
         <div class="day-bar-container">
           <div class="${barClass}">
-            <!-- Faded overlay for previous day section (22:00-00:00) -->
+            <!-- Faded overlay for previous day section (21:00-00:00) -->
             <div class="previous-day-overlay"></div>
             <div class="span sleep" style="--start:${sleepStartPos}; --end:${sleepEndPos}" data-tooltip="sleep duration: ${formatDuration(sleepDuration)}"></div>
             <!-- Time tick marks -->
@@ -662,7 +662,7 @@ function renderWeekSummary(days) {
   const avgSleepEnd = averages.avgSleepEnd;
   const avgSleepStartPos = timeToTimelinePosition(avgSleepStart);
   const avgSleepEndPos = timeToTimelinePosition(avgSleepEnd);
-  const tickLabels = [20, 0, 4, 8, 12, 16, 20];
+  const tickLabels = [21, 0, 4, 8, 12, 16, 21];
   
   return `
     <div class="week-summary">
