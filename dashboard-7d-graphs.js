@@ -75,6 +75,14 @@ function evaluatePolynomial(coefficients, x) {
   return result;
 }
 
+/** For last-7-days charts: "Last Nite" (2 lines) for the most recent day, otherwise three-letter weekday (Mon, Tue, …). */
+function get7DayAxisLabel(point, index, total) {
+  if (index === total - 1) return null; // rendered as two-line "Last Nite" in the graph
+  const d = new Date(point.date);
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  return days[d.getDay()];
+}
+
 function buildPoints(days) {
   return days.map(day => {
     const rawBed = timeToMinutes(day.bed);
@@ -177,7 +185,6 @@ function render7DayTimeGraph(container, points) {
   });
 
   points.forEach((point, index) => {
-    const [month, day] = point.dateString.split('/').map(Number);
     const x = xScale(point.date);
     const tickLine = ns('line');
     tickLine.setAttribute('x1', x); tickLine.setAttribute('y1', graphHeight);
@@ -186,10 +193,24 @@ function render7DayTimeGraph(container, points) {
     g.appendChild(tickLine);
     const label = ns('text');
     label.setAttribute('x', x);
-    label.setAttribute('y', graphHeight + 14);
     label.setAttribute('class', 'axis-label');
     label.setAttribute('text-anchor', 'middle');
-    label.textContent = `${month}/${day}`;
+    const text = get7DayAxisLabel(point, index, points.length);
+    if (text === null) {
+      label.setAttribute('y', graphHeight + 10);
+      const t1 = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+      t1.setAttribute('x', x);
+      t1.textContent = 'Last';
+      const t2 = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+      t2.setAttribute('x', x);
+      t2.setAttribute('dy', '1em');
+      t2.textContent = 'Nite';
+      label.appendChild(t1);
+      label.appendChild(t2);
+    } else {
+      label.setAttribute('y', graphHeight + 14);
+      label.textContent = text;
+    }
     g.appendChild(label);
   });
 
@@ -323,8 +344,7 @@ function render7DayDurationChart(container, points) {
     g.appendChild(label);
   });
 
-  points.forEach(point => {
-    const [month, day] = point.dateString.split('/').map(Number);
+  points.forEach((point, index) => {
     const x = xScale(point.date);
     const tickLine = ns('line');
     tickLine.setAttribute('x1', x); tickLine.setAttribute('y1', graphHeight);
@@ -332,9 +352,25 @@ function render7DayDurationChart(container, points) {
     tickLine.setAttribute('class', 'axis');
     g.appendChild(tickLine);
     const label = ns('text');
-    label.setAttribute('x', x); label.setAttribute('y', graphHeight + 14);
-    label.setAttribute('class', 'axis-label'); label.setAttribute('text-anchor', 'middle');
-    label.textContent = `${month}/${day}`;
+    label.setAttribute('x', x);
+    label.setAttribute('class', 'axis-label');
+    label.setAttribute('text-anchor', 'middle');
+    const text = get7DayAxisLabel(point, index, points.length);
+    if (text === null) {
+      label.setAttribute('y', graphHeight + 10);
+      const t1 = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+      t1.setAttribute('x', x);
+      t1.textContent = 'Last';
+      const t2 = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+      t2.setAttribute('x', x);
+      t2.setAttribute('dy', '1em');
+      t2.textContent = 'Nite';
+      label.appendChild(t1);
+      label.appendChild(t2);
+    } else {
+      label.setAttribute('y', graphHeight + 14);
+      label.textContent = text;
+    }
     g.appendChild(label);
   });
 

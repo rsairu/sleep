@@ -1,6 +1,6 @@
 :root{
-  --minutes: 1440; /* 24 hours: 20:00 to 20:00 next day */
-  --previous-day-minutes: 240; /* 4 hours: 20:00-00:00 */
+  --minutes: 1440; /* 24 hours: 21:00 to 21:00 next day */
+  --previous-day-minutes: 180; /* 3 hours: 21:00-00:00 */
   --bar-h: 18px;
   --tick-h: 30px;
   --tick-w: 3px;
@@ -879,7 +879,7 @@ body{
   overflow: visible;
 }
 
-/* Faded overlay for previous day section (22:00-00:00) */
+/* Faded overlay for previous day section (21:00-00:00) */
 .previous-day-overlay{
   position: absolute;
   top: 0;
