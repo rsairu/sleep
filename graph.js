@@ -1,109 +1,4 @@
-// Note: timeToMinutes and formatTime are now in sleep-utils.js
-// Use formatTime(minutes, true) for short midnight format ("00")
-
-// Normalize time for Y-axis positioning
-// Y-axis now goes from 5PM (17:00) to 5PM next day
-// Times before 5PM (00:00-16:59) should appear after midnight (add 1440)
-// Times from 5PM onwards (17:00-23:59) stay as is
-// Times after midnight (00:00-16:59) get 1440 added to appear after 23:59
-function normalizeTimeForYAxis(minutes) {
-  if (minutes < 1020) { // Before 5pm (17:00)
-    return minutes + 1440; // Add 24 hours to make them appear after midnight
-  }
-  return minutes; // 17:00-23:59 stay as is
-}
-
-// Note: parseDate (getDateFromString), calculateTotalSleep, formatDuration, 
-// isWeekend, and isHoliday are now in sleep-utils.js
-// Use getDateFromString(dateString, year) instead of parseDate
-
-// Polynomial regression function (non-linear)
-// Returns coefficients [a, b, c] for y = a*x² + b*x + c (quadratic)
-// Can be extended to higher degrees if needed
-function polynomialRegression(xValues, yValues, degree = 2) {
-  const n = xValues.length;
-  
-  // Build the design matrix X
-  const X = [];
-  for (let i = 0; i < n; i++) {
-    const row = [];
-    for (let d = degree; d >= 0; d--) {
-      row.push(Math.pow(xValues[i], d));
-    }
-    X.push(row);
-  }
-  
-  // Build X^T * X and X^T * Y
-  const XTX = [];
-  const XTY = [];
-  
-  for (let i = 0; i <= degree; i++) {
-    XTX[i] = [];
-    XTY[i] = 0;
-    for (let j = 0; j <= degree; j++) {
-      let sum = 0;
-      for (let k = 0; k < n; k++) {
-        sum += X[k][i] * X[k][j];
-      }
-      XTX[i][j] = sum;
-    }
-    for (let k = 0; k < n; k++) {
-      XTY[i] += X[k][i] * yValues[k];
-    }
-  }
-  
-  // Solve the system using Gaussian elimination
-  const coefficients = solveLinearSystem(XTX, XTY);
-  
-  return coefficients; // [a, b, c] for quadratic, or [a, b] for linear, etc.
-}
-
-// Helper function to solve linear system using Gaussian elimination
-function solveLinearSystem(A, b) {
-  const n = A.length;
-  const augmented = A.map((row, i) => [...row, b[i]]);
-  
-  // Forward elimination
-  for (let i = 0; i < n; i++) {
-    // Find pivot
-    let maxRow = i;
-    for (let k = i + 1; k < n; k++) {
-      if (Math.abs(augmented[k][i]) > Math.abs(augmented[maxRow][i])) {
-        maxRow = k;
-      }
-    }
-    [augmented[i], augmented[maxRow]] = [augmented[maxRow], augmented[i]];
-    
-    // Make all rows below this one 0 in current column
-    for (let k = i + 1; k < n; k++) {
-      const factor = augmented[k][i] / augmented[i][i];
-      for (let j = i; j <= n; j++) {
-        augmented[k][j] -= factor * augmented[i][j];
-      }
-    }
-  }
-  
-  // Back substitution
-  const x = new Array(n);
-  for (let i = n - 1; i >= 0; i--) {
-    x[i] = augmented[i][n];
-    for (let j = i + 1; j < n; j++) {
-      x[i] -= augmented[i][j] * x[j];
-    }
-    x[i] /= augmented[i][i];
-  }
-  
-  return x;
-}
-
-// Evaluate polynomial at given x value
-function evaluatePolynomial(coefficients, x) {
-  let result = 0;
-  for (let i = 0; i < coefficients.length; i++) {
-    result += coefficients[i] * Math.pow(x, coefficients.length - 1 - i);
-  }
-  return result;
-}
+// Graph page rendering. Shared math/time helpers live in sleep-utils.js.
 
 // Load and render graph
 Promise.all([
@@ -150,7 +45,10 @@ Promise.all([
         dateString: day.date,
         sleepDurationMinutes: sleepDuration,
         mainSleepMinutes: mainSleep,
-        napMinutes: napDuration
+        napMinutes: napDuration,
+        wakeDelayMinutes: calculateWakeDelay(day),
+        sleepDelayMinutes: calculateSleepDelay(day),
+        firstAlarm: day.alarm && day.alarm.length > 0 ? day.alarm[0] : null
       };
     });
 
@@ -1007,6 +905,275 @@ Promise.all([
       errorDiv.style.cssText = 'color: red; padding: 10px; background: rgba(255,0,0,0.1); margin: 10px 0;';
       errorDiv.textContent = 'Bar chart error: ' + barChartError.message;
       document.getElementById('bar-chart-container').appendChild(errorDiv);
+    }
+
+    // ===== DELAY CHART: Wake Delay (top) and Sleep Delay (bottom) =====
+    try {
+      if (typeof xScale === 'undefined' || typeof dayWidth === 'undefined' || typeof monthNames === 'undefined' || !points) {
+        throw new Error('Required variables not available for delay chart');
+      }
+
+      const delayChartMargin = { top: 40, right: 80, bottom: 60, left: 80 };
+      const delayChartWidth = width;
+      const delayChartHeight = 600;
+      const delayChartGraphWidth = delayChartWidth - delayChartMargin.left - delayChartMargin.right;
+      const delayChartGraphHeight = delayChartHeight - delayChartMargin.top - delayChartMargin.bottom;
+
+      const delayChartSvg = document.getElementById('delay-chart-svg');
+      if (!delayChartSvg) {
+        throw new Error('Delay chart SVG element not found');
+      }
+      delayChartSvg.setAttribute('width', delayChartWidth);
+      delayChartSvg.setAttribute('height', delayChartHeight);
+
+      const delayChartG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      delayChartG.setAttribute('transform', `translate(${delayChartMargin.left},${delayChartMargin.top})`);
+      delayChartSvg.appendChild(delayChartG);
+
+      const delayYMin = -180;
+      const delayYMax = 180;
+      const negativeHeight = delayChartGraphHeight * 0.5;
+      const positiveHeight = delayChartGraphHeight * 0.5;
+      const zeroY = delayChartGraphHeight / 2;
+      const delayYScale = (minutes) => {
+        if (minutes >= 0) {
+          return zeroY - (minutes / delayYMax) * positiveHeight;
+        }
+        const negativeRange = Math.abs(delayYMin);
+        return zeroY + (Math.abs(minutes) / negativeRange) * negativeHeight;
+      };
+
+      const delayYTicks = [];
+      for (let hour = -3; hour <= -1; hour++) delayYTicks.push(hour * 60);
+      for (let hour = 0; hour <= 3; hour++) delayYTicks.push(hour * 60);
+
+      delayYTicks.forEach(tick => {
+        const y = delayYScale(tick);
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', 0);
+        line.setAttribute('y1', y);
+        line.setAttribute('x2', delayChartGraphWidth);
+        line.setAttribute('y2', y);
+        line.setAttribute('class', 'grid-line');
+        if (tick === 0) line.setAttribute('stroke-width', '2');
+        delayChartG.appendChild(line);
+      });
+
+      const delayChartXAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      delayChartXAxis.setAttribute('x1', 0);
+      delayChartXAxis.setAttribute('y1', zeroY);
+      delayChartXAxis.setAttribute('x2', delayChartGraphWidth);
+      delayChartXAxis.setAttribute('y2', zeroY);
+      delayChartXAxis.setAttribute('class', 'axis');
+      delayChartG.appendChild(delayChartXAxis);
+
+      const maxNegativeY = delayYScale(delayYMin);
+      const maxPositiveY = delayYScale(delayYMax);
+      const delayChartYAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      delayChartYAxis.setAttribute('x1', 0);
+      delayChartYAxis.setAttribute('y1', maxNegativeY);
+      delayChartYAxis.setAttribute('x2', 0);
+      delayChartYAxis.setAttribute('y2', maxPositiveY);
+      delayChartYAxis.setAttribute('class', 'axis');
+      delayChartG.appendChild(delayChartYAxis);
+
+      delayYTicks.forEach(tick => {
+        const y = delayYScale(tick);
+        const tickLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        tickLine.setAttribute('x1', -5);
+        tickLine.setAttribute('y1', y);
+        tickLine.setAttribute('x2', 0);
+        tickLine.setAttribute('y2', y);
+        tickLine.setAttribute('class', 'axis');
+        delayChartG.appendChild(tickLine);
+
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.setAttribute('x', -10);
+        label.setAttribute('y', y + 4);
+        label.setAttribute('class', 'axis-label');
+        label.setAttribute('text-anchor', 'end');
+        label.textContent = tick < 0 ? `${Math.abs(tick / 60)}` : `${tick / 60}h`;
+        delayChartG.appendChild(label);
+      });
+
+      const delayChartYAxisRight = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      delayChartYAxisRight.setAttribute('x1', delayChartGraphWidth);
+      delayChartYAxisRight.setAttribute('y1', maxNegativeY);
+      delayChartYAxisRight.setAttribute('x2', delayChartGraphWidth);
+      delayChartYAxisRight.setAttribute('y2', maxPositiveY);
+      delayChartYAxisRight.setAttribute('class', 'axis');
+      delayChartG.appendChild(delayChartYAxisRight);
+
+      delayYTicks.forEach(tick => {
+        const y = delayYScale(tick);
+        const tickLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        tickLine.setAttribute('x1', delayChartGraphWidth);
+        tickLine.setAttribute('y1', y);
+        tickLine.setAttribute('x2', delayChartGraphWidth + 5);
+        tickLine.setAttribute('y2', y);
+        tickLine.setAttribute('class', 'axis');
+        delayChartG.appendChild(tickLine);
+
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.setAttribute('x', delayChartGraphWidth + 10);
+        label.setAttribute('y', y + 4);
+        label.setAttribute('class', 'axis-label');
+        label.setAttribute('text-anchor', 'start');
+        label.textContent = tick < 0 ? `${Math.abs(tick / 60)}` : `${tick / 60}h`;
+        delayChartG.appendChild(label);
+      });
+
+      points.forEach((point) => {
+        const [month, day] = point.dateString.split('/').map(Number);
+        if (day === 1) {
+          const x = xScale(point.date);
+          const tickLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          tickLine.setAttribute('x1', x);
+          tickLine.setAttribute('y1', zeroY);
+          tickLine.setAttribute('x2', x);
+          tickLine.setAttribute('y2', zeroY + 5);
+          tickLine.setAttribute('class', 'axis');
+          delayChartG.appendChild(tickLine);
+
+          const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          label.setAttribute('x', x);
+          label.setAttribute('y', zeroY + 20);
+          label.setAttribute('class', 'axis-label');
+          label.setAttribute('text-anchor', 'middle');
+          label.textContent = monthNames[month - 1];
+          delayChartG.appendChild(label);
+        }
+      });
+
+      const delayChartXAxisTitle = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      delayChartXAxisTitle.setAttribute('x', delayChartMargin.left + delayChartGraphWidth / 2);
+      delayChartXAxisTitle.setAttribute('y', delayChartHeight - 10);
+      delayChartXAxisTitle.setAttribute('class', 'axis-title');
+      delayChartXAxisTitle.setAttribute('text-anchor', 'middle');
+      delayChartXAxisTitle.textContent = 'Date';
+      delayChartSvg.appendChild(delayChartXAxisTitle);
+
+      const delayChartYAxisTitle = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      delayChartYAxisTitle.setAttribute('x', -delayChartHeight / 2);
+      delayChartYAxisTitle.setAttribute('y', 20);
+      delayChartYAxisTitle.setAttribute('class', 'axis-title');
+      delayChartYAxisTitle.setAttribute('text-anchor', 'middle');
+      delayChartYAxisTitle.setAttribute('transform', 'rotate(-90)');
+      delayChartYAxisTitle.textContent = 'Delay';
+      delayChartSvg.appendChild(delayChartYAxisTitle);
+
+      const delayBarWidth = Math.max(2, dayWidth * 0.8);
+      points.forEach((point) => {
+        const x = xScale(point.date);
+
+        if (point.sleepDelayMinutes !== null && point.sleepDelayMinutes !== undefined && point.sleepDelayMinutes > 0) {
+          const sleepDelayNegative = -point.sleepDelayMinutes;
+          const delayBarBottomY = delayYScale(sleepDelayNegative);
+          const delayBarHeight = delayBarBottomY - zeroY;
+          if (delayBarHeight > 0 && !isNaN(delayBarHeight)) {
+            const sleepDelayRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            sleepDelayRect.setAttribute('x', x - delayBarWidth / 2);
+            sleepDelayRect.setAttribute('y', zeroY);
+            sleepDelayRect.setAttribute('width', delayBarWidth);
+            sleepDelayRect.setAttribute('height', delayBarHeight);
+            sleepDelayRect.setAttribute('class', 'sleep-bar delay-bar');
+
+            sleepDelayRect.addEventListener('mouseenter', () => {
+              tooltip.textContent = `${point.dateString}: ${formatDuration(point.sleepDelayMinutes)} sleep delay (bed ${point.bedTimeString} -> sleep ${point.sleepStartString})`;
+              tooltip.classList.add('visible');
+            });
+            sleepDelayRect.addEventListener('mousemove', (e) => {
+              tooltip.style.left = (e.clientX + 10) + 'px';
+              tooltip.style.top = (e.clientY - 10) + 'px';
+            });
+            sleepDelayRect.addEventListener('mouseleave', () => {
+              tooltip.classList.remove('visible');
+            });
+            delayChartG.appendChild(sleepDelayRect);
+          }
+        }
+
+        if (point.wakeDelayMinutes !== null && point.wakeDelayMinutes !== undefined && point.wakeDelayMinutes > 0) {
+          const wakeDelayBarY = delayYScale(point.wakeDelayMinutes);
+          const wakeDelayBarHeight = zeroY - wakeDelayBarY;
+          if (wakeDelayBarHeight > 0 && !isNaN(wakeDelayBarHeight) && wakeDelayBarY >= 0) {
+            const wakeDelayRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            wakeDelayRect.setAttribute('x', x - delayBarWidth / 2);
+            wakeDelayRect.setAttribute('y', wakeDelayBarY);
+            wakeDelayRect.setAttribute('width', delayBarWidth);
+            wakeDelayRect.setAttribute('height', wakeDelayBarHeight);
+            wakeDelayRect.setAttribute('class', 'sleep-bar wake-delay-bar');
+
+            wakeDelayRect.addEventListener('mouseenter', () => {
+              const alarmText = point.firstAlarm ? ` (alarm ${point.firstAlarm} -> get up ${point.getUpString})` : '';
+              tooltip.textContent = `${point.dateString}: ${formatDuration(point.wakeDelayMinutes)} wake delay${alarmText}`;
+              tooltip.classList.add('visible');
+            });
+            wakeDelayRect.addEventListener('mousemove', (e) => {
+              tooltip.style.left = (e.clientX + 10) + 'px';
+              tooltip.style.top = (e.clientY - 10) + 'px';
+            });
+            wakeDelayRect.addEventListener('mouseleave', () => {
+              tooltip.classList.remove('visible');
+            });
+            delayChartG.appendChild(wakeDelayRect);
+          }
+        }
+      });
+
+      const wakeDelayPoints = points.filter(p => p.wakeDelayMinutes !== null && p.wakeDelayMinutes !== undefined && p.wakeDelayMinutes > 0);
+      if (wakeDelayPoints.length > 0) {
+        const wakeDelayXValues = wakeDelayPoints.map(point => points.indexOf(point));
+        const wakeDelayYValues = wakeDelayPoints.map(point => point.wakeDelayMinutes);
+        const wakeDelayRegression = polynomialRegression(wakeDelayXValues, wakeDelayYValues, 2);
+
+        const wakeDelayTrendPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        let wakeDelayTrendPathData = '';
+        for (let i = 0; i < points.length; i++) {
+          const predictedValue = evaluatePolynomial(wakeDelayRegression, i);
+          if (predictedValue > 0) {
+            const x = xScale(points[i].date);
+            const y = delayYScale(predictedValue);
+            const clampedY = Math.max(0, Math.min(zeroY, y));
+            wakeDelayTrendPathData += wakeDelayTrendPathData ? ` L ${x} ${clampedY}` : `M ${x} ${clampedY}`;
+          }
+        }
+        wakeDelayTrendPath.setAttribute('d', wakeDelayTrendPathData);
+        wakeDelayTrendPath.setAttribute('class', 'regression-line wake-delay-trend');
+        wakeDelayTrendPath.setAttribute('id', 'wake-delay-trend-line');
+        wakeDelayTrendPath.setAttribute('fill', 'none');
+        delayChartG.appendChild(wakeDelayTrendPath);
+      }
+
+      const sleepDelayPoints = points.filter(p => p.sleepDelayMinutes !== null && p.sleepDelayMinutes !== undefined && p.sleepDelayMinutes > 0);
+      if (sleepDelayPoints.length > 0) {
+        const sleepDelayXValues = sleepDelayPoints.map(point => points.indexOf(point));
+        const sleepDelayYValues = sleepDelayPoints.map(point => point.sleepDelayMinutes);
+        const sleepDelayRegression = polynomialRegression(sleepDelayXValues, sleepDelayYValues, 2);
+
+        const sleepDelayTrendPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        let sleepDelayTrendPathData = '';
+        for (let i = 0; i < points.length; i++) {
+          const predictedValue = evaluatePolynomial(sleepDelayRegression, i);
+          if (predictedValue > 0) {
+            const x = xScale(points[i].date);
+            const y = delayYScale(-predictedValue);
+            const clampedY = Math.max(zeroY, Math.min(delayChartGraphHeight, y));
+            sleepDelayTrendPathData += sleepDelayTrendPathData ? ` L ${x} ${clampedY}` : `M ${x} ${clampedY}`;
+          }
+        }
+        sleepDelayTrendPath.setAttribute('d', sleepDelayTrendPathData);
+        sleepDelayTrendPath.setAttribute('class', 'regression-line sleep-delay-trend');
+        sleepDelayTrendPath.setAttribute('id', 'sleep-delay-trend-line');
+        sleepDelayTrendPath.setAttribute('fill', 'none');
+        delayChartG.appendChild(sleepDelayTrendPath);
+      }
+    } catch (delayChartError) {
+      console.error('Error rendering delay chart:', delayChartError);
+      const errorDiv = document.createElement('div');
+      errorDiv.className = 'chart-error';
+      errorDiv.textContent = 'Delay chart error: ' + delayChartError.message;
+      document.getElementById('delay-chart-container').appendChild(errorDiv);
     }
   })
   .catch(error => {

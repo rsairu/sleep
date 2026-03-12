@@ -62,7 +62,7 @@ function getDateFromString(dateString, year = 2026) {
 
 // Check if a date is a weekend (Saturday or Sunday)
 // Accepts either a Date object or dateString
-function isWeekend(dateOrString, year = 2026, holidays = null) {
+function isWeekend(dateOrString, year = 2026) {
   let date;
   if (dateOrString instanceof Date) {
     date = dateOrString;
@@ -116,6 +116,162 @@ function normalizeTimeForComparison(minutes) {
     return minutes - 1440;
   }
   return minutes;
+}
+
+// Normalize time for Y-axis positioning where chart starts at 17:00.
+function normalizeTimeForYAxis(minutes) {
+  if (minutes < 1020) {
+    return minutes + 1440;
+  }
+  return minutes;
+}
+
+// Calculate longest uninterrupted sleep (ignoring bathroom, including alarms and sick)
+function calculateLongestUninterrupted(day) {
+  const sleepStart = timeToMinutes(day.sleepStart);
+  const sleepEnd = timeToMinutes(day.sleepEnd);
+  const normalizedSleepEnd = sleepEnd >= sleepStart ? sleepEnd : sleepEnd + 1440;
+  const sleepDuration = normalizedSleepEnd - sleepStart;
+
+  const normalizeInterruption = (m) => {
+    if (sleepEnd < sleepStart && m < sleepStart) {
+      return m + 1440;
+    }
+    return m;
+  };
+
+  const alarmInterruptions = (day.alarm || [])
+    .map(timeToMinutes)
+    .map(normalizeInterruption)
+    .filter(m => m >= sleepStart && m <= normalizedSleepEnd);
+
+  const sickInterruptions = (day.sick || [])
+    .map(timeToMinutes)
+    .map(normalizeInterruption)
+    .filter(m => m >= sleepStart && m <= normalizedSleepEnd);
+
+  const interruptions = [...alarmInterruptions, ...sickInterruptions];
+  interruptions.sort((a, b) => a - b);
+
+  if (interruptions.length === 0) {
+    return sleepDuration;
+  }
+
+  let longest = 0;
+  let start = sleepStart;
+  for (const interrupt of interruptions) {
+    const duration = interrupt - start;
+    if (duration > longest) longest = duration;
+    start = interrupt;
+  }
+
+  const lastDuration = normalizedSleepEnd - start;
+  if (lastDuration > longest) longest = lastDuration;
+  return longest;
+}
+
+// Calculate time from first alarm to get up
+function calculateFirstAlarmToWake(day) {
+  if (!day.alarm || day.alarm.length === 0) {
+    return null;
+  }
+  const firstAlarm = Math.min(...day.alarm.map(timeToMinutes));
+  const wakeTime = timeToMinutes(day.sleepEnd);
+  return wakeTime - firstAlarm;
+}
+
+// Calculate delay from bed time to falling asleep
+function calculateSleepDelay(day) {
+  const bedTime = timeToMinutes(day.bed);
+  const sleepStart = timeToMinutes(day.sleepStart);
+  let delay = sleepStart - bedTime;
+  if (delay < 0) delay += 1440;
+  return delay;
+}
+
+// Calculate delay from first alarm to wake time (snooze delay)
+function calculateWakeDelay(day) {
+  if (!day.alarm || day.alarm.length === 0) {
+    return null;
+  }
+  const firstAlarm = Math.min(...day.alarm.map(timeToMinutes));
+  const wakeTime = timeToMinutes(day.sleepEnd);
+  let delay = wakeTime - firstAlarm;
+  if (delay < 0 && firstAlarm >= 1080) {
+    delay = (wakeTime + 1440) - firstAlarm;
+  }
+  return delay > 0 ? delay : null;
+}
+
+function calculateBedToSleepDelay(day) {
+  return calculateSleepDelay(day);
+}
+
+function calculateNapDuration(day) {
+  if (!day.nap || !day.nap.start || !day.nap.end) {
+    return null;
+  }
+  const napStart = timeToMinutes(day.nap.start);
+  const napEnd = timeToMinutes(day.nap.end);
+  return napEnd >= napStart ? napEnd - napStart : napEnd + 1440 - napStart;
+}
+
+function solveLinearSystem(A, b) {
+  const n = A.length;
+  const augmented = A.map((row, i) => [...row, b[i]]);
+  for (let i = 0; i < n; i++) {
+    let maxRow = i;
+    for (let k = i + 1; k < n; k++) {
+      if (Math.abs(augmented[k][i]) > Math.abs(augmented[maxRow][i])) {
+        maxRow = k;
+      }
+    }
+    [augmented[i], augmented[maxRow]] = [augmented[maxRow], augmented[i]];
+    for (let k = i + 1; k < n; k++) {
+      const factor = augmented[k][i] / augmented[i][i];
+      for (let j = i; j <= n; j++) {
+        augmented[k][j] -= factor * augmented[i][j];
+      }
+    }
+  }
+  const x = new Array(n);
+  for (let i = n - 1; i >= 0; i--) {
+    x[i] = augmented[i][n];
+    for (let j = i + 1; j < n; j++) x[i] -= augmented[i][j] * x[j];
+    x[i] /= augmented[i][i];
+  }
+  return x;
+}
+
+function polynomialRegression(xValues, yValues, degree = 2) {
+  const n = xValues.length;
+  const X = [];
+  for (let i = 0; i < n; i++) {
+    const row = [];
+    for (let d = degree; d >= 0; d--) row.push(Math.pow(xValues[i], d));
+    X.push(row);
+  }
+  const XTX = [];
+  const XTY = [];
+  for (let i = 0; i <= degree; i++) {
+    XTX[i] = [];
+    XTY[i] = 0;
+    for (let j = 0; j <= degree; j++) {
+      let sum = 0;
+      for (let k = 0; k < n; k++) sum += X[k][i] * X[k][j];
+      XTX[i][j] = sum;
+    }
+    for (let k = 0; k < n; k++) XTY[i] += X[k][i] * yValues[k];
+  }
+  return solveLinearSystem(XTX, XTY);
+}
+
+function evaluatePolynomial(coefficients, x) {
+  let result = 0;
+  for (let i = 0; i < coefficients.length; i++) {
+    result += coefficients[i] * Math.pow(x, coefficients.length - 1 - i);
+  }
+  return result;
 }
 
 // Project repo (used in nav bar)

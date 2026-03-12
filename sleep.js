@@ -12,7 +12,6 @@ const MILLISECONDS_PER_DAY = 86400000;
 // Timeline runs 21:00 to 21:00 (24 hours). Ticks: 21 (start), 0, 4, 8, 12, 16, 21 (end)
 // In timeline minutes: 0, 180, 420, 660, 900, 1140, 1440
 const TIME_TICKS = [0, 180, 420, 660, 900, 1140, 1440]; // 21, 0, 4, 8, 12, 16, 21 hours
-const TIMELINE_START_HOUR = 21; // Timeline starts at 21:00 (1260 minutes from midnight)
 const TIMELINE_START_MINUTES = 1260; // 21:00 in minutes
 const PREVIOUS_DAY_DURATION = 180; // 3 hours from 21:00 to 00:00
 
@@ -61,17 +60,6 @@ function groupDaysByWeek(days) {
   return Array.from(weeks.values()).sort((a, b) => b.monday.getTime() - a.monday.getTime());
 }
 
-// True if the week (Monday-Sunday) contains today
-function isCurrentWeek(monday) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const mon = new Date(monday);
-  mon.setHours(0, 0, 0, 0);
-  const sun = new Date(mon);
-  sun.setDate(sun.getDate() + 6);
-  return today >= mon && today <= sun;
-}
-
 // True if the week is current or the week immediately before (both shown expanded by default)
 function isCurrentOrPreviousWeek(monday) {
   const currentMonday = getMondayOfWeek(new Date());
@@ -117,134 +105,6 @@ function bedMinutesForTimeline(bedMinutes) {
 }
 
 // Note: formatDuration and formatTime are now in sleep-utils.js
-
-// Convert 12-hour time string to 24-hour format
-// Handles formats like "10:40" (PM), "2:10" (AM), "9" (AM)
-function convertTo24Hour(timeStr, isPM = false) {
-  // Handle simple number format (e.g., "9" or "10")
-  if (!timeStr.includes(':')) {
-    const hour = parseInt(timeStr, 10);
-    if (isPM) {
-      const hour24 = hour === 12 ? 12 : hour + 12;
-      return `${String(hour24).padStart(2, '0')}:00`;
-    } else {
-      const hour24 = hour === 12 ? 0 : hour;
-      return `${String(hour24).padStart(2, '0')}:00`;
-    }
-  }
-  
-  // Handle HH:MM format
-  const [hours, minutes] = timeStr.split(':').map(Number);
-  let hour24;
-  
-  if (isPM) {
-    // PM times: 12 PM = 12, 1-11 PM = 13-23
-    hour24 = hours === 12 ? 12 : hours + 12;
-  } else {
-    // AM times: 12 AM = 0, 1-11 AM = 1-11
-    hour24 = hours === 12 ? 0 : hours;
-  }
-  
-  return `${String(hour24).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-}
-
-// Parse new format text and convert to day object
-// Format example:
-//   1/16
-//   bed 10:40
-//   sleep 2:10
-//   bathroom 4:40
-//   alarm 9, 10
-//   up 10:10
-// 
-// Usage:
-//   const day = parseNewFormat(text);
-//   sleepData.days.unshift(day); // Add to beginning of days array
-function parseNewFormat(text) {
-  const lines = text.trim().split('\n').map(line => line.trim()).filter(line => line);
-  
-  if (lines.length === 0) {
-    throw new Error('Empty input');
-  }
-  
-  // Parse date (first line)
-  const dateMatch = lines[0].match(/^(\d+)\/(\d+)$/);
-  if (!dateMatch) {
-    throw new Error(`Invalid date format: ${lines[0]}`);
-  }
-  const date = `${dateMatch[1]}/${dateMatch[2]}`;
-  
-  // Initialize day object
-  const day = {
-    date: date,
-    bed: null,
-    sleepStart: null,
-    sleepEnd: null,
-    bathroom: [],
-    alarm: [],
-    sick: [],
-    nap: null
-  };
-  
-  // Parse remaining lines
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i];
-    const parts = line.split(/\s+/);
-    const type = parts[0].toLowerCase();
-    const value = parts.slice(1).join(' ');
-    
-    switch (type) {
-      case 'bed':
-        // Bed time is PM (evening, before midnight)
-        day.bed = convertTo24Hour(value, true);
-        break;
-        
-      case 'sleep':
-        // Fell asleep is AM (early morning, after midnight)
-        day.sleepStart = convertTo24Hour(value, false);
-        break;
-        
-      case 'up':
-        // Up time is AM (morning wake time)
-        day.sleepEnd = convertTo24Hour(value, false);
-        break;
-        
-      case 'bathroom':
-        // Bathroom time is AM (during sleep, after midnight)
-        day.bathroom.push(convertTo24Hour(value, false));
-        break;
-        
-      case 'alarm':
-        // Alarm times are AM (morning alarms), can be comma-separated numbers or times
-        const alarmValues = value.split(',').map(v => v.trim());
-        alarmValues.forEach(alarmVal => {
-          day.alarm.push(convertTo24Hour(alarmVal, false));
-        });
-        break;
-        
-      case 'sick':
-        // Sick times are AM (during sleep, after midnight)
-        const sickValues = value.split(',').map(v => v.trim());
-        sickValues.forEach(sickVal => {
-          day.sick.push(convertTo24Hour(sickVal, false));
-        });
-        break;
-        
-      case 'nap':
-        // Nap format: "start end" or "start, end" (typically afternoon, so PM)
-        const napParts = value.split(/[\s,]+/);
-        if (napParts.length >= 2) {
-          day.nap = {
-            start: convertTo24Hour(napParts[0], true), // Nap start is usually PM
-            end: convertTo24Hour(napParts[1], true)      // Nap end is usually PM
-          };
-        }
-        break;
-    }
-  }
-  
-  return day;
-}
 
 // Note: calculateTotalSleep is now in sleep-utils.js
 
@@ -365,71 +225,6 @@ function getFlagTypes(day, recentAverages) {
   return flagTypes;
 }
 
-// Calculate longest uninterrupted sleep (ignoring bathroom, including alarms and sick)
-function calculateLongestUninterrupted(day) {
-  const sleepStart = timeToMinutes(day.sleepStart);
-  const sleepEnd = timeToMinutes(day.sleepEnd);
-  
-  // Normalize times to handle sleep that crosses midnight
-  // If sleepEnd < sleepStart, sleep crosses midnight - normalize sleepEnd by adding 24 hours
-  const normalizedSleepEnd = sleepEnd >= sleepStart ? sleepEnd : sleepEnd + 1440;
-  const sleepDuration = normalizedSleepEnd - sleepStart;
-  
-  // Get all interruption points (alarms and sick, ignore bathroom)
-  // Normalize interruption times if they're after midnight and sleep crosses midnight
-  const normalizeInterruption = (m) => {
-    if (sleepEnd < sleepStart && m < sleepStart) {
-      // Sleep crosses midnight and interruption is after midnight
-      return m + 1440;
-    }
-    return m;
-  };
-  
-  const alarmInterruptions = (day.alarm || [])
-    .map(timeToMinutes)
-    .map(normalizeInterruption)
-    .filter(m => m >= sleepStart && m <= normalizedSleepEnd);
-    
-  const sickInterruptions = (day.sick || [])
-    .map(timeToMinutes)
-    .map(normalizeInterruption)
-    .filter(m => m >= sleepStart && m <= normalizedSleepEnd);
-    
-  const interruptions = [...alarmInterruptions, ...sickInterruptions];
-  interruptions.sort((a, b) => a - b);
-  
-  if (interruptions.length === 0) {
-    return sleepDuration;
-  }
-  
-  let longest = 0;
-  let start = sleepStart;
-  
-  for (const interrupt of interruptions) {
-    const duration = interrupt - start;
-    if (duration > longest) longest = duration;
-    start = interrupt;
-  }
-  
-  // Check last segment
-  const lastDuration = normalizedSleepEnd - start;
-  if (lastDuration > longest) longest = lastDuration;
-  
-  return longest;
-}
-
-// Calculate time from first alarm to get up
-function calculateFirstAlarmToWake(day) {
-  if (day.alarm.length === 0) {
-    return null;
-  }
-  
-  const firstAlarm = Math.min(...day.alarm.map(timeToMinutes));
-  const wakeTime = timeToMinutes(day.sleepEnd);
-  
-  return wakeTime - firstAlarm;
-}
-
 // Helper function to wrap keywords in spans with color classes
 // Can handle multiple keywords by passing an array
 function highlightKeyword(label, keywords) {
@@ -536,7 +331,14 @@ function renderDay(day, days, dayIndex, options) {
   if (day.nap) {
     const napStart = timeToTimelinePosition(timeToMinutes(day.nap.start));
     const napEnd = timeToTimelinePosition(timeToMinutes(day.nap.end));
-    html += `<div class="span nap" style="--start:${napStart}; --end:${napEnd}"></div>`;
+    if (napEnd >= napStart) {
+      html += `<div class="span nap" style="--start:${napStart}; --end:${napEnd}"></div>`;
+    } else {
+      // Nap crosses timeline boundary (e.g. 20:30 -> 21:30 on a 21:00-21:00 timeline).
+      // Split into two spans so CSS width never goes negative.
+      html += `<div class="span nap" style="--start:${napStart}; --end:1440"></div>`;
+      html += `<div class="span nap" style="--start:0; --end:${napEnd}"></div>`;
+    }
   }
   
   html += `<div class="event bed" style="--m:${bedPos}" data-tooltip="${day.bed} bed"></div>`;
@@ -637,24 +439,6 @@ function renderStatsTopAverages(days) {
   `;
 }
 
-// Render last night column (single day: fell asleep, duration, longest uninterrupted, alarm to wake)
-function renderLastNightColumn(day) {
-  const sleepDuration = calculateTotalSleep(day);
-  const longestUninterrupted = calculateLongestUninterrupted(day);
-  const firstAlarmToWake = calculateFirstAlarmToWake(day);
-  return `
-    <div class="averages-column">
-      <div class="averages-title">🌙 Last night</div>
-      <div class="averages">
-        <div class="stat-row"><span class="stat-label">${highlightKeyword('fell asleep:', 'asleep')}</span><span class="stat-value">${day.sleepStart}</span></div>
-        <div class="stat-row"><span class="stat-label">${highlightKeyword('sleep duration:', 'sleep')}</span><span class="stat-value">${formatDuration(sleepDuration)}</span></div>
-        <div class="stat-row"><span class="stat-label">longest uninterrupted:</span><span class="stat-value">${formatDuration(longestUninterrupted)}</span></div>
-        ${firstAlarmToWake !== null ? `<div class="stat-row"><span class="stat-label">${highlightKeyword('alarm to wake:', ['alarm', 'wake'])}</span><span class="stat-value ${firstAlarmToWake > ALARM_TO_WAKE_WARNING_THRESHOLD ? 'stat-warning' : ''}">${formatDuration(firstAlarmToWake)}</span></div>` : ''}
-      </div>
-    </div>
-  `;
-}
-
 // Render week summary stats (for collapsed state)
 function renderWeekSummary(days) {
   const averages = calculateAverages(days);
@@ -734,13 +518,6 @@ function buildFlagCountMap(days) {
     flagMap.set(day.date, { count: flagCount, types: flagTypes });
   });
   return flagMap;
-}
-
-// Get date for a specific day of year
-function getDateForDayOfYear(year, dayOfYear) {
-  const date = new Date(year, 0, 1);
-  date.setDate(dayOfYear);
-  return date;
 }
 
 // Format date as M/D for display
@@ -898,24 +675,6 @@ function renderCalendarHeatmapHeader() {
           <span class="legend-meaning-item">⌛ short</span>
         </div>
         <span class="legend-explanation legend-explanation--inline">(vs 7-day avg, 20+ min)</span>
-      </div>
-    </div>
-  `;
-}
-
-// Dashboard: current month only (full container with header and legend)
-function renderCalendarHeatmapCurrentMonthOnly(year, flagMap, latestDataDate) {
-  const months = generateCalendarHeatmap(year, flagMap, latestDataDate);
-  const now = new Date();
-  const isCurrentYear = year === now.getFullYear();
-  const currentMonthIndex = isCurrentYear ? now.getMonth() : null;
-  const currentMonthBlock = currentMonthIndex !== null ? renderMonthBlock(months[currentMonthIndex], true) : '';
-
-  return `
-    <div class="calendar-heatmap-container calendar-heatmap-container--dashboard">
-      ${renderCalendarHeatmapHeader()}
-      <div class="calendar-heatmap">
-        ${currentMonthBlock ? `<div class="calendar-current-month-row">${currentMonthBlock}</div>` : ''}
       </div>
     </div>
   `;
