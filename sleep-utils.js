@@ -6,6 +6,11 @@ function timeToMinutes(time) {
   return hours * 60 + minutes;
 }
 
+// Minutes between start and end, handling midnight crossover
+function durationMinutes(startMinutes, endMinutes) {
+  return endMinutes >= startMinutes ? endMinutes - startMinutes : endMinutes + 1440 - startMinutes;
+}
+
 // Format minutes as "Xh Ym" or "Xh" or "Ym"
 function formatDuration(minutes) {
   const hours = Math.floor(minutes / 60);
@@ -30,22 +35,10 @@ function formatTime(minutes, shortMidnight = false) {
 function calculateTotalSleep(day) {
   const sleepStart = timeToMinutes(day.sleepStart);
   const sleepEnd = timeToMinutes(day.sleepEnd);
-  
-  // Handle sleep that crosses midnight (sleepStart before midnight, sleepEnd after midnight)
-  let total = sleepEnd >= sleepStart 
-    ? sleepEnd - sleepStart 
-    : sleepEnd + 1440 - sleepStart; // Add 24 hours (1440 minutes) to sleepEnd
-  
-  // Add nap time if nap exists and has valid start/end times
+  let total = durationMinutes(sleepStart, sleepEnd);
   if (day.nap && day.nap.start && day.nap.end) {
-    const napStart = timeToMinutes(day.nap.start);
-    const napEnd = timeToMinutes(day.nap.end);
-    const napDuration = napEnd >= napStart 
-      ? napEnd - napStart 
-      : napEnd + 1440 - napStart; // Handle naps that cross midnight
-    total += napDuration;
+    total += durationMinutes(timeToMinutes(day.nap.start), timeToMinutes(day.nap.end));
   }
-  
   return total;
 }
 
@@ -69,9 +62,7 @@ function isWeekend(dateOrString, year = 2026) {
   } else {
     date = getDateFromString(dateOrString, year);
   }
-  const dayOfWeek = date.getDay();
-  // 0 = Sunday, 6 = Saturday
-  return dayOfWeek === 0 || dayOfWeek === 6;
+  return date.getDay() % 6 === 0; // 0 = Sunday, 6 = Saturday
 }
 
 // Check if a date is a holiday
@@ -131,7 +122,7 @@ function calculateLongestUninterrupted(day) {
   const sleepStart = timeToMinutes(day.sleepStart);
   const sleepEnd = timeToMinutes(day.sleepEnd);
   const normalizedSleepEnd = sleepEnd >= sleepStart ? sleepEnd : sleepEnd + 1440;
-  const sleepDuration = normalizedSleepEnd - sleepStart;
+  const sleepDuration = durationMinutes(sleepStart, sleepEnd);
 
   const normalizeInterruption = (m) => {
     if (sleepEnd < sleepStart && m < sleepStart) {
@@ -208,12 +199,8 @@ function calculateBedToSleepDelay(day) {
 }
 
 function calculateNapDuration(day) {
-  if (!day.nap || !day.nap.start || !day.nap.end) {
-    return null;
-  }
-  const napStart = timeToMinutes(day.nap.start);
-  const napEnd = timeToMinutes(day.nap.end);
-  return napEnd >= napStart ? napEnd - napStart : napEnd + 1440 - napStart;
+  if (!day.nap || !day.nap.start || !day.nap.end) return null;
+  return durationMinutes(timeToMinutes(day.nap.start), timeToMinutes(day.nap.end));
 }
 
 function solveLinearSystem(A, b) {
@@ -278,10 +265,8 @@ function evaluatePolynomial(coefficients, x) {
 const GITHUB_REPO_URL = 'https://github.com/rsairu/sleep/';
 
 // Day/night mode: sunrise and sunset in local time (hours 0-23, minutes 0-59)
-const SUNRISE_HOUR = 6;
-const SUNRISE_MINUTE = 0;
-const SUNSET_HOUR = 18;
-const SUNSET_MINUTE = 0;
+const SUNRISE_MINUTES = 6 * 60;
+const SUNSET_MINUTES = 18 * 60;
 
 const THEME_OVERRIDE_KEY = 'sleep-app-theme-override';
 
@@ -289,9 +274,7 @@ const THEME_OVERRIDE_KEY = 'sleep-app-theme-override';
 function getThemeFromTime() {
   const now = new Date();
   const minutesSinceMidnight = now.getHours() * 60 + now.getMinutes();
-  const sunriseMinutes = SUNRISE_HOUR * 60 + SUNRISE_MINUTE;
-  const sunsetMinutes = SUNSET_HOUR * 60 + SUNSET_MINUTE;
-  return minutesSinceMidnight >= sunriseMinutes && minutesSinceMidnight < sunsetMinutes ? 'day' : 'night';
+  return minutesSinceMidnight >= SUNRISE_MINUTES && minutesSinceMidnight < SUNSET_MINUTES ? 'day' : 'night';
 }
 
 // Returns current theme override from localStorage ('day' | 'night' | null)
@@ -330,8 +313,8 @@ const SUN_ICON = '<svg class="nav-daynight-icon" viewBox="0 0 24 24" fill="curre
 const MOON_ICON = '<svg class="nav-daynight-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z"/></svg>';
 
 function getDayNightTitle(theme, isOverride) {
-  if (theme === 'day') return isOverride ? 'Day mode (manual) — click to change' : 'Day mode (auto) — click to change';
-  return isOverride ? 'Night mode (manual) — click to change' : 'Night mode (auto) — click to change';
+  const mode = theme.charAt(0).toUpperCase() + theme.slice(1);
+  return `${mode} mode (${isOverride ? 'manual' : 'auto'}) — click to change`;
 }
 
 // Returns HTML for the day/night indicator icon (sun or moon)
@@ -377,25 +360,28 @@ function initDayNightTheme() {
 // Render navigation bar
 function renderNavBar(currentPage) {
   applyDayNightTheme();
-  const theme = getThemeFromTime();
+  const theme = getEffectiveTheme();
   const dayNightIcon = getDayNightIconHTML(theme);
 
   const pages = [
     { id: 'dashboard', name: 'Dashboard', url: 'dashboard.html', icon: '🛌' },
     { id: 'quality', name: 'Quality', url: 'quality.html', icon: '🟩' },
-    { id: 'timeline', name: 'Daily', url: 'sleep.html', icon: '📅' },
+    { id: 'timeline', name: 'Daily', url: 'daily.html', icon: '📅' },
     { id: 'graph', name: 'Graphs', url: 'graph.html', icon: '📊' },
     { id: 'stats', name: 'Stats', url: 'stats.html', icon: '🔢' }
   ];
 
   const navItems = pages.map(page => {
     const isActive = page.id === currentPage;
-    return `<a href="${page.url}" class="nav-tab ${isActive ? 'active' : ''}"><span class="nav-icon">${page.icon}</span> ${page.name}</a>`;
+    return `<a href="${page.url}" class="nav-tab ${isActive ? 'active' : ''}" aria-label="${page.name}"><span class="nav-icon">${page.icon}</span><span class="nav-tab-label">${page.name}</span></a>`;
   }).join('');
 
   const githubIcon = `<svg class="nav-github-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>`;
   const githubLink = `<a href="${GITHUB_REPO_URL}" class="nav-github-link" target="_blank" rel="noopener noreferrer" title="View on GitHub">${githubIcon}</a>`;
   const navRight = `<div class="nav-right">${dayNightIcon}${githubLink}</div>`;
 
-  return `<div class="nav-bar"><div class="nav-tabs">${navItems}</div>${navRight}</div>`;
+  const appName = '<span class="nav-app-name">Restore</span>';
+  const headerRow = `<div class="nav-header">${appName}${navRight}</div>`;
+  const tabsRow = `<div class="nav-tabs-row"><div class="nav-tabs">${navItems}</div></div>`;
+  return `<div class="nav-wrapper">${headerRow}${tabsRow}</div>`;
 }

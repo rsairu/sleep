@@ -1,5 +1,5 @@
 // Sleep Quality History: full calendar heatmap (all months).
-// Uses renderCalendarHeatmapFullHistory() and shared helpers from sleep.js.
+// Uses renderCalendarHeatmapFullHistory() and shared helpers from daily.js.
 
 const qualityContainer = document.getElementById('quality-container');
 if (qualityContainer) {
