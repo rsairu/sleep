@@ -171,7 +171,7 @@ function checkDeviations(day, recentAverages) {
   if (normalizedFellAsleepTime > recentAverages.avgFellAsleepTime) {
     const diff = normalizedFellAsleepTime - recentAverages.avgFellAsleepTime;
     if (diff >= DEVIATION_FLAG_THRESHOLD) {
-      warnings.push(`⚠️😴 <strong>Fell Asleep</strong>: ${formatDuration(Math.round(diff))} later than recent average`);
+      warnings.push(`⚠️😴 <strong>Asleep</strong>: ${formatDuration(Math.round(diff))} later than recent average`);
     }
   }
   
@@ -180,7 +180,7 @@ function checkDeviations(day, recentAverages) {
   if (sleepDuration < recentAverages.avgSleepDuration) {
     const diff = recentAverages.avgSleepDuration - sleepDuration;
     if (diff >= DEVIATION_FLAG_THRESHOLD) {
-      warnings.push(`⚠️⌛ <strong>Sleep Duration</strong>: ${formatDuration(Math.round(diff))} shorter than recent average`);
+      warnings.push(`⚠️⌛ <strong>Duration</strong>: ${formatDuration(Math.round(diff))} shorter than recent average`);
     }
   }
   
@@ -314,16 +314,16 @@ function renderDay(day, days, dayIndex, options) {
       <div class="day-content">
         <div class="day-date">${day.date} ${dayOfWeek}${isHolidayDay ? ' 🎉' : ''}</div>
         <div class="day-stats">
-          <div class="stat-row"><span class="stat-label">${highlightKeyword('fell asleep:', 'asleep')}</span><span class="stat-value">${day.sleepStart}</span></div>
-          <div class="stat-row"><span class="stat-label">${highlightKeyword('sleep duration:', 'sleep')}</span><span class="stat-value">${formatDuration(sleepDuration)}</span></div>
-          <div class="stat-row"><span class="stat-label">longest uninterrupted:</span><span class="stat-value">${formatDuration(longestUninterrupted)}</span></div>
+          <div class="stat-row"><span class="stat-label">${highlightKeyword('asleep:', 'asleep')}</span><span class="stat-value">${day.sleepStart}</span></div>
+          <div class="stat-row"><span class="stat-label">${highlightKeyword('duration:', 'duration')}</span><span class="stat-value">${formatDuration(sleepDuration)}</span></div>
+          <div class="stat-row"><span class="stat-label">uninterrupted:</span><span class="stat-value">${formatDuration(longestUninterrupted)}</span></div>
           ${firstAlarmToWake !== null ? `<div class="stat-row"><span class="stat-label">${highlightKeyword('alarm to wake:', ['alarm', 'wake'])}</span><span class="stat-value ${firstAlarmToWake > ALARM_TO_WAKE_WARNING_THRESHOLD ? 'stat-warning' : ''}">${formatDuration(firstAlarmToWake)}</span></div>` : ''}
         </div>
         <div class="day-bar-container">
           <div class="${barClass}">
             <!-- Faded overlay for previous day section (21:00-00:00) -->
             <div class="previous-day-overlay"></div>
-            <div class="span sleep" style="--start:${sleepStartPos}; --end:${sleepEndPos}" data-tooltip="sleep duration: ${formatDuration(sleepDuration)}"></div>
+            <div class="span sleep" style="--start:${sleepStartPos}; --end:${sleepEndPos}" data-tooltip="duration: ${formatDuration(sleepDuration)}"></div>
             <!-- Time tick marks -->
             ${TIME_TICKS.map((minutes, i) => `<div class="time-tick" style="--m:${minutes}"><span class="tick-label">${tickLabels[i]}</span></div>`).join('')}
   `;
@@ -404,9 +404,9 @@ function calculateAverages(days) {
 // Render averages stats HTML (inner content only)
 function renderAveragesStats(averages) {
   return `
-        <div class="stat-row"><span class="stat-label">${highlightKeyword('fell asleep:', 'asleep')}</span><span class="stat-value">${formatTime(averages.avgBedtime)}</span></div>
-    <div class="stat-row"><span class="stat-label">${highlightKeyword('sleep duration:', 'sleep')}</span><span class="stat-value">${formatDuration(averages.avgSleepDuration)}</span></div>
-    <div class="stat-row"><span class="stat-label">longest uninterrupted:</span><span class="stat-value">${formatDuration(averages.avgLongestUninterrupted)}</span></div>
+        <div class="stat-row"><span class="stat-label">${highlightKeyword('asleep:', 'asleep')}</span><span class="stat-value">${formatTime(averages.avgBedtime)}</span></div>
+    <div class="stat-row"><span class="stat-label">${highlightKeyword('duration:', 'duration')}</span><span class="stat-value">${formatDuration(averages.avgSleepDuration)}</span></div>
+    <div class="stat-row"><span class="stat-label">uninterrupted:</span><span class="stat-value">${formatDuration(averages.avgLongestUninterrupted)}</span></div>
     ${averages.avgFirstAlarmToWake !== null ? `<div class="stat-row"><span class="stat-label">${highlightKeyword('alarm to wake:', ['alarm', 'wake'])}</span><span class="stat-value ${averages.avgFirstAlarmToWake > ALARM_TO_WAKE_WARNING_THRESHOLD ? 'stat-warning' : ''}">${formatDuration(averages.avgFirstAlarmToWake)}</span></div>` : ''}
   `;
 }
@@ -728,8 +728,8 @@ function renderDashboardProjection(recentAverages) {
 
   return `
     <div class="dashboard-projection dashboard-projection--no-box">
-      <h2 class="dashboard-projection-title">Recommended tonight</h2>
-      <p class="dashboard-projection-copy">(recent three-day average ± ${PROJECTION_BAND_MINUTES} min)</p>
+      <h2 class="dashboard-projection-title">Tonight</h2>
+      <p class="dashboard-projection-copy">(recent three-day ± ${PROJECTION_BAND_MINUTES} min)</p>
       <div class="dashboard-projection-grid">
         <div class="dashboard-projection-item">
           <span class="dashboard-projection-label"><span class="proj-keyword proj-sleep">🌙 Sleep</span></span>
@@ -783,7 +783,7 @@ function renderDashboardContent(days) {
     : '';
 
   const sevenDaySectionHtml = `
-    <h2 class="dashboard-section-title">Last 7 days</h2>
+    <h2 class="dashboard-section-title">Past Week</h2>
     <div class="dashboard-7d-row">
       <div class="dashboard-7d-col">
         <div class="dashboard-7d-graph-container" id="dashboard-7d-time-graph"></div>
