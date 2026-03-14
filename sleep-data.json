@@ -6,7 +6,7 @@
       "sleepStart": "00:00",
       "sleepEnd": "7:48",
       "bathroom": ["3:30"],
-      "alarm": null,
+      "alarm": [],
       "sick": [],
       "nap": null
     },
