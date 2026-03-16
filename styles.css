@@ -124,11 +124,43 @@ body{
   justify-content: space-between;
 }
 
+.nav-app-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .nav-app-name {
   font-size: 1.25rem;
   font-weight: 700;
   color: var(--text);
   letter-spacing: -0.02em;
+}
+
+.nav-app-subtitle {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--text);
+  opacity: 0.85;
+  letter-spacing: 0.02em;
+}
+
+.nav-about-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.nav-about-link:hover {
+  opacity: 1;
+}
+
+.nav-about-icon {
+  width: 22px;
+  height: 22px;
 }
 
 .nav-tabs-row {
@@ -584,6 +616,13 @@ body{
   font-size: 0.85rem;
   margin: 10px 0 0 0;
   opacity: 0.8;
+  text-align: center;
+}
+
+.dashboard-projection-remaining {
+  font-size: 0.85rem;
+  margin: 6px 0 0 0;
+  opacity: 0.9;
   text-align: center;
 }
 
@@ -2102,4 +2141,49 @@ svg {
   top: calc(100% + 2px);
   border-top-color: transparent;
   border-bottom-color: var(--tooltip-bg);
+}
+
+/* About page — getting started list */
+.about-intro {
+  margin-bottom: 1rem;
+  color: var(--text);
+  opacity: 0.9;
+}
+
+.about-page-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.about-page-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--grid);
+}
+
+.about-page-list li:last-child {
+  border-bottom: none;
+}
+
+.about-page-icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+
+.about-page-name {
+  font-weight: 600;
+  color: var(--text);
+  min-width: 6rem;
+  flex-shrink: 0;
+}
+
+.about-page-desc {
+  color: var(--text);
+  opacity: 0.85;
+  font-size: 0.9375rem;
+  line-height: 1.45;
 }

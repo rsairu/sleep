@@ -726,6 +726,14 @@ function renderDashboardProjection(recentAverages) {
     ? wakeTarget - sleepTarget
     : 1440 - sleepTarget + wakeTarget;
 
+  // Time until recommended bedtime (from page load): minutes from midnight
+  const now = new Date();
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  const remainingMins = sleepTarget >= nowMins
+    ? sleepTarget - nowMins
+    : 1440 - nowMins + sleepTarget;
+  const remainingLabel = `${formatDuration(Math.round(remainingMins))} until recommended bedtime`;
+
   return `
     <div class="dashboard-projection dashboard-projection--no-box">
       <h2 class="dashboard-projection-title">Tonight</h2>
@@ -753,6 +761,7 @@ function renderDashboardProjection(recentAverages) {
         </div>
       </div>
       <p class="dashboard-projection-duration">(~${formatDuration(recommendedDurationMins)} sleep)</p>
+      <p class="dashboard-projection-remaining">${remainingLabel}</p>
     </div>
   `;
 }
