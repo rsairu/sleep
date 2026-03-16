@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>About — Restore</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="nav-container"></div>
+  <div class="container">
+    <h1>Getting started</h1>
+    <p class="about-intro">Use the icons in the bar below to move between pages:</p>
+    <ul class="about-page-list">
+      <li>
+        <span class="about-page-icon" aria-hidden="true">🛌</span>
+        <span class="about-page-name">Dashboard</span>
+        <span class="about-page-desc">Overview with recent and lifetime averages, the last three nights, and 7-day time and duration charts.</span>
+      </li>
+      <li>
+        <span class="about-page-icon" aria-hidden="true">🟩</span>
+        <span class="about-page-name">Quality</span>
+        <span class="about-page-desc">Sleep quality history over time.</span>
+      </li>
+      <li>
+        <span class="about-page-icon" aria-hidden="true">📅</span>
+        <span class="about-page-name">Daily</span>
+        <span class="about-page-desc">Day-by-day timeline of bed, sleep, and get-up times.</span>
+      </li>
+      <li>
+        <span class="about-page-icon" aria-hidden="true">📊</span>
+        <span class="about-page-name">Graphs</span>
+        <span class="about-page-desc">Time and duration charts with trend lines across your data.</span>
+      </li>
+      <li>
+        <span class="about-page-icon" aria-hidden="true">🔢</span>
+        <span class="about-page-name">Stats</span>
+        <span class="about-page-desc">Monthly sleep statistics.</span>
+      </li>
+    </ul>
+  </div>
+
+  <script src="sleep-utils.js"></script>
+  <script>
+    document.getElementById('nav-container').innerHTML = renderNavBar('about');
+    initDayNightTheme();
+  </script>
+</body>
+</html>
