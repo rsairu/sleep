@@ -38,12 +38,46 @@
         <span class="about-page-desc">Monthly sleep statistics.</span>
       </li>
     </ul>
+
+    <h2 class="about-section-title" id="remaining-wake-time">Remaining Wake Time</h2>
+    <p class="about-section-intro">Shows how much time is left in your day before your recommended sleep time. Phases are based on the <strong>percent of wake time remaining</strong> (these thresholds may become configurable in a future update).</p>
+    <p class="about-section-intro">The day is divided into three simple phases:</p>
+    <ul class="about-phase-list">
+      <li class="about-phase-item">
+        <span class="about-phase-icon" aria-hidden="true">☀️</span>
+        <div class="about-phase-body">
+          <span class="about-phase-name">1. “Open time” (plenty of runway)</span>
+          <span class="about-phase-range">Range: ~100% → 40% remaining</span>
+          <span class="about-phase-note">(i.e., you’re in the first ~60% of your day)</span>
+          <span class="about-phase-feeling">Feeling: steady, normal, no urgency</span>
+        </div>
+      </li>
+      <li class="about-phase-item">
+        <span class="about-phase-icon" aria-hidden="true">🌇</span>
+        <div class="about-phase-body">
+          <span class="about-phase-name">2. “Winding down window”</span>
+          <span class="about-phase-range">Range: ~40% → 15% remaining</span>
+          <span class="about-phase-note">This is the “you’re past the midpoint” zone</span>
+          <span class="about-phase-feeling">Feeling: awareness, gentle shift</span>
+        </div>
+      </li>
+      <li class="about-phase-item">
+        <span class="about-phase-icon" aria-hidden="true">🛏️</span>
+        <div class="about-phase-body">
+          <span class="about-phase-name">3. “Pre-sleep phase”</span>
+          <span class="about-phase-range">Range: ~15% → 0% remaining</span>
+          <span class="about-phase-feeling">Time to start easing out and prepare for rest</span>
+        </div>
+      </li>
+    </ul>
+    <p class="about-section-note">This is meant to gently guide your pace, not rush you.</p>
   </div>
 
   <script src="sleep-utils.js"></script>
   <script>
     document.getElementById('nav-container').innerHTML = renderNavBar('about');
     initDayNightTheme();
+    initRemainingWakeNav();
   </script>
 </body>
 </html>

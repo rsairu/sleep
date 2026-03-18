@@ -86,49 +86,6 @@ function get7DayAxisLabel(point, index, total) {
   return days[d.getDay()];
 }
 
-/** Show day-panel popup with daily values (same as graph.js). Position near clientX/clientY. */
-function showDashboardDayPanel(point, clientX, clientY) {
-  const dayPanel = document.getElementById('day-panel');
-  if (!dayPanel) return;
-  const sleepDuration = formatDuration(point.sleepDurationMinutes);
-  const mainSleep = formatDuration(point.mainSleepMinutes);
-  const napText = point.napMinutes > 0 ? ` (${mainSleep} + ${formatDuration(point.napMinutes)} nap)` : '';
-  dayPanel.innerHTML = `
-    <div class="day-panel-header">${point.dateString}</div>
-    <div class="day-panel-row">
-      <span class="day-panel-label bedtime">bed:</span>
-      <span class="day-panel-value">${point.bedTimeString}</span>
-    </div>
-    <div class="day-panel-row">
-      <span class="day-panel-label sleep-start">sleep:</span>
-      <span class="day-panel-value">${point.sleepStartString}</span>
-    </div>
-    <div class="day-panel-row">
-      <span class="day-panel-label getup">get up:</span>
-      <span class="day-panel-value">${point.getUpString}</span>
-    </div>
-    <div class="day-panel-row">
-      <span class="day-panel-label">sleep duration:</span>
-      <span class="day-panel-value">${sleepDuration}${napText}</span>
-    </div>
-  `;
-  const panelWidth = 200;
-  const panelHeight = 140;
-  let left = clientX + 12;
-  let top = clientY - 10;
-  if (left + panelWidth > window.innerWidth - 20) left = clientX - panelWidth - 12;
-  if (top < 20) top = 20;
-  if (top + panelHeight > window.innerHeight - 20) top = window.innerHeight - panelHeight - 20;
-  dayPanel.style.left = left + 'px';
-  dayPanel.style.top = top + 'px';
-  dayPanel.classList.add('visible');
-}
-
-function hideDashboardDayPanel() {
-  const dayPanel = document.getElementById('day-panel');
-  if (dayPanel) dayPanel.classList.remove('visible');
-}
-
 function buildPoints(days) {
   return days.map(day => {
     const rawBed = timeToMinutes(day.bed);
@@ -341,15 +298,15 @@ function render7DayTimeGraph(container, points) {
       const rect = container.getBoundingClientRect();
       const clientX = rect.left + margin.left + x;
       const clientY = rect.top + margin.top + graphHeight / 2;
-      showDashboardDayPanel(point, clientX, clientY);
+      showDayPanel(point, clientX, clientY);
       setTimeout(() => {
+        const dayPanel = document.getElementById('day-panel');
         const close = (e2) => {
-          if (!dayPanel.contains(e2.target) && !container.contains(e2.target)) {
-            hideDashboardDayPanel();
+          if (dayPanel && !dayPanel.contains(e2.target) && !container.contains(e2.target)) {
+            hideDayPanel();
             document.removeEventListener('click', close);
           }
         };
-        const dayPanel = document.getElementById('day-panel');
         document.addEventListener('click', close);
       }, 0);
     });
@@ -483,12 +440,12 @@ function render7DayDurationChart(container, points) {
     mainRect.addEventListener('mouseleave', () => { if (tooltip) tooltip.classList.remove('visible'); });
     mainRect.addEventListener('click', (e) => {
       const rect = container.getBoundingClientRect();
-      showDashboardDayPanel(point, e.clientX, e.clientY);
+      showDayPanel(point, e.clientX, e.clientY);
       setTimeout(() => {
         const dayPanel = document.getElementById('day-panel');
         const close = (e2) => {
           if (dayPanel && !dayPanel.contains(e2.target) && !container.contains(e2.target)) {
-            hideDashboardDayPanel();
+            hideDayPanel();
             document.removeEventListener('click', close);
           }
         };
@@ -519,12 +476,12 @@ function render7DayDurationChart(container, points) {
       });
       napRect.addEventListener('mouseleave', () => { if (tooltip) tooltip.classList.remove('visible'); });
       napRect.addEventListener('click', (e) => {
-        showDashboardDayPanel(point, e.clientX, e.clientY);
+        showDayPanel(point, e.clientX, e.clientY);
         setTimeout(() => {
           const dayPanel = document.getElementById('day-panel');
           const close = (e2) => {
             if (dayPanel && !dayPanel.contains(e2.target) && !container.contains(e2.target)) {
-              hideDashboardDayPanel();
+              hideDayPanel();
               document.removeEventListener('click', close);
             }
           };
@@ -574,6 +531,12 @@ if (dashboardContainer) {
       if (typeof holidays !== 'undefined') holidays = holidaysData;
       dashboardContainer.innerHTML = renderDashboardContent(sleepData.days);
       renderDashboard7DayGraphs(sleepData.days);
+
+      const recentDays = sleepData.days.slice(0, Math.min(7, sleepData.days.length));
+      if (recentDays.length > 0 && typeof getRemainingWakeDisplay === 'function' && typeof updateRemainingWakeNav === 'function') {
+        const recentAverages = calculateAverages(recentDays);
+        updateRemainingWakeNav(getRemainingWakeDisplay(recentAverages));
+      }
     })
     .catch(error => {
       console.error('Error loading dashboard data:', error);

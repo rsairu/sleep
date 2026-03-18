@@ -308,8 +308,7 @@ function applyDayNightTheme() {
   return theme;
 }
 
-// Sun icon: filled circle + rays (visible when filled)
-const SUN_ICON = '<svg class="nav-daynight-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM18.894 6.166a.75.75 0 00-1.06-1.06l-1.591 1.59a.75.75 0 101.06 1.061l1.591-1.59zM21.75 12a.75.75 0 01-.75.75h-2.25a.75.75 0 010-1.5H21a.75.75 0 01.75.75zM17.834 18.894a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 10-1.061 1.06l1.59 1.591zM12 18a.75.75 0 01.75.75V21a.75.75 0 01-1.5 0v-2.25A.75.75 0 0112 18zM7.758 17.303l-1.591 1.59a.75.75 0 001.06-1.061l1.591-1.59a.75.75 0 00-1.06-1.06zM6 12a.75.75 0 01-.75.75H3a.75.75 0 010-1.5h2.25A.75.75 0 016 12zM6.697 7.757l-1.59-1.591a.75.75 0 00-1.061 1.06l1.59 1.591a.75.75 0 001.061-1.06z"/></svg>';
+const SUN_ICON = '<svg xmlns="http://www.w3.org/2000/svg" class="nav-daynight-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM18.894 6.166a.75.75 0 00-1.06-1.06l-1.591 1.59a.75.75 0 101.06 1.061l1.591-1.59zM21.75 12a.75.75 0 01-.75.75h-2.25a.75.75 0 010-1.5H21a.75.75 0 01.75.75zM17.834 18.894a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 10-1.061 1.06l1.59 1.591zM12 18a.75.75 0 01.75.75V21a.75.75 0 01-1.5 0v-2.25A.75.75 0 0112 18zM5.106 18.894a.75.75 0 001.06 1.06l1.591-1.59a.75.75 0 10-1.06-1.061l-1.591 1.59zM6 12a.75.75 0 01-.75.75H3a.75.75 0 010-1.5h2.25A.75.75 0 016 12zM6.697 7.757l-1.59-1.591a.75.75 0 00-1.061 1.06l1.59 1.591a.75.75 0 001.061-1.06z"/></svg>';
 const MOON_ICON = '<svg class="nav-daynight-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z"/></svg>';
 
 function getDayNightTitle(theme, isOverride) {
@@ -383,7 +382,113 @@ function renderNavBar(currentPage) {
   const navRight = `<div class="nav-right">${dayNightIcon}${aboutLink}${githubLink}</div>`;
 
   const appName = '<div class="nav-app-block"><span class="nav-app-name">Restore</span><span class="nav-app-subtitle">Sleep Tracker</span></div>';
-  const headerRow = `<div class="nav-header">${appName}${navRight}</div>`;
+  const headerRow = `<div class="nav-header nav-header--remaining-wake">${appName}<div class="nav-remaining-wake" id="nav-remaining-wake"></div>${navRight}</div>`;
   const tabsRow = `<div class="nav-tabs-row"><div class="nav-tabs">${navItems}</div></div>`;
-  return `<div class="nav-wrapper">${headerRow}${tabsRow}</div>`;
+  return `<div class="nav-wrapper nav-wrapper--remaining-wake">${headerRow}${tabsRow}</div>`;
+}
+
+// Phase thresholds (percent of wake time remaining): open >= 40%, winding 15–40%, pre-sleep < 15%.
+function getRemainingWakePhase(remainingMins, sleepTargetMins) {
+  if (sleepTargetMins <= 0) return 'open';
+  const percentRemaining = Math.min(100, (remainingMins / sleepTargetMins) * 100);
+  if (percentRemaining >= 40) return 'open';
+  if (percentRemaining >= 15) return 'winding';
+  return 'presleep';
+}
+
+function getRemainingWakeIcon(phase) {
+  switch (phase) {
+    case 'open': return '☀️';
+    case 'winding': return '🌇';
+    case 'presleep': return '🛏️';
+    default: return '☀️';
+  }
+}
+
+/** Returns { phase, icon, timeLabel } from raw days (used when daily.js not loaded).
+ * Uses same logic as dashboard: recent 7 days, average sleep start (fell asleep) with normalize/denormalize. */
+function getRemainingWakeDisplayFromDays(days) {
+  if (!days || days.length === 0) return null;
+  const recent = days.slice(0, Math.min(7, days.length));
+  const sleepStartSum = recent.reduce((s, d) => s + normalizeTimeForAveraging(timeToMinutes(d.sleepStart)), 0);
+  const avgSleepTarget = denormalizeTimeForAveraging(Math.round(sleepStartSum / recent.length));
+  const now = new Date();
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  const remainingMins = avgSleepTarget >= nowMins ? avgSleepTarget - nowMins : 1440 - nowMins + avgSleepTarget;
+  const phase = getRemainingWakePhase(remainingMins, avgSleepTarget);
+  const icon = getRemainingWakeIcon(phase);
+  const timeLabel = formatDuration(Math.round(remainingMins));
+  return { phase, icon, timeLabel };
+}
+
+/** Injects remaining wake into nav and sets phase class on wrapper. Call with { phase, icon, timeLabel }. */
+function updateRemainingWakeNav(display) {
+  if (!display) return;
+  const slot = document.getElementById('nav-remaining-wake');
+  const wrapper = document.querySelector('.nav-wrapper');
+  if (slot) {
+    slot.innerHTML = `<a href="about.html#remaining-wake-time" class="nav-remaining-wake-link" title="Remaining wake time" aria-label="Remaining wake time"><span class="nav-remaining-wake-icon" aria-hidden="true">${display.icon}</span><span class="nav-remaining-wake-time">${display.timeLabel}</span></a>`;
+  }
+  if (wrapper) {
+    wrapper.classList.remove('nav-wrapper--phase-open', 'nav-wrapper--phase-winding', 'nav-wrapper--phase-presleep');
+    wrapper.classList.add('nav-wrapper--phase-' + display.phase);
+  }
+}
+
+/** Fetches sleep data and fills remaining wake in nav. Call on every page so header is consistent. */
+function initRemainingWakeNav() {
+  fetch('sleep-data.json')
+    .then(r => r.json())
+    .then(data => {
+      const display = getRemainingWakeDisplayFromDays(data.days);
+      updateRemainingWakeNav(display);
+    })
+    .catch(() => {});
+}
+
+/**
+ * Show the shared day-panel popup with bed, sleep, get up, and sleep duration.
+ * point: { dateString, bedTimeString, sleepStartString, getUpString, sleepDurationMinutes, mainSleepMinutes?, napMinutes? }
+ * Position is derived from clientX/clientY, flipping to stay on screen.
+ */
+function showDayPanel(point, clientX, clientY) {
+  const dayPanel = document.getElementById('day-panel');
+  if (!dayPanel) return;
+  const sleepDuration = formatDuration(point.sleepDurationMinutes);
+  const mainSleep = formatDuration(point.mainSleepMinutes != null ? point.mainSleepMinutes : point.sleepDurationMinutes);
+  const napText = (point.napMinutes != null && point.napMinutes > 0) ? ` (${mainSleep} + ${formatDuration(point.napMinutes)} nap)` : '';
+  dayPanel.innerHTML = `
+    <div class="day-panel-header">${point.dateString}</div>
+    <div class="day-panel-row">
+      <span class="day-panel-label bedtime">bed:</span>
+      <span class="day-panel-value">${point.bedTimeString}</span>
+    </div>
+    <div class="day-panel-row">
+      <span class="day-panel-label sleep-start">sleep:</span>
+      <span class="day-panel-value">${point.sleepStartString}</span>
+    </div>
+    <div class="day-panel-row">
+      <span class="day-panel-label getup">get up:</span>
+      <span class="day-panel-value">${point.getUpString}</span>
+    </div>
+    <div class="day-panel-row">
+      <span class="day-panel-label">sleep duration:</span>
+      <span class="day-panel-value">${sleepDuration}${napText}</span>
+    </div>
+  `;
+  const panelWidth = 200;
+  const panelHeight = 140;
+  let left = clientX + 12;
+  let top = clientY - 10;
+  if (left + panelWidth > window.innerWidth - 20) left = clientX - panelWidth - 12;
+  if (top < 20) top = 20;
+  if (top + panelHeight > window.innerHeight - 20) top = window.innerHeight - panelHeight - 20;
+  dayPanel.style.left = left + 'px';
+  dayPanel.style.top = top + 'px';
+  dayPanel.classList.add('visible');
+}
+
+function hideDayPanel() {
+  const dayPanel = document.getElementById('day-panel');
+  if (dayPanel) dayPanel.classList.remove('visible');
 }
