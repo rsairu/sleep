@@ -372,6 +372,64 @@ body{
   gap: 20px;
 }
 
+/* Remaining wake time in nav header (all pages; no extra (i) — link uses title tooltip) */
+.nav-header--remaining-wake {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  border: none;
+}
+
+.nav-header--remaining-wake .nav-app-block {
+  justify-self: start;
+}
+
+.nav-header--remaining-wake .nav-remaining-wake {
+  justify-self: center;
+}
+
+.nav-header--remaining-wake .nav-right {
+  justify-self: end;
+}
+
+.nav-remaining-wake-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 1.125rem;
+  transition: opacity 0.2s;
+}
+
+.nav-remaining-wake-link:hover {
+  opacity: 0.9;
+}
+
+.nav-remaining-wake-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.nav-remaining-wake-time {
+  letter-spacing: 0.02em;
+}
+
+/* Phase-colored header (dashboard only) */
+.nav-wrapper--phase-open .nav-header {
+  background: rgba(134, 239, 172, 0.18);
+}
+
+.nav-wrapper--phase-winding .nav-header {
+  background: rgba(253, 230, 138, 0.22);
+}
+
+.nav-wrapper--phase-presleep .nav-header {
+  background: rgba(196, 181, 253, 0.2);
+}
+
 .dashboard-projection {
   background: var(--panel);
   border-radius: 14px;
@@ -2185,5 +2243,78 @@ svg {
   color: var(--text);
   opacity: 0.85;
   font-size: 0.9375rem;
+  line-height: 1.45;
+}
+
+/* About page — Remaining Wake Time section */
+.about-section-title {
+  margin-top: 2.5rem;
+  margin-bottom: 0.75rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.about-section-intro {
+  margin: 0 0 0.5rem;
+  color: var(--text);
+  opacity: 0.9;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+
+.about-phase-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.75rem 0 0;
+}
+
+.about-phase-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 0;
+  color: var(--text);
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+
+.about-phase-icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.about-phase-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.about-phase-name {
+  font-weight: 600;
+}
+
+.about-phase-range {
+  opacity: 0.9;
+  font-size: 0.9em;
+}
+
+.about-phase-note {
+  opacity: 0.8;
+  font-size: 0.9em;
+  font-style: italic;
+}
+
+.about-phase-feeling {
+  opacity: 0.85;
+  font-size: 0.9em;
+}
+
+.about-section-note {
+  margin: 1rem 0 0;
+  color: var(--text);
+  opacity: 0.8;
+  font-size: 0.875rem;
+  font-style: italic;
   line-height: 1.45;
 }

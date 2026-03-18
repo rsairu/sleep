@@ -711,14 +711,47 @@ function renderCalendarHeatmapFullHistory(year, flagMap, latestDataDate) {
   `;
 }
 
-// Recommended sleep/wake window: recent average ± 30 minutes (same recent-days logic as dashboard).
+// Recommended sleep/wake window: sleep band ±30 min; wake band ±15 min (wake consistency is more important).
 const PROJECTION_BAND_MINUTES = 30;
+const WAKE_PROJECTION_BAND_MINUTES = 15;
+
+// Phase thresholds (percent of wake time remaining): open >= 40%, winding 15–40%, pre-sleep < 15%.
+function getRemainingWakePhase(remainingMins, sleepTargetMins) {
+  if (sleepTargetMins <= 0) return 'open';
+  const percentRemaining = Math.min(100, (remainingMins / sleepTargetMins) * 100);
+  if (percentRemaining >= 40) return 'open';
+  if (percentRemaining >= 15) return 'winding';
+  return 'presleep';
+}
+
+function getRemainingWakeIcon(phase) {
+  switch (phase) {
+    case 'open': return '☀️';
+    case 'winding': return '🌇';
+    case 'presleep': return '🛏️';
+    default: return '☀️';
+  }
+}
+
+/** Returns { phase, icon, timeLabel } for remaining wake time (used by dashboard nav). */
+function getRemainingWakeDisplay(recentAverages) {
+  const sleepTarget = recentAverages.avgBedtime;
+  const now = new Date();
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  const remainingMins = sleepTarget >= nowMins
+    ? sleepTarget - nowMins
+    : 1440 - nowMins + sleepTarget;
+  const phase = getRemainingWakePhase(remainingMins, sleepTarget);
+  const icon = getRemainingWakeIcon(phase);
+  const timeLabel = formatDuration(Math.round(remainingMins));
+  return { phase, icon, timeLabel };
+}
 
 function renderDashboardProjection(recentAverages) {
   const sleepByLow = Math.max(0, recentAverages.avgBedtime - PROJECTION_BAND_MINUTES);
   const sleepByHigh = Math.min(1440, recentAverages.avgBedtime + PROJECTION_BAND_MINUTES);
-  const wakeByLow = Math.max(0, recentAverages.avgSleepEnd - PROJECTION_BAND_MINUTES);
-  const wakeByHigh = Math.min(1440, recentAverages.avgSleepEnd + PROJECTION_BAND_MINUTES);
+  const wakeByLow = Math.max(0, recentAverages.avgSleepEnd - WAKE_PROJECTION_BAND_MINUTES);
+  const wakeByHigh = Math.min(1440, recentAverages.avgSleepEnd + WAKE_PROJECTION_BAND_MINUTES);
 
   const sleepTarget = recentAverages.avgBedtime;
   const wakeTarget = recentAverages.avgSleepEnd;
@@ -726,18 +759,9 @@ function renderDashboardProjection(recentAverages) {
     ? wakeTarget - sleepTarget
     : 1440 - sleepTarget + wakeTarget;
 
-  // Time until recommended bedtime (from page load): minutes from midnight
-  const now = new Date();
-  const nowMins = now.getHours() * 60 + now.getMinutes();
-  const remainingMins = sleepTarget >= nowMins
-    ? sleepTarget - nowMins
-    : 1440 - nowMins + sleepTarget;
-  const remainingLabel = `${formatDuration(Math.round(remainingMins))} until recommended bedtime`;
-
   return `
     <div class="dashboard-projection dashboard-projection--no-box">
       <h2 class="dashboard-projection-title">Tonight</h2>
-      <p class="dashboard-projection-copy">(recent three-day ± ${PROJECTION_BAND_MINUTES} min)</p>
       <div class="dashboard-projection-grid">
         <div class="dashboard-projection-item">
           <span class="dashboard-projection-label"><span class="proj-keyword proj-sleep">🌙 Sleep</span></span>
@@ -761,7 +785,6 @@ function renderDashboardProjection(recentAverages) {
         </div>
       </div>
       <p class="dashboard-projection-duration">(~${formatDuration(recommendedDurationMins)} sleep)</p>
-      <p class="dashboard-projection-remaining">${remainingLabel}</p>
     </div>
   `;
 }
@@ -772,7 +795,7 @@ function renderDashboardContent(days) {
   if (!days || days.length === 0) {
     return '<p>No sleep data yet.</p>';
   }
-  const recentDays = days.slice(0, Math.min(3, days.length));
+  const recentDays = days.slice(0, Math.min(7, days.length));
   const recentAverages = calculateAverages(recentDays);
 
   const flagMap = buildFlagCountMap(days);

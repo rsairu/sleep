@@ -425,7 +425,6 @@ Promise.all([
 
     // Draw data points
     const tooltip = document.getElementById('tooltip');
-    const dayPanel = document.getElementById('day-panel');
     
     // Create vertical hover line indicator
     const hoverLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -538,65 +537,16 @@ Promise.all([
         hoverLine.setAttribute('y2', graphHeight);
         hoverLine.style.display = 'block';
         
-        // Get SVG position relative to viewport
+        // Get SVG position relative to viewport and show shared day panel
         const svgRect = svg.getBoundingClientRect();
         const baseX = svgRect.left + margin.left + x;
         const baseY = svgRect.top + margin.top;
-        
-        // Build consolidated day panel content
-        const sleepDuration = formatDuration(point.sleepDurationMinutes);
-        const mainSleep = formatDuration(point.mainSleepMinutes);
-        const napText = point.napMinutes > 0 ? ` (${mainSleep} + ${formatDuration(point.napMinutes)} nap)` : '';
-        
-        dayPanel.innerHTML = `
-          <div class="day-panel-header">${point.dateString}</div>
-          <div class="day-panel-row">
-            <span class="day-panel-label bedtime">bed:</span>
-            <span class="day-panel-value">${point.bedTimeString}</span>
-          </div>
-          <div class="day-panel-row">
-            <span class="day-panel-label sleep-start">sleep:</span>
-            <span class="day-panel-value">${point.sleepStartString}</span>
-          </div>
-          <div class="day-panel-row">
-            <span class="day-panel-label getup">get up:</span>
-            <span class="day-panel-value">${point.getUpString}</span>
-          </div>
-          <div class="day-panel-row">
-            <span class="day-panel-label">sleep duration:</span>
-            <span class="day-panel-value">${sleepDuration}${napText}</span>
-          </div>
-        `;
-        
-        // Position panel to the right of the hover line, or left if too close to edge
-        const panelWidth = 200; // Approximate width
-        const panelHeight = 120; // Approximate height
-        let panelX = baseX + 15;
-        let panelY = baseY + graphHeight / 2 - panelHeight / 2;
-        
-        // Adjust if too close to right edge
-        if (panelX + panelWidth > window.innerWidth - 20) {
-          panelX = baseX - panelWidth - 15;
-        }
-        
-        // Adjust if too close to top or bottom
-        if (panelY < 20) {
-          panelY = 20;
-        } else if (panelY + panelHeight > window.innerHeight - 20) {
-          panelY = window.innerHeight - panelHeight - 20;
-        }
-        
-        dayPanel.style.left = panelX + 'px';
-        dayPanel.style.top = panelY + 'px';
-        dayPanel.classList.add('visible');
+        showDayPanel(point, baseX, baseY + graphHeight / 2);
       });
       
       hoverRect.addEventListener('mouseleave', () => {
-        // Hide vertical line
         hoverLine.style.display = 'none';
-        
-        // Hide day panel
-        dayPanel.classList.remove('visible');
+        hideDayPanel();
       });
       
       // Add at the end so it's on top for interaction but transparent
