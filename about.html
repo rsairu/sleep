@@ -8,69 +8,83 @@
 </head>
 <body>
   <div id="nav-container"></div>
-  <div class="container">
-    <h1>Getting started</h1>
-    <p class="about-intro">Use the icons in the bar below to move between pages:</p>
-    <ul class="about-page-list">
-      <li>
-        <span class="about-page-icon" aria-hidden="true">🛌</span>
-        <span class="about-page-name">Dashboard</span>
-        <span class="about-page-desc">Overview with recent and lifetime averages, the last three nights, and 7-day time and duration charts.</span>
-      </li>
-      <li>
-        <span class="about-page-icon" aria-hidden="true">🟩</span>
-        <span class="about-page-name">Quality</span>
-        <span class="about-page-desc">Sleep quality history over time.</span>
-      </li>
-      <li>
-        <span class="about-page-icon" aria-hidden="true">📅</span>
-        <span class="about-page-name">Daily</span>
-        <span class="about-page-desc">Day-by-day timeline of bed, sleep, and get-up times.</span>
-      </li>
-      <li>
-        <span class="about-page-icon" aria-hidden="true">📊</span>
-        <span class="about-page-name">Graphs</span>
-        <span class="about-page-desc">Time and duration charts with trend lines across your data.</span>
-      </li>
-      <li>
-        <span class="about-page-icon" aria-hidden="true">🔢</span>
-        <span class="about-page-name">Stats</span>
-        <span class="about-page-desc">Monthly sleep statistics.</span>
-      </li>
-    </ul>
-
-    <h2 class="about-section-title" id="remaining-wake-time">Remaining Wake Time</h2>
-    <p class="about-section-intro">Shows how much time is left in your day before your recommended sleep time. Phases are based on the <strong>percent of wake time remaining</strong> (these thresholds may become configurable in a future update).</p>
-    <p class="about-section-intro">The day is divided into three simple phases:</p>
-    <ul class="about-phase-list">
-      <li class="about-phase-item">
-        <span class="about-phase-icon" aria-hidden="true">☀️</span>
-        <div class="about-phase-body">
-          <span class="about-phase-name">1. “Open time” (plenty of runway)</span>
-          <span class="about-phase-range">Range: ~100% → 40% remaining</span>
-          <span class="about-phase-note">(i.e., you’re in the first ~60% of your day)</span>
-          <span class="about-phase-feeling">Feeling: steady, normal, no urgency</span>
+  <div class="about-deck" id="about-deck">
+    <div class="about-slides-viewport" id="about-slides-viewport">
+    <div class="about-slides" id="about-slides">
+      <!-- Slide 1: Getting started -->
+      <section class="about-slide" aria-label="Getting started">
+        <div class="container about-slide-inner">
+          <h1>Getting started</h1>
+          <p class="about-intro">Use the icons in the bar below to move between pages:</p>
+          <ul class="about-page-list">
+            <li>
+              <span class="about-page-icon" aria-hidden="true">🛌</span>
+              <span class="about-page-name">Dashboard</span>
+              <span class="about-page-desc">Overview with recent and lifetime averages, the last three nights, and 7-day time and duration charts.</span>
+            </li>
+            <li>
+              <span class="about-page-icon" aria-hidden="true">🟩</span>
+              <span class="about-page-name">Quality</span>
+              <span class="about-page-desc">Sleep quality history over time.</span>
+            </li>
+            <li>
+              <span class="about-page-icon" aria-hidden="true">📅</span>
+              <span class="about-page-name">Daily</span>
+              <span class="about-page-desc">Day-by-day timeline of bed, sleep, and get-up times.</span>
+            </li>
+            <li>
+              <span class="about-page-icon" aria-hidden="true">📊</span>
+              <span class="about-page-name">Graphs</span>
+              <span class="about-page-desc">Time and duration charts with trend lines across your data.</span>
+            </li>
+            <li>
+              <span class="about-page-icon" aria-hidden="true">🔢</span>
+              <span class="about-page-name">Stats</span>
+              <span class="about-page-desc">Monthly sleep statistics.</span>
+            </li>
+          </ul>
         </div>
-      </li>
-      <li class="about-phase-item">
-        <span class="about-phase-icon" aria-hidden="true">🌇</span>
-        <div class="about-phase-body">
-          <span class="about-phase-name">2. “Winding down window”</span>
-          <span class="about-phase-range">Range: ~40% → 15% remaining</span>
-          <span class="about-phase-note">This is the “you’re past the midpoint” zone</span>
-          <span class="about-phase-feeling">Feeling: awareness, gentle shift</span>
+      </section>
+      <!-- Slide 2: Remaining Wake Time -->
+      <section class="about-slide" id="remaining-wake-time" aria-label="Remaining Wake Time">
+        <div class="container about-slide-inner">
+          <h2 class="about-section-title">Remaining Wake Time</h2>
+          <p class="about-section-intro">Shows how much time is left in your day before your recommended sleep time. Phases are based on the <strong>percent of wake time remaining</strong> (these thresholds may become configurable in a future update).</p>
+          <p class="about-section-intro">The day is divided into three simple phases:</p>
+          <ul class="about-phase-list">
+            <li class="about-phase-item">
+              <span class="about-phase-icon" aria-hidden="true">☀️</span>
+              <div class="about-phase-body">
+                <span class="about-phase-name">1. "Open time" (plenty of runway)</span>
+                <span class="about-phase-range">Range: ~100% → 40% remaining</span>
+                <span class="about-phase-note">(i.e., you're in the first ~60% of your day)</span>
+                <span class="about-phase-feeling">Feeling: steady, normal, no urgency</span>
+              </div>
+            </li>
+            <li class="about-phase-item">
+              <span class="about-phase-icon" aria-hidden="true">🌇</span>
+              <div class="about-phase-body">
+                <span class="about-phase-name">2. "Winding down window"</span>
+                <span class="about-phase-range">Range: ~40% → 15% remaining</span>
+                <span class="about-phase-note">This is the "you're past the midpoint" zone</span>
+                <span class="about-phase-feeling">Feeling: awareness, gentle shift</span>
+              </div>
+            </li>
+            <li class="about-phase-item">
+              <span class="about-phase-icon" aria-hidden="true">🛏️</span>
+              <div class="about-phase-body">
+                <span class="about-phase-name">3. "Pre-sleep phase"</span>
+                <span class="about-phase-range">Range: ~15% → 0% remaining</span>
+                <span class="about-phase-feeling">Time to start easing out and prepare for rest</span>
+              </div>
+            </li>
+          </ul>
+          <p class="about-section-note">This is meant to gently guide your pace, not rush you.</p>
         </div>
-      </li>
-      <li class="about-phase-item">
-        <span class="about-phase-icon" aria-hidden="true">🛏️</span>
-        <div class="about-phase-body">
-          <span class="about-phase-name">3. “Pre-sleep phase”</span>
-          <span class="about-phase-range">Range: ~15% → 0% remaining</span>
-          <span class="about-phase-feeling">Time to start easing out and prepare for rest</span>
-        </div>
-      </li>
-    </ul>
-    <p class="about-section-note">This is meant to gently guide your pace, not rush you.</p>
+      </section>
+    </div>
+    </div>
+    <div class="about-dots" id="about-dots" role="tablist" aria-label="About sections"></div>
   </div>
 
   <script src="sleep-utils.js"></script>
@@ -78,6 +92,116 @@
     document.getElementById('nav-container').innerHTML = renderNavBar('about');
     initDayNightTheme();
     initRemainingWakeNav();
+
+    (function() {
+      var deck = document.getElementById('about-deck');
+      var viewport = document.getElementById('about-slides-viewport');
+      var slidesEl = document.getElementById('about-slides');
+      var dotsEl = document.getElementById('about-dots');
+      var slides = slidesEl.querySelectorAll('.about-slide');
+      var total = slides.length;
+      var current = 0;
+      var touchStartX = 0;
+      var touchEndX = 0;
+      var minSwipe = 60;
+
+      var hashToIndex = { '': 0, 'remaining-wake-time': 1 };
+
+      function getSlideWidth() {
+        return viewport.offsetWidth || deck.offsetWidth || 400;
+      }
+
+      function setSlideWidths() {
+        var w = getSlideWidth();
+        for (var i = 0; i < slides.length; i++) slides[i].style.width = w + 'px';
+      }
+
+      function updateTransform() {
+        var px = current * getSlideWidth();
+        slidesEl.style.transform = 'translateX(-' + px + 'px)';
+      }
+
+      function goTo(index, skipHash) {
+        index = Math.max(0, Math.min(index, total - 1));
+        if (index === current) return;
+        current = index;
+        updateTransform();
+        dotsEl.querySelectorAll('.about-dot').forEach(function(dot, i) {
+          dot.classList.toggle('active', i === current);
+          dot.setAttribute('aria-selected', i === current ? 'true' : 'false');
+        });
+        if (!skipHash) {
+          var hash = index === 0 ? '' : (slides[current].id || '');
+          if (hash) location.hash = hash;
+          else history.replaceState(null, '', location.pathname + location.search);
+        }
+      }
+
+      function buildDots() {
+        dotsEl.innerHTML = '';
+        for (var i = 0; i < total; i++) {
+          var dot = document.createElement('button');
+          dot.type = 'button';
+          dot.className = 'about-dot' + (i === 0 ? ' active' : '');
+          dot.setAttribute('role', 'tab');
+          dot.setAttribute('aria-label', 'Section ' + (i + 1) + ' of ' + total);
+          dot.setAttribute('aria-selected', i === 0 ? 'true' : 'false');
+          dot.addEventListener('click', function() { goTo(Number(this.getAttribute('data-index'))); });
+          dot.setAttribute('data-index', String(i));
+          dotsEl.appendChild(dot);
+        }
+      }
+
+      deck.addEventListener('touchstart', function(e) {
+        touchStartX = e.changedTouches ? e.changedTouches[0].screenX : e.screenX;
+      }, { passive: true });
+
+      deck.addEventListener('touchend', function(e) {
+        touchEndX = e.changedTouches ? e.changedTouches[0].screenX : e.screenX;
+        var diff = touchStartX - touchEndX;
+        if (Math.abs(diff) >= minSwipe) {
+          if (diff > 0) goTo(current + 1);
+          else goTo(current - 1);
+        }
+      }, { passive: true });
+
+      deck.addEventListener('mousedown', function(e) {
+        touchStartX = e.screenX;
+      });
+      deck.addEventListener('mouseup', function(e) {
+        touchEndX = e.screenX;
+        var diff = touchStartX - touchEndX;
+        if (Math.abs(diff) >= minSwipe) {
+          if (diff > 0) goTo(current + 1);
+          else goTo(current - 1);
+        }
+      });
+
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowLeft') goTo(current - 1);
+        if (e.key === 'ArrowRight') goTo(current + 1);
+      });
+
+      setSlideWidths();
+      buildDots();
+      updateTransform();
+
+      var initialHash = (location.hash || '').replace(/^#/, '');
+      var initialIndex = hashToIndex[initialHash];
+      if (initialIndex !== undefined && initialIndex !== 0) {
+        current = initialIndex;
+        updateTransform();
+        dotsEl.querySelectorAll('.about-dot').forEach(function(dot, i) {
+          dot.classList.toggle('active', i === current);
+          dot.setAttribute('aria-selected', i === current ? 'true' : 'false');
+        });
+      }
+
+      window.addEventListener('resize', function() {
+        setSlideWidths();
+        updateTransform();
+      });
+    })();
   </script>
 </body>
 </html>

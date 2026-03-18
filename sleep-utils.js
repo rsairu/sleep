@@ -331,43 +331,87 @@ const MOON_ICON = '<svg class="nav-daynight-icon" viewBox="0 0 24 24" fill="curr
 
 function getDayNightTitle(theme, isOverride) {
   const mode = theme.charAt(0).toUpperCase() + theme.slice(1);
-  return `${mode} mode (${isOverride ? 'manual' : 'auto'}) — click to change`;
+  return `${mode} mode (${isOverride ? 'manual' : 'auto'})`;
 }
 
-// Returns HTML for the day/night indicator icon (sun or moon)
-function getDayNightIconHTML(theme) {
+// Returns HTML for the day/night toggle (sun | moon, active state highlighted)
+function getDayNightToggleHTML(theme) {
   const isOverride = getThemeOverride() !== null;
-  const title = getDayNightTitle(theme, isOverride);
-  const svg = theme === 'day' ? SUN_ICON : MOON_ICON;
-  return `<span id="nav-daynight" class="nav-daynight" role="button" title="${title}" aria-label="${title}">${svg}</span>`;
+  const dayActive = theme === 'day';
+  const nightActive = theme === 'night';
+  const dayTitle = getDayNightTitle('day', isOverride);
+  const nightTitle = getDayNightTitle('night', isOverride);
+  return (
+    '<div id="nav-daynight" class="nav-daynight-toggle" role="group" aria-label="Theme">' +
+      '<button type="button" class="nav-daynight-option' + (dayActive ? ' active' : '') + '" data-theme="day" title="Light mode" aria-label="Light mode" aria-pressed="' + dayActive + '">' + SUN_ICON + '</button>' +
+      '<button type="button" class="nav-daynight-option' + (nightActive ? ' active' : '') + '" data-theme="night" title="Dark mode" aria-label="Dark mode" aria-pressed="' + nightActive + '">' + MOON_ICON + '</button>' +
+    '</div>'
+  );
 }
 
-// Updates the nav daynight icon if the element exists (e.g. after theme tick or click)
+// Updates the nav day/night toggle active state (e.g. after theme tick or click)
 function updateDayNightIcon() {
-  const el = document.getElementById('nav-daynight');
-  if (!el) return;
+  const wrap = document.getElementById('nav-daynight');
+  if (!wrap) return;
   const theme = getEffectiveTheme();
-  const isOverride = getThemeOverride() !== null;
-  el.title = getDayNightTitle(theme, isOverride);
-  el.innerHTML = theme === 'day' ? SUN_ICON : MOON_ICON;
+  wrap.querySelectorAll('.nav-daynight-option').forEach(btn => {
+    const isActive = btn.getAttribute('data-theme') === theme;
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-pressed', isActive);
+  });
 }
 
-// Cycle theme on icon click: auto -> day -> night -> auto
-function handleDayNightClick() {
-  const override = getThemeOverride();
-  const next = override === null ? 'day' : override === 'day' ? 'night' : null;
-  if (next === null) setThemeOverride(null);
-  else setThemeOverride(next);
+// Toggle theme: click sets theme to the chosen option (day or night)
+function handleDayNightClick(e) {
+  const btn = e.target.closest('.nav-daynight-option');
+  if (!btn) return;
+  const theme = btn.getAttribute('data-theme');
+  if (theme !== 'day' && theme !== 'night') return;
+  setThemeChoice(theme);
+}
+
+// Set theme from a choice: 'day' | 'night' | 'auto'. Updates override, applies theme, nav toggle, and config selector.
+function setThemeChoice(choice) {
+  if (choice !== 'auto' && choice !== 'day' && choice !== 'night') return;
+  setThemeOverride(choice === 'auto' ? null : choice);
   applyDayNightTheme();
   updateDayNightIcon();
+  updateThemeSelectors();
+}
+
+// Updates theme selector active state on Config page (Light / Dark / Auto).
+function updateThemeSelectors() {
+  const wrap = document.getElementById('config-theme');
+  if (!wrap) return;
+  const override = getThemeOverride();
+  const activeValue = override === null ? 'auto' : override;
+  wrap.querySelectorAll('.about-theme-option').forEach(btn => {
+    const isActive = btn.getAttribute('data-theme') === activeValue;
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-pressed', isActive);
+  });
+}
+
+// Initializes the Config page theme selector: sync state from storage and attach click handlers.
+function initConfigThemeSelector() {
+  updateThemeSelectors();
+  const wrap = document.getElementById('config-theme');
+  if (!wrap) return;
+  wrap.addEventListener('click', function (e) {
+    const btn = e.target.closest('.about-theme-option');
+    if (!btn) return;
+    const choice = btn.getAttribute('data-theme');
+    if (choice !== 'day' && choice !== 'night' && choice !== 'auto') return;
+    setThemeChoice(choice);
+  });
 }
 
 // Initializes day/night theme, click handler, and timer to re-check (when in auto mode)
 function initDayNightTheme() {
   applyDayNightTheme();
   updateDayNightIcon();
-  const el = document.getElementById('nav-daynight');
-  if (el) el.addEventListener('click', handleDayNightClick);
+  const wrap = document.getElementById('nav-daynight');
+  if (wrap) wrap.addEventListener('click', handleDayNightClick);
   setInterval(function () {
     applyDayNightTheme();
     updateDayNightIcon();
@@ -378,7 +422,7 @@ function initDayNightTheme() {
 function renderNavBar(currentPage) {
   applyDayNightTheme();
   const theme = getEffectiveTheme();
-  const dayNightIcon = getDayNightIconHTML(theme);
+  const dayNightToggle = getDayNightToggleHTML(theme);
 
   const pages = [
     { id: 'dashboard', name: 'Dashboard', url: 'dashboard.html', icon: '🛌' },
@@ -395,11 +439,14 @@ function renderNavBar(currentPage) {
 
   const githubIcon = `<svg class="nav-github-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>`;
   const githubLink = `<a href="${GITHUB_REPO_URL}" class="nav-github-link" target="_blank" rel="noopener noreferrer" title="View on GitHub">${githubIcon}</a>`;
+  const configIcon = `<svg class="nav-config-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97 0-.33-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.31-.61-.22l-2.49 1c-.52-.39-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.09-.49 0-.61.22l-2 3.46c-.13.22-.08.49.12.64L4.57 11c-.04.34-.07.67-.07 1 0 .33.03.65.07.97l-2.11 1.66c-.19.15-.25.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1.01c.52.4 1.06.74 1.69.99l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.26 1.17-.59 1.69-.99l2.49 1.01c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.66z"/></svg>`;
+  const configLink = `<a href="config.html" class="nav-config-link" title="Settings">${configIcon}</a>`;
   const aboutIcon = `<svg class="nav-about-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>`;
   const aboutLink = `<a href="about.html" class="nav-about-link" title="About">${aboutIcon}</a>`;
-  const navRight = `<div class="nav-right">${dayNightIcon}${aboutLink}${githubLink}</div>`;
+  const navRight = `<div class="nav-right">${dayNightToggle}${configLink}${aboutLink}${githubLink}</div>`;
 
-  const appName = '<div class="nav-app-block"><span class="nav-app-name">Restore</span><span class="nav-app-subtitle">Sleep Tracker</span></div>';
+  const appIcon = '<img src="icon_512.png" alt="" class="nav-app-icon" width="36" height="36">';
+  const appName = `<a href="dashboard.html" class="nav-app-block" title="Dashboard"><span class="nav-app-icon-wrap">${appIcon}</span><span class="nav-app-text"><span class="nav-app-name">Restore</span><span class="nav-app-subtitle">Sleep Tracker</span></span></a>`;
   const headerRow = `<div class="nav-header nav-header--remaining-wake">${appName}<div class="nav-remaining-wake" id="nav-remaining-wake"></div>${navRight}</div>`;
   const tabsRow = `<div class="nav-tabs-row"><div class="nav-tabs">${navItems}</div></div>`;
   return `<div class="nav-wrapper nav-wrapper--remaining-wake">${headerRow}${tabsRow}</div>`;
