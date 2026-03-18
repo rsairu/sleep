@@ -3,8 +3,7 @@ const YEAR = 2026;
 const ALARM_TO_WAKE_WARNING_THRESHOLD = 60; // minutes
 const DEVIATION_FLAG_THRESHOLD = 20; // minutes - flags only show if deviation is >= this
 const DATA_FILES = {
-  sleep: 'sleep-data.json',
-  holidays: 'holidays.json'
+  sleep: 'sleep-data.json'
 };
 
 // Time constants
@@ -15,8 +14,8 @@ const TIME_TICKS = [0, 180, 420, 660, 900, 1140, 1440]; // 21, 0, 4, 8, 12, 16, 
 const TIMELINE_START_MINUTES = 1260; // 21:00 in minutes
 const PREVIOUS_DAY_DURATION = 180; // 3 hours from 21:00 to 00:00
 
-// Holidays data (loaded from holidays.json)
-let holidays = {};
+// Holidays data (from sleep-utils.js HOLIDAYS_BY_YEAR)
+let holidays = typeof window !== 'undefined' && window.HOLIDAYS_BY_YEAR ? window.HOLIDAYS_BY_YEAR : {};
 
 // Note: parseDateString, getDateFromString, isHoliday, and isWeekend are now in sleep-utils.js
 
@@ -913,12 +912,8 @@ function toggleWeek(weekId) {
 // Load and render data (only on timeline page when #days-container exists)
 const daysContainer = document.getElementById('days-container');
 if (daysContainer) {
-  Promise.all([
-    fetch(DATA_FILES.sleep).then(response => response.json()),
-    fetch(DATA_FILES.holidays).then(response => response.json())
-  ])
-    .then(([sleepData, holidaysData]) => {
-      holidays = holidaysData;
+  fetch(DATA_FILES.sleep).then(response => response.json())
+    .then((sleepData) => {
 
       const legendControlsEl = document.getElementById('timeline-legend-controls');
       if (legendControlsEl) legendControlsEl.innerHTML = renderTimelineLegendControls();

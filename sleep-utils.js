@@ -1,5 +1,24 @@
 // Shared utility functions for sleep tracking application
 
+// Holiday calendar: { year: { month: [day, ...] } }. Exposed on window for pages that need the reference.
+const HOLIDAYS_BY_YEAR = {
+  2026: {
+    1: [1, 2, 3, 12],
+    2: [11, 23],
+    3: [20],
+    4: [29],
+    5: [3, 4, 5, 6],
+    6: [],
+    7: [20],
+    8: [11],
+    9: [21, 22, 23],
+    10: [12],
+    11: [3, 23],
+    12: [31]
+  }
+};
+if (typeof window !== 'undefined') window.HOLIDAYS_BY_YEAR = HOLIDAYS_BY_YEAR;
+
 // Convert HH:MM to minutes from midnight
 function timeToMinutes(time) {
   const [hours, minutes] = time.split(':').map(Number);
@@ -66,18 +85,17 @@ function isWeekend(dateOrString, year = 2026) {
 }
 
 // Check if a date is a holiday
-// Accepts either a Date object or dateString
+// Accepts either a Date object or dateString. holidays is optional (defaults to HOLIDAYS_BY_YEAR).
 function isHoliday(dateOrString, holidays, year = 2026) {
+  const h = holidays ?? HOLIDAYS_BY_YEAR;
   let month, day;
-  
   if (dateOrString instanceof Date) {
     month = dateOrString.getMonth() + 1; // getMonth() returns 0-11
     day = dateOrString.getDate();
   } else {
     [month, day] = parseDateString(dateOrString);
   }
-  
-  const yearHolidays = holidays[year];
+  const yearHolidays = h[year];
   if (!yearHolidays) return false;
   return yearHolidays[month] && yearHolidays[month].includes(day);
 }

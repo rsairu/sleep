@@ -34,6 +34,14 @@
   --warning-border: rgba(251, 191, 36, 0.4);
   --tick-line: rgba(255, 255, 255, 0.2);
   --tick-label: rgba(255, 255, 255, 0.5);
+
+  /* Calendar/legend quality-flag colors */
+  --flag-none: #15803d;
+  --flag-one: #c89f04;
+  --flag-two: #a16207;
+  --flag-three-plus: #991b1b;
+
+  --chart-error-bg: rgba(194, 65, 12, 0.1);
 }
 
 /* Day mode (after sunrise, before sunset) */
@@ -64,24 +72,12 @@
   --color-hover-blue: #2563eb;
   --tick-line: rgba(0, 0, 0, 0.22);
   --tick-label: rgba(15, 23, 42, 0.65);
-}
 
-/* Day mode: darker flag square colours so labels/contrast are easier to read */
-[data-theme="day"] .legend-square.flag-none,
-[data-theme="day"] .calendar-square.flag-none {
-  background: #166534;
-}
-[data-theme="day"] .legend-square.flag-one,
-[data-theme="day"] .calendar-square.flag-one {
-  background: #a16207;
-}
-[data-theme="day"] .legend-square.flag-two,
-[data-theme="day"] .calendar-square.flag-two {
-  background: #854d0e;
-}
-[data-theme="day"] .legend-square.flag-three-plus,
-[data-theme="day"] .calendar-square.flag-three-plus {
-  background: #7f1d1d;
+  /* Day mode: darker flag square colours so labels/contrast are easier to read */
+  --flag-none: #166534;
+  --flag-one: #a16207;
+  --flag-two: #854d0e;
+  --flag-three-plus: #7f1d1d;
 }
 
 body{
@@ -869,10 +865,6 @@ body{
   margin-bottom: 0;
 }
 
-.week-summary-bar .bar{
-  margin-bottom: 0;
-}
-
 .day{
   background: var(--panel);
   border-radius: 14px;
@@ -976,53 +968,46 @@ body{
   color: var(--color-warning);
 }
 
-/* Color keywords in day-stats (timeline page) - only the keyword, not the whole label */
-.day-stats .stat-label .keyword.bed {
+/* Color keywords in stats (timeline day-stats, averages, stats-table) - only the keyword */
+.day-stats .stat-label .keyword.bed,
+.averages .stat-label .keyword.bed,
+.stats-table .stat-label .keyword.bed,
+.stats-table .stat-value .keyword.bed {
   color: var(--color-bed);
 }
 
-.day-stats .stat-label .keyword.sleep {
+.day-stats .stat-label .keyword.sleep,
+.averages .stat-label .keyword.sleep,
+.stats-table .stat-label .keyword.sleep,
+.stats-table .stat-value .keyword.sleep {
   color: var(--color-sleep);
 }
 
-.day-stats .stat-label .keyword.asleep {
+.day-stats .stat-label .keyword.asleep,
+.averages .stat-label .keyword.asleep,
+.stats-table .stat-label .keyword.asleep,
+.stats-table .stat-value .keyword.asleep {
   color: var(--color-sleep);
 }
 
-.day-stats .stat-label .keyword.wake {
+.day-stats .stat-label .keyword.wake,
+.averages .stat-label .keyword.wake,
+.stats-table .stat-label .keyword.wake,
+.stats-table .stat-value .keyword.wake {
   color: var(--color-up);
 }
 
-.day-stats .stat-label .keyword.nap {
+.day-stats .stat-label .keyword.nap,
+.averages .stat-label .keyword.nap,
+.stats-table .stat-label .keyword.nap,
+.stats-table .stat-value .keyword.nap {
   color: var(--color-nap);
 }
 
-.day-stats .stat-label .keyword.alarm {
-  color: var(--color-alarm);
-}
-
-/* Color keywords in averages section - same colors as day-stats */
-.averages .stat-label .keyword.bed {
-  color: var(--color-bed);
-}
-
-.averages .stat-label .keyword.sleep {
-  color: var(--color-sleep);
-}
-
-.averages .stat-label .keyword.asleep {
-  color: var(--color-sleep);
-}
-
-.averages .stat-label .keyword.wake {
-  color: var(--color-up);
-}
-
-.averages .stat-label .keyword.nap {
-  color: var(--color-nap);
-}
-
-.averages .stat-label .keyword.alarm {
+.day-stats .stat-label .keyword.alarm,
+.averages .stat-label .keyword.alarm,
+.stats-table .stat-label .keyword.alarm,
+.stats-table .stat-value .keyword.alarm {
   color: var(--color-alarm);
 }
 
@@ -1074,9 +1059,10 @@ body{
   background: var(--color-nap); 
 }
 
-/* Shared tooltip styles */
+/* Shared tooltip styles (timeline spans/events and calendar squares) */
 .span.sleep[data-tooltip]::after,
-.event[data-tooltip]::after{
+.event[data-tooltip]::after,
+.calendar-square[data-tooltip]::after {
   content: attr(data-tooltip);
   position: absolute;
   bottom: calc(100% + 12px);
@@ -1094,13 +1080,19 @@ body{
   z-index: 1000;
 }
 
+.calendar-square[data-tooltip]::after {
+  bottom: calc(100% + 8px);
+}
+
 .span.sleep[data-tooltip]:hover::after,
-.event[data-tooltip]:hover::after{
+.event[data-tooltip]:hover::after,
+.calendar-square[data-tooltip]:hover::after {
   opacity: 1;
 }
 
 .span.sleep[data-tooltip]::before,
-.event[data-tooltip]::before{
+.event[data-tooltip]::before,
+.calendar-square[data-tooltip]::before {
   content: "";
   position: absolute;
   bottom: calc(100% + 4px);
@@ -1114,8 +1106,13 @@ body{
   z-index: 1000;
 }
 
+.calendar-square[data-tooltip]::before {
+  bottom: calc(100% + 2px);
+}
+
 .span.sleep[data-tooltip]:hover::before,
-.event[data-tooltip]:hover::before{
+.event[data-tooltip]:hover::before,
+.calendar-square[data-tooltip]:hover::before {
   opacity: 1;
 }
 
@@ -1246,7 +1243,7 @@ h1 {
 .chart-error {
   color: var(--color-warning);
   padding: 10px;
-  background: rgba(194, 65, 12, 0.1);
+  background: var(--chart-error-bg);
   margin: 10px 0;
 }
 
@@ -1353,7 +1350,7 @@ svg {
   flex-wrap: wrap;
   align-items: center;
   padding: 10px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--hover-bg);
   border-radius: 8px;
 }
 
@@ -1420,7 +1417,7 @@ svg {
 }
 
 .legend-dot.sleep-start {
-  background: var(--color-up);
+  background: var(--color-sleep);
 }
 
 .legend-dot.sleep {
@@ -1539,7 +1536,7 @@ svg {
 }
 
 .sleep-bar.nap-bar {
-  fill: #c4b5fd; /* Lighter purple hue for nap portion */
+  fill: var(--color-nap);
 }
 
 .sleep-bar.delay-bar {
@@ -1654,52 +1651,6 @@ svg {
   flex: 0 0 auto;
   font-variant-numeric: tabular-nums;
   font-family: 'Courier New', monospace;
-}
-
-/* Color keywords in stats - only the keyword, not the whole label */
-.stats-table .stat-label .keyword.bed {
-  color: var(--color-bed);
-}
-
-.stats-table .stat-label .keyword.sleep {
-  color: var(--color-sleep);
-}
-
-.stats-table .stat-label .keyword.asleep {
-  color: var(--color-sleep);
-}
-
-.stats-table .stat-label .keyword.wake {
-  color: var(--color-up);
-}
-
-.stats-table .stat-label .keyword.nap {
-  color: var(--color-nap);
-}
-
-.stats-table .stat-label .keyword.alarm {
-  color: var(--color-alarm);
-}
-
-/* Color keywords in stat-value (for ultimates) */
-.stats-table .stat-value .keyword.bed {
-  color: var(--color-bed);
-}
-
-.stats-table .stat-value .keyword.sleep {
-  color: var(--color-sleep);
-}
-
-.stats-table .stat-value .keyword.asleep {
-  color: var(--color-sleep);
-}
-
-.stats-table .stat-value .keyword.wake {
-  color: var(--color-up);
-}
-
-.stats-table .stat-value .keyword.nap {
-  color: var(--color-nap);
 }
 
 /* Ultimates styling */
@@ -1894,19 +1845,19 @@ svg {
 }
 
 .legend-square.flag-none {
-  background: #15803d; /* Muted green - good quality */
+  background: var(--flag-none);
 }
 
 .legend-square.flag-one {
-  background: #c89f04; /* Amber with slight green - slight deterioration */
+  background: var(--flag-one);
 }
 
 .legend-square.flag-two {
-  background: #a16207; /* Yellow/amber - moderate deterioration */
+  background: var(--flag-two);
 }
 
 .legend-square.flag-three-plus {
-  background: #991b1b; /* Darker red - poor quality */
+  background: var(--flag-three-plus);
 }
 
 .calendar-heatmap {
@@ -2125,19 +2076,19 @@ svg {
 }
 
 .calendar-square.flag-none {
-  background: #15803d; /* Muted green - good quality */
+  background: var(--flag-none);
 }
 
 .calendar-square.flag-one {
-  background: #c89f04; /* Amber with slight green - slight deterioration */
+  background: var(--flag-one);
 }
 
 .calendar-square.flag-two {
-  background: #a16207; /* Yellow/amber - moderate deterioration */
+  background: var(--flag-two);
 }
 
 .calendar-square.flag-three-plus {
-  background: #991b1b; /* Darker red - poor quality */
+  background: var(--flag-three-plus);
 }
 
 .calendar-square:not(.empty):hover {
@@ -2145,47 +2096,6 @@ svg {
   outline-offset: 1px;
   transform: scale(1.2);
   z-index: 10;
-}
-
-/* Tooltip for calendar squares */
-.calendar-square[data-tooltip]::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 4px 8px;
-  background: var(--tooltip-bg);
-  color: white;
-  font-size: 11px;
-  white-space: nowrap;
-  border-radius: 4px;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.2s;
-  z-index: 1000;
-}
-
-.calendar-square[data-tooltip]:hover::after {
-  opacity: 1;
-}
-
-.calendar-square[data-tooltip]::before {
-  content: "";
-  position: absolute;
-  bottom: calc(100% + 2px);
-  left: 50%;
-  transform: translateX(-50%);
-  border: 4px solid transparent;
-  border-top-color: var(--tooltip-bg);
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.2s;
-  z-index: 1000;
-}
-
-.calendar-square[data-tooltip]:hover::before {
-  opacity: 1;
 }
 
 /* For first week row of first month, show tooltip below so it's not cut off */
