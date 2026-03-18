@@ -15,7 +15,7 @@ Static, client-side web app for logging and visualizing sleep (bed time, sleep s
 | **Charts** | SVG drawn in JS (no chart library) |
 | **Styling** | Single `styles.css` with CSS variables (dark theme) |
 
-- **Data source:** `sleep-data.json` (object with a `days` array of daily records) and `holidays.json` (year → month → list of holiday days).
+- **Data source:** `sleep-data.json` (object with a `days` array of daily records). Holiday calendar is in `sleep-utils.js` as `HOLIDAYS_BY_YEAR` (year → month → list of holiday days).
 - **Shared logic:** `sleep-utils.js` holds time math, date helpers, and `renderNavBar()`. `daily.js` holds dashboard/timeline/heatmap logic and is the main "core" script. Page-specific scripts: `dashboard.js`, `quality.js`, `graph.js`, `stats.js`.
 
 ---
@@ -36,12 +36,12 @@ Time is normalized as **minutes from midnight** (0–1440) everywhere, with expl
 ## Pages & Responsibilities
 
 ### 1. Dashboard (`dashboard.html` + `dashboard.js` + `daily.js`)
-- Loads `sleep-data.json` and `holidays.json`.
+- Loads `sleep-data.json`.
 - Renders recent/lifetime averages, last few nights as timeline rows, and the **current month** of the sleep-quality calendar heatmap.
 - Uses `renderDashboardContent()`, `renderCalendarHeatmapCurrentMonthOnly()` from `daily.js`.
 
 ### 2. Sleep Quality (`quality.html` + `quality.js` + `daily.js`)
-- Loads `sleep-data.json` and `holidays.json`.
+- Loads `sleep-data.json`.
 - Renders the **full** sleep quality history: all months in a calendar heatmap of "flag" days (deviations vs 7-day avg).
 - Uses `renderCalendarHeatmapFullHistory()`, `buildFlagCountMap()`, `getLatestDataDate()` from `daily.js`.
 
@@ -76,7 +76,7 @@ Time is normalized as **minutes from midnight** (0–1440) everywhere, with expl
 - Dashboard shows these and the heatmap uses them.
 
 ### Weekends & holidays
-- `isWeekend()`, `isHoliday()` in `sleep-utils.js`; `holidays` structure is `{ year: { month: [day, ...] } }`.
+- `isWeekend()`, `isHoliday()` in `sleep-utils.js`; holiday data is `HOLIDAYS_BY_YEAR` in the same file (`{ year: { month: [day, ...] } }`). Optional second arg to `isHoliday()`; defaults to `HOLIDAYS_BY_YEAR`.
 - Used for styling (e.g. weekend background) and possibly filtering in the UI.
 
 ### UI
@@ -92,8 +92,7 @@ Time is normalized as **minutes from midnight** (0–1440) everywhere, with expl
 |------|------|
 | `index.html` | Redirects to `dashboard.html` (entry point) |
 | `sleep-data.json` | Source of truth; object with `days` array of daily records |
-| `holidays.json` | Holiday calendar by year/month/day |
-| `sleep-utils.js` | Time/date helpers, `calculateTotalSleep()`, `renderNavBar()` |
+| `sleep-utils.js` | Time/date helpers, `calculateTotalSleep()`, `renderNavBar()`, `HOLIDAYS_BY_YEAR` |
 | `daily.js` | Timeline rendering, week grouping, dashboard content, deviation logic, heatmap |
 | `dashboard.js` | Fetches data and calls `renderDashboardContent()` |
 | `quality.js` | Fetches data and calls `renderCalendarHeatmapFullHistory()` for full history |

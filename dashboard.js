@@ -523,12 +523,8 @@ function renderDashboard7DayGraphs(days) {
 // --- Dashboard bootstrap ---
 const dashboardContainer = document.getElementById('dashboard-container');
 if (dashboardContainer) {
-  Promise.all([
-    fetch('sleep-data.json').then(r => r.json()),
-    fetch('holidays.json').then(r => r.json())
-  ])
-    .then(([sleepData, holidaysData]) => {
-      if (typeof holidays !== 'undefined') holidays = holidaysData;
+  fetch('sleep-data.json').then(r => r.json())
+    .then((sleepData) => {
       dashboardContainer.innerHTML = renderDashboardContent(sleepData.days);
       renderDashboard7DayGraphs(sleepData.days);
 

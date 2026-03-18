@@ -1,12 +1,8 @@
 // Graph page rendering. Shared math/time helpers live in sleep-utils.js.
 
 // Load and render graph
-Promise.all([
-  fetch('sleep-data.json').then(response => response.json()),
-  fetch('holidays.json').then(response => response.json())
-])
-  .then(([data, holidaysData]) => {
-    const holidays = holidaysData;
+fetch('sleep-data.json').then(response => response.json())
+  .then((data) => {
     // Process data: convert to array of {date, bedTimeMinutes, bedTimeString, sleepStartMinutes, sleepStartString, getUpMinutes, getUpString, sleepDurationMinutes}
     const points = data.days.map(day => {
       const rawBedMinutes = timeToMinutes(day.bed);
@@ -133,7 +129,7 @@ Promise.all([
     
     points.forEach((point) => {
       const isWeekendDay = isWeekend(point.date);
-      const isHolidayDay = isHoliday(point.date, holidays);
+      const isHolidayDay = isHoliday(point.date);
       
       if (isWeekendDay || isHolidayDay) {
         const x = xScale(point.date);
