@@ -10,7 +10,8 @@
   --bar: #1f2937;
   --grid: rgba(255,255,255,.08);
   --text: #e5e7eb;
-  
+  --nav-app-text-color: var(--text); /* dark: white; day overrides to #3e63b1 */
+
   /* Color palette */
   --color-sleep: #a78bfa;
   --color-nap: #c4b5fd;
@@ -78,6 +79,9 @@
   --flag-one: #a16207;
   --flag-two: #854d0e;
   --flag-three-plus: #7f1d1d;
+
+  /* Nav app title: darker blue for light mode (softer than icon blue) */
+  --nav-app-text-color: #25408a;
 }
 
 body{
@@ -122,6 +126,32 @@ body{
 
 .nav-app-block {
   display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: inherit;
+  transition: opacity 0.2s;
+}
+
+.nav-app-block:hover {
+  opacity: 0.9;
+}
+
+.nav-app-icon-wrap {
+  flex-shrink: 0;
+  line-height: 0;
+}
+
+.nav-app-icon {
+  display: block;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+}
+
+.nav-app-text {
+  display: flex;
   flex-direction: column;
   gap: 2px;
 }
@@ -141,6 +171,7 @@ body{
   letter-spacing: 0.02em;
 }
 
+.nav-config-link,
 .nav-about-link {
   display: flex;
   align-items: center;
@@ -150,10 +181,12 @@ body{
   transition: opacity 0.2s;
 }
 
+.nav-config-link:hover,
 .nav-about-link:hover {
   opacity: 1;
 }
 
+.nav-config-icon,
 .nav-about-icon {
   width: 22px;
   height: 22px;
@@ -177,23 +210,46 @@ body{
   gap: 10px;
 }
 
-.nav-daynight {
+/* Theme toggle: light | dark (pill with two options) */
+.nav-daynight-toggle {
+  display: inline-flex;
+  align-items: stretch;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px;
+  gap: 0;
+}
+
+.nav-daynight-option {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
   color: var(--text);
-  opacity: 0.8;
-  transition: opacity 0.2s;
+  opacity: 0.7;
   cursor: pointer;
+  transition: background 0.2s, opacity 0.2s;
 }
 
-.nav-daynight:hover {
+.nav-daynight-option:hover {
   opacity: 1;
 }
 
+.nav-daynight-option.active {
+  background: var(--bg);
+  opacity: 1;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
 .nav-daynight-icon {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
 }
 
 .nav-github-link {
@@ -2109,6 +2165,108 @@ svg {
   top: calc(100% + 2px);
   border-top-color: transparent;
   border-bottom-color: var(--tooltip-bg);
+}
+
+/* About page — Theme selector (Light / Dark / Auto) */
+.about-theme {
+  display: inline-flex;
+  align-items: stretch;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 0;
+  margin-bottom: 1.5rem;
+}
+
+.about-theme-option {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.about-theme-option:hover {
+  background: var(--bg);
+  opacity: 0.9;
+}
+
+.about-theme-option.active {
+  background: var(--bg);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+#theme.about-section-title {
+  margin-top: 0;
+}
+
+/* Config page */
+.container--config .config-page-title {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+}
+
+.container--config #theme.about-section-title {
+  margin-top: 1rem;
+}
+
+/* About page — section slider (swipeable deck) */
+.about-deck {
+  display: flex;
+  flex-direction: column;
+  margin: 0 -20px;
+  padding: 0;
+}
+.about-slides-viewport {
+  width: 100%;
+  overflow: hidden;
+}
+.about-slides {
+  display: flex;
+  flex-wrap: nowrap;
+  transition: transform 0.35s ease-out;
+  will-change: transform;
+}
+.about-slide {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+.about-slide-inner {
+  margin: 0 20px 24px;
+}
+.about-slide-inner .about-section-title:first-child {
+  margin-top: 0;
+}
+.about-dots {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px 0 8px;
+}
+.about-dots .about-dot {
+  pointer-events: auto;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  background: var(--text);
+  opacity: 0.35;
+  cursor: pointer;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.about-dots .about-dot:hover {
+  opacity: 0.6;
+}
+.about-dots .about-dot.active {
+  opacity: 1;
+  transform: scale(1.2);
 }
 
 /* About page — getting started list */

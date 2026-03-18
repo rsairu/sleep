@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settings — Restore</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="nav-container"></div>
+  <div class="container container--config">
+    <h1 class="config-page-title">Settings</h1>
+
+    <h2 class="about-section-title" id="theme">Theme</h2>
+    <p class="about-section-intro">Choose light, dark, or automatic (based on time of day).</p>
+    <div id="config-theme" class="about-theme" role="group" aria-label="Theme preference">
+      <button type="button" class="about-theme-option" data-theme="day" aria-pressed="false">Light</button>
+      <button type="button" class="about-theme-option" data-theme="night" aria-pressed="false">Dark</button>
+      <button type="button" class="about-theme-option" data-theme="auto" aria-pressed="false">Auto</button>
+    </div>
+  </div>
+
+  <script src="sleep-utils.js"></script>
+  <script>
+    document.getElementById('nav-container').innerHTML = renderNavBar('config');
+    initDayNightTheme();
+    initConfigThemeSelector();
+    initRemainingWakeNav();
+  </script>
+</body>
+</html>
