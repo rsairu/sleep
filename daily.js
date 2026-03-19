@@ -316,7 +316,7 @@ function renderDay(day, days, dayIndex, options) {
           <div class="stat-row"><span class="stat-label">${highlightKeyword('asleep:', 'asleep')}</span><span class="stat-value">${day.sleepStart}</span></div>
           <div class="stat-row"><span class="stat-label">${highlightKeyword('duration:', 'duration')}</span><span class="stat-value">${formatDuration(sleepDuration)}</span></div>
           <div class="stat-row"><span class="stat-label">uninterrupted:</span><span class="stat-value">${formatDuration(longestUninterrupted)}</span></div>
-          ${firstAlarmToWake !== null ? `<div class="stat-row"><span class="stat-label">${highlightKeyword('alarm to wake:', ['alarm', 'wake'])}</span><span class="stat-value ${firstAlarmToWake > ALARM_TO_WAKE_WARNING_THRESHOLD ? 'stat-warning' : ''}">${formatDuration(firstAlarmToWake)}</span></div>` : ''}
+          ${firstAlarmToWake !== null ? `<div class="stat-row"><span class="stat-label">${highlightKeyword('alarm to wake:', ['alarm', 'wake'])}</span><span class="stat-value ${firstAlarmToWake > ALARM_TO_WAKE_WARNING_THRESHOLD ? 'stat-warning' : ''}">${firstAlarmToWake < 0 ? '-' + formatDuration(-firstAlarmToWake) : formatDuration(firstAlarmToWake)}</span></div>` : ''}
         </div>
         <div class="day-bar-container">
           <div class="${barClass}">
@@ -406,7 +406,7 @@ function renderAveragesStats(averages) {
         <div class="stat-row"><span class="stat-label">${highlightKeyword('asleep:', 'asleep')}</span><span class="stat-value">${formatTime(averages.avgBedtime)}</span></div>
     <div class="stat-row"><span class="stat-label">${highlightKeyword('duration:', 'duration')}</span><span class="stat-value">${formatDuration(averages.avgSleepDuration)}</span></div>
     <div class="stat-row"><span class="stat-label">uninterrupted:</span><span class="stat-value">${formatDuration(averages.avgLongestUninterrupted)}</span></div>
-    ${averages.avgFirstAlarmToWake !== null ? `<div class="stat-row"><span class="stat-label">${highlightKeyword('alarm to wake:', ['alarm', 'wake'])}</span><span class="stat-value ${averages.avgFirstAlarmToWake > ALARM_TO_WAKE_WARNING_THRESHOLD ? 'stat-warning' : ''}">${formatDuration(averages.avgFirstAlarmToWake)}</span></div>` : ''}
+    ${averages.avgFirstAlarmToWake !== null ? `<div class="stat-row"><span class="stat-label">${highlightKeyword('alarm to wake:', ['alarm', 'wake'])}</span><span class="stat-value ${averages.avgFirstAlarmToWake > ALARM_TO_WAKE_WARNING_THRESHOLD ? 'stat-warning' : ''}">${averages.avgFirstAlarmToWake < 0 ? '-' + formatDuration(-averages.avgFirstAlarmToWake) : formatDuration(averages.avgFirstAlarmToWake)}</span></div>` : ''}
   `;
 }
 
@@ -714,12 +714,12 @@ function renderCalendarHeatmapFullHistory(year, flagMap, latestDataDate) {
 const PROJECTION_BAND_MINUTES = 30;
 const WAKE_PROJECTION_BAND_MINUTES = 15;
 
-// Phase thresholds (percent of wake time remaining): open >= 40%, winding 15–40%, pre-sleep < 15%.
+// Phase thresholds (percent of wake time remaining): open >= 30%, winding 10–30%, pre-sleep < 10%.
 function getRemainingWakePhase(remainingMins, sleepTargetMins) {
   if (sleepTargetMins <= 0) return 'open';
   const percentRemaining = Math.min(100, (remainingMins / sleepTargetMins) * 100);
-  if (percentRemaining >= 40) return 'open';
-  if (percentRemaining >= 15) return 'winding';
+  if (percentRemaining >= 30) return 'open';
+  if (percentRemaining >= 10) return 'winding';
   return 'presleep';
 }
 
