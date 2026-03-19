@@ -12,11 +12,50 @@
     <h1 class="config-page-title">Settings</h1>
 
     <h2 class="about-section-title" id="theme">Theme</h2>
-    <p class="about-section-intro">Choose light, dark, or automatic (based on time of day).</p>
+    <p class="about-section-intro">Choose Light / Dark or Auto (time-based: follows time of day).</p>
     <div id="config-theme" class="about-theme" role="group" aria-label="Theme preference">
-      <button type="button" class="about-theme-option" data-theme="day" aria-pressed="false">Light</button>
-      <button type="button" class="about-theme-option" data-theme="night" aria-pressed="false">Dark</button>
-      <button type="button" class="about-theme-option" data-theme="auto" aria-pressed="false">Auto</button>
+      <div class="about-theme-row about-theme-row--light-dark" id="config-theme-light-dark-row" role="button" tabindex="0" aria-label="Light / Dark">
+        <span class="about-theme-option-icon" id="config-theme-toggle-wrap"></span>
+        <span>Light / Dark</span>
+      </div>
+      <button type="button" class="about-theme-option" data-theme="auto" aria-pressed="false">
+        <span class="about-theme-option-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg></span>
+        <span>Auto (time-based)</span>
+      </button>
+    </div>
+
+    <h2 class="about-section-title" id="remaining-wake-thresholds">Remaining wake time thresholds</h2>
+    <p class="about-section-intro">Set when the app switches between Active, Winding down, and Pre-sleep.</p>
+    <p class="about-section-intro">
+      <a href="about.html#remaining-wake-time" class="config-rw-link">More about remaining wake times</a>
+    </p>
+    <p class="config-remaining-wake-default-row">
+      <button type="button" class="config-rw-default-btn" id="config-rw-use-defaults" aria-label="Reset to default thresholds (30%, 10%)">Use default values <span class="config-rw-default-values">(30%, 10%)</span></button>
+    </p>
+    <div class="config-remaining-wake" id="config-remaining-wake" role="group" aria-labelledby="remaining-wake-thresholds">
+      <div class="config-remaining-wake-icons" aria-hidden="true">
+        <span class="config-remaining-wake-icon-seg" id="config-rw-icon-open"><span class="config-rw-icon-emoji">☀️</span><span class="config-rw-icon-label">Active</span></span>
+        <span class="config-remaining-wake-icon-seg" id="config-rw-icon-winding"><span class="config-rw-icon-emoji">🌇</span><span class="config-rw-icon-label">Winding</span></span>
+        <span class="config-remaining-wake-icon-seg" id="config-rw-icon-presleep"><span class="config-rw-icon-emoji">🛏️</span><span class="config-rw-icon-label">Pre-sleep</span></span>
+      </div>
+      <div class="config-remaining-wake-bar-wrap">
+        <div class="config-remaining-wake-bar">
+          <div class="config-remaining-wake-seg config-remaining-wake-seg--open" id="config-rw-seg-open"></div>
+          <div class="config-remaining-wake-seg config-remaining-wake-seg--winding" id="config-rw-seg-winding"></div>
+          <div class="config-remaining-wake-seg config-remaining-wake-seg--presleep" id="config-rw-seg-presleep"></div>
+        </div>
+        <input type="range" id="config-open-min" min="0" max="100" step="5" value="70" aria-label="Active / Winding boundary (percent remaining)" tabindex="0">
+        <input type="range" id="config-winding-min" min="0" max="100" step="5" value="90" aria-label="Winding / Pre-sleep boundary (percent remaining)" tabindex="0">
+        <div class="config-remaining-wake-bar-overlay" id="config-rw-bar-overlay" aria-hidden="true"></div>
+      </div>
+      <div class="config-remaining-wake-labels">
+        <span>Wake</span>
+        <span>Sleep</span>
+      </div>
+      <div class="config-remaining-wake-percent-under" id="config-rw-percent-under" aria-live="polite">
+        <span class="config-rw-percent-thumb" id="config-rw-percent-left">30%</span>
+        <span class="config-rw-percent-thumb" id="config-rw-percent-right">10%</span>
+      </div>
     </div>
   </div>
 
@@ -26,6 +65,7 @@
     initDayNightTheme();
     initConfigThemeSelector();
     initRemainingWakeNav();
+    initRemainingWakeThresholdsConfig();
   </script>
 </body>
 </html>
