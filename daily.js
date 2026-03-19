@@ -2,6 +2,7 @@
 const YEAR = 2026;
 const ALARM_TO_WAKE_WARNING_THRESHOLD = 60; // minutes
 const DEVIATION_FLAG_THRESHOLD = 20; // minutes - flags only show if deviation is >= this
+const WAKE_DEVIATION_FLAG_THRESHOLD = 30; // minutes - wake-up time deviation (display only, does not affect sleep quality)
 const DATA_FILES = {
   sleep: 'sleep-data.json'
 };
@@ -123,6 +124,7 @@ function calculateRecentAverages(days, currentIndex, lookbackDays = 7) {
   
   let bedTimeSum = 0;
   let fellAsleepTimeSum = 0;
+  let wakeTimeSum = 0;
   let sleepDurationSum = 0;
   
   recentDays.forEach(day => {
@@ -136,12 +138,16 @@ function calculateRecentAverages(days, currentIndex, lookbackDays = 7) {
     const normalizedFellAsleepTime = normalizeTimeForAveraging(fellAsleepTime);
     fellAsleepTimeSum += normalizedFellAsleepTime;
     
+    const wakeTime = timeToMinutes(day.sleepEnd);
+    wakeTimeSum += normalizeTimeForAveraging(wakeTime);
+    
     sleepDurationSum += calculateTotalSleep(day);
   });
   
   return {
     avgBedTime: bedTimeSum / recentDays.length, // This is normalized
     avgFellAsleepTime: fellAsleepTimeSum / recentDays.length, // This is normalized
+    avgWakeTime: wakeTimeSum / recentDays.length, // Normalized for comparison
     avgSleepDuration: sleepDurationSum / recentDays.length
   };
 }
@@ -183,6 +189,15 @@ function checkDeviations(day, recentAverages) {
     }
   }
   
+  // Check wake-up time deviation (earlier or later than average; display only, does not affect sleep quality)
+  const wakeTime = timeToMinutes(day.sleepEnd);
+  const normalizedWakeTime = normalizeTimeForAveraging(wakeTime);
+  const wakeDiff = Math.abs(normalizedWakeTime - recentAverages.avgWakeTime);
+  if (wakeDiff >= WAKE_DEVIATION_FLAG_THRESHOLD) {
+    const later = normalizedWakeTime > recentAverages.avgWakeTime;
+    warnings.push(`⚠️🌅 <strong>Wake</strong>: ${formatDuration(Math.round(wakeDiff))} ${later ? 'later' : 'earlier'} than recent average`);
+  }
+  
   return warnings;
 }
 
@@ -219,6 +234,13 @@ function getFlagTypes(day, recentAverages) {
     if (diff >= DEVIATION_FLAG_THRESHOLD) {
       flagTypes.push('⌛');
     }
+  }
+  
+  // Check wake-up time deviation (display only, does not affect sleep quality)
+  const wakeTime = timeToMinutes(day.sleepEnd);
+  const normalizedWakeTime = normalizeTimeForAveraging(wakeTime);
+  if (Math.abs(normalizedWakeTime - recentAverages.avgWakeTime) >= WAKE_DEVIATION_FLAG_THRESHOLD) {
+    flagTypes.push('🌅');
   }
   
   return flagTypes;
@@ -425,13 +447,13 @@ function renderAveragesColumn(averages, title) {
 // Render top averages for stats page: recent (left) and lifetime (right) in split columns
 function renderStatsTopAverages(days) {
   if (!days || days.length === 0) return '';
-  const recentDays = days.slice(0, Math.min(3, days.length));
+  const recentDays = days.slice(0, Math.min(7, days.length));
   const recentAverages = calculateAverages(recentDays);
   const lifetimeAverages = calculateAverages(days);
   return `
     <div class="dashboard-averages-panel stats-top-averages">
       <div class="averages-container">
-        ${renderAveragesColumn(recentAverages, '🕒 Recent average (3 days)')}
+        ${renderAveragesColumn(recentAverages, '🕒 Recent average (7 days)')}
         ${renderAveragesColumn(lifetimeAverages, '🌳 Lifetime average')}
       </div>
     </div>
@@ -495,11 +517,13 @@ function renderWeek(week, weekIndex, allDays) {
   `;
 }
 
-// Count flags for a specific day
+// Flags that affect sleep quality (heatmap color). Wake deviation is display-only.
+const QUALITY_FLAG_TYPES = ['🛌', '😴', '⌛'];
+
+// Count flags for a specific day (quality-affecting only; wake deviation excluded)
 function countFlagsForDay(day, days, dayIndex) {
-  const recentAverages = calculateRecentAverages(days, dayIndex);
-  const deviations = checkDeviations(day, recentAverages);
-  return deviations.length;
+  const flagTypes = getFlagTypesForDay(day, days, dayIndex);
+  return flagTypes.filter(t => QUALITY_FLAG_TYPES.includes(t)).length;
 }
 
 // Get flag types for a specific day
@@ -586,7 +610,7 @@ function generateCalendarHeatmap(year, flagMap, latestDataDate) {
       while (last.length < 7) last.push(null);
     }
 
-    const flagCounts = { '🛌': 0, '😴': 0, '⌛': 0 };
+    const flagCounts = { '🛌': 0, '😴': 0, '⌛': 0, '🌅': 0 };
     flatDays.forEach(day => {
       if (day && day.flagTypes) {
         day.flagTypes.forEach(flagType => {
@@ -619,7 +643,8 @@ function renderMonthBlock(month, large) {
   const flagSlots = [
     { emoji: '🛌', count: month.flagCounts['🛌'] },
     { emoji: '😴', count: month.flagCounts['😴'] },
-    { emoji: '⌛', count: month.flagCounts['⌛'] }
+    { emoji: '⌛', count: month.flagCounts['⌛'] },
+    { emoji: '🌅', count: month.flagCounts['🌅'] }
   ];
   const flagHtml = flagSlots.map(f => `<span class="calendar-flag-slot"><span class="calendar-flag-emoji">${f.emoji}</span><span class="calendar-flag-num">${f.count}</span></span>`).join('');
   const weekdayLabels = ['Su', 'M', 'T', 'W', 'R', 'F', 'Sa'].map(w => `<div class="calendar-weekday-label">${w}</div>`).join('');
@@ -639,7 +664,8 @@ function renderMonthBlock(month, large) {
                 return `<div class="calendar-square empty"></div>`;
               }
               const colorClass = getFlagColorClass(day.flagCount);
-              const tooltip = day.flagCount > 0
+              const hasAnyFlags = day.flagTypes && day.flagTypes.length > 0;
+              const tooltip = hasAnyFlags
                 ? `${day.dateStr}: ${day.flagTypes.join(' ')}`
                 : `${day.dateStr}: normal`;
               return `<div class="calendar-square ${colorClass}" data-tooltip="${tooltip}" title="${tooltip}"><span class="calendar-square-day">${day.day}</span></div>`;
@@ -672,8 +698,9 @@ function renderCalendarHeatmapHeader() {
           <span class="legend-meaning-item">🛌 bed late</span>
           <span class="legend-meaning-item">😴 asleep late</span>
           <span class="legend-meaning-item">⌛ short</span>
+          <span class="legend-meaning-item">🌅 wake deviation</span>
         </div>
-        <span class="legend-explanation legend-explanation--inline">(vs 7-day avg, 20+ min)</span>
+        <span class="legend-explanation legend-explanation--inline">(vs 7-day avg; bed/asleep/duration 20+ min, wake 30+ min; 🌅 display only)</span>
       </div>
     </div>
   `;
@@ -788,7 +815,7 @@ function renderDashboardProjection(recentAverages) {
   `;
 }
 
-// Render dashboard content: projection, recent average, lifetime average, past three nights (timeline rows), sleep quality history.
+// Render dashboard content: projection, recent average, lifetime average, recent nights (timeline rows), sleep quality history.
 // Used by dashboard.html; kept here to share calculation/render helpers.
 function renderDashboardContent(days) {
   if (!days || days.length === 0) {
@@ -801,13 +828,13 @@ function renderDashboardContent(days) {
   const latestDataDate = getLatestDataDate(days, YEAR);
   const calendarBlockOnly = renderCalendarCurrentMonthOnlyBlock(YEAR, flagMap, latestDataDate);
 
-  const pastThreeCount = Math.min(3, days.length);
-  const pastThreeNightsHtml = pastThreeCount > 0
+  const recentNightsCount = Math.min(3, days.length);
+  const recentNightsHtml = recentNightsCount > 0
     ? `
-    <h2 class="dashboard-section-title">Past three nights</h2>
+    <h2 class="dashboard-section-title">Recent nights</h2>
     <section class="dashboard-past-nights">
       <div class="week-days">
-        ${Array.from({ length: pastThreeCount }, (_, i) => renderDay(days[i], days, i, { showTicks: true })).join('')}
+        ${Array.from({ length: recentNightsCount }, (_, i) => renderDay(days[i], days, i, { showTicks: true })).join('')}
       </div>
     </section>
     `
@@ -836,7 +863,7 @@ function renderDashboardContent(days) {
         </div>
       </div>
       ${sevenDaySectionHtml}
-      ${pastThreeNightsHtml}
+      ${recentNightsHtml}
     </div>
   `;
 }

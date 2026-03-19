@@ -1,4 +1,4 @@
-// Dashboard: recent average, lifetime average, past three nights (timeline rows), sleep quality history.
+// Dashboard: recent average, lifetime average, recent nights (timeline rows), sleep quality history.
 // Uses renderDashboardContent() and shared helpers from daily.js.
 // Includes 7-day graphs: time graph (left) and sleep duration chart (right).
 // Requires: sleep-utils.js (timeToMinutes, getDateFromString, calculateTotalSleep, formatDuration, formatTime)
