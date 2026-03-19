@@ -351,14 +351,20 @@ function getDayNightToggleHTML(theme) {
 
 // Updates the nav day/night toggle active state (e.g. after theme tick or click)
 function updateDayNightIcon() {
-  const wrap = document.getElementById('nav-daynight');
-  if (!wrap) return;
   const theme = getEffectiveTheme();
-  wrap.querySelectorAll('.nav-daynight-option').forEach(btn => {
-    const isActive = btn.getAttribute('data-theme') === theme;
-    btn.classList.toggle('active', isActive);
-    btn.setAttribute('aria-pressed', isActive);
-  });
+  const pillWrap = document.getElementById('nav-daynight');
+  if (pillWrap) {
+    pillWrap.querySelectorAll('.nav-daynight-option').forEach(btn => {
+      const isActive = btn.getAttribute('data-theme') === theme;
+      btn.classList.toggle('active', isActive);
+      btn.setAttribute('aria-pressed', isActive);
+    });
+  }
+  const menuToggle = document.getElementById('nav-menu-theme-toggle');
+  if (menuToggle) {
+    menuToggle.classList.toggle('theme-toggle--toggled', theme === 'night');
+    menuToggle.setAttribute('aria-pressed', theme === 'night');
+  }
 }
 
 // Toggle theme: click sets theme to the chosen option (day or night)
@@ -410,23 +416,72 @@ function initConfigThemeSelector() {
 function initDayNightTheme() {
   applyDayNightTheme();
   updateDayNightIcon();
-  const wrap = document.getElementById('nav-daynight');
-  if (wrap) wrap.addEventListener('click', handleDayNightClick);
+  const pillWrap = document.getElementById('nav-daynight');
+  if (pillWrap) pillWrap.addEventListener('click', handleDayNightClick);
+  initNavMenu();
   setInterval(function () {
     applyDayNightTheme();
     updateDayNightIcon();
   }, 60000);
 }
 
+// Hamburger menu: toggle dropdown, theme buttons, close on outside click
+function initNavMenu() {
+  const trigger = document.getElementById('nav-menu-trigger');
+  const dropdown = document.getElementById('nav-menu-dropdown');
+  if (!trigger || !dropdown) return;
+
+  function closeMenu() {
+    trigger.setAttribute('aria-expanded', 'false');
+    dropdown.classList.remove('nav-menu-dropdown--open');
+    dropdown.hidden = true;
+  }
+
+  function openMenu() {
+    trigger.setAttribute('aria-expanded', 'true');
+    dropdown.classList.add('nav-menu-dropdown--open');
+    dropdown.hidden = false;
+  }
+
+  function toggleMenu() {
+    const isOpen = dropdown.classList.contains('nav-menu-dropdown--open');
+    if (isOpen) closeMenu();
+    else openMenu();
+  }
+
+  trigger.addEventListener('click', function (e) {
+    e.stopPropagation();
+    toggleMenu();
+  });
+
+  const themeToggle = document.getElementById('nav-menu-theme-toggle');
+  if (themeToggle) {
+    themeToggle.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      const current = getEffectiveTheme();
+      setThemeChoice(current === 'day' ? 'night' : 'day');
+    });
+  }
+
+  dropdown.querySelectorAll('a.nav-menu-item').forEach(link => {
+    link.addEventListener('click', closeMenu);
+  });
+
+  document.addEventListener('click', function (e) {
+    if (dropdown.classList.contains('nav-menu-dropdown--open') && !trigger.contains(e.target) && !dropdown.contains(e.target)) {
+      closeMenu();
+    }
+  });
+}
+
 // Render navigation bar
 function renderNavBar(currentPage) {
   applyDayNightTheme();
-  const theme = getEffectiveTheme();
-  const dayNightToggle = getDayNightToggleHTML(theme);
 
   const pages = [
     { id: 'dashboard', name: 'Dashboard', url: 'dashboard.html', icon: '🛌' },
-    { id: 'quality', name: 'Quality', url: 'quality.html', icon: '🟩' },
+    { id: 'quality', name: 'Quality', url: 'quality.html', icon: '🟢' },
     { id: 'timeline', name: 'Daily', url: 'daily.html', icon: '📅' },
     { id: 'graph', name: 'Graphs', url: 'graph.html', icon: '📊' },
     { id: 'stats', name: 'Stats', url: 'stats.html', icon: '🔢' }
@@ -437,27 +492,53 @@ function renderNavBar(currentPage) {
     return `<a href="${page.url}" class="nav-tab ${isActive ? 'active' : ''}" aria-label="${page.name}"><span class="nav-icon">${page.icon}</span><span class="nav-tab-label">${page.name}</span></a>`;
   }).join('');
 
-  const githubIcon = `<svg class="nav-github-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>`;
-  const githubLink = `<a href="${GITHUB_REPO_URL}" class="nav-github-link" target="_blank" rel="noopener noreferrer" title="View on GitHub">${githubIcon}</a>`;
-  const configIcon = `<svg class="nav-config-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97 0-.33-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.31-.61-.22l-2.49 1c-.52-.39-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.09-.49 0-.61.22l-2 3.46c-.13.22-.08.49.12.64L4.57 11c-.04.34-.07.67-.07 1 0 .33.03.65.07.97l-2.11 1.66c-.19.15-.25.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1.01c.52.4 1.06.74 1.69.99l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.26 1.17-.59 1.69-.99l2.49 1.01c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.66z"/></svg>`;
-  const configLink = `<a href="config.html" class="nav-config-link" title="Settings">${configIcon}</a>`;
-  const aboutIcon = `<svg class="nav-about-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>`;
-  const aboutLink = `<a href="about.html" class="nav-about-link" title="About">${aboutIcon}</a>`;
-  const navRight = `<div class="nav-right">${dayNightToggle}${configLink}${aboutLink}${githubLink}</div>`;
+  const theme = getEffectiveTheme();
+  const nightActive = theme === 'night';
+  const hamburgerIcon = '<svg class="nav-menu-trigger-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/></svg>';
+  const menuTrigger = `<button type="button" class="nav-menu-trigger" id="nav-menu-trigger" aria-label="Options" aria-expanded="false" aria-haspopup="true">${hamburgerIcon}</button>`;
+  const configIcon = `<svg class="nav-menu-item-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97 0-.33-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.31-.61-.22l-2.49 1c-.52-.39-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.09-.49 0-.61.22l-2 3.46c-.13.22-.08.49.12.64L4.57 11c-.04.34-.07.67-.07 1 0 .33.03.65.07.97l-2.11 1.66c-.19.15-.25.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1.01c.52.4 1.06.74 1.69.99l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.26 1.17-.59 1.69-.99l2.49 1.01c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.66z"/></svg>`;
+  const aboutIcon = `<svg class="nav-menu-item-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>`;
+  const githubIcon = `<svg class="nav-menu-item-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>`;
+  // Theme toggle in menu: animated sun/moon from toggles.dev by Alfie Jones (https://toggles.dev)
+  const themeToggleHTML = (
+    '<button type="button" class="theme-toggle' + (nightActive ? ' theme-toggle--toggled' : '') + '" id="nav-menu-theme-toggle" title="Toggle theme" aria-label="Toggle theme" role="menuitem">' +
+      '<span class="theme-toggle-sr">Toggle theme</span>' +
+      '<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="1em" height="1em" fill="currentColor" stroke-linecap="round" class="theme-toggle__classic" viewBox="0 0 32 32">' +
+        '<clipPath id="theme-toggle__classic__cutout__nav"><path d="M0-5h30a1 1 0 0 0 9 13v24H0Z"/></clipPath>' +
+        '<g clip-path="url(#theme-toggle__classic__cutout__nav)">' +
+          '<circle cx="16" cy="16" r="9.34"/>' +
+          '<g stroke="currentColor" stroke-width="1.5">' +
+            '<path d="M16 5.5v-4"/><path d="M16 30.5v-4"/><path d="M1.5 16h4"/><path d="M26.5 16h4"/>' +
+            '<path d="m23.4 8.6 2.8-2.8"/><path d="m5.7 26.3 2.9-2.9"/><path d="m5.8 5.8 2.8 2.8"/><path d="m23.4 23.4 2.9 2.9"/>' +
+          '</g>' +
+        '</g>' +
+      '</svg>' +
+    '</button>'
+  );
+  const menuItems = (
+    '<div class="nav-menu-dropdown" id="nav-menu-dropdown" role="menu" hidden>' +
+      '<a href="about.html" class="nav-menu-item" role="menuitem"><span class="nav-menu-item-icon-wrap">' + aboutIcon + '</span><span>About</span></a>' +
+      '<a href="config.html" class="nav-menu-item" role="menuitem"><span class="nav-menu-item-icon-wrap">' + configIcon + '</span><span>Settings</span></a>' +
+      '<div class="nav-menu-item nav-menu-theme-row" role="none"><span class="nav-menu-item-icon-wrap">' + themeToggleHTML + '</span><span>Theme</span></div>' +
+      '<a href="' + GITHUB_REPO_URL + '" class="nav-menu-item" role="menuitem" target="_blank" rel="noopener noreferrer"><span class="nav-menu-item-icon-wrap">' + githubIcon + '</span><span>GitHub</span></a>' +
+    '</div>'
+  );
+  const navRight = `<div class="nav-right nav-menu-wrap">${menuTrigger}${menuItems}</div>`;
 
   const appIcon = '<img src="icon_512.png" alt="" class="nav-app-icon" width="36" height="36">';
   const appName = `<a href="dashboard.html" class="nav-app-block" title="Dashboard"><span class="nav-app-icon-wrap">${appIcon}</span><span class="nav-app-text"><span class="nav-app-name">Restore</span><span class="nav-app-subtitle">Sleep Tracker</span></span></a>`;
-  const headerRow = `<div class="nav-header nav-header--remaining-wake">${appName}<div class="nav-remaining-wake" id="nav-remaining-wake"></div>${navRight}</div>`;
+  const remainingWakeSlot = `<div class="nav-remaining-wake" id="nav-remaining-wake"></div>`;
+  const headerRow = `<div class="nav-header nav-header--remaining-wake">${appName}${remainingWakeSlot}${navRight}</div>`;
   const tabsRow = `<div class="nav-tabs-row"><div class="nav-tabs">${navItems}</div></div>`;
   return `<div class="nav-wrapper nav-wrapper--remaining-wake">${headerRow}${tabsRow}</div>`;
 }
 
-// Phase thresholds (percent of wake time remaining): open >= 40%, winding 15–40%, pre-sleep < 15%.
+// Phase thresholds (percent of wake time remaining): open >= 30%, winding 10–30%, pre-sleep < 10%.
 function getRemainingWakePhase(remainingMins, sleepTargetMins) {
   if (sleepTargetMins <= 0) return 'open';
   const percentRemaining = Math.min(100, (remainingMins / sleepTargetMins) * 100);
-  if (percentRemaining >= 40) return 'open';
-  if (percentRemaining >= 15) return 'winding';
+  if (percentRemaining >= 30) return 'open';
+  if (percentRemaining >= 10) return 'winding';
   return 'presleep';
 }
 
