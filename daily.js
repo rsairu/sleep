@@ -741,24 +741,6 @@ function renderCalendarHeatmapFullHistory(year, flagMap, latestDataDate) {
 const PROJECTION_BAND_MINUTES = 30;
 const WAKE_PROJECTION_BAND_MINUTES = 15;
 
-// Phase thresholds (percent of wake time remaining): open >= 30%, winding 10–30%, pre-sleep < 10%.
-function getRemainingWakePhase(remainingMins, sleepTargetMins) {
-  if (sleepTargetMins <= 0) return 'open';
-  const percentRemaining = Math.min(100, (remainingMins / sleepTargetMins) * 100);
-  if (percentRemaining >= 30) return 'open';
-  if (percentRemaining >= 10) return 'winding';
-  return 'presleep';
-}
-
-function getRemainingWakeIcon(phase) {
-  switch (phase) {
-    case 'open': return '☀️';
-    case 'winding': return '🌇';
-    case 'presleep': return '🛏️';
-    default: return '☀️';
-  }
-}
-
 /** Returns { phase, icon, timeLabel } for remaining wake time (used by dashboard nav). */
 function getRemainingWakeDisplay(recentAverages) {
   const sleepTarget = recentAverages.avgBedtime;

@@ -332,7 +332,7 @@ body{
   gap: 12px;
   padding: 10px 16px;
   color: var(--text) !important;
-  cursor: default;
+  cursor: pointer;
   background: transparent;
 }
 .nav-menu-theme-row:hover {
@@ -2368,29 +2368,80 @@ svg {
   border-bottom-color: var(--tooltip-bg);
 }
 
-/* About page — Theme selector (Light / Dark / Auto) */
+/* About page — Theme selector. Row 1: Light / Dark (same toggle as hamburger). Row 2: Auto (time-based). No surrounding box. */
 .about-theme {
-  display: inline-flex;
-  align-items: stretch;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 3px;
-  gap: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
   margin-bottom: 1.5rem;
 }
 
-.about-theme-option {
-  padding: 8px 16px;
+.about-theme-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  color: var(--text) !important;
+  cursor: pointer;
+  background: transparent;
   border: none;
-  border-radius: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  text-align: left;
+  transition: background 0.2s;
+}
+
+.about-theme-row:hover {
+  background: var(--hover-bg);
+}
+
+.about-theme-row .about-theme-option-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.about-theme-row .theme-toggle {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.about-theme-row .theme-toggle:hover {
+  background: transparent;
+}
+
+.about-theme-row .theme-toggle svg {
+  width: 100%;
+  height: 100%;
+}
+
+.about-theme-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  width: 100%;
+  box-sizing: border-box;
+  border: none;
   background: transparent;
   color: var(--text) !important;
   font: inherit;
-  font-size: 0.95rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: background 0.2s, color 0.2s;
-  opacity: 1;
+  transition: background 0.2s;
+  text-align: left;
 }
 
 .about-theme-option:hover {
@@ -2402,7 +2453,21 @@ svg {
   background: var(--hover-bg);
   color: var(--text) !important;
   font-weight: 600;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.about-theme-option-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.about-theme-option-icon svg {
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
 }
 
 #theme.about-section-title {
@@ -2417,6 +2482,208 @@ svg {
 
 .container--config #theme.about-section-title {
   margin-top: 1rem;
+}
+
+/* Remaining wake time thresholds — bar + two sliders (same colors as nav phases) */
+.config-remaining-wake {
+  margin-top: 1.5rem;
+}
+
+.config-remaining-wake .about-section-intro {
+  margin-bottom: 1rem;
+}
+
+.config-rw-link {
+  color: var(--text);
+  opacity: 0.9;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.config-rw-link:hover {
+  opacity: 1;
+}
+
+.config-remaining-wake-default-row {
+  margin: 0 0 0.75rem;
+}
+
+.config-rw-default-btn {
+  display: inline-block;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+  opacity: 0.9;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.config-rw-default-btn:hover {
+  opacity: 1;
+}
+
+.config-rw-default-values {
+  opacity: 0.85;
+  font-weight: normal;
+}
+
+.config-remaining-wake-percent {
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.config-remaining-wake-icons {
+  display: flex;
+  width: 100%;
+  margin-bottom: 0.35rem;
+  pointer-events: none;
+}
+
+.config-remaining-wake-icon-seg {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+.config-rw-icon-emoji {
+  font-size: 1.35rem;
+}
+
+.config-rw-icon-label {
+  font-size: 0.7rem;
+  opacity: 0.9;
+  margin-top: 0.15rem;
+}
+
+.config-remaining-wake-bar-wrap {
+  position: relative;
+  width: 100%;
+  height: 28px;
+  margin-bottom: 0.5rem;
+}
+
+.config-remaining-wake-bar {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+.config-remaining-wake-seg {
+  height: 100%;
+  flex-shrink: 0;
+  transition: flex-grow 0.15s ease;
+}
+
+.config-remaining-wake-seg--open {
+  background: rgb(134, 239, 172);
+}
+
+.config-remaining-wake-seg--winding {
+  background: rgb(253, 230, 138);
+}
+
+.config-remaining-wake-seg--presleep {
+  background: rgb(196, 181, 253);
+}
+
+.config-remaining-wake-bar-wrap input[type="range"] {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 28px;
+  margin: 0;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.config-remaining-wake-bar-wrap input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--text);
+  border: 2px solid var(--bg);
+  cursor: grab;
+  pointer-events: auto;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.config-remaining-wake-bar-wrap input[type="range"]::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--text);
+  border: 2px solid var(--bg);
+  cursor: grab;
+  pointer-events: auto;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.config-remaining-wake-bar-wrap input[type="range"]::-webkit-slider-runnable-track,
+.config-remaining-wake-bar-wrap input[type="range"]::-moz-range-track {
+  background: transparent;
+  border: none;
+}
+
+/* Left boundary (open/winding) on top so clicks on the bar move it; use Tab + arrows to adjust right boundary */
+.config-remaining-wake-bar-wrap input[type="range"] {
+  pointer-events: none;
+}
+
+.config-remaining-wake-bar-wrap input[type="range"]:first-of-type {
+  z-index: 2;
+}
+
+.config-remaining-wake-bar-wrap input[type="range"]:last-of-type {
+  z-index: 3;
+}
+
+.config-remaining-wake-bar-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  cursor: grab;
+}
+
+.config-remaining-wake-bar-overlay:active {
+  cursor: grabbing;
+}
+
+.config-remaining-wake-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  opacity: 0.85;
+  margin-top: 0.25rem;
+}
+
+.config-remaining-wake-percent-under {
+  position: relative;
+  width: 100%;
+  height: 1.5rem;
+  margin-top: 0.2rem;
+}
+
+.config-rw-percent-thumb {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-size: 0.8rem;
+  opacity: 0.9;
+  pointer-events: none;
 }
 
 /* About page — section slider (swipeable deck) */

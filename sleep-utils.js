@@ -287,6 +287,41 @@ const SUNRISE_MINUTES = 6 * 60;
 const SUNSET_MINUTES = 18 * 60;
 
 const THEME_OVERRIDE_KEY = 'sleep-app-theme-override';
+const REMAINING_WAKE_THRESHOLDS_KEY = 'sleep-app-remaining-wake-thresholds';
+
+// Default remaining wake phase thresholds (percent of wake time remaining): open >= openMin, winding >= windingMin, presleep < windingMin.
+const DEFAULT_REMAINING_WAKE_OPEN_MIN = 30;
+const DEFAULT_REMAINING_WAKE_WINDING_MIN = 10;
+
+// Returns { openMin, windingMin } from localStorage or defaults. Values are in 0–100, step 5.
+function getRemainingWakeThresholds() {
+  try {
+    const raw = localStorage.getItem(REMAINING_WAKE_THRESHOLDS_KEY);
+    if (raw) {
+      const o = JSON.parse(raw);
+      const openMin = clampThresholdStep5(typeof o.openMin === 'number' ? o.openMin : DEFAULT_REMAINING_WAKE_OPEN_MIN);
+      const windingMin = clampThresholdStep5(typeof o.windingMin === 'number' ? o.windingMin : DEFAULT_REMAINING_WAKE_WINDING_MIN);
+      if (openMin > windingMin) return { openMin, windingMin };
+    }
+  } catch (_) {}
+  return { openMin: DEFAULT_REMAINING_WAKE_OPEN_MIN, windingMin: DEFAULT_REMAINING_WAKE_WINDING_MIN };
+}
+
+function clampThresholdStep5(n) {
+  const step = 5;
+  const v = Math.round(n / step) * step;
+  return Math.min(100, Math.max(0, v));
+}
+
+// Saves thresholds to localStorage. openMin and windingMin must satisfy openMin > windingMin.
+function setRemainingWakeThresholds(openMin, windingMin) {
+  openMin = clampThresholdStep5(openMin);
+  windingMin = clampThresholdStep5(windingMin);
+  if (openMin <= windingMin) return;
+  try {
+    localStorage.setItem(REMAINING_WAKE_THRESHOLDS_KEY, JSON.stringify({ openMin, windingMin }));
+  } catch (_) {}
+}
 
 // Returns 'day' if current local time is between sunrise and sunset, else 'night'
 function getThemeFromTime() {
@@ -349,6 +384,28 @@ function getDayNightToggleHTML(theme) {
   );
 }
 
+// Returns HTML for the animated sun/moon toggle (used in nav menu and config page). clipPathIdSuffix must be unique per page (e.g. 'nav', 'config').
+function getThemeToggleHTML(nightActive, buttonId, clipPathIdSuffix) {
+  buttonId = buttonId || 'nav-menu-theme-toggle';
+  clipPathIdSuffix = clipPathIdSuffix || 'nav';
+  const cutoutId = 'theme-toggle__classic__cutout__' + clipPathIdSuffix;
+  return (
+    '<button type="button" class="theme-toggle' + (nightActive ? ' theme-toggle--toggled' : '') + '" id="' + buttonId + '" title="Toggle theme" aria-label="Toggle theme" aria-pressed="' + nightActive + '">' +
+      '<span class="theme-toggle-sr">Toggle theme</span>' +
+      '<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="1em" height="1em" fill="currentColor" stroke-linecap="round" class="theme-toggle__classic" viewBox="0 0 32 32">' +
+        '<clipPath id="' + cutoutId + '"><path d="M0-5h30a1 1 0 0 0 9 13v24H0Z"/></clipPath>' +
+        '<g clip-path="url(#' + cutoutId + ')">' +
+          '<circle cx="16" cy="16" r="9.34"/>' +
+          '<g stroke="currentColor" stroke-width="1.5">' +
+            '<path d="M16 5.5v-4"/><path d="M16 30.5v-4"/><path d="M1.5 16h4"/><path d="M26.5 16h4"/>' +
+            '<path d="m23.4 8.6 2.8-2.8"/><path d="m5.7 26.3 2.9-2.9"/><path d="m5.8 5.8 2.8 2.8"/><path d="m23.4 23.4 2.9 2.9"/>' +
+          '</g>' +
+        '</g>' +
+      '</svg>' +
+    '</button>'
+  );
+}
+
 // Updates the nav day/night toggle active state (e.g. after theme tick or click)
 function updateDayNightIcon() {
   const theme = getEffectiveTheme();
@@ -364,6 +421,11 @@ function updateDayNightIcon() {
   if (menuToggle) {
     menuToggle.classList.toggle('theme-toggle--toggled', theme === 'night');
     menuToggle.setAttribute('aria-pressed', theme === 'night');
+  }
+  const configToggle = document.getElementById('config-theme-toggle');
+  if (configToggle) {
+    configToggle.classList.toggle('theme-toggle--toggled', theme === 'night');
+    configToggle.setAttribute('aria-pressed', theme === 'night');
   }
 }
 
@@ -385,31 +447,191 @@ function setThemeChoice(choice) {
   updateThemeSelectors();
 }
 
-// Updates theme selector active state on Config page (Light / Dark / Auto).
+// Updates theme selector active state on Config page (Auto button; Light/Dark row state is in the toggle).
 function updateThemeSelectors() {
   const wrap = document.getElementById('config-theme');
   if (!wrap) return;
   const override = getThemeOverride();
-  const activeValue = override === null ? 'auto' : override;
   wrap.querySelectorAll('.about-theme-option').forEach(btn => {
-    const isActive = btn.getAttribute('data-theme') === activeValue;
+    const isActive = btn.getAttribute('data-theme') === 'auto' && override === null;
     btn.classList.toggle('active', isActive);
     btn.setAttribute('aria-pressed', isActive);
   });
 }
 
-// Initializes the Config page theme selector: sync state from storage and attach click handlers.
+// Initializes the Config page theme selector: inject Light/Dark toggle, attach row and Auto handlers.
 function initConfigThemeSelector() {
-  updateThemeSelectors();
   const wrap = document.getElementById('config-theme');
   if (!wrap) return;
+  const toggleWrap = document.getElementById('config-theme-toggle-wrap');
+  if (toggleWrap) {
+    const theme = getEffectiveTheme();
+    toggleWrap.innerHTML = getThemeToggleHTML(theme === 'night', 'config-theme-toggle', 'config');
+  }
+  updateDayNightIcon();
+  updateThemeSelectors();
+
+  const lightDarkRow = document.getElementById('config-theme-light-dark-row');
+  if (lightDarkRow) {
+    lightDarkRow.addEventListener('click', function (e) {
+      e.preventDefault();
+      const current = getEffectiveTheme();
+      setThemeChoice(current === 'day' ? 'night' : 'day');
+    });
+    lightDarkRow.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        const current = getEffectiveTheme();
+        setThemeChoice(current === 'day' ? 'night' : 'day');
+      }
+    });
+  }
+
   wrap.addEventListener('click', function (e) {
     const btn = e.target.closest('.about-theme-option');
     if (!btn) return;
     const choice = btn.getAttribute('data-theme');
-    if (choice !== 'day' && choice !== 'night' && choice !== 'auto') return;
-    setThemeChoice(choice);
+    if (choice !== 'auto') return;
+    setThemeChoice('auto');
   });
+}
+
+// Bar uses position from left: 0 = 100% remaining (open), 100 = 0% remaining. pos1 = open/winding boundary, pos2 = winding/presleep.
+function applyRemainingWakeThresholdsUI(pos1, pos2) {
+  const segOpen = document.getElementById('config-rw-seg-open');
+  const segWinding = document.getElementById('config-rw-seg-winding');
+  const segPresleep = document.getElementById('config-rw-seg-presleep');
+  const iconOpen = document.getElementById('config-rw-icon-open');
+  const iconWinding = document.getElementById('config-rw-icon-winding');
+  const iconPresleep = document.getElementById('config-rw-icon-presleep');
+  const inputOpen = document.getElementById('config-open-min');
+  const inputWinding = document.getElementById('config-winding-min');
+  if (!segOpen || !segWinding || !segPresleep || !iconOpen || !iconWinding || !iconPresleep || !inputOpen || !inputWinding) return;
+
+  const p1 = Math.min(95, Math.max(5, pos1));
+  const p2 = Math.min(100, Math.max(p1 + 5, pos2));
+
+  segOpen.style.flex = '0 0 ' + p1 + '%';
+  segWinding.style.flex = '0 0 ' + (p2 - p1) + '%';
+  segPresleep.style.flex = '0 0 ' + (100 - p2) + '%';
+  iconOpen.style.flex = '0 0 ' + p1 + '%';
+  iconWinding.style.flex = '0 0 ' + (p2 - p1) + '%';
+  iconPresleep.style.flex = '0 0 ' + (100 - p2) + '%';
+  inputOpen.value = p1;
+  inputWinding.value = p2;
+
+  const openMin = 100 - p1;
+  const windingMin = 100 - p2;
+  const percentLeft = document.getElementById('config-rw-percent-left');
+  const percentRight = document.getElementById('config-rw-percent-right');
+  if (percentLeft) {
+    percentLeft.style.left = p1 + '%';
+    percentLeft.textContent = openMin + '%';
+  }
+  if (percentRight) {
+    percentRight.style.left = p2 + '%';
+    percentRight.textContent = windingMin + '%';
+  }
+}
+
+// Snap value to 0, 5, 10, ... 100
+function snapPercentTo5(frac) {
+  const v = Math.round(frac * 20) * 5;
+  return Math.min(100, Math.max(0, v));
+}
+
+// Initializes the Config page remaining wake thresholds: bar, two sliders (5% steps), icons above bar, persist to localStorage.
+function initRemainingWakeThresholdsConfig() {
+  const inputOpen = document.getElementById('config-open-min');
+  const inputWinding = document.getElementById('config-winding-min');
+  const barWrap = document.getElementById('config-rw-bar-overlay') && document.getElementById('config-rw-bar-overlay').parentElement;
+  const overlay = document.getElementById('config-rw-bar-overlay');
+  if (!inputOpen || !inputWinding || !barWrap || !overlay) return;
+
+  const { openMin, windingMin } = getRemainingWakeThresholds();
+  const pos1 = 100 - openMin;
+  const pos2 = 100 - windingMin;
+  applyRemainingWakeThresholdsUI(pos1, pos2);
+
+  function syncFromInputs() {
+    let p1 = parseInt(inputOpen.value, 10) || 70;
+    let p2 = parseInt(inputWinding.value, 10) || 90;
+    if (p1 >= p2) {
+      p2 = Math.min(100, p1 + 5);
+      p1 = Math.max(0, p2 - 5);
+    }
+    applyRemainingWakeThresholdsUI(p1, p2);
+    const openMinNew = 100 - p1;
+    const windingMinNew = 100 - p2;
+    if (openMinNew > windingMinNew) setRemainingWakeThresholds(openMinNew, windingMinNew);
+  }
+
+  inputOpen.addEventListener('input', syncFromInputs);
+  inputWinding.addEventListener('input', syncFromInputs);
+
+  // Overlay: decide which slider to move from pointer x, then update that slider so right thumb is grabbable
+  let dragging = null; // 'open' | 'winding'
+
+  function getValueFromEvent(e) {
+    const rect = barWrap.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const frac = (clientX - rect.left) / rect.width;
+    return snapPercentTo5(frac);
+  }
+
+  function onPointerDown(e) {
+    if (e.button !== 0 && !e.touches) return;
+    if (e.touches && e.touches.length > 1) return;
+    e.preventDefault();
+    const val = getValueFromEvent(e);
+    const p1 = parseInt(inputOpen.value, 10);
+    const p2 = parseInt(inputWinding.value, 10);
+    const mid = (p1 + p2) / 2;
+    if (val <= mid) {
+      dragging = 'open';
+      inputOpen.value = String(Math.min(p2 - 5, val));
+    } else {
+      dragging = 'winding';
+      inputWinding.value = String(Math.max(p1 + 5, val));
+    }
+    syncFromInputs();
+  }
+
+  function onPointerMove(e) {
+    if (!dragging) return;
+    if (e.cancelable) e.preventDefault();
+    const val = getValueFromEvent(e);
+    const p1 = parseInt(inputOpen.value, 10);
+    const p2 = parseInt(inputWinding.value, 10);
+    if (dragging === 'open') {
+      inputOpen.value = String(Math.min(p2 - 5, val));
+    } else {
+      inputWinding.value = String(Math.max(p1 + 5, val));
+    }
+    syncFromInputs();
+  }
+
+  function onPointerUp() {
+    dragging = null;
+  }
+
+  overlay.addEventListener('mousedown', onPointerDown);
+  overlay.addEventListener('touchstart', onPointerDown, { passive: false });
+  document.addEventListener('mousemove', onPointerMove);
+  document.addEventListener('mouseup', onPointerUp);
+  document.addEventListener('touchmove', onPointerMove, { passive: false });
+  document.addEventListener('touchend', onPointerUp);
+  document.addEventListener('touchcancel', onPointerUp);
+
+  const defaultsBtn = document.getElementById('config-rw-use-defaults');
+  if (defaultsBtn) {
+    defaultsBtn.addEventListener('click', function () {
+      setRemainingWakeThresholds(DEFAULT_REMAINING_WAKE_OPEN_MIN, DEFAULT_REMAINING_WAKE_WINDING_MIN);
+      const pos1 = 100 - DEFAULT_REMAINING_WAKE_OPEN_MIN;
+      const pos2 = 100 - DEFAULT_REMAINING_WAKE_WINDING_MIN;
+      applyRemainingWakeThresholdsUI(pos1, pos2);
+    });
+  }
 }
 
 // Initializes day/night theme, click handler, and timer to re-check (when in auto mode)
@@ -455,8 +677,9 @@ function initNavMenu() {
   });
 
   const themeToggle = document.getElementById('nav-menu-theme-toggle');
-  if (themeToggle) {
-    themeToggle.addEventListener('click', function (e) {
+  const themeRow = themeToggle ? themeToggle.closest('.nav-menu-theme-row') : null;
+  if (themeRow) {
+    themeRow.addEventListener('click', function (e) {
       e.preventDefault();
       e.stopPropagation();
       const current = getEffectiveTheme();
@@ -499,22 +722,8 @@ function renderNavBar(currentPage) {
   const configIcon = `<svg class="nav-menu-item-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97 0-.33-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.31-.61-.22l-2.49 1c-.52-.39-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.09-.49 0-.61.22l-2 3.46c-.13.22-.08.49.12.64L4.57 11c-.04.34-.07.67-.07 1 0 .33.03.65.07.97l-2.11 1.66c-.19.15-.25.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1.01c.52.4 1.06.74 1.69.99l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.26 1.17-.59 1.69-.99l2.49 1.01c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.66z"/></svg>`;
   const aboutIcon = `<svg class="nav-menu-item-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>`;
   const githubIcon = `<svg class="nav-menu-item-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>`;
-  // Theme toggle in menu: animated sun/moon from toggles.dev by Alfie Jones (https://toggles.dev)
-  const themeToggleHTML = (
-    '<button type="button" class="theme-toggle' + (nightActive ? ' theme-toggle--toggled' : '') + '" id="nav-menu-theme-toggle" title="Toggle theme" aria-label="Toggle theme" role="menuitem">' +
-      '<span class="theme-toggle-sr">Toggle theme</span>' +
-      '<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="1em" height="1em" fill="currentColor" stroke-linecap="round" class="theme-toggle__classic" viewBox="0 0 32 32">' +
-        '<clipPath id="theme-toggle__classic__cutout__nav"><path d="M0-5h30a1 1 0 0 0 9 13v24H0Z"/></clipPath>' +
-        '<g clip-path="url(#theme-toggle__classic__cutout__nav)">' +
-          '<circle cx="16" cy="16" r="9.34"/>' +
-          '<g stroke="currentColor" stroke-width="1.5">' +
-            '<path d="M16 5.5v-4"/><path d="M16 30.5v-4"/><path d="M1.5 16h4"/><path d="M26.5 16h4"/>' +
-            '<path d="m23.4 8.6 2.8-2.8"/><path d="m5.7 26.3 2.9-2.9"/><path d="m5.8 5.8 2.8 2.8"/><path d="m23.4 23.4 2.9 2.9"/>' +
-          '</g>' +
-        '</g>' +
-      '</svg>' +
-    '</button>'
-  );
+  // Theme toggle: animated sun/moon from toggles.dev by Alfie Jones (https://toggles.dev). clipPathIdSuffix avoids duplicate IDs when nav + config both have the toggle.
+  const themeToggleHTML = getThemeToggleHTML(nightActive, 'nav-menu-theme-toggle', 'nav');
   const menuItems = (
     '<div class="nav-menu-dropdown" id="nav-menu-dropdown" role="menu" hidden>' +
       '<a href="about.html" class="nav-menu-item" role="menuitem"><span class="nav-menu-item-icon-wrap">' + aboutIcon + '</span><span>About</span></a>' +
@@ -533,12 +742,13 @@ function renderNavBar(currentPage) {
   return `<div class="nav-wrapper nav-wrapper--remaining-wake">${headerRow}${tabsRow}</div>`;
 }
 
-// Phase thresholds (percent of wake time remaining): open >= 30%, winding 10–30%, pre-sleep < 10%.
+// Phase thresholds from getRemainingWakeThresholds(): open >= openMin%, winding openMin–windingMin%, pre-sleep < windingMin%.
 function getRemainingWakePhase(remainingMins, sleepTargetMins) {
   if (sleepTargetMins <= 0) return 'open';
   const percentRemaining = Math.min(100, (remainingMins / sleepTargetMins) * 100);
-  if (percentRemaining >= 30) return 'open';
-  if (percentRemaining >= 10) return 'winding';
+  const { openMin, windingMin } = getRemainingWakeThresholds();
+  if (percentRemaining >= openMin) return 'open';
+  if (percentRemaining >= windingMin) return 'winding';
   return 'presleep';
 }
 
