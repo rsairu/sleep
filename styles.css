@@ -43,6 +43,20 @@
   --flag-three-plus: #991b1b;
 
   --chart-error-bg: rgba(194, 65, 12, 0.1);
+
+  /* Shared spacing and surface system */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+
+  --panel-radius: 14px;
+  --panel-border-color: rgba(255, 255, 255, 0.08);
+  --panel-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  --panel-padding: 14px 16px 18px;
+  --panel-padding-lg: 20px;
 }
 
 /* Day mode (after sunrise, before sunset) */
@@ -82,6 +96,9 @@
 
   /* Nav app title: darker blue for light mode (softer than icon blue) */
   --nav-app-text-color: #25408a;
+
+  --panel-border-color: rgba(15, 23, 42, 0.1);
+  --panel-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
 }
 
 body{
@@ -92,33 +109,17 @@ body{
   transition: background-color 0.35s ease, color 0.35s ease;
 }
 
-.nav-link{
-  display: inline-block;
-  padding: 8px 16px;
-  background: var(--panel);
-  border-radius: 8px;
-  color: var(--text);
-  text-decoration: none;
-  font-size: 12px;
-  opacity: 0.9;
-  transition: opacity 0.2s, background-color 0.2s;
-  margin-bottom: 20px;
-}
-
-.nav-link:hover{
-  opacity: 1;
-  background: var(--hover-bg);
-}
-
 /* Navigation: top = app name + settings; bottom = centered page icons */
 .nav-wrapper {
-  margin-bottom: 20px;
+  margin-bottom: var(--space-5);
 }
 
 .nav-header {
   background: var(--panel);
-  border-radius: 14px;
-  padding: 12px 20px;
+  border-radius: var(--panel-radius);
+  border: 1px solid var(--panel-border-color);
+  box-shadow: var(--panel-shadow);
+  padding: var(--space-3) var(--space-5);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -527,31 +528,6 @@ body{
   }
 }
 
-.header{
-  background: var(--panel);
-  border-radius: 14px;
-  padding: 14px 16px 18px;
-  margin-bottom: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.header-top{
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.header-controls{
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
 .show-hide-section{
   display: flex;
   flex-direction: column;
@@ -617,7 +593,7 @@ body{
 .dashboard-content{
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: var(--space-5);
 }
 
 .nav-remaining-wake-link {
@@ -658,31 +634,25 @@ body{
 }
 
 .dashboard-projection {
-  background: var(--panel);
-  border-radius: 14px;
-  padding: 18px 20px 20px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.dashboard-projection--no-box {
   background: transparent;
   border: none;
+  box-shadow: none;
   border-radius: 0;
-  padding: 0;
+  padding: 18px 20px 20px;
 }
 
 .dashboard-top-row {
   display: flex;
-  gap: 24px;
+  gap: var(--space-6);
   align-items: flex-start;
-  margin-bottom: 20px;
+  margin-bottom: var(--space-5);
 }
 
 .dashboard-7d-row {
   display: flex;
-  gap: 24px;
+  gap: var(--space-6);
   align-items: stretch;
-  margin-bottom: 20px;
+  margin-bottom: var(--space-5);
 }
 
 .dashboard-7d-col {
@@ -691,9 +661,9 @@ body{
 }
 
 .dashboard-7d-graph-container {
-  background: var(--panel);
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--panel-radius);
+  border: 1px solid var(--panel-border-color);
+  box-shadow: var(--panel-shadow);
   overflow: auto;
   min-height: 280px;
 }
@@ -904,29 +874,18 @@ body{
   text-align: center;
 }
 
-.dashboard-projection-remaining {
-  font-size: 0.85rem;
-  margin: 6px 0 0 0;
-  opacity: 0.9;
-  text-align: center;
-}
-
 .dashboard-averages-panel{
-  background: var(--panel);
-  border-radius: 14px;
-  padding: 14px 16px 18px;
+  padding: var(--panel-padding);
 }
 
 .dashboard-past-nights{
-  background: var(--panel);
-  border-radius: 14px;
-  padding: 14px 16px 18px;
+  padding: var(--panel-padding);
 }
 
 /* On dashboard only: no blue band behind Sat/Sun */
 .dashboard-past-nights .day.weekend{
-  background: var(--panel);
-  border-top: none;
+  background: transparent;
+  border-left: none;
 }
 
 /* On narrow screens, stack date+stats above the bar so the timeline has room */
@@ -950,16 +909,9 @@ body{
   }
 }
 
-.dashboard-section-title{
-  font-size: 1rem;
-  font-weight: 600;
-  margin: 0 0 12px 0;
-  opacity: 0.9;
-}
-
 .averages-container{
   display: flex;
-  gap: 24px;
+  gap: var(--space-6);
 }
 
 .averages-column{
@@ -986,19 +938,18 @@ body{
 #timeline-section{
   display: flex;
   align-items: flex-start;
-  gap: 20px;
-  margin-bottom: 20px;
+  gap: var(--space-5);
+  max-width: 1200px;
+  margin: 0 auto var(--space-5);
 }
 
 .timeline-legend-controls{
-  background: var(--panel);
-  border-radius: 14px;
-  padding: 14px 16px;
+  padding: var(--panel-padding);
   flex-shrink: 0;
   width: 160px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 #timeline-section .legend{
@@ -1016,14 +967,16 @@ body{
 }
 
 .week-container{
-  margin-bottom: 20px;
+  margin-bottom: var(--space-5);
 }
 
 .week-header{
   background: var(--panel);
-  border-radius: 14px;
-  padding: 12px 16px;
-  margin-bottom: 8px;
+  border-radius: var(--panel-radius);
+  border: 1px solid var(--panel-border-color);
+  box-shadow: var(--panel-shadow);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-2);
   cursor: pointer;
   user-select: none;
   transition: background-color 0.2s;
@@ -1066,13 +1019,11 @@ body{
 }
 
 .week-summary{
-  background: var(--panel);
-  border-radius: 14px;
-  padding: 14px 16px 18px;
-  margin-bottom: 14px;
+  padding: var(--panel-padding);
+  margin-bottom: var(--space-3);
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .week-summary-spacer{
@@ -1097,22 +1048,30 @@ body{
 }
 
 .day{
-  background: var(--panel);
-  border-radius: 14px;
-  padding: 14px 16px 18px;
-  margin-bottom: 14px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  padding: var(--space-3) 0;
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--grid);
   overflow: visible;
 }
 
 .day.weekend{
-  background: var(--weekend-bg);
-  border-top: 2px solid var(--weekend-border);
+  background: transparent;
+  border-left: 2px solid var(--weekend-border);
+  padding-left: calc(var(--space-3) - 2px);
+}
+
+.week-days .day:last-child {
+  border-bottom: none;
 }
 
 .day-content{
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   margin-bottom: 0;
 }
 
@@ -1433,17 +1392,43 @@ body{
 /* Graph-specific styles */
 .container {
   background: var(--panel);
-  border-radius: 14px;
-  padding: 20px;
-  max-width: 100%;
+  border-radius: var(--panel-radius);
+  padding: var(--panel-padding-lg);
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  box-sizing: border-box;
   overflow-x: auto;
 }
 
-h1 {
-  margin-bottom: 20px;
+.dashboard-averages-panel,
+.dashboard-past-nights,
+.timeline-legend-controls,
+.week-summary,
+.month-stats {
+  background: var(--panel);
+  border-radius: var(--panel-radius);
+  border: 1px solid var(--panel-border-color);
+  box-shadow: var(--panel-shadow);
+}
+
+.dashboard-section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 var(--space-3) 0;
+  opacity: 0.9;
+}
+
+h1,
+.page-title {
+  margin-bottom: var(--space-5);
   color: var(--text);
   font-weight: 700;
   font-size: 20px;
+}
+
+.container > .page-title {
+  margin-top: 0;
 }
 
 .graph-container {
@@ -1462,9 +1447,9 @@ h1 {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 20px;
+  margin-bottom: var(--space-5);
   flex-wrap: wrap;
-  gap: 20px;
+  gap: var(--space-5);
 }
 
 .graph-page-header h1 {
@@ -1577,18 +1562,18 @@ svg {
 /* Graph legend (different from timeline legend) */
 #graph-legend {
   display: flex;
-  gap: 20px;
+  gap: var(--space-5);
   flex-wrap: wrap;
   align-items: center;
   padding: 10px;
   background: var(--hover-bg);
-  border-radius: 8px;
+  border-radius: var(--space-2);
 }
 
 .legend-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   font-size: 13px;
   color: var(--text);
 }
@@ -1792,27 +1777,23 @@ svg {
 #stats-container {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: var(--space-6);
 }
 
 .month-stats {
-  background: var(--panel);
-  border-radius: 14px;
-  padding: 24px;
+  padding: var(--space-6);
   margin-bottom: 0;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .month-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: var(--space-5);
   border-bottom: 2px solid rgba(255, 255, 255, 0.15);
-  padding-bottom: 16px;
+  padding-bottom: var(--space-4);
   flex-wrap: wrap;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .month-stats h2 {
@@ -1954,10 +1935,11 @@ svg {
 /* Optional: panel/box when used outside dashboard (e.g. in a dedicated view) */
 .calendar-heatmap-container.in-panel {
   background: var(--panel);
-  border-radius: 14px;
-  padding: 16px;
-  margin-bottom: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--panel-radius);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+  border: 1px solid var(--panel-border-color);
+  box-shadow: var(--panel-shadow);
 }
 
 .calendar-heatmap-header {
@@ -2100,7 +2082,7 @@ svg {
 
 /* Dashboard: current month in its own row at top, twice as big */
 .calendar-current-month-row {
-  margin-bottom: 20px;
+  margin-bottom: var(--space-5);
   width: fit-content;
 }
 
@@ -2470,7 +2452,7 @@ svg {
   fill: currentColor;
 }
 
-#theme.about-section-title {
+#theme.section-title {
   margin-top: 0;
 }
 
@@ -2480,7 +2462,7 @@ svg {
   margin-bottom: 0.5rem;
 }
 
-.container--config #theme.about-section-title {
+.container--config #theme.section-title {
   margin-top: 1rem;
 }
 
@@ -2489,18 +2471,22 @@ svg {
   margin-top: 1.5rem;
 }
 
-.config-remaining-wake .about-section-intro {
+.config-remaining-wake .section-intro {
   margin-bottom: 1rem;
 }
 
-.config-rw-link {
+/* Shared text-level links and plain-text action buttons */
+.content-link,
+.section-intro a {
   color: var(--text);
   opacity: 0.9;
   text-decoration: underline;
   text-underline-offset: 2px;
+  transition: opacity 0.2s;
 }
 
-.config-rw-link:hover {
+.content-link:hover,
+.section-intro a:hover {
   opacity: 1;
 }
 
@@ -2508,7 +2494,7 @@ svg {
   margin: 0 0 0.75rem;
 }
 
-.config-rw-default-btn {
+.text-link-button {
   display: inline-block;
   padding: 0;
   border: none;
@@ -2520,9 +2506,10 @@ svg {
   opacity: 0.9;
   text-decoration: underline;
   text-underline-offset: 2px;
+  transition: opacity 0.2s;
 }
 
-.config-rw-default-btn:hover {
+.text-link-button:hover {
   opacity: 1;
 }
 
@@ -2710,7 +2697,7 @@ svg {
 .about-slide-inner {
   margin: 0 20px 24px;
 }
-.about-slide-inner .about-section-title:first-child {
+.about-slide-inner .section-title:first-child {
   margin-top: 0;
 }
 .about-dots {
@@ -2785,7 +2772,7 @@ svg {
 }
 
 /* About page — Remaining Wake Time section */
-.about-section-title {
+.section-title {
   margin-top: 2.5rem;
   margin-bottom: 0.75rem;
   font-size: 1.25rem;
@@ -2793,7 +2780,7 @@ svg {
   color: var(--text);
 }
 
-.about-section-intro {
+.section-intro {
   margin: 0 0 0.5rem;
   color: var(--text);
   opacity: 0.9;
@@ -2837,22 +2824,3 @@ svg {
   font-size: 0.9em;
 }
 
-.about-phase-note {
-  opacity: 0.8;
-  font-size: 0.9em;
-  font-style: italic;
-}
-
-.about-phase-feeling {
-  opacity: 0.85;
-  font-size: 0.9em;
-}
-
-.about-section-note {
-  margin: 1rem 0 0;
-  color: var(--text);
-  opacity: 0.8;
-  font-size: 0.875rem;
-  font-style: italic;
-  line-height: 1.45;
-}
