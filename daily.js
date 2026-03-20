@@ -414,7 +414,7 @@ function calculateAverages(days) {
   });
   
   return {
-    avgBedtime: denormalizeTimeForAveraging(Math.round(sleepStartSum / days.length)),
+    avgSleepStart: denormalizeTimeForAveraging(Math.round(sleepStartSum / days.length)),
     avgSleepEnd: denormalizeTimeForAveraging(Math.round(sleepEndSum / days.length)),
     avgSleepDuration: Math.round(sleepDurationSum / days.length),
     avgLongestUninterrupted: Math.round(longestUninterruptedSum / days.length),
@@ -425,7 +425,7 @@ function calculateAverages(days) {
 // Render averages stats HTML (inner content only)
 function renderAveragesStats(averages) {
   return `
-        <div class="stat-row"><span class="stat-label">${highlightKeyword('asleep:', 'asleep')}</span><span class="stat-value">${formatTime(averages.avgBedtime)}</span></div>
+        <div class="stat-row"><span class="stat-label">${highlightKeyword('asleep:', 'asleep')}</span><span class="stat-value">${formatTime(averages.avgSleepStart)}</span></div>
     <div class="stat-row"><span class="stat-label">${highlightKeyword('duration:', 'duration')}</span><span class="stat-value">${formatDuration(averages.avgSleepDuration)}</span></div>
     <div class="stat-row"><span class="stat-label">uninterrupted:</span><span class="stat-value">${formatDuration(averages.avgLongestUninterrupted)}</span></div>
     ${averages.avgFirstAlarmToWake !== null ? `<div class="stat-row"><span class="stat-label">${highlightKeyword('alarm to wake:', ['alarm', 'wake'])}</span><span class="stat-value ${averages.avgFirstAlarmToWake > ALARM_TO_WAKE_WARNING_THRESHOLD ? 'stat-warning' : ''}">${averages.avgFirstAlarmToWake < 0 ? '-' + formatDuration(-averages.avgFirstAlarmToWake) : formatDuration(averages.avgFirstAlarmToWake)}</span></div>` : ''}
@@ -463,7 +463,7 @@ function renderStatsTopAverages(days) {
 // Render week summary stats (for collapsed state)
 function renderWeekSummary(days) {
   const averages = calculateAverages(days);
-  const avgSleepStart = averages.avgBedtime;
+  const avgSleepStart = averages.avgSleepStart;
   const avgSleepEnd = averages.avgSleepEnd;
   const avgSleepStartPos = timeToTimelinePosition(avgSleepStart);
   const avgSleepEndPos = timeToTimelinePosition(avgSleepEnd);
@@ -743,7 +743,7 @@ const WAKE_PROJECTION_BAND_MINUTES = 15;
 
 /** Returns { phase, icon, timeLabel } for remaining wake time (used by dashboard nav). */
 function getRemainingWakeDisplay(recentAverages) {
-  const sleepTarget = recentAverages.avgBedtime;
+  const sleepTarget = recentAverages.avgSleepStart;
   const wakeTarget = recentAverages.avgSleepEnd;
   const totalWakeMins = durationMinutes(wakeTarget, sleepTarget);
   const now = new Date();
@@ -758,12 +758,12 @@ function getRemainingWakeDisplay(recentAverages) {
 }
 
 function renderDashboardProjection(recentAverages) {
-  const sleepByLow = Math.max(0, recentAverages.avgBedtime - PROJECTION_BAND_MINUTES);
-  const sleepByHigh = Math.min(1440, recentAverages.avgBedtime + PROJECTION_BAND_MINUTES);
-  const wakeByLow = Math.max(0, recentAverages.avgSleepEnd - WAKE_PROJECTION_BAND_MINUTES);
-  const wakeByHigh = Math.min(1440, recentAverages.avgSleepEnd + WAKE_PROJECTION_BAND_MINUTES);
+  const sleepByLow = modMinutes1440(recentAverages.avgSleepStart - PROJECTION_BAND_MINUTES);
+  const sleepByHigh = modMinutes1440(recentAverages.avgSleepStart + PROJECTION_BAND_MINUTES);
+  const wakeByLow = modMinutes1440(recentAverages.avgSleepEnd - WAKE_PROJECTION_BAND_MINUTES);
+  const wakeByHigh = modMinutes1440(recentAverages.avgSleepEnd + WAKE_PROJECTION_BAND_MINUTES);
 
-  const sleepTarget = recentAverages.avgBedtime;
+  const sleepTarget = recentAverages.avgSleepStart;
   const wakeTarget = recentAverages.avgSleepEnd;
   const recommendedDurationMins = wakeTarget >= sleepTarget
     ? wakeTarget - sleepTarget

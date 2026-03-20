@@ -181,14 +181,23 @@ function calculateLongestUninterrupted(day) {
   return longest;
 }
 
-// Calculate time from first alarm to get up
-function calculateFirstAlarmToWake(day) {
-  if (!day.alarm || day.alarm.length === 0) {
-    return null;
-  }
-  const firstAlarm = Math.min(...day.alarm.map(timeToMinutes));
+function getFirstAlarmMinutes(day) {
+  if (!day.alarm || day.alarm.length === 0) return null;
+  return Math.min(...day.alarm.map(timeToMinutes));
+}
+
+// Signed alarm-to-wake delta (minutes): wake - firstAlarm.
+// Negative values are meaningful and preserved for analysis.
+function calculateAlarmToWakeDelta(day) {
+  const firstAlarm = getFirstAlarmMinutes(day);
+  if (firstAlarm === null) return null;
   const wakeTime = timeToMinutes(day.sleepEnd);
   return wakeTime - firstAlarm;
+}
+
+// Backward-compatible alias for existing callers.
+function calculateFirstAlarmToWake(day) {
+  return calculateAlarmToWakeDelta(day);
 }
 
 // Calculate delay from bed time to falling asleep
@@ -200,12 +209,10 @@ function calculateSleepDelay(day) {
   return delay;
 }
 
-// Calculate delay from first alarm to wake time (snooze delay)
+// Backward-compatible alias for existing callers.
 function calculateWakeDelay(day) {
-  if (!day.alarm || day.alarm.length === 0) {
-    return null;
-  }
-  const firstAlarm = Math.min(...day.alarm.map(timeToMinutes));
+  const firstAlarm = getFirstAlarmMinutes(day);
+  if (firstAlarm === null) return null;
   const wakeTime = timeToMinutes(day.sleepEnd);
   let delay = wakeTime - firstAlarm;
   if (delay < 0 && firstAlarm >= 1080) {
