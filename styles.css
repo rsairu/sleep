@@ -934,35 +934,55 @@ body{
   gap: 2px;
 }
 
-/* Timeline section: legend + show/hide beside weekly timelines */
+/* Timeline section: legend + show/hide full-width above weekly timelines */
 #timeline-section{
   display: flex;
-  align-items: flex-start;
-  gap: var(--space-5);
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-4);
   max-width: 1200px;
   margin: 0 auto var(--space-5);
 }
 
+#timeline-legend-controls{
+  width: 100%;
+}
+
 .timeline-legend-controls{
   padding: var(--panel-padding);
-  flex-shrink: 0;
-  width: 160px;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-3);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.timeline-show-hide-block{
+  border-top: 1px solid var(--panel-border-color);
+  padding-top: var(--space-3);
 }
 
 #timeline-section .legend{
-  flex-direction: column;
-  gap: 8px;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 10px 14px;
 }
 
 #timeline-section .show-hide-section{
   margin-top: 0;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 18px;
+}
+
+#timeline-section .show-hide-title{
+  margin-bottom: 0;
+  flex: 0 0 auto;
 }
 
 #timeline-section #days-container{
-  flex: 1;
+  width: 100%;
   min-width: 0;
 }
 
@@ -1434,7 +1454,7 @@ h1,
 .graph-container {
   position: relative;
   width: 100%;
-  min-width: 800px;
+  min-width: 0;
   overflow-x: auto;
   overflow-y: visible;
 }
@@ -1454,6 +1474,49 @@ h1,
 
 .graph-page-header h1 {
   margin: 0;
+}
+
+.graph-range-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.graph-range-label {
+  font-size: 13px;
+  color: var(--text);
+  opacity: 0.85;
+}
+
+.graph-range-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.graph-range-btn {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: var(--space-2);
+  border: 1px solid var(--panel-border-color);
+  background: var(--hover-bg);
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.graph-range-btn:hover {
+  background: var(--panel-border-color);
+}
+
+.graph-range-btn.is-active {
+  background: var(--color-sleep);
+  border-color: var(--color-sleep);
+  color: var(--bg);
 }
 
 .chart-error {

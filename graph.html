@@ -45,6 +45,16 @@
         </label>
       </div>
     </div>
+    <div class="graph-range-toolbar" role="toolbar" aria-label="Chart date range">
+      <span class="graph-range-label">Range</span>
+      <div class="graph-range-buttons">
+        <button type="button" class="graph-range-btn" data-range="30d" aria-pressed="false">30d</button>
+        <button type="button" class="graph-range-btn" data-range="90d" aria-pressed="false">90d</button>
+        <button type="button" class="graph-range-btn" data-range="180d" aria-pressed="false">6 mo</button>
+        <button type="button" class="graph-range-btn" data-range="365d" aria-pressed="false">1 yr</button>
+        <button type="button" class="graph-range-btn" data-range="all" aria-pressed="false">All</button>
+      </div>
+    </div>
     <div class="graph-container" id="graph-container">
       <svg id="graph-svg"></svg>
     </div>

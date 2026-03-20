@@ -850,33 +850,37 @@ function renderDashboardContent(days) {
   `;
 }
 
-// Render timeline legend and show/hide controls (placed next to weekly timelines)
+// Render timeline legend and show/hide controls (full-width strip above weekly timelines)
 function renderTimelineLegendControls() {
   return `
     <div class="timeline-legend-controls">
-      <div class="legend">
-        <span class="sleep">sleep</span>
-        <span class="nap">nap</span>
-        <span class="bed">bed</span>
-        <span class="alarm">alarm</span>
-        <span class="sick">sick</span>
-        <span class="bath">bathroom</span>
-        <span class="up">get up</span>
+      <div class="timeline-legend-block">
+        <div class="legend">
+          <span class="sleep">sleep</span>
+          <span class="nap">nap</span>
+          <span class="bed">bed</span>
+          <span class="alarm">alarm</span>
+          <span class="sick">sick</span>
+          <span class="bath">bathroom</span>
+          <span class="up">get up</span>
+        </div>
       </div>
-      <div class="show-hide-section">
-        <div class="show-hide-title">show/hide</div>
-        <label class="time-toggle">
-          <input type="checkbox" id="show-time-ticks" checked>
-          <span>time</span>
-        </label>
-        <label class="time-toggle">
-          <input type="checkbox" id="show-daily-details" checked>
-          <span>daily details</span>
-        </label>
-        <label class="time-toggle">
-          <input type="checkbox" id="show-flags" checked>
-          <span>flags</span>
-        </label>
+      <div class="timeline-show-hide-block">
+        <div class="show-hide-section">
+          <div class="show-hide-title">show/hide</div>
+          <label class="time-toggle">
+            <input type="checkbox" id="show-time-ticks" checked>
+            <span>time</span>
+          </label>
+          <label class="time-toggle">
+            <input type="checkbox" id="show-daily-details" checked>
+            <span>daily details</span>
+          </label>
+          <label class="time-toggle">
+            <input type="checkbox" id="show-flags" checked>
+            <span>flags</span>
+          </label>
+        </div>
       </div>
     </div>
   `;
