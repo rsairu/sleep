@@ -744,12 +744,14 @@ const WAKE_PROJECTION_BAND_MINUTES = 15;
 /** Returns { phase, icon, timeLabel } for remaining wake time (used by dashboard nav). */
 function getRemainingWakeDisplay(recentAverages) {
   const sleepTarget = recentAverages.avgBedtime;
+  const wakeTarget = recentAverages.avgSleepEnd;
+  const totalWakeMins = durationMinutes(wakeTarget, sleepTarget);
   const now = new Date();
   const nowMins = now.getHours() * 60 + now.getMinutes();
   const remainingMins = sleepTarget >= nowMins
     ? sleepTarget - nowMins
     : 1440 - nowMins + sleepTarget;
-  const phase = getRemainingWakePhase(remainingMins, sleepTarget);
+  const phase = getRemainingWakePhase(remainingMins, totalWakeMins);
   const icon = getRemainingWakeIcon(phase);
   const timeLabel = formatDuration(Math.round(remainingMins));
   return { phase, icon, timeLabel };

@@ -49,7 +49,7 @@
       <section class="about-slide" id="remaining-wake-time" aria-label="Remaining Wake Time">
         <div class="container about-slide-inner">
           <h2 class="section-title">Remaining Wake Time</h2>
-          <p class="section-intro">Shows how much time is left in your day before your recommended sleep time. Phases are based on the <strong>percent of wake time remaining</strong>. This is meant to gently guide your pace, not rush you. You can <a class="content-link" href="config.html#remaining-wake-thresholds">customize the thresholds in Settings</a>.</p>
+          <p class="section-intro">Shows how much time is left in your day before your recommended sleep time. Phases are based on the <strong>percent of wake time remaining</strong>. This is meant to gently guide your pace, not rush you. You can adjust thresholds below or in <a class="content-link" href="config.html#remaining-wake-thresholds">Settings</a>.</p>
           <p class="section-intro">The day is divided into three simple phases:</p>
           <ul class="about-phase-list">
             <li class="about-phase-item">
@@ -74,6 +74,9 @@
               </div>
             </li>
           </ul>
+          <h3 class="section-title about-rw-thresholds-heading" id="about-remaining-wake-thresholds">Adjust thresholds</h3>
+          <p class="section-intro">Percentages are <strong>your share of wake time left</strong> from your recent 7-day average get-up time to average fell-asleep time—the same window the header clock uses. The times under each slider show roughly when those boundaries fall on a typical day.</p>
+          <div id="about-remaining-wake-mount"></div>
         </div>
       </section>
     </div>
@@ -86,6 +89,9 @@
     document.getElementById('nav-container').innerHTML = renderNavBar('about');
     initDayNightTheme();
     initRemainingWakeNav();
+    document.getElementById('about-remaining-wake-mount').innerHTML =
+      getRemainingWakeThresholdsControlHTML('about-remaining-wake-thresholds');
+    initRemainingWakeThresholdsConfig();
 
     (function() {
       var deck = document.getElementById('about-deck');

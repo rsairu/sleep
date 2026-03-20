@@ -32,8 +32,9 @@ function durationMinutes(startMinutes, endMinutes) {
 
 // Format minutes as "Xh Ym" or "Xh" or "Ym"
 function formatDuration(minutes) {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
+  const m = Math.round(minutes);
+  const hours = Math.floor(m / 60);
+  const mins = m % 60;
   if (hours === 0) return `${mins}m`;
   if (mins === 0) return `${hours}h`;
   return `${hours}h ${mins}m`;
@@ -42,8 +43,9 @@ function formatDuration(minutes) {
 // Format minutes from midnight as "HH:MM"
 // Optionally return "00" for midnight (for graph display)
 function formatTime(minutes, shortMidnight = false) {
-  const hours = Math.floor(minutes / 60) % 24;
-  const mins = minutes % 60;
+  const total = ((Math.round(minutes) % 1440) + 1440) % 1440;
+  const hours = Math.floor(total / 60);
+  const mins = total % 60;
   if (shortMidnight && hours === 0) {
     return `00`;
   }
@@ -496,6 +498,39 @@ function initConfigThemeSelector() {
   });
 }
 
+// 0–1440 modular arithmetic (JavaScript % can be negative).
+function modMinutes1440(n) {
+  return ((n % 1440) + 1440) % 1440;
+}
+
+/** Last 7 days in `days`: average get-up, average fell-asleep, and wake-window length (minutes between them). */
+function computeRecentSevenDayWakeBasis(days) {
+  if (!days || days.length === 0) return null;
+  const recent = days.slice(0, Math.min(7, days.length));
+  let sleepStartSum = 0;
+  let sleepEndSum = 0;
+  for (let i = 0; i < recent.length; i++) {
+    const d = recent[i];
+    sleepStartSum += normalizeTimeForAveraging(timeToMinutes(d.sleepStart));
+    sleepEndSum += normalizeTimeForAveraging(timeToMinutes(d.sleepEnd));
+  }
+  const n = recent.length;
+  const avgSleepStart = denormalizeTimeForAveraging(Math.round(sleepStartSum / n));
+  const avgSleepEnd = denormalizeTimeForAveraging(Math.round(sleepEndSum / n));
+  const totalWakeMins = durationMinutes(avgSleepEnd, avgSleepStart);
+  return { avgSleepStart, avgSleepEnd, totalWakeMins };
+}
+
+/** Wall-clock minute (0–1439) when only `percentWakeRemaining` of the average wake window remains before average sleep. */
+function wakePercentToClockMinutes(basis, percentWakeRemaining) {
+  if (!basis || basis.totalWakeMins <= 0) return null;
+  const rem = (percentWakeRemaining / 100) * basis.totalWakeMins;
+  return Math.round(modMinutes1440(basis.avgSleepStart - rem));
+}
+
+// Filled when config page loads sleep data (for threshold clock labels under sliders).
+let configRemainingWakeBasis = null;
+
 // Bar uses position from left: 0 = 100% remaining (open), 100 = 0% remaining. pos1 = open/winding boundary, pos2 = winding/presleep.
 function applyRemainingWakeThresholdsUI(pos1, pos2) {
   const segOpen = document.getElementById('config-rw-seg-open');
@@ -522,15 +557,35 @@ function applyRemainingWakeThresholdsUI(pos1, pos2) {
 
   const openMin = 100 - p1;
   const windingMin = 100 - p2;
+  const basis = configRemainingWakeBasis;
+  const clockOpen = basis ? wakePercentToClockMinutes(basis, openMin) : null;
+  const clockWinding = basis ? wakePercentToClockMinutes(basis, windingMin) : null;
+  const timeOpen = clockOpen != null ? formatTime(clockOpen) : '—';
+  const timeWinding = clockWinding != null ? formatTime(clockWinding) : '—';
+
   const percentLeft = document.getElementById('config-rw-percent-left');
   const percentRight = document.getElementById('config-rw-percent-right');
   if (percentLeft) {
     percentLeft.style.left = p1 + '%';
-    percentLeft.textContent = openMin + '%';
+    const pct = percentLeft.querySelector('.config-rw-thumb-pct');
+    const tim = percentLeft.querySelector('.config-rw-thumb-time');
+    if (pct) pct.textContent = openMin + '%';
+    if (tim) tim.textContent = timeOpen;
+    percentLeft.setAttribute(
+      'aria-label',
+      'Active until ' + openMin + '% wake time remains, around ' + timeOpen + ' with your 7-day averages'
+    );
   }
   if (percentRight) {
     percentRight.style.left = p2 + '%';
-    percentRight.textContent = windingMin + '%';
+    const pct = percentRight.querySelector('.config-rw-thumb-pct');
+    const tim = percentRight.querySelector('.config-rw-thumb-time');
+    if (pct) pct.textContent = windingMin + '%';
+    if (tim) tim.textContent = timeWinding;
+    percentRight.setAttribute(
+      'aria-label',
+      'Winding down until ' + windingMin + '% wake time remains, around ' + timeWinding + ' with your 7-day averages'
+    );
   }
 }
 
@@ -540,13 +595,68 @@ function snapPercentTo5(frac) {
   return Math.min(100, Math.max(0, v));
 }
 
-// Initializes the Config page remaining wake thresholds: bar, two sliders (5% steps), icons above bar, persist to localStorage.
+/** Markup for the default-values control + bar/sliders (Settings and About). `ariaLabelledBy` is the id of the visible section heading. */
+function getRemainingWakeThresholdsControlHTML(ariaLabelledBy) {
+  const labelId = ariaLabelledBy || 'remaining-wake-thresholds';
+  return (
+    '<p class="config-remaining-wake-default-row">' +
+      '<button type="button" class="config-rw-defaults-button" id="config-rw-use-defaults">Use default values <span class="config-rw-default-values"></span></button>' +
+    '</p>' +
+    '<div class="config-remaining-wake" id="config-remaining-wake" role="group" aria-labelledby="' +
+    labelId +
+    '">' +
+    '<div class="config-remaining-wake-icons" aria-hidden="true">' +
+    '<span class="config-remaining-wake-icon-seg" id="config-rw-icon-open"><span class="config-rw-icon-emoji">☀️</span><span class="config-rw-icon-label">Active</span></span>' +
+    '<span class="config-remaining-wake-icon-seg" id="config-rw-icon-winding"><span class="config-rw-icon-emoji">🌇</span><span class="config-rw-icon-label">Winding</span></span>' +
+    '<span class="config-remaining-wake-icon-seg" id="config-rw-icon-presleep"><span class="config-rw-icon-emoji">🛏️</span><span class="config-rw-icon-label">Pre-sleep</span></span>' +
+    '</div>' +
+    '<div class="config-remaining-wake-bar-wrap">' +
+    '<div class="config-remaining-wake-bar">' +
+    '<div class="config-remaining-wake-seg config-remaining-wake-seg--open" id="config-rw-seg-open"></div>' +
+    '<div class="config-remaining-wake-seg config-remaining-wake-seg--winding" id="config-rw-seg-winding"></div>' +
+    '<div class="config-remaining-wake-seg config-remaining-wake-seg--presleep" id="config-rw-seg-presleep"></div>' +
+    '</div>' +
+    '<input type="range" id="config-open-min" min="0" max="100" step="5" value="70" aria-label="Active / Winding boundary (percent remaining)" tabindex="0">' +
+    '<input type="range" id="config-winding-min" min="0" max="100" step="5" value="90" aria-label="Winding / Pre-sleep boundary (percent remaining)" tabindex="0">' +
+    '<div class="config-remaining-wake-bar-overlay" id="config-rw-bar-overlay" aria-hidden="true"></div>' +
+    '</div>' +
+    '<div class="config-remaining-wake-labels">' +
+    '<span>Wake</span><span>Sleep</span>' +
+    '</div>' +
+    '<div class="config-remaining-wake-percent-under" id="config-rw-percent-under" aria-live="polite">' +
+    '<span class="config-rw-percent-thumb" id="config-rw-percent-left">' +
+    '<span class="config-rw-thumb-pct">30%</span><span class="config-rw-thumb-time" aria-hidden="true">—</span>' +
+    '</span>' +
+    '<span class="config-rw-percent-thumb" id="config-rw-percent-right">' +
+    '<span class="config-rw-thumb-pct">10%</span><span class="config-rw-thumb-time" aria-hidden="true">—</span>' +
+    '</span>' +
+    '</div>' +
+    '</div>'
+  );
+}
+
+// Initializes remaining wake thresholds UI: bar, sliders, localStorage (Settings and About).
 function initRemainingWakeThresholdsConfig() {
   const inputOpen = document.getElementById('config-open-min');
   const inputWinding = document.getElementById('config-winding-min');
   const barWrap = document.getElementById('config-rw-bar-overlay') && document.getElementById('config-rw-bar-overlay').parentElement;
   const overlay = document.getElementById('config-rw-bar-overlay');
   if (!inputOpen || !inputWinding || !barWrap || !overlay) return;
+
+  fetch('sleep-data.json')
+    .then(function (r) {
+      return r.json();
+    })
+    .then(function (data) {
+      configRemainingWakeBasis = computeRecentSevenDayWakeBasis(data.days);
+      const { openMin, windingMin } = getRemainingWakeThresholds();
+      applyRemainingWakeThresholdsUI(100 - openMin, 100 - windingMin);
+    })
+    .catch(function () {
+      configRemainingWakeBasis = null;
+      const { openMin, windingMin } = getRemainingWakeThresholds();
+      applyRemainingWakeThresholdsUI(100 - openMin, 100 - windingMin);
+    });
 
   const { openMin, windingMin } = getRemainingWakeThresholds();
   const pos1 = 100 - openMin;
@@ -625,6 +735,17 @@ function initRemainingWakeThresholdsConfig() {
 
   const defaultsBtn = document.getElementById('config-rw-use-defaults');
   if (defaultsBtn) {
+    const defaultsLabel = `(${DEFAULT_REMAINING_WAKE_OPEN_MIN}%, ${DEFAULT_REMAINING_WAKE_WINDING_MIN}%)`;
+    const span = defaultsBtn.querySelector('.config-rw-default-values');
+    if (span) span.textContent = defaultsLabel;
+    defaultsBtn.setAttribute(
+      'aria-label',
+      'Reset remaining wake thresholds to defaults: ' +
+        DEFAULT_REMAINING_WAKE_OPEN_MIN +
+        '% and ' +
+        DEFAULT_REMAINING_WAKE_WINDING_MIN +
+        '%'
+    );
     defaultsBtn.addEventListener('click', function () {
       setRemainingWakeThresholds(DEFAULT_REMAINING_WAKE_OPEN_MIN, DEFAULT_REMAINING_WAKE_WINDING_MIN);
       const pos1 = 100 - DEFAULT_REMAINING_WAKE_OPEN_MIN;
@@ -743,9 +864,10 @@ function renderNavBar(currentPage) {
 }
 
 // Phase thresholds from getRemainingWakeThresholds(): open >= openMin%, winding openMin–windingMin%, pre-sleep < windingMin%.
-function getRemainingWakePhase(remainingMins, sleepTargetMins) {
-  if (sleepTargetMins <= 0) return 'open';
-  const percentRemaining = Math.min(100, (remainingMins / sleepTargetMins) * 100);
+// totalWakeMins = minutes from average get-up to average sleep (recent 7 days).
+function getRemainingWakePhase(remainingMins, totalWakeMins) {
+  if (totalWakeMins <= 0) return 'open';
+  const percentRemaining = Math.min(100, (remainingMins / totalWakeMins) * 100);
   const { openMin, windingMin } = getRemainingWakeThresholds();
   if (percentRemaining >= openMin) return 'open';
   if (percentRemaining >= windingMin) return 'winding';
@@ -762,16 +884,15 @@ function getRemainingWakeIcon(phase) {
 }
 
 /** Returns { phase, icon, timeLabel } from raw days (used when daily.js not loaded).
- * Uses same logic as dashboard: recent 7 days, average sleep start (fell asleep) with normalize/denormalize. */
+ * Recent 7 days: average get-up and fell-asleep; phase uses minutes-until-sleep vs that wake-window length. */
 function getRemainingWakeDisplayFromDays(days) {
   if (!days || days.length === 0) return null;
-  const recent = days.slice(0, Math.min(7, days.length));
-  const sleepStartSum = recent.reduce((s, d) => s + normalizeTimeForAveraging(timeToMinutes(d.sleepStart)), 0);
-  const avgSleepTarget = denormalizeTimeForAveraging(Math.round(sleepStartSum / recent.length));
+  const basis = computeRecentSevenDayWakeBasis(days);
+  const { avgSleepStart, totalWakeMins } = basis;
   const now = new Date();
   const nowMins = now.getHours() * 60 + now.getMinutes();
-  const remainingMins = avgSleepTarget >= nowMins ? avgSleepTarget - nowMins : 1440 - nowMins + avgSleepTarget;
-  const phase = getRemainingWakePhase(remainingMins, avgSleepTarget);
+  const remainingMins = avgSleepStart >= nowMins ? avgSleepStart - nowMins : 1440 - nowMins + avgSleepStart;
+  const phase = getRemainingWakePhase(remainingMins, totalWakeMins);
   const icon = getRemainingWakeIcon(phase);
   const timeLabel = formatDuration(Math.round(remainingMins));
   return { phase, icon, timeLabel };
