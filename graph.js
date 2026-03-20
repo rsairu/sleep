@@ -1,10 +1,68 @@
 // Graph page rendering. Shared math/time helpers live in sleep-utils.js.
 
+function graphRangeDays(key) {
+  const map = { '30d': 30, '90d': 90, '180d': 180, '365d': 365 };
+  return map[key] ?? null;
+}
+
+function filterPointsByGraphRange(allPoints, rangeKey) {
+  if (!allPoints.length) return [];
+  if (rangeKey === 'all') return allPoints.slice();
+  const days = graphRangeDays(rangeKey);
+  if (!days) return allPoints.slice();
+  const endDate = allPoints[allPoints.length - 1].date;
+  const startDate = new Date(endDate.getTime());
+  startDate.setHours(0, 0, 0, 0);
+  startDate.setDate(startDate.getDate() - (days - 1));
+  return allPoints.filter((p) => p.date >= startDate && p.date <= endDate);
+}
+
+function graphOuterWidth() {
+  const el = document.getElementById('graph-container');
+  const w = el && el.clientWidth;
+  return Math.max(320, w || 800);
+}
+
+function debounceGraph(fn, ms) {
+  let t;
+  return (...args) => {
+    clearTimeout(t);
+    t = setTimeout(() => fn.apply(null, args), ms);
+  };
+}
+
+function defaultGraphRangeKey() {
+  return window.matchMedia('(max-width: 768px)').matches ? '90d' : 'all';
+}
+
+function regressionDegree(pointCount) {
+  return Math.min(2, Math.max(0, pointCount - 1));
+}
+
+function clearGraphSvgsAndErrors() {
+  ['graph-svg', 'bar-chart-svg', 'delay-chart-svg'].forEach((id) => {
+    const svg = document.getElementById(id);
+    if (svg) while (svg.firstChild) svg.removeChild(svg.firstChild);
+  });
+  document.querySelectorAll('#graph-container .chart-error, #bar-chart-container .chart-error, #delay-chart-container .chart-error').forEach((el) => el.remove());
+}
+
+function setActiveGraphRangeButton(rangeKey) {
+  document.querySelectorAll('.graph-range-btn').forEach((btn) => {
+    const active = btn.dataset.range === rangeKey;
+    btn.classList.toggle('is-active', active);
+    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+}
+
+let graphPageAllPoints = [];
+let graphPageRangeKey = 'all';
+let graphPageTogglesBound = false;
+
 // Load and render graph
 fetch('sleep-data.json').then(response => response.json())
   .then((data) => {
-    // Process data: convert to array of {date, bedTimeMinutes, bedTimeString, sleepStartMinutes, sleepStartString, getUpMinutes, getUpString, sleepDurationMinutes}
-    const points = data.days.map(day => {
+    graphPageAllPoints = data.days.map(day => {
       const rawBedMinutes = timeToMinutes(day.bed);
       const rawSleepStartMinutes = timeToMinutes(day.sleepStart);
       const rawGetUpMinutes = timeToMinutes(day.sleepEnd);
@@ -48,8 +106,38 @@ fetch('sleep-data.json').then(response => response.json())
       };
     });
 
-    // Sort by date (oldest first for left-to-right display)
-    points.sort((a, b) => a.date - b.date);
+    graphPageAllPoints.sort((a, b) => a.date - b.date);
+
+    graphPageRangeKey = defaultGraphRangeKey();
+
+    document.querySelectorAll('.graph-range-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        graphPageRangeKey = btn.dataset.range;
+        renderGraphPageCharts();
+      });
+    });
+
+    window.addEventListener('resize', debounceGraph(() => renderGraphPageCharts(), 200));
+
+    renderGraphPageCharts();
+  })
+  .catch((error) => {
+    console.error('Error loading data:', error);
+    document.getElementById('graph-container').innerHTML = '<p>Error loading data</p>';
+  });
+
+function renderGraphPageCharts() {
+    const points = filterPointsByGraphRange(graphPageAllPoints, graphPageRangeKey);
+    clearGraphSvgsAndErrors();
+    setActiveGraphRangeButton(graphPageRangeKey);
+
+    if (points.length === 0) {
+        const msg = document.createElement('p');
+        msg.className = 'chart-error';
+        msg.textContent = 'No nights in this range.';
+        document.getElementById('graph-container').appendChild(msg);
+        return;
+    }
 
     // Y-axis: start from 5pm (17:00 = 1020) and go to 5pm next day (17:00 + 1440 = 2460)
     // This covers: 17:00, 18:00, 19:00, 20:00, 21:00, 22:00, 23:00, 00:00, 01:00, ..., 16:00, 17:00
@@ -74,7 +162,9 @@ fetch('sleep-data.json').then(response => response.json())
     // Extend width to accommodate 10 more days for trend projection
     const totalDays = points.length + 10;
     const margin = { top: 40, right: 80, bottom: 60, left: 80 };
-    const width = Math.max(800, totalDays * 20); // At least 20px per point
+    const outerWidth = graphOuterWidth();
+    const minPxPerDay = 12;
+    const width = Math.max(outerWidth, totalDays * minPxPerDay);
     const height = 700;
     const graphWidth = width - margin.left - margin.right;
     const graphHeight = height - margin.top - margin.bottom;
@@ -348,23 +438,22 @@ fetch('sleep-data.json').then(response => response.json())
     // Calculate polynomial regression for get up times (quadratic, degree 2)
     const getUpXValues = points.map((point, index) => index);
     const getUpYValues = points.map(point => point.getUpMinutes);
-    const getUpRegression = polynomialRegression(getUpXValues, getUpYValues, 2);
+    const getUpRegression = polynomialRegression(getUpXValues, getUpYValues, regressionDegree(points.length));
     
     // Calculate polynomial regression for sleep start times
     const sleepStartXValues = points.map((point, index) => index);
     const sleepStartYValues = points.map(point => point.sleepStartMinutes);
-    const sleepStartRegression = polynomialRegression(sleepStartXValues, sleepStartYValues, 2);
+    const sleepStartRegression = polynomialRegression(sleepStartXValues, sleepStartYValues, regressionDegree(points.length));
     
     // Calculate polynomial regression for bed time (quadratic, degree 2)
     const bedtimeXValues = points.map((point, index) => index);
     const bedtimeYValues = points.map(point => point.bedTimeMinutes);
-    const bedtimeRegression = polynomialRegression(bedtimeXValues, bedtimeYValues, 2);
+    const bedtimeRegression = polynomialRegression(bedtimeXValues, bedtimeYValues, regressionDegree(points.length));
 
     // Draw get up regression curve - extend 10 more days
     const getUpRegPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     let getUpPathData = '';
     const extendedIndex = points.length - 1 + 10;
-    const extendedMaxDateForCurve = new Date(maxDate.getTime() + 10 * 24 * 60 * 60 * 1000);
     // Generate curve points for smooth rendering
     for (let i = 0; i <= extendedIndex; i++) {
       const x = xScale(new Date(minDate.getTime() + i * 24 * 60 * 60 * 1000));
@@ -612,12 +701,28 @@ fetch('sleep-data.json').then(response => response.json())
       }
     }
 
-    setupCheckbox('show-bedtime-line', toggleBedtimeLine);
-    setupCheckbox('show-sleep-start-line', toggleSleepStartLine);
-    setupCheckbox('show-getup-line', toggleGetUpLine);
-    setupCheckbox('show-getup-regression', toggleGetUpRegression);
-    setupCheckbox('show-sleep-start-regression', toggleSleepStartRegression);
-    setupCheckbox('show-bedtime-regression', toggleBedtimeRegression);
+    if (!graphPageTogglesBound) {
+      graphPageTogglesBound = true;
+      setupCheckbox('show-bedtime-line', toggleBedtimeLine);
+      setupCheckbox('show-sleep-start-line', toggleSleepStartLine);
+      setupCheckbox('show-getup-line', toggleGetUpLine);
+      setupCheckbox('show-getup-regression', toggleGetUpRegression);
+      setupCheckbox('show-sleep-start-regression', toggleSleepStartRegression);
+      setupCheckbox('show-bedtime-regression', toggleBedtimeRegression);
+    } else {
+      const bedCh = document.getElementById('show-bedtime-line');
+      const sleepCh = document.getElementById('show-sleep-start-line');
+      const getupCh = document.getElementById('show-getup-line');
+      const getupRegCh = document.getElementById('show-getup-regression');
+      const sleepRegCh = document.getElementById('show-sleep-start-regression');
+      const bedRegCh = document.getElementById('show-bedtime-regression');
+      if (bedCh) toggleBedtimeLine(bedCh.checked);
+      if (sleepCh) toggleSleepStartLine(sleepCh.checked);
+      if (getupCh) toggleGetUpLine(getupCh.checked);
+      if (getupRegCh) toggleGetUpRegression(getupRegCh.checked);
+      if (sleepRegCh) toggleSleepStartRegression(sleepRegCh.checked);
+      if (bedRegCh) toggleBedtimeRegression(bedRegCh.checked);
+    }
 
     // ===== BAR CHART: Sleep Duration Per Day =====
     try {
@@ -825,7 +930,7 @@ fetch('sleep-data.json').then(response => response.json())
     // Calculate polynomial regression for sleep duration
     const sleepXValues = points.map((point, index) => index);
     const sleepYValues = points.map(point => point.sleepDurationMinutes);
-    const sleepRegression = polynomialRegression(sleepXValues, sleepYValues, 2);
+    const sleepRegression = polynomialRegression(sleepXValues, sleepYValues, regressionDegree(points.length));
 
     // Draw trend curve for sleep duration
     const sleepTrendPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -1071,7 +1176,7 @@ fetch('sleep-data.json').then(response => response.json())
       if (wakeDelayPoints.length > 0) {
         const wakeDelayXValues = wakeDelayPoints.map(point => points.indexOf(point));
         const wakeDelayYValues = wakeDelayPoints.map(point => point.wakeDelayMinutes);
-        const wakeDelayRegression = polynomialRegression(wakeDelayXValues, wakeDelayYValues, 2);
+        const wakeDelayRegression = polynomialRegression(wakeDelayXValues, wakeDelayYValues, regressionDegree(wakeDelayPoints.length));
 
         const wakeDelayTrendPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         let wakeDelayTrendPathData = '';
@@ -1095,7 +1200,7 @@ fetch('sleep-data.json').then(response => response.json())
       if (sleepDelayPoints.length > 0) {
         const sleepDelayXValues = sleepDelayPoints.map(point => points.indexOf(point));
         const sleepDelayYValues = sleepDelayPoints.map(point => point.sleepDelayMinutes);
-        const sleepDelayRegression = polynomialRegression(sleepDelayXValues, sleepDelayYValues, 2);
+        const sleepDelayRegression = polynomialRegression(sleepDelayXValues, sleepDelayYValues, regressionDegree(sleepDelayPoints.length));
 
         const sleepDelayTrendPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         let sleepDelayTrendPathData = '';
@@ -1121,8 +1226,4 @@ fetch('sleep-data.json').then(response => response.json())
       errorDiv.textContent = 'Delay chart error: ' + delayChartError.message;
       document.getElementById('delay-chart-container').appendChild(errorDiv);
     }
-  })
-  .catch(error => {
-    console.error('Error loading data:', error);
-    document.getElementById('graph-container').innerHTML = '<p>Error loading data</p>';
-  });
+}
