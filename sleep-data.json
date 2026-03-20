@@ -1,11 +1,21 @@
 {
   "days": [
     {
+      "date": "3/20",
+      "bed": "22:38",
+      "sleepStart": "22:55",
+      "sleepEnd": "7:11",
+      "bathroom": ["3:45"],
+      "alarm": ["7:03"],
+      "sick": [],
+      "nap": null
+    },
+    {
       "date": "3/19",
       "bed": "22:28",
       "sleepStart": "22:43",
       "sleepEnd": "7:04",
-      "bathroom": [],
+      "bathroom": ["1:03"],
       "alarm": ["7:05"],
       "sick": [],
       "nap": null
