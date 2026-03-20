@@ -333,7 +333,7 @@ function renderDay(day, days, dayIndex, options) {
   let html = `
     <div class="day ${dayClasses.join(' ')}">
       <div class="day-content">
-        <div class="day-date">${day.date} ${dayOfWeek}${isHolidayDay ? ' 🎉' : ''}</div>
+        <div class="day-date">${day.date} ${dayOfWeek}${isHolidayDay ? ' 🏝️' : ''}</div>
         <div class="day-stats">
           <div class="stat-row"><span class="stat-label">${highlightKeyword('asleep:', 'asleep')}</span><span class="stat-value">${day.sleepStart}</span></div>
           <div class="stat-row"><span class="stat-label">${highlightKeyword('duration:', 'duration')}</span><span class="stat-value">${formatDuration(sleepDuration)}</span></div>
@@ -768,7 +768,7 @@ function renderDashboardProjection(recentAverages) {
     : 1440 - sleepTarget + wakeTarget;
 
   return `
-    <div class="dashboard-projection dashboard-projection--no-box">
+    <div class="dashboard-projection">
       <h2 class="dashboard-projection-title">Tonight</h2>
       <div class="dashboard-projection-grid">
         <div class="dashboard-projection-item">

@@ -14,7 +14,7 @@
       <!-- Slide 1: Getting started -->
       <section class="about-slide" aria-label="Getting started">
         <div class="container about-slide-inner">
-          <h1>Getting started</h1>
+          <h1 class="page-title">Getting started</h1>
           <p class="about-intro">Use the icons in the bar below to move between pages:</p>
           <ul class="about-page-list">
             <li>
@@ -48,9 +48,9 @@
       <!-- Slide 2: Remaining Wake Time -->
       <section class="about-slide" id="remaining-wake-time" aria-label="Remaining Wake Time">
         <div class="container about-slide-inner">
-          <h2 class="about-section-title">Remaining Wake Time</h2>
-          <p class="about-section-intro">Shows how much time is left in your day before your recommended sleep time. Phases are based on the <strong>percent of wake time remaining</strong>. This is meant to gently guide your pace, not rush you. You can <a href="config.html#remaining-wake-thresholds">customize the thresholds in Settings</a>.</p>
-          <p class="about-section-intro">The day is divided into three simple phases:</p>
+          <h2 class="section-title">Remaining Wake Time</h2>
+          <p class="section-intro">Shows how much time is left in your day before your recommended sleep time. Phases are based on the <strong>percent of wake time remaining</strong>. This is meant to gently guide your pace, not rush you. You can <a class="content-link" href="config.html#remaining-wake-thresholds">customize the thresholds in Settings</a>.</p>
+          <p class="section-intro">The day is divided into three simple phases:</p>
           <ul class="about-phase-list">
             <li class="about-phase-item">
               <span class="about-phase-icon" aria-hidden="true">☀️</span>
@@ -74,7 +74,6 @@
               </div>
             </li>
           </ul>
-          <p class="about-section-note"></p>
         </div>
       </section>
     </div>
@@ -116,19 +115,23 @@
         slidesEl.style.transform = 'translateX(-' + px + 'px)';
       }
 
+      function updateDots() {
+        dotsEl.querySelectorAll('.about-dot').forEach(function(dot, i) {
+          dot.classList.toggle('active', i === current);
+          dot.setAttribute('aria-selected', i === current ? 'true' : 'false');
+        });
+      }
+
       function goTo(index, skipHash) {
         index = Math.max(0, Math.min(index, total - 1));
         if (index === current) return;
         current = index;
         updateTransform();
-        dotsEl.querySelectorAll('.about-dot').forEach(function(dot, i) {
-          dot.classList.toggle('active', i === current);
-          dot.setAttribute('aria-selected', i === current ? 'true' : 'false');
-        });
+        updateDots();
         if (!skipHash) {
           var hash = index === 0 ? '' : (slides[current].id || '');
-          if (hash) location.hash = hash;
-          else history.replaceState(null, '', location.pathname + location.search);
+          var url = location.pathname + location.search + (hash ? ('#' + hash) : '');
+          history.replaceState(null, '', url);
         }
       }
 
@@ -177,20 +180,22 @@
         if (e.key === 'ArrowRight') goTo(current + 1);
       });
 
+      var initialHash = (location.hash || '').replace(/^#/, '');
+      var initialIndex = hashToIndex[initialHash];
+      if (initialIndex !== undefined) {
+        current = initialIndex;
+      }
+
       setSlideWidths();
       buildDots();
       updateTransform();
+      updateDots();
 
-      var initialHash = (location.hash || '').replace(/^#/, '');
-      var initialIndex = hashToIndex[initialHash];
-      if (initialIndex !== undefined && initialIndex !== 0) {
-        current = initialIndex;
-        updateTransform();
-        dotsEl.querySelectorAll('.about-dot').forEach(function(dot, i) {
-          dot.classList.toggle('active', i === current);
-          dot.setAttribute('aria-selected', i === current ? 'true' : 'false');
-        });
-      }
+      window.addEventListener('hashchange', function() {
+        var hash = (location.hash || '').replace(/^#/, '');
+        var idx = hashToIndex[hash];
+        goTo(idx === undefined ? 0 : idx, true);
+      });
 
       window.addEventListener('resize', function() {
         setSlideWidths();
