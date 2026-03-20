@@ -219,10 +219,24 @@ function formatDelta(minutes, labelText, lowerIsBetter) {
   return `${timeStr} ${direction}`;
 }
 
+const CLOCK_STAT_LABELS = new Set(['Time to bed:', 'Fell asleep:', 'Time to wake:']);
+const SIGNED_DURATION_LABELS = new Set(['Wake delay:']);
+
+function formatSignedDuration(minutes) {
+  if (minutes === null || minutes === undefined) return '—';
+  return minutes < 0 ? '-' + formatDuration(-minutes) : formatDuration(minutes);
+}
+
+function formatStatValueByLabel(label, value) {
+  if (value === null || value === undefined) return '—';
+  if (SIGNED_DURATION_LABELS.has(label)) return formatSignedDuration(value);
+  return CLOCK_STAT_LABELS.has(label) ? formatTime(value) : formatDuration(value);
+}
+
 // Calculate percentage difference and determine if it's better
 // Returns { percentage, isBetter, color, deltaMinutes, deltaText, arrow }
 function calculateDifference(current, comparison, lowerIsBetter = false, labelText = '') {
-  if (!comparison || comparison === 0) {
+  if (comparison === null || comparison === undefined) {
     return null;
   }
   
@@ -283,13 +297,12 @@ function calculateDifference(current, comparison, lowerIsBetter = false, labelTe
 // Render a stat row with comparison
 function renderStatRow(label, keyword, currentValue, comparisonData, lowerIsBetter = false) {
   const comparison = comparisonData ? comparisonData.value : null;
-  const diff = comparison ? calculateDifference(currentValue, comparison, lowerIsBetter, label) : null;
+  const hasComparison = comparison !== null && comparison !== undefined;
+  const diff = hasComparison ? calculateDifference(currentValue, comparison, lowerIsBetter, label) : null;
   
   let comparisonHtml = '';
-  if (comparison && diff) {
-    const comparisonDisplay = typeof currentValue === 'number' && currentValue < 1440 
-      ? formatTime(comparison)
-      : formatDuration(comparison);
+  if (hasComparison && diff) {
+    const comparisonDisplay = formatStatValueByLabel(label, comparison);
     comparisonHtml = `
       <span class="stat-comparison">${comparisonDisplay}</span>
       <span class="stat-diff ${diff.color}"><span class="stat-percentage">${diff.sign}${diff.percentage}%</span> <span class="stat-arrow">${diff.arrow}</span> ${diff.deltaText}</span>
@@ -306,7 +319,7 @@ function renderStatRow(label, keyword, currentValue, comparisonData, lowerIsBett
     return `
       <div class="stat-row">
         <span class="stat-label">${label}</span>
-        <span class="stat-value">${typeof currentValue === 'number' && currentValue < 1440 ? formatTime(currentValue) : formatDuration(currentValue)}</span>
+        <span class="stat-value">${formatStatValueByLabel(label, currentValue)}</span>
         ${comparisonHtml}
       </div>
     `;
@@ -319,7 +332,7 @@ function renderStatRow(label, keyword, currentValue, comparisonData, lowerIsBett
   return `
     <div class="stat-row">
       <span class="stat-label">${beforeKeyword}<span class="keyword ${keywordLower}">${keywordText}</span>${afterKeyword}</span>
-      <span class="stat-value">${typeof currentValue === 'number' && currentValue < 1440 ? formatTime(currentValue) : formatDuration(currentValue)}</span>
+      <span class="stat-value">${formatStatValueByLabel(label, currentValue)}</span>
       ${comparisonHtml}
     </div>
   `;
@@ -469,9 +482,7 @@ function updateComparison(monthIndex, comparisonIndex, allMonthStats) {
         if (labelText === 'Average nap:') {
           comparisonDisplay = `${comparisonData.value} minutes`;
         } else {
-          comparisonDisplay = typeof comparisonData.value === 'number' && comparisonData.value < 1440
-            ? formatTime(comparisonData.value)
-            : formatDuration(comparisonData.value);
+          comparisonDisplay = formatStatValueByLabel(labelText, comparisonData.value);
         }
         
         const comparisonSpan = document.createElement('span');

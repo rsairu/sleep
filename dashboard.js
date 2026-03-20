@@ -4,78 +4,8 @@
 // Requires: sleep-utils.js (timeToMinutes, getDateFromString, calculateTotalSleep, formatDuration, formatTime)
 
 // --- 7-day graph helpers ---
-function normalizeTimeForYAxis(minutes) {
-  if (minutes < 1020) return minutes + 1440;
-  return minutes;
-}
-
-function calculateWakeDelay(day) {
-  if (!day.alarm || day.alarm.length === 0) return null;
-  const firstAlarm = Math.min(...day.alarm.map(timeToMinutes));
-  const wakeTime = timeToMinutes(day.sleepEnd);
-  let delay = wakeTime - firstAlarm;
-  if (delay < 0 && firstAlarm >= 1080) delay = (wakeTime + 1440) - firstAlarm;
-  return delay > 0 ? delay : null;
-}
-
-function calculateSleepDelay(day) {
-  const bedTime = timeToMinutes(day.bed);
-  const sleepStart = timeToMinutes(day.sleepStart);
-  let delay = sleepStart - bedTime;
-  if (delay < 0) delay += 1440;
-  return delay;
-}
-
-function solveLinearSystem(A, b) {
-  const n = A.length;
-  const augmented = A.map((row, i) => [...row, b[i]]);
-  for (let i = 0; i < n; i++) {
-    let maxRow = i;
-    for (let k = i + 1; k < n; k++) {
-      if (Math.abs(augmented[k][i]) > Math.abs(augmented[maxRow][i])) maxRow = k;
-    }
-    [augmented[i], augmented[maxRow]] = [augmented[maxRow], augmented[i]];
-    for (let k = i + 1; k < n; k++) {
-      const factor = augmented[k][i] / augmented[i][i];
-      for (let j = i; j <= n; j++) augmented[k][j] -= factor * augmented[i][j];
-    }
-  }
-  const x = new Array(n);
-  for (let i = n - 1; i >= 0; i--) {
-    x[i] = augmented[i][n];
-    for (let j = i + 1; j < n; j++) x[i] -= augmented[i][j] * x[j];
-    x[i] /= augmented[i][i];
-  }
-  return x;
-}
-
-function polynomialRegression(xValues, yValues, degree = 2) {
-  const n = xValues.length;
-  const X = [];
-  for (let i = 0; i < n; i++) {
-    const row = [];
-    for (let d = degree; d >= 0; d--) row.push(Math.pow(xValues[i], d));
-    X.push(row);
-  }
-  const XTX = [], XTY = [];
-  for (let i = 0; i <= degree; i++) {
-    XTX[i] = [];
-    XTY[i] = 0;
-    for (let j = 0; j <= degree; j++) {
-      let sum = 0;
-      for (let k = 0; k < n; k++) sum += X[k][i] * X[k][j];
-      XTX[i][j] = sum;
-    }
-    for (let k = 0; k < n; k++) XTY[i] += X[k][i] * yValues[k];
-  }
-  return solveLinearSystem(XTX, XTY);
-}
-
-function evaluatePolynomial(coefficients, x) {
-  let result = 0;
-  for (let i = 0; i < coefficients.length; i++)
-    result += coefficients[i] * Math.pow(x, coefficients.length - 1 - i);
-  return result;
+function regressionDegree(pointCount) {
+  return Math.min(2, Math.max(0, pointCount - 1));
 }
 
 /** For last-7-days charts: "Last Nite" (2 lines) for the most recent day, otherwise three-letter weekday (Mon, Tue, …). */
@@ -239,9 +169,10 @@ function render7DayTimeGraph(container, points) {
   pathGetUp.setAttribute('class', 'data-line getup');
   g.appendChild(pathGetUp);
 
-  const getUpReg = polynomialRegression(points.map((_, i) => i), points.map(p => p.getUpMinutes), 2);
-  const sleepStartReg = polynomialRegression(points.map((_, i) => i), points.map(p => p.sleepStartMinutes), 2);
-  const bedtimeReg = polynomialRegression(points.map((_, i) => i), points.map(p => p.bedTimeMinutes), 2);
+  const deg = regressionDegree(points.length);
+  const getUpReg = polynomialRegression(points.map((_, i) => i), points.map(p => p.getUpMinutes), deg);
+  const sleepStartReg = polynomialRegression(points.map((_, i) => i), points.map(p => p.sleepStartMinutes), deg);
+  const bedtimeReg = polynomialRegression(points.map((_, i) => i), points.map(p => p.bedTimeMinutes), deg);
 
   const regPath = (coeffs, key) => {
     let d = '';
@@ -492,7 +423,11 @@ function render7DayDurationChart(container, points) {
     }
   });
 
-  const sleepReg = polynomialRegression(points.map((_, i) => i), points.map(p => p.sleepDurationMinutes), 2);
+  const sleepReg = polynomialRegression(
+    points.map((_, i) => i),
+    points.map(p => p.sleepDurationMinutes),
+    regressionDegree(points.length)
+  );
   let trendD = '';
   points.forEach((p, i) => {
     const x = xScale(p.date), y = sleepYScale(evaluatePolynomial(sleepReg, i));

@@ -100,3 +100,18 @@ Time is normalized as **minutes from midnight** (0–1440) everywhere, with expl
 | `stats.js` | Monthly aggregation and stat rendering |
 | `styles.css` | Global styles and CSS variables |
 
+---
+
+## Math Regression Checks
+
+Use the deterministic math harness to validate rollover/conversion logic after changes:
+
+- Run: `node math-tests.js`
+- Coverage includes:
+  - midnight rollover (`durationMinutes`, projection wrap, modulo minutes)
+  - signed vs positive-only alarm metrics
+  - nap-crossing calculations
+  - averaging normalization around midnight
+  - remaining-wake basis conversions
+  - dataset invariants against `sleep-data.json`
+
