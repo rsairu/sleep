@@ -46,8 +46,14 @@ function formatTime(minutes, shortMidnight = false) {
   const total = ((Math.round(minutes) % 1440) + 1440) % 1440;
   const hours = Math.floor(total / 60);
   const mins = total % 60;
-  if (shortMidnight && hours === 0) {
+  const clockFormat = getClockFormatPreference();
+  if (clockFormat === '24h' && shortMidnight && hours === 0) {
     return `00`;
+  }
+  if (clockFormat === '12h') {
+    const hour12 = hours % 12 || 12;
+    const ampm = hours < 12 ? 'AM' : 'PM';
+    return `${hour12}:${String(mins).padStart(2, '0')} ${ampm}`;
   }
   return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
 }
@@ -290,6 +296,7 @@ function evaluatePolynomial(coefficients, x) {
 
 // Project repo (used in nav bar)
 const GITHUB_REPO_URL = 'https://github.com/rsairu/sleep/';
+const DEV_BANNER_OVERRIDE_KEY = 'sleep-app-force-dev-banner';
 
 // Day/night mode: sunrise and sunset in local time (hours 0-23, minutes 0-59)
 const SUNRISE_MINUTES = 6 * 60;
@@ -297,35 +304,36 @@ const SUNSET_MINUTES = 18 * 60;
 
 const THEME_OVERRIDE_KEY = 'sleep-app-theme-override';
 const REMAINING_WAKE_THRESHOLDS_KEY = 'sleep-app-remaining-wake-thresholds';
+const CLOCK_FORMAT_KEY = 'sleep-app-clock-format';
 
 // Default remaining wake phase thresholds (percent of wake time remaining): open >= openMin, winding >= windingMin, presleep < windingMin.
-const DEFAULT_REMAINING_WAKE_OPEN_MIN = 30;
-const DEFAULT_REMAINING_WAKE_WINDING_MIN = 10;
+const DEFAULT_REMAINING_WAKE_OPEN_MIN = 35;
+const DEFAULT_REMAINING_WAKE_WINDING_MIN = 15;
 
-// Returns { openMin, windingMin } from localStorage or defaults. Values are in 0–100, step 5.
+// Returns { openMin, windingMin } from localStorage or defaults. Values are in 0–100, step 1.
 function getRemainingWakeThresholds() {
   try {
     const raw = localStorage.getItem(REMAINING_WAKE_THRESHOLDS_KEY);
     if (raw) {
       const o = JSON.parse(raw);
-      const openMin = clampThresholdStep5(typeof o.openMin === 'number' ? o.openMin : DEFAULT_REMAINING_WAKE_OPEN_MIN);
-      const windingMin = clampThresholdStep5(typeof o.windingMin === 'number' ? o.windingMin : DEFAULT_REMAINING_WAKE_WINDING_MIN);
+      const openMin = clampThresholdPercent(typeof o.openMin === 'number' ? o.openMin : DEFAULT_REMAINING_WAKE_OPEN_MIN);
+      const windingMin = clampThresholdPercent(typeof o.windingMin === 'number' ? o.windingMin : DEFAULT_REMAINING_WAKE_WINDING_MIN);
       if (openMin > windingMin) return { openMin, windingMin };
     }
   } catch (_) {}
   return { openMin: DEFAULT_REMAINING_WAKE_OPEN_MIN, windingMin: DEFAULT_REMAINING_WAKE_WINDING_MIN };
 }
 
-function clampThresholdStep5(n) {
-  const step = 5;
+function clampThresholdPercent(n) {
+  const step = 1;
   const v = Math.round(n / step) * step;
   return Math.min(100, Math.max(0, v));
 }
 
 // Saves thresholds to localStorage. openMin and windingMin must satisfy openMin > windingMin.
 function setRemainingWakeThresholds(openMin, windingMin) {
-  openMin = clampThresholdStep5(openMin);
-  windingMin = clampThresholdStep5(windingMin);
+  openMin = clampThresholdPercent(openMin);
+  windingMin = clampThresholdPercent(windingMin);
   if (openMin <= windingMin) return;
   try {
     localStorage.setItem(REMAINING_WAKE_THRESHOLDS_KEY, JSON.stringify({ openMin, windingMin }));
@@ -354,6 +362,22 @@ function setThemeOverride(theme) {
   try {
     if (theme === null) localStorage.removeItem(THEME_OVERRIDE_KEY);
     else localStorage.setItem(THEME_OVERRIDE_KEY, theme);
+  } catch (_) {}
+}
+
+function getClockFormatPreference() {
+  try {
+    const value = localStorage.getItem(CLOCK_FORMAT_KEY);
+    return value === '12h' || value === '24h' ? value : '24h';
+  } catch (_) {
+    return '24h';
+  }
+}
+
+function setClockFormatPreference(format) {
+  if (format !== '12h' && format !== '24h') return;
+  try {
+    localStorage.setItem(CLOCK_FORMAT_KEY, format);
   } catch (_) {}
 }
 
@@ -468,6 +492,39 @@ function updateThemeSelectors() {
   });
 }
 
+function updateClockFormatSelector() {
+  const wrap = document.getElementById('config-clock');
+  if (!wrap) return;
+  const selected = getClockFormatPreference();
+  wrap.querySelectorAll('.about-theme-option').forEach(btn => {
+    const isActive = btn.getAttribute('data-clock-format') === selected;
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-pressed', isActive);
+  });
+}
+
+function initClockFormatSelector() {
+  const wrap = document.getElementById('config-clock');
+  if (!wrap) return;
+  updateClockFormatSelector();
+  wrap.addEventListener('click', function (e) {
+    const btn = e.target.closest('.about-theme-option');
+    if (!btn) return;
+    const format = btn.getAttribute('data-clock-format');
+    if (format !== '12h' && format !== '24h') return;
+    setClockFormatPreference(format);
+    updateClockFormatSelector();
+    const inputOpen = document.getElementById('config-open-min');
+    const inputWinding = document.getElementById('config-winding-min');
+    if (inputOpen && inputWinding) {
+      const p1 = parseInt(inputOpen.value, 10);
+      const p2 = parseInt(inputWinding.value, 10);
+      applyRemainingWakeThresholdsUI(p1, p2);
+    }
+    document.dispatchEvent(new CustomEvent('clock-format-changed', { detail: { format } }));
+  });
+}
+
 // Initializes the Config page theme selector: inject Light/Dark toggle, attach row and Auto handlers.
 function initConfigThemeSelector() {
   const wrap = document.getElementById('config-theme');
@@ -551,7 +608,7 @@ function applyRemainingWakeThresholdsUI(pos1, pos2) {
   if (!segOpen || !segWinding || !segPresleep || !iconOpen || !iconWinding || !iconPresleep || !inputOpen || !inputWinding) return;
 
   const p1 = Math.min(95, Math.max(5, pos1));
-  const p2 = Math.min(100, Math.max(p1 + 5, pos2));
+  const p2 = Math.min(100, Math.max(p1 + 1, pos2));
 
   segOpen.style.flex = '0 0 ' + p1 + '%';
   segWinding.style.flex = '0 0 ' + (p2 - p1) + '%';
@@ -567,8 +624,12 @@ function applyRemainingWakeThresholdsUI(pos1, pos2) {
   const basis = configRemainingWakeBasis;
   const clockOpen = basis ? wakePercentToClockMinutes(basis, openMin) : null;
   const clockWinding = basis ? wakePercentToClockMinutes(basis, windingMin) : null;
+  const clockWake = basis ? basis.avgSleepEnd : null;
+  const clockSleep = basis ? basis.avgSleepStart : null;
   const timeOpen = clockOpen != null ? formatTime(clockOpen) : '—';
   const timeWinding = clockWinding != null ? formatTime(clockWinding) : '—';
+  const timeWake = clockWake != null ? formatTime(clockWake) : '—';
+  const timeSleep = clockSleep != null ? formatTime(clockSleep) : '—';
 
   const percentLeft = document.getElementById('config-rw-percent-left');
   const percentRight = document.getElementById('config-rw-percent-right');
@@ -594,11 +655,16 @@ function applyRemainingWakeThresholdsUI(pos1, pos2) {
       'Winding down until ' + windingMin + '% wake time remains, around ' + timeWinding + ' with your 7-day averages'
     );
   }
+
+  const endWakeTime = document.getElementById('config-rw-end-wake-time');
+  const endSleepTime = document.getElementById('config-rw-end-sleep-time');
+  if (endWakeTime) endWakeTime.textContent = timeWake;
+  if (endSleepTime) endSleepTime.textContent = timeSleep;
 }
 
-// Snap value to 0, 5, 10, ... 100
-function snapPercentTo5(frac) {
-  const v = Math.round(frac * 20) * 5;
+// Snap value to 0, 1, 2, ... 100
+function snapPercentTo1(frac) {
+  const v = Math.round(frac * 100);
   return Math.min(100, Math.max(0, v));
 }
 
@@ -623,12 +689,13 @@ function getRemainingWakeThresholdsControlHTML(ariaLabelledBy) {
     '<div class="config-remaining-wake-seg config-remaining-wake-seg--winding" id="config-rw-seg-winding"></div>' +
     '<div class="config-remaining-wake-seg config-remaining-wake-seg--presleep" id="config-rw-seg-presleep"></div>' +
     '</div>' +
-    '<input type="range" id="config-open-min" min="0" max="100" step="5" value="70" aria-label="Active / Winding boundary (percent remaining)" tabindex="0">' +
-    '<input type="range" id="config-winding-min" min="0" max="100" step="5" value="90" aria-label="Winding / Pre-sleep boundary (percent remaining)" tabindex="0">' +
+    '<input type="range" id="config-open-min" min="0" max="100" step="1" value="65" aria-label="Active / Winding boundary (percent remaining)" tabindex="0">' +
+    '<input type="range" id="config-winding-min" min="0" max="100" step="1" value="85" aria-label="Winding / Pre-sleep boundary (percent remaining)" tabindex="0">' +
     '<div class="config-remaining-wake-bar-overlay" id="config-rw-bar-overlay" aria-hidden="true"></div>' +
     '</div>' +
     '<div class="config-remaining-wake-labels">' +
-    '<span>Wake</span><span>Sleep</span>' +
+    '<span class="config-rw-end-label"><span class="config-rw-end-title">Wake</span><span class="config-rw-end-time" id="config-rw-end-wake-time" aria-hidden="true">—</span></span>' +
+    '<span class="config-rw-end-label"><span class="config-rw-end-title">Sleep</span><span class="config-rw-end-time" id="config-rw-end-sleep-time" aria-hidden="true">—</span></span>' +
     '</div>' +
     '<div class="config-remaining-wake-percent-under" id="config-rw-percent-under" aria-live="polite">' +
     '<span class="config-rw-percent-thumb" id="config-rw-percent-left">' +
@@ -674,8 +741,8 @@ function initRemainingWakeThresholdsConfig() {
     let p1 = parseInt(inputOpen.value, 10) || 70;
     let p2 = parseInt(inputWinding.value, 10) || 90;
     if (p1 >= p2) {
-      p2 = Math.min(100, p1 + 5);
-      p1 = Math.max(0, p2 - 5);
+      p2 = Math.min(100, p1 + 1);
+      p1 = Math.max(0, p2 - 1);
     }
     applyRemainingWakeThresholdsUI(p1, p2);
     const openMinNew = 100 - p1;
@@ -693,7 +760,7 @@ function initRemainingWakeThresholdsConfig() {
     const rect = barWrap.getBoundingClientRect();
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const frac = (clientX - rect.left) / rect.width;
-    return snapPercentTo5(frac);
+    return snapPercentTo1(frac);
   }
 
   function onPointerDown(e) {
@@ -706,10 +773,10 @@ function initRemainingWakeThresholdsConfig() {
     const mid = (p1 + p2) / 2;
     if (val <= mid) {
       dragging = 'open';
-      inputOpen.value = String(Math.min(p2 - 5, val));
+      inputOpen.value = String(Math.min(p2 - 1, val));
     } else {
       dragging = 'winding';
-      inputWinding.value = String(Math.max(p1 + 5, val));
+      inputWinding.value = String(Math.max(p1 + 1, val));
     }
     syncFromInputs();
   }
@@ -721,9 +788,9 @@ function initRemainingWakeThresholdsConfig() {
     const p1 = parseInt(inputOpen.value, 10);
     const p2 = parseInt(inputWinding.value, 10);
     if (dragging === 'open') {
-      inputOpen.value = String(Math.min(p2 - 5, val));
+      inputOpen.value = String(Math.min(p2 - 1, val));
     } else {
-      inputWinding.value = String(Math.max(p1 + 5, val));
+      inputWinding.value = String(Math.max(p1 + 1, val));
     }
     syncFromInputs();
   }
@@ -826,6 +893,38 @@ function initNavMenu() {
   });
 }
 
+function isLocalDevHost(hostname) {
+  const host = (hostname || '').toLowerCase();
+  return host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]';
+}
+
+// Optional build-id mismatch gate:
+// - Set <html data-build-id="..."> on each build.
+// - Set <html data-prod-build-id="..."> to your known production ID.
+// Banner appears when running local dev OR when IDs differ.
+function isDevBuildContext() {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return false;
+
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('devBanner') === '1') return true;
+  if (params.get('devBanner') === '0') return false;
+
+  try {
+    const forced = localStorage.getItem(DEV_BANNER_OVERRIDE_KEY);
+    if (forced === '1') return true;
+    if (forced === '0') return false;
+  } catch (_) {}
+
+  if (isLocalDevHost(window.location.hostname)) return true;
+
+  const html = document.documentElement;
+  const buildId = html ? html.getAttribute('data-build-id') : '';
+  const prodBuildId = html ? html.getAttribute('data-prod-build-id') : '';
+  if (buildId && prodBuildId && buildId !== prodBuildId) return true;
+
+  return false;
+}
+
 // Render navigation bar
 function renderNavBar(currentPage) {
   applyDayNightTheme();
@@ -867,7 +966,10 @@ function renderNavBar(currentPage) {
   const remainingWakeSlot = `<div class="nav-remaining-wake" id="nav-remaining-wake"></div>`;
   const headerRow = `<div class="nav-header nav-header--remaining-wake">${appName}${remainingWakeSlot}${navRight}</div>`;
   const tabsRow = `<div class="nav-tabs-row"><div class="nav-tabs">${navItems}</div></div>`;
-  return `<div class="nav-wrapper nav-wrapper--remaining-wake">${headerRow}${tabsRow}</div>`;
+  const devBanner = isDevBuildContext()
+    ? '<div class="nav-dev-banner" role="status" aria-label="Development build">Dev Build</div>'
+    : '';
+  return `<div class="nav-wrapper nav-wrapper--remaining-wake">${devBanner}${headerRow}${tabsRow}</div>`;
 }
 
 // Phase thresholds from getRemainingWakeThresholds(): open >= openMin%, winding openMin–windingMin%, pre-sleep < windingMin%.
@@ -890,11 +992,9 @@ function getRemainingWakeIcon(phase) {
   }
 }
 
-/** Returns { phase, icon, timeLabel } from raw days (used when daily.js not loaded).
- * Recent 7 days: average get-up and fell-asleep; phase uses minutes-until-sleep vs that wake-window length. */
-function getRemainingWakeDisplayFromDays(days) {
-  if (!days || days.length === 0) return null;
-  const basis = computeRecentSevenDayWakeBasis(days);
+/** Build remaining-wake display from a computed wake basis. */
+function getRemainingWakeDisplayFromBasis(basis) {
+  if (!basis || basis.totalWakeMins <= 0) return null;
   const { avgSleepStart, totalWakeMins } = basis;
   const now = new Date();
   const nowMins = now.getHours() * 60 + now.getMinutes();
@@ -902,16 +1002,36 @@ function getRemainingWakeDisplayFromDays(days) {
   const phase = getRemainingWakePhase(remainingMins, totalWakeMins);
   const icon = getRemainingWakeIcon(phase);
   const timeLabel = formatDuration(Math.round(remainingMins));
-  return { phase, icon, timeLabel };
+  const percentRemaining = totalWakeMins > 0
+    ? Math.min(100, Math.max(0, (remainingMins / totalWakeMins) * 100))
+    : 100;
+  return { phase, icon, timeLabel, percentRemaining };
 }
 
-/** Injects remaining wake into nav and sets phase class on wrapper. Call with { phase, icon, timeLabel }. */
+/** Returns { phase, icon, timeLabel, percentRemaining } from raw days (used when daily.js not loaded).
+ * Recent 7 days: average get-up and fell-asleep; phase uses minutes-until-sleep vs that wake-window length. */
+function getRemainingWakeDisplayFromDays(days) {
+  if (!days || days.length === 0) return null;
+  const basis = computeRecentSevenDayWakeBasis(days);
+  return getRemainingWakeDisplayFromBasis(basis);
+}
+
+/** Injects remaining wake into nav and sets phase class on wrapper. */
 function updateRemainingWakeNav(display) {
   if (!display) return;
   const slot = document.getElementById('nav-remaining-wake');
   const wrapper = document.querySelector('.nav-wrapper');
   if (slot) {
-    slot.innerHTML = `<a href="about.html#remaining-wake-time" class="nav-remaining-wake-link" title="Remaining wake time" aria-label="Remaining wake time"><span class="nav-remaining-wake-icon" aria-hidden="true">${display.icon}</span><span class="nav-remaining-wake-time">${display.timeLabel}</span></a>`;
+    const { openMin, windingMin } = getRemainingWakeThresholds();
+    const p1 = 100 - openMin;
+    const p2 = 100 - windingMin;
+    const progress = typeof display.percentRemaining === 'number'
+      ? Math.min(100, Math.max(0, 100 - display.percentRemaining))
+      : null;
+    const progressBar = progress === null
+      ? ''
+      : `<span class="nav-remaining-wake-progress nav-remaining-wake-progress--${display.phase}" aria-hidden="true" style="--nav-rw-p1:${p1}%;--nav-rw-p2:${p2}%;--nav-rw-progress:${progress}%"><span class="nav-remaining-wake-progress-track"></span><span class="nav-remaining-wake-progress-fill"></span></span>`;
+    slot.innerHTML = `<a href="about.html#remaining-wake-time" class="nav-remaining-wake-link" title="Remaining wake time" aria-label="Remaining wake time"><span class="nav-remaining-wake-main"><span class="nav-remaining-wake-icon" aria-hidden="true">${display.icon}</span><span class="nav-remaining-wake-time">${display.timeLabel}</span></span>${progressBar}</a>`;
   }
   if (wrapper) {
     wrapper.classList.remove('nav-wrapper--phase-open', 'nav-wrapper--phase-winding', 'nav-wrapper--phase-presleep');
@@ -921,11 +1041,21 @@ function updateRemainingWakeNav(display) {
 
 /** Fetches sleep data and fills remaining wake in nav. Call on every page so header is consistent. */
 function initRemainingWakeNav() {
+  const timerKey = '__sleepAppRemainingWakeNavTimer';
+  if (typeof window !== 'undefined' && window[timerKey]) {
+    clearInterval(window[timerKey]);
+    window[timerKey] = null;
+  }
   fetch('sleep-data.json')
     .then(r => r.json())
     .then(data => {
-      const display = getRemainingWakeDisplayFromDays(data.days);
-      updateRemainingWakeNav(display);
+      const basis = computeRecentSevenDayWakeBasis(data.days);
+      updateRemainingWakeNav(getRemainingWakeDisplayFromBasis(basis));
+      if (typeof window !== 'undefined') {
+        window[timerKey] = setInterval(function () {
+          updateRemainingWakeNav(getRemainingWakeDisplayFromBasis(basis));
+        }, 60000);
+      }
     })
     .catch(() => {});
 }

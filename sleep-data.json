@@ -1,12 +1,30 @@
 {
   "days": [
     {
+      "date": "3/21",
+      "bed": "22:30",
+      "sleepStart": "22:40",
+      "sleepEnd": "7:11",
+      "bathroom": [
+        "3:58"
+      ],
+      "alarm": [
+        "7:02"
+      ],
+      "sick": [],
+      "nap": null
+    },
+    {
       "date": "3/20",
       "bed": "22:38",
       "sleepStart": "22:55",
       "sleepEnd": "7:11",
-      "bathroom": ["3:45"],
-      "alarm": ["7:03"],
+      "bathroom": [
+        "3:45"
+      ],
+      "alarm": [
+        "7:03"
+      ],
       "sick": [],
       "nap": null
     },
@@ -15,8 +33,12 @@
       "bed": "22:28",
       "sleepStart": "22:43",
       "sleepEnd": "7:04",
-      "bathroom": ["1:03"],
-      "alarm": ["7:05"],
+      "bathroom": [
+        "1:03"
+      ],
+      "alarm": [
+        "7:05"
+      ],
       "sick": [],
       "nap": null
     },
@@ -25,8 +47,12 @@
       "bed": "22:22",
       "sleepStart": "22:53",
       "sleepEnd": "7:11",
-      "bathroom": ["3:30"],
-      "alarm": ["7:10"],
+      "bathroom": [
+        "3:30"
+      ],
+      "alarm": [
+        "7:10"
+      ],
       "sick": [],
       "nap": null
     },
@@ -35,8 +61,14 @@
       "bed": "23:05",
       "sleepStart": "23:40",
       "sleepEnd": "8:12",
-      "bathroom": ["5:15"],
-      "alarm": ["7:00","7:15","7:54"],
+      "bathroom": [
+        "5:15"
+      ],
+      "alarm": [
+        "7:00",
+        "7:15",
+        "7:54"
+      ],
       "sick": [],
       "nap": {
         "start": "18:40",
@@ -48,7 +80,9 @@
       "bed": "21:20",
       "sleepStart": "21:35",
       "sleepEnd": "7:19",
-      "bathroom": ["6:10"],
+      "bathroom": [
+        "6:10"
+      ],
       "alarm": [],
       "sick": [],
       "nap": null
@@ -58,7 +92,9 @@
       "bed": "23:00",
       "sleepStart": "23:50",
       "sleepEnd": "7:38",
-      "bathroom": ["2:25"],
+      "bathroom": [
+        "2:25"
+      ],
       "alarm": [],
       "sick": [],
       "nap": null
@@ -68,7 +104,9 @@
       "bed": "23:40",
       "sleepStart": "00:00",
       "sleepEnd": "7:48",
-      "bathroom": ["3:30"],
+      "bathroom": [
+        "3:30"
+      ],
       "alarm": [],
       "sick": [],
       "nap": null
@@ -78,8 +116,12 @@
       "bed": "22:30",
       "sleepStart": "22:48",
       "sleepEnd": "7:11",
-      "bathroom": ["4:45"],
-      "alarm": ["7:00"],
+      "bathroom": [
+        "4:45"
+      ],
+      "alarm": [
+        "7:00"
+      ],
       "sick": [],
       "nap": {
         "start": "17:10",
@@ -91,8 +133,12 @@
       "bed": "21:47",
       "sleepStart": "22:20",
       "sleepEnd": "7:05",
-      "bathroom": ["3:55"],
-      "alarm": ["6:50"],
+      "bathroom": [
+        "3:55"
+      ],
+      "alarm": [
+        "6:50"
+      ],
       "sick": [],
       "nap": null
     },
@@ -101,8 +147,12 @@
       "bed": "22:00",
       "sleepStart": "22:40",
       "sleepEnd": "7:13",
-      "bathroom": ["5:20"],
-      "alarm": ["6:50"],
+      "bathroom": [
+        "5:20"
+      ],
+      "alarm": [
+        "6:50"
+      ],
       "sick": [],
       "nap": {
         "start": "18:15",
@@ -114,8 +164,12 @@
       "bed": "21:33",
       "sleepStart": "22:00",
       "sleepEnd": "7:07",
-      "bathroom": ["3:05"],
-      "alarm": ["6:50"],
+      "bathroom": [
+        "3:05"
+      ],
+      "alarm": [
+        "6:50"
+      ],
       "sick": [],
       "nap": null
     },
@@ -124,8 +178,12 @@
       "bed": "21:52",
       "sleepStart": "22:10",
       "sleepEnd": "7:00",
-      "bathroom": ["1:42"],
-      "alarm": ["6:55"],
+      "bathroom": [
+        "1:42"
+      ],
+      "alarm": [
+        "6:55"
+      ],
       "sick": [],
       "nap": null
     },
@@ -134,8 +192,12 @@
       "bed": "22:50",
       "sleepStart": "23:10",
       "sleepEnd": "7:12",
-      "bathroom": ["0:20"],
-      "alarm": ["7:05"],
+      "bathroom": [
+        "0:20"
+      ],
+      "alarm": [
+        "7:05"
+      ],
       "sick": [],
       "nap": null
     },
@@ -145,7 +207,9 @@
       "sleepStart": "22:50",
       "sleepEnd": "7:15",
       "bathroom": [],
-      "alarm": ["7:15"],
+      "alarm": [
+        "7:15"
+      ],
       "sick": [],
       "nap": null
     },
@@ -154,8 +218,12 @@
       "bed": "22:30",
       "sleepStart": "22:50",
       "sleepEnd": "7:05",
-      "bathroom": ["6:00"],
-      "alarm": ["6:50"],
+      "bathroom": [
+        "6:00"
+      ],
+      "alarm": [
+        "6:50"
+      ],
       "sick": [],
       "nap": null
     },
@@ -165,7 +233,9 @@
       "sleepStart": "23:00",
       "sleepEnd": "7:10",
       "bathroom": [],
-      "alarm": ["6:46"],
+      "alarm": [
+        "6:46"
+      ],
       "sick": [],
       "nap": null
     },
@@ -174,8 +244,12 @@
       "bed": "21:40",
       "sleepStart": "22:10",
       "sleepEnd": "7:00",
-      "bathroom": ["1:45"],
-      "alarm": ["6:50"],
+      "bathroom": [
+        "1:45"
+      ],
+      "alarm": [
+        "6:50"
+      ],
       "sick": [],
       "nap": {
         "start": "18:00",
@@ -187,8 +261,12 @@
       "bed": "21:40",
       "sleepStart": "22:00",
       "sleepEnd": "6:55",
-      "bathroom": ["2:00"],
-      "alarm": ["6:50"],
+      "bathroom": [
+        "2:00"
+      ],
+      "alarm": [
+        "6:50"
+      ],
       "sick": [],
       "nap": null
     },
@@ -197,8 +275,12 @@
       "bed": "22:10",
       "sleepStart": "22:30",
       "sleepEnd": "7:00",
-      "bathroom": ["1:35"],
-      "alarm": ["6:50"],
+      "bathroom": [
+        "1:35"
+      ],
+      "alarm": [
+        "6:50"
+      ],
       "sick": [],
       "nap": null
     },
@@ -207,8 +289,12 @@
       "bed": "23:00",
       "sleepStart": "23:30",
       "sleepEnd": "9:40",
-      "bathroom": ["5:45"],
-      "alarm": ["7:05"],
+      "bathroom": [
+        "5:45"
+      ],
+      "alarm": [
+        "7:05"
+      ],
       "sick": [],
       "nap": null
     },
@@ -218,7 +304,9 @@
       "sleepStart": "0:50",
       "sleepEnd": "7:15",
       "bathroom": [],
-      "alarm": ["7:15"],
+      "alarm": [
+        "7:15"
+      ],
       "sick": [],
       "nap": {
         "start": "15:00",
@@ -230,8 +318,12 @@
       "bed": "0:30",
       "sleepStart": "0:45",
       "sleepEnd": "8:00",
-      "bathroom": ["6:20"],
-      "alarm": ["7:40"],
+      "bathroom": [
+        "6:20"
+      ],
+      "alarm": [
+        "7:40"
+      ],
       "sick": [],
       "nap": {
         "start": "15:30",
@@ -243,8 +335,12 @@
       "bed": "23:20",
       "sleepStart": "23:50",
       "sleepEnd": "7:40",
-      "bathroom": ["3:30"],
-      "alarm": ["7:30"],
+      "bathroom": [
+        "3:30"
+      ],
+      "alarm": [
+        "7:30"
+      ],
       "sick": [],
       "nap": null
     },
@@ -253,8 +349,12 @@
       "bed": "22:00",
       "sleepStart": "22:20",
       "sleepEnd": "6:50",
-      "bathroom": ["5:45"],
-      "alarm": ["6:50"],
+      "bathroom": [
+        "5:45"
+      ],
+      "alarm": [
+        "6:50"
+      ],
       "sick": [],
       "nap": null
     },
@@ -263,8 +363,12 @@
       "bed": "22:50",
       "sleepStart": "23:20",
       "sleepEnd": "6:50",
-      "bathroom": ["2:30"],
-      "alarm": ["6:50"],
+      "bathroom": [
+        "2:30"
+      ],
+      "alarm": [
+        "6:50"
+      ],
       "sick": [],
       "nap": null
     },
@@ -273,8 +377,12 @@
       "bed": "22:40",
       "sleepStart": "23:00",
       "sleepEnd": "7:20",
-      "bathroom": ["3:00"],
-      "alarm": ["7:00"],
+      "bathroom": [
+        "3:00"
+      ],
+      "alarm": [
+        "7:00"
+      ],
       "sick": [],
       "nap": null
     },
@@ -283,8 +391,14 @@
       "bed": "22:45",
       "sleepStart": "22:45",
       "sleepEnd": "7:30",
-      "bathroom": ["3:30", "6:00"],
-      "alarm": ["7:15", "7:25"],
+      "bathroom": [
+        "3:30",
+        "6:00"
+      ],
+      "alarm": [
+        "7:15",
+        "7:25"
+      ],
       "sick": [],
       "nap": {
         "start": "12:10",
@@ -296,8 +410,12 @@
       "bed": "22:40",
       "sleepStart": "22:55",
       "sleepEnd": "7:40",
-      "bathroom": ["5:20"],
-      "alarm": ["7:15"],
+      "bathroom": [
+        "5:20"
+      ],
+      "alarm": [
+        "7:15"
+      ],
       "sick": [],
       "nap": null
     },
@@ -306,8 +424,12 @@
       "bed": "22:05",
       "sleepStart": "22:35",
       "sleepEnd": "7:00",
-      "bathroom": ["6:30"],
-      "alarm": ["6:40"],
+      "bathroom": [
+        "6:30"
+      ],
+      "alarm": [
+        "6:40"
+      ],
       "sick": [],
       "nap": null
     },
@@ -317,7 +439,9 @@
       "sleepStart": "22:55",
       "sleepEnd": "7:20",
       "bathroom": [],
-      "alarm": ["7:10"],
+      "alarm": [
+        "7:10"
+      ],
       "sick": [],
       "nap": {
         "start": "18:10",
@@ -330,7 +454,9 @@
       "sleepStart": "22:50",
       "sleepEnd": "7:20",
       "bathroom": [],
-      "alarm": ["7:15"],
+      "alarm": [
+        "7:15"
+      ],
       "sick": [],
       "nap": null
     },
@@ -349,8 +475,15 @@
       "bed": "23:10",
       "sleepStart": "23:20",
       "sleepEnd": "08:00",
-      "bathroom": ["4:00"],
-      "alarm": ["7:10", "7:20", "7:30", "08:00"],
+      "bathroom": [
+        "4:00"
+      ],
+      "alarm": [
+        "7:10",
+        "7:20",
+        "7:30",
+        "08:00"
+      ],
       "sick": [],
       "nap": null
     },
@@ -359,8 +492,13 @@
       "bed": "23:40",
       "sleepStart": "23:50",
       "sleepEnd": "8:20",
-      "bathroom": ["3:50", "6:50"],
-      "alarm": ["7:50"],
+      "bathroom": [
+        "3:50",
+        "6:50"
+      ],
+      "alarm": [
+        "7:50"
+      ],
       "sick": [],
       "nap": null
     },
@@ -369,8 +507,12 @@
       "bed": "0:00",
       "sleepStart": "0:20",
       "sleepEnd": "9:05",
-      "bathroom": ["6:40"],
-      "alarm": ["07:30"],
+      "bathroom": [
+        "6:40"
+      ],
+      "alarm": [
+        "07:30"
+      ],
       "sick": [],
       "nap": null
     },
@@ -380,7 +522,9 @@
       "sleepStart": "23:20",
       "sleepEnd": "7:30",
       "bathroom": [],
-      "alarm": ["7:20"],
+      "alarm": [
+        "7:20"
+      ],
       "sick": [],
       "nap": null
     },
@@ -389,8 +533,12 @@
       "bed": "23:00",
       "sleepStart": "23:20",
       "sleepEnd": "07:40",
-      "bathroom": ["05:05"],
-      "alarm": ["07:30"],
+      "bathroom": [
+        "05:05"
+      ],
+      "alarm": [
+        "07:30"
+      ],
       "sick": [],
       "nap": null
     },
@@ -399,8 +547,12 @@
       "bed": "23:30",
       "sleepStart": "00:10",
       "sleepEnd": "08:00",
-      "bathroom": ["05:50"],
-      "alarm": ["07:45"],
+      "bathroom": [
+        "05:50"
+      ],
+      "alarm": [
+        "07:45"
+      ],
       "sick": [],
       "nap": {
         "start": "16:00",
@@ -412,8 +564,12 @@
       "bed": "23:00",
       "sleepStart": "23:35",
       "sleepEnd": "08:20",
-      "bathroom": ["03:30"],
-      "alarm": ["08:15"],
+      "bathroom": [
+        "03:30"
+      ],
+      "alarm": [
+        "08:15"
+      ],
       "sick": [],
       "nap": null
     },
@@ -423,7 +579,9 @@
       "sleepStart": "00:10",
       "sleepEnd": "08:00",
       "bathroom": [],
-      "alarm": ["07:50"],
+      "alarm": [
+        "07:50"
+      ],
       "sick": [],
       "nap": null
     },
@@ -432,8 +590,12 @@
       "bed": "23:40",
       "sleepStart": "00:20",
       "sleepEnd": "08:30",
-      "bathroom": ["03:30"],
-      "alarm": ["08:30"],
+      "bathroom": [
+        "03:30"
+      ],
+      "alarm": [
+        "08:30"
+      ],
       "sick": [],
       "nap": {
         "start": "15:20",
@@ -445,8 +607,13 @@
       "bed": "23:40",
       "sleepStart": "00:00",
       "sleepEnd": "08:45",
-      "bathroom": ["03:30"],
-      "alarm": ["08:10", "08:30"],
+      "bathroom": [
+        "03:30"
+      ],
+      "alarm": [
+        "08:10",
+        "08:30"
+      ],
       "sick": [],
       "nap": {
         "start": "18:10",
@@ -468,8 +635,12 @@
       "bed": "23:20",
       "sleepStart": "00:40",
       "sleepEnd": "08:45",
-      "bathroom": ["06:50"],
-      "alarm": ["08:40"],
+      "bathroom": [
+        "06:50"
+      ],
+      "alarm": [
+        "08:40"
+      ],
       "sick": [],
       "nap": null
     },
@@ -478,8 +649,13 @@
       "bed": "22:30",
       "sleepStart": "22:50",
       "sleepEnd": "09:20",
-      "bathroom": ["01:00", "06:00"],
-      "alarm": ["08:40"],
+      "bathroom": [
+        "01:00",
+        "06:00"
+      ],
+      "alarm": [
+        "08:40"
+      ],
       "sick": [],
       "nap": null
     },
@@ -488,8 +664,12 @@
       "bed": "23:40",
       "sleepStart": "00:10",
       "sleepEnd": "08:50",
-      "bathroom": ["06:10"],
-      "alarm": ["08:50"],
+      "bathroom": [
+        "06:10"
+      ],
+      "alarm": [
+        "08:50"
+      ],
       "sick": [],
       "nap": null
     },
@@ -498,8 +678,12 @@
       "bed": "23:15",
       "sleepStart": "23:50",
       "sleepEnd": "09:05",
-      "bathroom": ["06:00"],
-      "alarm": ["09:00"],
+      "bathroom": [
+        "06:00"
+      ],
+      "alarm": [
+        "09:00"
+      ],
       "sick": [],
       "nap": null
     },
@@ -508,7 +692,9 @@
       "bed": "23:30",
       "sleepStart": "00:45",
       "sleepEnd": "09:20",
-      "bathroom": ["06:00"],
+      "bathroom": [
+        "06:00"
+      ],
       "alarm": [],
       "sick": [],
       "nap": null
@@ -520,7 +706,10 @@
       "sleepEnd": "09:30",
       "bathroom": [],
       "alarm": [],
-      "sick": ["04:00", "04:30"],
+      "sick": [
+        "04:00",
+        "04:30"
+      ],
       "nap": {
         "start": "17:00",
         "end": "17:45"
@@ -551,8 +740,12 @@
       "bed": "23:05",
       "sleepStart": "23:45",
       "sleepEnd": "09:30",
-      "bathroom": ["02:20"],
-      "alarm": ["09:20"],
+      "bathroom": [
+        "02:20"
+      ],
+      "alarm": [
+        "09:20"
+      ],
       "sick": [],
       "nap": null
     },
@@ -561,8 +754,12 @@
       "bed": "23:25",
       "sleepStart": "00:30",
       "sleepEnd": "09:35",
-      "bathroom": ["05:45"],
-      "alarm": ["09:30"],
+      "bathroom": [
+        "05:45"
+      ],
+      "alarm": [
+        "09:30"
+      ],
       "sick": [],
       "nap": null
     },
@@ -571,8 +768,12 @@
       "bed": "23:30",
       "sleepStart": "00:30",
       "sleepEnd": "09:45",
-      "bathroom": ["04:50"],
-      "alarm": ["09:30"],
+      "bathroom": [
+        "04:50"
+      ],
+      "alarm": [
+        "09:30"
+      ],
       "sick": [],
       "nap": null
     },
@@ -581,7 +782,9 @@
       "bed": "00:00",
       "sleepStart": "00:50",
       "sleepEnd": "10:40",
-      "bathroom": ["06:30"],
+      "bathroom": [
+        "06:30"
+      ],
       "alarm": [],
       "sick": [],
       "nap": null
@@ -591,10 +794,12 @@
       "bed": "23:50",
       "sleepStart": "00:30",
       "sleepEnd": "09:55",
-      "bathroom": ["04:30"],
+      "bathroom": [
+        "04:30"
+      ],
       "alarm": [],
       "sick": [],
-      "nap":{
+      "nap": {
         "start": "17:00",
         "end": "17:40"
       }
@@ -604,8 +809,13 @@
       "bed": "22:50",
       "sleepStart": "01:20",
       "sleepEnd": "09:55",
-      "bathroom": ["07:50"],
-      "alarm": ["09:15", "09:45"],
+      "bathroom": [
+        "07:50"
+      ],
+      "alarm": [
+        "09:15",
+        "09:45"
+      ],
       "sick": [],
       "nap": null
     },
@@ -614,8 +824,13 @@
       "bed": "23:30",
       "sleepStart": "00:10",
       "sleepEnd": "10:00",
-      "bathroom": ["08:50"],
-      "alarm": ["09:00", "09:30"],
+      "bathroom": [
+        "08:50"
+      ],
+      "alarm": [
+        "09:00",
+        "09:30"
+      ],
       "sick": [],
       "nap": null
     },
@@ -624,8 +839,13 @@
       "bed": "23:50",
       "sleepStart": "01:00",
       "sleepEnd": "10:10",
-      "bathroom": ["04:50"],
-      "alarm": ["09:30", "10:00"],
+      "bathroom": [
+        "04:50"
+      ],
+      "alarm": [
+        "09:30",
+        "10:00"
+      ],
       "sick": [],
       "nap": null
     },
@@ -634,8 +854,13 @@
       "bed": "00:25",
       "sleepStart": "01:10",
       "sleepEnd": "10:30",
-      "bathroom": ["07:00"],
-      "alarm": ["09:30", "10:00"],
+      "bathroom": [
+        "07:00"
+      ],
+      "alarm": [
+        "09:30",
+        "10:00"
+      ],
       "sick": [],
       "nap": null
     },
@@ -644,8 +869,16 @@
       "bed": "00:25",
       "sleepStart": "00:50",
       "sleepEnd": "11:15",
-      "bathroom": ["02:45", "06:15"],
-      "alarm": ["09:00", "09:30", "09:40", "10:00"],
+      "bathroom": [
+        "02:45",
+        "06:15"
+      ],
+      "alarm": [
+        "09:00",
+        "09:30",
+        "09:40",
+        "10:00"
+      ],
       "sick": [],
       "nap": null
     },
@@ -654,7 +887,9 @@
       "bed": "01:45",
       "sleepStart": "01:45",
       "sleepEnd": "11:50",
-      "bathroom": ["04:50"],
+      "bathroom": [
+        "04:50"
+      ],
       "alarm": [],
       "sick": [],
       "nap": null
@@ -674,8 +909,13 @@
       "bed": "22:40",
       "sleepStart": "02:10",
       "sleepEnd": "10:10",
-      "bathroom": ["04:40"],
-      "alarm": ["09:00", "10:00"],
+      "bathroom": [
+        "04:40"
+      ],
+      "alarm": [
+        "09:00",
+        "10:00"
+      ],
       "sick": [],
       "nap": null
     },
@@ -684,8 +924,13 @@
       "bed": "00:30",
       "sleepStart": "01:50",
       "sleepEnd": "10:10",
-      "bathroom": ["05:50"],
-      "alarm": ["09:00", "09:30"],
+      "bathroom": [
+        "05:50"
+      ],
+      "alarm": [
+        "09:00",
+        "09:30"
+      ],
       "sick": [],
       "nap": null
     },
@@ -695,7 +940,10 @@
       "sleepStart": "05:15",
       "sleepEnd": "10:30",
       "bathroom": [],
-      "alarm": ["09:30", "10:15"],
+      "alarm": [
+        "09:30",
+        "10:15"
+      ],
       "sick": [],
       "nap": null
     },
@@ -705,7 +953,9 @@
       "sleepStart": "02:00",
       "sleepEnd": "08:50",
       "bathroom": [],
-      "alarm": ["08:30"],
+      "alarm": [
+        "08:30"
+      ],
       "sick": [],
       "nap": {
         "start": "18:15",
@@ -717,7 +967,9 @@
       "bed": "00:40",
       "sleepStart": "01:50",
       "sleepEnd": "15:00",
-      "bathroom": ["07:00"],
+      "bathroom": [
+        "07:00"
+      ],
       "alarm": [],
       "sick": [],
       "nap": null
@@ -727,9 +979,17 @@
       "bed": "01:00",
       "sleepStart": "01:00",
       "sleepEnd": "13:30",
-      "bathroom": ["06:45"],
+      "bathroom": [
+        "06:45"
+      ],
       "alarm": [],
-      "sick": ["02:00", "02:30", "03:00", "03:30", "05:00"],
+      "sick": [
+        "02:00",
+        "02:30",
+        "03:00",
+        "03:30",
+        "05:00"
+      ],
       "nap": null
     },
     {
@@ -737,7 +997,9 @@
       "bed": "02:00",
       "sleepStart": "03:00",
       "sleepEnd": "14:00",
-      "bathroom": ["10:10"],
+      "bathroom": [
+        "10:10"
+      ],
       "alarm": [],
       "sick": [],
       "nap": null
@@ -748,7 +1010,9 @@
       "sleepStart": "01:40",
       "sleepEnd": "10:50",
       "bathroom": [],
-      "alarm": ["09:50"],
+      "alarm": [
+        "09:50"
+      ],
       "sick": [],
       "nap": null
     },
@@ -757,8 +1021,13 @@
       "bed": "01:50",
       "sleepStart": "02:10",
       "sleepEnd": "10:50",
-      "bathroom": ["06:45"],
-      "alarm": ["09:50", "10:20"],
+      "bathroom": [
+        "06:45"
+      ],
+      "alarm": [
+        "09:50",
+        "10:20"
+      ],
       "sick": [],
       "nap": null
     },
@@ -767,8 +1036,14 @@
       "bed": "01:45",
       "sleepStart": "02:00",
       "sleepEnd": "10:50",
-      "bathroom": ["03:45"],
-      "alarm": ["08:50", "09:00", "09:15"],
+      "bathroom": [
+        "03:45"
+      ],
+      "alarm": [
+        "08:50",
+        "09:00",
+        "09:15"
+      ],
       "sick": [],
       "nap": null
     },
@@ -777,8 +1052,15 @@
       "bed": "02:20",
       "sleepStart": "02:40",
       "sleepEnd": "12:00",
-      "bathroom": ["06:20"],
-      "alarm": ["09:20", "10:00", "10:45", "11:30"],
+      "bathroom": [
+        "06:20"
+      ],
+      "alarm": [
+        "09:20",
+        "10:00",
+        "10:45",
+        "11:30"
+      ],
       "sick": [],
       "nap": null
     },
@@ -788,7 +1070,11 @@
       "sleepStart": "02:40",
       "sleepEnd": "11:00",
       "bathroom": [],
-      "alarm": ["09:30", "10:00", "10:30"],
+      "alarm": [
+        "09:30",
+        "10:00",
+        "10:30"
+      ],
       "sick": [],
       "nap": null
     },
@@ -797,7 +1083,9 @@
       "bed": "03:00",
       "sleepStart": "04:00",
       "sleepEnd": "14:20",
-      "bathroom": ["10:20"],
+      "bathroom": [
+        "10:20"
+      ],
       "alarm": [],
       "sick": [],
       "nap": null
@@ -807,8 +1095,16 @@
       "bed": "03:15",
       "sleepStart": "04:30",
       "sleepEnd": "13:45",
-      "bathroom": ["06:40"],
-      "alarm": ["10:40", "11:15", "11:40", "12:30", "13:30"],
+      "bathroom": [
+        "06:40"
+      ],
+      "alarm": [
+        "10:40",
+        "11:15",
+        "11:40",
+        "12:30",
+        "13:30"
+      ],
       "sick": [],
       "nap": null
     },
@@ -817,8 +1113,12 @@
       "bed": "03:30",
       "sleepStart": "04:40",
       "sleepEnd": "12:10",
-      "bathroom": ["09:00"],
-      "alarm": ["11:15"],
+      "bathroom": [
+        "09:00"
+      ],
+      "alarm": [
+        "11:15"
+      ],
       "sick": [],
       "nap": {
         "start": "19:30",
@@ -830,8 +1130,13 @@
       "bed": "04:30",
       "sleepStart": "05:30",
       "sleepEnd": "12:40",
-      "bathroom": ["11:20"],
-      "alarm": ["10:00", "12:20"],
+      "bathroom": [
+        "11:20"
+      ],
+      "alarm": [
+        "10:00",
+        "12:20"
+      ],
       "sick": [],
       "nap": null
     }

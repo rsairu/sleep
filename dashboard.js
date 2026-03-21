@@ -46,10 +46,17 @@ function buildPoints(days) {
   });
 }
 
+function getResponsiveDashboardChartWidth(container, pointCount) {
+  const minWidth = 320;
+  const pointDrivenWidth = Math.max(minWidth, pointCount * 36);
+  const containerWidth = container ? Math.floor(container.clientWidth || 0) : 0;
+  return Math.max(pointDrivenWidth, containerWidth);
+}
+
 function render7DayTimeGraph(container, points) {
   if (!points.length) return;
   const margin = { top: 24, right: 24, bottom: 36, left: 48 };
-  const width = Math.max(320, points.length * 36);
+  const width = getResponsiveDashboardChartWidth(container, points.length);
   const height = 280;
   const graphWidth = width - margin.left - margin.right;
   const graphHeight = height - margin.top - margin.bottom;
@@ -251,14 +258,12 @@ function render7DayTimeGraph(container, points) {
 function render7DayDurationChart(container, points) {
   if (!points.length) return;
   const margin = { top: 24, right: 24, bottom: 36, left: 48 };
-  const width = Math.max(320, points.length * 36);
+  const width = getResponsiveDashboardChartWidth(container, points.length);
   const height = 280;
   const graphWidth = width - margin.left - margin.right;
   const graphHeight = height - margin.top - margin.bottom;
-
-  const minDate = points[0].date, maxDate = points[points.length - 1].date;
-  const dateRange = maxDate - minDate || 1;
-  const xScale = (date) => ((date - minDate) / dateRange) * graphWidth;
+  const slotWidth = graphWidth / Math.max(1, points.length);
+  const xScaleByIndex = (index) => slotWidth * (index + 0.5);
 
   // Dynamic Y range: min/max sleep duration in 7 days plus 1 hour on each side
   const allDurations = points.map(p => p.sleepDurationMinutes);
@@ -314,7 +319,7 @@ function render7DayDurationChart(container, points) {
   });
 
   points.forEach((point, index) => {
-    const x = xScale(point.date);
+    const x = xScaleByIndex(index);
     const tickLine = ns('line');
     tickLine.setAttribute('x1', x); tickLine.setAttribute('y1', graphHeight);
     tickLine.setAttribute('x2', x); tickLine.setAttribute('y2', graphHeight + 5);
@@ -344,10 +349,9 @@ function render7DayDurationChart(container, points) {
   });
 
   const tooltip = document.getElementById('tooltip');
-  const dayWidth = graphWidth / Math.max(1, points.length);
-  const barWidth = Math.max(2, dayWidth * 0.8);
-  points.forEach(point => {
-    const x = xScale(point.date);
+  const barWidth = Math.max(2, slotWidth * 0.72);
+  points.forEach((point, index) => {
+    const x = xScaleByIndex(index);
     const mainSleepBarY = sleepYScale(point.mainSleepMinutes);
     const mainRect = ns('rect');
     mainRect.setAttribute('x', x - barWidth / 2);
@@ -430,7 +434,7 @@ function render7DayDurationChart(container, points) {
   );
   let trendD = '';
   points.forEach((p, i) => {
-    const x = xScale(p.date), y = sleepYScale(evaluatePolynomial(sleepReg, i));
+    const x = xScaleByIndex(i), y = sleepYScale(evaluatePolynomial(sleepReg, i));
     trendD += (i ? ' L ' : 'M ') + x + ' ' + y;
   });
   const trendPath = ns('path');
@@ -455,6 +459,20 @@ function renderDashboard7DayGraphs(days) {
   if (durationEl) render7DayDurationChart(durationEl, last7);
 }
 
+let dashboardResizeRenderBound = false;
+function bindDashboardResponsiveRerender(days) {
+  if (dashboardResizeRenderBound) return;
+  dashboardResizeRenderBound = true;
+
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      renderDashboard7DayGraphs(days);
+    }, 120);
+  });
+}
+
 // --- Dashboard bootstrap ---
 const dashboardContainer = document.getElementById('dashboard-container');
 if (dashboardContainer) {
@@ -462,6 +480,7 @@ if (dashboardContainer) {
     .then((sleepData) => {
       dashboardContainer.innerHTML = renderDashboardContent(sleepData.days);
       renderDashboard7DayGraphs(sleepData.days);
+      bindDashboardResponsiveRerender(sleepData.days);
 
       const recentDays = sleepData.days.slice(0, Math.min(7, sleepData.days.length));
       if (recentDays.length > 0 && typeof getRemainingWakeDisplay === 'function' && typeof updateRemainingWakeNav === 'function') {
