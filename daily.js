@@ -741,7 +741,7 @@ function renderCalendarHeatmapFullHistory(year, flagMap, latestDataDate) {
 const PROJECTION_BAND_MINUTES = 30;
 const WAKE_PROJECTION_BAND_MINUTES = 15;
 
-/** Returns { phase, icon, timeLabel } for remaining wake time (used by dashboard nav). */
+/** Returns { phase, icon, timeLabel, percentRemaining } for remaining wake time (used by dashboard nav). */
 function getRemainingWakeDisplay(recentAverages) {
   const sleepTarget = recentAverages.avgSleepStart;
   const wakeTarget = recentAverages.avgSleepEnd;
@@ -754,7 +754,10 @@ function getRemainingWakeDisplay(recentAverages) {
   const phase = getRemainingWakePhase(remainingMins, totalWakeMins);
   const icon = getRemainingWakeIcon(phase);
   const timeLabel = formatDuration(Math.round(remainingMins));
-  return { phase, icon, timeLabel };
+  const percentRemaining = totalWakeMins > 0
+    ? Math.min(100, Math.max(0, (remainingMins / totalWakeMins) * 100))
+    : 100;
+  return { phase, icon, timeLabel, percentRemaining };
 }
 
 function renderDashboardProjection(recentAverages) {
@@ -828,9 +831,11 @@ function renderDashboardContent(days) {
     <h2 class="dashboard-section-title">Past Week</h2>
     <div class="dashboard-7d-row">
       <div class="dashboard-7d-col">
+        <h3 class="dashboard-7d-subtitle">Wake and sleep times</h3>
         <div class="dashboard-7d-graph-container" id="dashboard-7d-time-graph"></div>
       </div>
       <div class="dashboard-7d-col">
+        <h3 class="dashboard-7d-subtitle">Total sleep time</h3>
         <div class="dashboard-7d-graph-container" id="dashboard-7d-duration-graph"></div>
       </div>
     </div>

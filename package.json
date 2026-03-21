@@ -1,0 +1,7 @@
+{
+  "name": "sleep-proj",
+  "private": true,
+  "scripts": {
+    "new-day": "node scripts/new-day.js"
+  }
+}

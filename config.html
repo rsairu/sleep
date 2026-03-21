@@ -13,6 +13,23 @@
   <div class="container container--config">
     <h1 class="page-title config-page-title">Settings</h1>
 
+    <h2 class="section-title" id="clock">Clock</h2>
+    <p class="section-intro">Choose how times are shown across the app.</p>
+    <div id="config-clock" class="about-theme" role="group" aria-label="Clock format preference">
+      <button type="button" class="about-theme-option" data-clock-format="12h" aria-pressed="false">
+        <span class="about-theme-option-icon" aria-hidden="true">
+          <span class="clock-format-icon-text">AM/PM</span>
+        </span>
+        <span>12-hour</span>
+      </button>
+      <button type="button" class="about-theme-option" data-clock-format="24h" aria-pressed="false">
+        <span class="about-theme-option-icon" aria-hidden="true">
+          <span class="clock-format-icon-text">00:00</span>
+        </span>
+        <span>24-hour</span>
+      </button>
+    </div>
+
     <h2 class="section-title" id="theme">Theme</h2>
     <p class="section-intro">Choose Light / Dark or Auto (time-based: follows time of day).</p>
     <div id="config-theme" class="about-theme" role="group" aria-label="Theme preference">
@@ -38,6 +55,7 @@
   <script>
     document.getElementById('nav-container').innerHTML = renderNavBar('config');
     initDayNightTheme();
+    initClockFormatSelector();
     initConfigThemeSelector();
     document.getElementById('remaining-wake-thresholds-mount').innerHTML =
       getRemainingWakeThresholdsControlHTML('remaining-wake-thresholds');
