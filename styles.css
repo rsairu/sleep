@@ -762,7 +762,7 @@ body{
   border: none;
   box-shadow: none;
   border-radius: 0;
-  padding: 18px 20px 20px;
+  padding: 18px 12px 20px;
 }
 
 .dashboard-top-row {
@@ -819,6 +819,43 @@ body{
 
   .dashboard-7d-graph-container {
     min-height: 240px;
+  }
+
+  /* Tonight sleep/wake row: trim side padding + gaps so times stay one line on phones */
+  .dashboard-projection {
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+
+  .dashboard-projection-row {
+    flex-wrap: nowrap;
+    gap: 4px 5px;
+    justify-content: center;
+  }
+
+  .dashboard-projection-row > * {
+    white-space: nowrap;
+  }
+
+  .dashboard-projection-target {
+    min-width: 0;
+    font-size: clamp(1.2rem, 4.2vw, 1.5rem);
+    letter-spacing: 0.01em;
+  }
+
+  .dashboard-projection-bounds {
+    font-size: clamp(0.78rem, 3vw, 0.9rem);
+  }
+
+  .dashboard-projection-sep {
+    font-size: 0.95rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-projection {
+    padding-left: 4px;
+    padding-right: 4px;
   }
 }
 
@@ -985,7 +1022,7 @@ body{
   flex-wrap: wrap;
   align-items: baseline;
   justify-content: center;
-  gap: 6px 10px;
+  gap: 6px 6px;
   min-width: 0;
 }
 
@@ -1000,9 +1037,9 @@ body{
 .dashboard-projection-target {
   font-size: 1.5rem;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.015em;
   color: var(--text);
-  min-width: 7ch;
+  min-width: 0;
   text-align: center;
 }
 
