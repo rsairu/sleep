@@ -139,7 +139,7 @@ function calculateRecentAverages(days, currentIndex, lookbackDays = 7) {
     fellAsleepTimeSum += normalizedFellAsleepTime;
     
     const wakeTime = timeToMinutes(day.sleepEnd);
-    wakeTimeSum += normalizeTimeForAveraging(wakeTime);
+    wakeTimeSum += normalizeWakeTimeForAveraging(fellAsleepTime, wakeTime);
     
     sleepDurationSum += calculateTotalSleep(day);
   });
@@ -191,14 +191,40 @@ function checkDeviations(day, recentAverages) {
   
   // Check wake-up time deviation (earlier or later than average; display only, does not affect sleep quality)
   const wakeTime = timeToMinutes(day.sleepEnd);
-  const normalizedWakeTime = normalizeTimeForAveraging(wakeTime);
+  const normalizedWakeTime = normalizeWakeTimeForAveraging(fellAsleepTime, wakeTime);
   const wakeDiff = Math.abs(normalizedWakeTime - recentAverages.avgWakeTime);
   if (wakeDiff >= WAKE_DEVIATION_FLAG_THRESHOLD) {
     const later = normalizedWakeTime > recentAverages.avgWakeTime;
     warnings.push(`⚠️🌅 <strong>Wake</strong>: ${formatDuration(Math.round(wakeDiff))} ${later ? 'later' : 'earlier'} than recent average`);
   }
   
+  // Fragmentation level from data (display only; does not affect sleep quality)
+  const fragLevel = normalizeFragmentationLevel(day);
+  if (fragLevel) {
+    warnings.push(formatFragmentationDeviationWarning(fragLevel));
+  }
+  
   return warnings;
+}
+
+/** Fragmentation strip: mild matches default alerts; moderate/severe use warmer CSS modifiers. */
+function formatFragmentationDeviationWarning(level) {
+  const cap = level.charAt(0).toUpperCase() + level.slice(1);
+  let extraClass = '';
+  if (level === 'moderate') extraClass = ' deviation-warning--frag-moderate';
+  if (level === 'severe') extraClass = ' deviation-warning--frag-severe';
+  const icon = level === 'severe' ? '🛑🧩' : '⚠️🧩';
+  return {
+    html: `${icon} <strong>${cap}</strong> fragmentation`,
+    extraClass
+  };
+}
+
+function deviationWarningMarkup(w) {
+  if (typeof w === 'string') {
+    return `<div class="deviation-warning">${w}</div>`;
+  }
+  return `<div class="deviation-warning${w.extraClass || ''}">${w.html}</div>`;
 }
 
 // Check for deviations and return flag types with icons
@@ -238,9 +264,14 @@ function getFlagTypes(day, recentAverages) {
   
   // Check wake-up time deviation (display only, does not affect sleep quality)
   const wakeTime = timeToMinutes(day.sleepEnd);
-  const normalizedWakeTime = normalizeTimeForAveraging(wakeTime);
+  const normalizedWakeTime = normalizeWakeTimeForAveraging(fellAsleepTime, wakeTime);
   if (Math.abs(normalizedWakeTime - recentAverages.avgWakeTime) >= WAKE_DEVIATION_FLAG_THRESHOLD) {
     flagTypes.push('🌅');
+  }
+  
+  // Recorded fragmentation (display only; does not affect sleep quality heatmap count)
+  if (normalizeFragmentationLevel(day)) {
+    flagTypes.push('🧩');
   }
   
   return flagTypes;
@@ -317,7 +348,7 @@ function renderDay(day, days, dayIndex, options) {
   const recentAverages = calculateRecentAverages(days, dayIndex);
   const deviations = checkDeviations(day, recentAverages);
   const deviationWarnings = deviations.length > 0 
-    ? `<div class="deviation-warnings">${deviations.map(w => `<div class="deviation-warning">${w}</div>`).join('')}</div>`
+    ? `<div class="deviation-warnings">${deviations.map(deviationWarningMarkup).join('')}</div>`
     : '';
   
   // Convert times to timeline positions
@@ -344,7 +375,7 @@ function renderDay(day, days, dayIndex, options) {
           <div class="${barClass}">
             <!-- Faded overlay for previous day section (21:00-00:00) -->
             <div class="previous-day-overlay"></div>
-            <div class="span sleep" style="--start:${sleepStartPos}; --end:${sleepEndPos}" data-tooltip="duration: ${formatDuration(sleepDuration)}"></div>
+            <div class="span sleep" style="--start:${sleepStartPos}; --end:${sleepEndPos}" data-tooltip="duration: ${formatDuration(sleepDuration)}">${sleepFragmentationOverlayHtml(day)}</div>
             <!-- Time tick marks -->
             ${TIME_TICKS.map((minutes, i) => `<div class="time-tick" style="--m:${minutes}"><span class="tick-label">${tickLabels[i]}</span></div>`).join('')}
   `;
@@ -409,8 +440,9 @@ function calculateAverages(days) {
       firstAlarmToWakeCount++;
     }
     // Normalize times for averaging to handle midnight crossover
-    sleepStartSum += normalizeTimeForAveraging(timeToMinutes(day.sleepStart));
-    sleepEndSum += normalizeTimeForAveraging(timeToMinutes(day.sleepEnd));
+    const ss = timeToMinutes(day.sleepStart);
+    sleepStartSum += normalizeTimeForAveraging(ss);
+    sleepEndSum += normalizeWakeTimeForAveraging(ss, timeToMinutes(day.sleepEnd));
   });
   
   return {
@@ -517,10 +549,10 @@ function renderWeek(week, weekIndex, allDays) {
   `;
 }
 
-// Flags that affect sleep quality (heatmap color). Wake deviation is display-only.
+// Flags that affect sleep quality (heatmap color). Wake and fragmentation are display-only.
 const QUALITY_FLAG_TYPES = ['🛌', '😴', '⌛'];
 
-// Count flags for a specific day (quality-affecting only; wake deviation excluded)
+// Count flags for a specific day (quality-affecting only; wake + fragmentation excluded)
 function countFlagsForDay(day, days, dayIndex) {
   const flagTypes = getFlagTypesForDay(day, days, dayIndex);
   return flagTypes.filter(t => QUALITY_FLAG_TYPES.includes(t)).length;
@@ -558,6 +590,13 @@ function getLatestDataDate(days, year) {
   }
   latest.setHours(0, 0, 0, 0);
   return latest;
+}
+
+// Inner HTML for the sleep-bar fragmentation texture (empty if none).
+function sleepFragmentationOverlayHtml(day) {
+  const level = normalizeFragmentationLevel(day);
+  if (!level) return '';
+  return `<span class="sleep-fragmentation sleep-fragmentation--${level}" aria-hidden="true"></span>`;
 }
 
 // Generate calendar heatmap data
@@ -610,7 +649,7 @@ function generateCalendarHeatmap(year, flagMap, latestDataDate) {
       while (last.length < 7) last.push(null);
     }
 
-    const flagCounts = { '🛌': 0, '😴': 0, '⌛': 0, '🌅': 0 };
+    const flagCounts = { '🛌': 0, '😴': 0, '⌛': 0, '🌅': 0, '🧩': 0 };
     flatDays.forEach(day => {
       if (day && day.flagTypes) {
         day.flagTypes.forEach(flagType => {
@@ -644,7 +683,8 @@ function renderMonthBlock(month, large) {
     { emoji: '🛌', count: month.flagCounts['🛌'] },
     { emoji: '😴', count: month.flagCounts['😴'] },
     { emoji: '⌛', count: month.flagCounts['⌛'] },
-    { emoji: '🌅', count: month.flagCounts['🌅'] }
+    { emoji: '🌅', count: month.flagCounts['🌅'] },
+    { emoji: '🧩', count: month.flagCounts['🧩'] }
   ];
   const flagHtml = flagSlots.map(f => `<span class="calendar-flag-slot"><span class="calendar-flag-emoji">${f.emoji}</span><span class="calendar-flag-num">${f.count}</span></span>`).join('');
   const weekdayLabels = ['Su', 'M', 'T', 'W', 'R', 'F', 'Sa'].map(w => `<div class="calendar-weekday-label">${w}</div>`).join('');
@@ -699,8 +739,9 @@ function renderCalendarHeatmapHeader() {
           <span class="legend-meaning-item">😴 asleep late</span>
           <span class="legend-meaning-item">⌛ short</span>
           <span class="legend-meaning-item">🌅 wake deviation</span>
+          <span class="legend-meaning-item">🧩 fragmentation</span>
         </div>
-        <span class="legend-explanation legend-explanation--inline">(vs 7-day avg; bed/asleep/duration 20+ min, wake 30+ min; 🌅 display only)</span>
+        <span class="legend-explanation legend-explanation--inline">(vs 7-day avg; bed/asleep/duration 20+ min, wake 30+ min; 🌅 🧩 display only)</span>
       </div>
     </div>
   `;

@@ -33,8 +33,22 @@
   --weekend-border: rgba(96, 165, 250, 0.4);
   --warning-bg: rgba(251, 191, 36, 0.1);
   --warning-border: rgba(251, 191, 36, 0.4);
+  /* Fragmentation deviation strip: moderate between default amber and severe red */
+  --frag-dev-mod-text: #fdba74;
+  --frag-dev-mod-bg: rgba(251, 146, 60, 0.14);
+  --frag-dev-mod-border: rgba(251, 146, 60, 0.55);
+  --frag-dev-sev-text: #fca5a5;
+  --frag-dev-sev-bg: rgba(248, 113, 113, 0.14);
+  --frag-dev-sev-border: rgba(239, 68, 68, 0.55);
   --tick-line: rgba(255, 255, 255, 0.2);
   --tick-label: rgba(255, 255, 255, 0.5);
+  /* Fragmentation stripes: darker burgundy / crimson ramp on light lavender sleep bar */
+  --frag-stripe-mild-a: rgba(72, 22, 58, 0.34);
+  --frag-stripe-mild-b: rgba(88, 26, 48, 0.22);
+  --frag-stripe-mod-a: rgba(105, 16, 42, 0.46);
+  --frag-stripe-mod-b: rgba(122, 12, 36, 0.34);
+  --frag-stripe-sev-a: rgba(118, 8, 32, 0.58);
+  --frag-stripe-sev-b: rgba(138, 4, 28, 0.48);
 
   /* Calendar/legend quality-flag colors */
   --flag-none: #15803d;
@@ -73,6 +87,12 @@
   --weekend-border: rgba(96, 165, 250, 0.35);
   --warning-bg: rgba(251, 191, 36, 0.15);
   --warning-border: rgba(251, 191, 36, 0.45);
+  --frag-dev-mod-text: #c2410c;
+  --frag-dev-mod-bg: rgba(234, 88, 12, 0.14);
+  --frag-dev-mod-border: rgba(234, 88, 12, 0.5);
+  --frag-dev-sev-text: #b91c1c;
+  --frag-dev-sev-bg: rgba(220, 38, 38, 0.12);
+  --frag-dev-sev-border: rgba(185, 28, 28, 0.55);
   /* Darker palette for keyword/legend readability on light background */
   --color-sleep: #5b21b6;
   --color-nap: #6d28d9;
@@ -87,6 +107,13 @@
   --color-hover-blue: #2563eb;
   --tick-line: rgba(0, 0, 0, 0.22);
   --tick-label: rgba(15, 23, 42, 0.65);
+  /* Darker rose-red ramp on deep purple sleep fill */
+  --frag-stripe-mild-a: rgba(235, 140, 175, 0.26);
+  --frag-stripe-mild-b: rgba(245, 165, 195, 0.16);
+  --frag-stripe-mod-a: rgba(220, 95, 130, 0.4);
+  --frag-stripe-mod-b: rgba(228, 110, 140, 0.3);
+  --frag-stripe-sev-a: rgba(205, 55, 90, 0.54);
+  --frag-stripe-sev-b: rgba(198, 40, 78, 0.44);
 
   /* Day mode: darker flag square colours so labels/contrast are easier to read */
   --flag-none: #166534;
@@ -114,17 +141,59 @@ body{
   margin-bottom: var(--space-5);
 }
 
+/* Fixed (not sticky): inner scroll regions (e.g. chart overflow:auto) use their own scrollport;
+   sticky only follows the document; fixed stays in the viewport for those panes too. */
 .nav-dev-banner {
-  background: #f97316;
+  /* Softer than #f97316; still enough contrast for white text at this size */
+  background: #ea8c4e;
   color: #ffffff;
   border-radius: 8px;
   text-align: center;
-  font-weight: 700;
+  font-weight: 400;
   font-size: 0.75rem;
   letter-spacing: 0.03em;
-  padding: 4px 10px;
+  padding: 6px 10px;
   margin-bottom: 8px;
   text-transform: uppercase;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  right: 20px;
+  z-index: 200;
+  box-sizing: border-box;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+}
+
+.nav-dev-banner-line {
+  font-weight: 700;
+}
+
+.nav-dev-banner-branch-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35em;
+  max-width: 100%;
+  min-width: 0;
+  text-transform: none;
+  font-weight: 400;
+}
+
+.nav-dev-banner-branch-icon {
+  width: 1.1em;
+  height: 1.1em;
+  flex-shrink: 0;
+}
+
+.nav-dev-banner-branch-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .nav-header {
@@ -1327,6 +1396,18 @@ body{
   width: fit-content;
 }
 
+.deviation-warning--frag-moderate{
+  color: var(--frag-dev-mod-text);
+  background: var(--frag-dev-mod-bg);
+  border-left-color: var(--frag-dev-mod-border);
+}
+
+.deviation-warning--frag-severe{
+  color: var(--frag-dev-sev-text);
+  background: var(--frag-dev-sev-bg);
+  border-left-color: var(--frag-dev-sev-border);
+}
+
 .day-stats{
   font-size: 12px;
   font-weight: 400;
@@ -1456,6 +1537,92 @@ body{
   background: var(--color-sleep);
   cursor: help;
 }
+
+/* Fragmentation texture inside sleep fill only (see .sleep-fragmentation) */
+.sleep-bar-frag-fo {
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.sleep-bar-frag-fill {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  border-radius: 2px;
+}
+
+/* foreignObject overlay: same stripe textures as timeline sleep span (no absolute inset) */
+.sleep-bar-frag-fill.sleep-fragmentation {
+  position: static;
+  overflow: hidden;
+}
+
+.sleep-fragmentation {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Mild: sparse irregular diagonal stripes (two layers, different pitch/angle) */
+.sleep-fragmentation--mild {
+  background-image:
+    repeating-linear-gradient(
+      118deg,
+      var(--frag-stripe-mild-a) 0,
+      var(--frag-stripe-mild-a) 1.5px,
+      transparent 1.5px,
+      transparent 13px
+    ),
+    repeating-linear-gradient(
+      132deg,
+      var(--frag-stripe-mild-b) 0,
+      var(--frag-stripe-mild-b) 1.5px,
+      transparent 1.5px,
+      transparent 20px
+    );
+}
+
+/* Moderate: denser irregular diagonals, warmer purply-red */
+.sleep-fragmentation--moderate {
+  background-image:
+    repeating-linear-gradient(
+      122deg,
+      var(--frag-stripe-mod-a) 0,
+      var(--frag-stripe-mod-a) 2px,
+      transparent 2px,
+      transparent 6px
+    ),
+    repeating-linear-gradient(
+      108deg,
+      var(--frag-stripe-mod-b) 0,
+      var(--frag-stripe-mod-b) 1.75px,
+      transparent 1.75px,
+      transparent 8px
+    );
+}
+
+/* Severe: same diagonal-stripe language as mild/moderate, tighter pitch + darkest reds */
+.sleep-fragmentation--severe {
+  background-image:
+    repeating-linear-gradient(
+      125deg,
+      var(--frag-stripe-sev-a) 0,
+      var(--frag-stripe-sev-a) 2.25px,
+      transparent 2.25px,
+      transparent 3.5px
+    ),
+    repeating-linear-gradient(
+      104deg,
+      var(--frag-stripe-sev-b) 0,
+      var(--frag-stripe-sev-b) 2px,
+      transparent 2px,
+      transparent 4.5px
+    );
+}
+
 .span.nap{ 
   background: var(--color-nap); 
 }

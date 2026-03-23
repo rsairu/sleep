@@ -91,6 +91,20 @@ function runTests() {
   );
   expectEqual(u.denormalizeTimeForAveraging(normalizedAvg), 0, 'average of 23:50 and 00:10 is 00:00');
 
+  const lateNightToAfternoonWakeStart = u.timeToMinutes('23:10');
+  const lateNightToAfternoonWakeEnd = u.timeToMinutes('13:10');
+  expectEqual(
+    u.normalizeWakeTimeForAveraging(lateNightToAfternoonWakeStart, lateNightToAfternoonWakeEnd),
+    lateNightToAfternoonWakeEnd + 1440,
+    'afternoon wake after evening sleep is later than morning wake on averaging scale'
+  );
+  expectEqual(
+    u.normalizeWakeTimeForAveraging(lateNightToAfternoonWakeStart, u.timeToMinutes('07:13')) >
+      u.normalizeWakeTimeForAveraging(lateNightToAfternoonWakeStart, lateNightToAfternoonWakeEnd),
+    false,
+    '1:10 PM wake sorts after 7:13 AM wake when paired with same sleep start'
+  );
+
   // Remaining wake basis and conversion
   const basisDays = [
     { sleepStart: '23:00', sleepEnd: '07:00' },
@@ -127,6 +141,13 @@ function runTests() {
         failures.push(`dataset invariant day ${idx} (${d.date}): signed alarm delta must be finite`);
       } else {
         passed += 1;
+      }
+      if (Object.prototype.hasOwnProperty.call(d, 'fragmentation') && d.fragmentation != null && d.fragmentation !== '') {
+        if (u.normalizeFragmentationLevel(d) === null) {
+          failures.push(`dataset invariant day ${idx} (${d.date}): fragmentation must be mild, moderate, or severe`);
+        } else {
+          passed += 1;
+        }
       }
     });
   }
