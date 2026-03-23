@@ -102,7 +102,8 @@ fetch('sleep-data.json').then(response => response.json())
         napMinutes: napDuration,
         wakeDelayMinutes: calculateWakeDelay(day),
         sleepDelayMinutes: calculateSleepDelay(day),
-        firstAlarm: day.alarm && day.alarm.length > 0 ? day.alarm[0] : null
+        firstAlarm: day.alarm && day.alarm.length > 0 ? day.alarm[0] : null,
+        fragmentation: normalizeFragmentationLevel(day)
       };
     });
 
@@ -893,6 +894,7 @@ function renderGraphPageCharts() {
       });
 
       barChartG.appendChild(mainRect);
+      appendSvgSleepBarFragmentation(barChartG, x - barWidth / 2, mainSleepBarY, barWidth, mainSleepBarHeight, point.fragmentation);
       
       // Draw nap bar (top portion) if nap exists
       if (napMinutes > 0) {
@@ -924,6 +926,7 @@ function renderGraphPageCharts() {
         });
 
         barChartG.appendChild(napRect);
+        appendSvgSleepBarFragmentation(barChartG, x - barWidth / 2, napBarY, barWidth, napBarHeight, point.fragmentation);
       }
     });
 

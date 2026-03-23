@@ -41,7 +41,8 @@ function buildPoints(days) {
       dateString: day.date,
       sleepDurationMinutes: sleepDuration,
       mainSleepMinutes: mainSleep,
-      napMinutes: napDuration
+      napMinutes: napDuration,
+      fragmentation: normalizeFragmentationLevel(day)
     };
   });
 }
@@ -388,6 +389,8 @@ function render7DayDurationChart(container, points) {
       }, 0);
     });
     g.appendChild(mainRect);
+    const mainBarH = graphHeight - mainSleepBarY;
+    appendSvgSleepBarFragmentation(g, x - barWidth / 2, mainSleepBarY, barWidth, mainBarH, point.fragmentation);
     if (point.napMinutes > 0) {
       const napBarY = sleepYScale(point.sleepDurationMinutes);
       const napRect = ns('rect');
@@ -409,22 +412,24 @@ function render7DayDurationChart(container, points) {
           tooltip.style.top = (e.clientY - 10) + 'px';
         }
       });
-      napRect.addEventListener('mouseleave', () => { if (tooltip) tooltip.classList.remove('visible'); });
-      napRect.addEventListener('click', (e) => {
-        showDayPanel(point, e.clientX, e.clientY);
-        setTimeout(() => {
-          const dayPanel = document.getElementById('day-panel');
-          const close = (e2) => {
-            if (dayPanel && !dayPanel.contains(e2.target) && !container.contains(e2.target)) {
-              hideDayPanel();
-              document.removeEventListener('click', close);
-            }
-          };
-          document.addEventListener('click', close);
-        }, 0);
-      });
-      g.appendChild(napRect);
-    }
+        napRect.addEventListener('mouseleave', () => { if (tooltip) tooltip.classList.remove('visible'); });
+        napRect.addEventListener('click', (e) => {
+          showDayPanel(point, e.clientX, e.clientY);
+          setTimeout(() => {
+            const dayPanel = document.getElementById('day-panel');
+            const close = (e2) => {
+              if (dayPanel && !dayPanel.contains(e2.target) && !container.contains(e2.target)) {
+                hideDayPanel();
+                document.removeEventListener('click', close);
+              }
+            };
+            document.addEventListener('click', close);
+          }, 0);
+        });
+        g.appendChild(napRect);
+        const napBarH = mainSleepBarY - napBarY;
+        appendSvgSleepBarFragmentation(g, x - barWidth / 2, napBarY, barWidth, napBarH, point.fragmentation);
+      }
   });
 
   const sleepReg = polynomialRegression(

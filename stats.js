@@ -45,29 +45,8 @@ function calculateMonthlyAverages(monthDays) {
     const sleepStart = timeToMinutes(day.sleepStart);
     sleepStartSum += normalizeTimeForAveraging(sleepStart);
     
-    // Sleep end (wake-up) time - normalize for averaging
-    // Wake-up times should be normalized based on sleep start time
-    // If wake-up is before sleep start, it's definitely next day (add 1440)
-    // If sleep start is late (after 18:00), wake-up is likely next day (add 1440)
-    // If sleep start is very early (before 6:00 AM) and wake-up is after 10:00 AM, it's likely next day
-    // Otherwise, use standard normalization (before noon = next day)
     const sleepEnd = timeToMinutes(day.sleepEnd);
-    let normalizedSleepEnd;
-    if (sleepEnd < sleepStart) {
-      // Wake-up is before sleep start, definitely next day
-      normalizedSleepEnd = sleepEnd + 1440;
-    } else if (sleepStart >= 1080) {
-      // Sleep start is at/after 18:00 (1080 minutes), wake-up is likely next day
-      normalizedSleepEnd = sleepEnd + 1440;
-    } else if (sleepStart < 360 && sleepEnd >= 600) {
-      // Sleep start is before 6:00 AM (360 minutes) and wake-up is at/after 10:00 AM (600 minutes)
-      // This indicates sleep started very early and wake-up is next day
-      normalizedSleepEnd = sleepEnd + 1440;
-    } else {
-      // Use standard normalization (before noon = next day)
-      normalizedSleepEnd = normalizeTimeForAveraging(sleepEnd);
-    }
-    sleepEndSum += normalizedSleepEnd;
+    sleepEndSum += normalizeWakeTimeForAveraging(sleepStart, sleepEnd);
     
     // Bed-to-sleep delay
     bedToSleepDelaySum += calculateBedToSleepDelay(day);
@@ -117,7 +96,9 @@ function calculateMonthlyAverages(monthDays) {
   let earliestSleep = null;
   let latestSleep = null;
   let earliestWake = null;
+  let earliestWakeSleepStart = null;
   let latestWake = null;
+  let latestWakeSleepStart = null;
   
   monthDays.forEach(day => {
     const bedTime = timeToMinutes(day.bed);
@@ -127,7 +108,7 @@ function calculateMonthlyAverages(monthDays) {
     // Normalize times for comparison (to handle midnight crossover)
     const normalizedBed = normalizeTimeForComparison(bedTime);
     const normalizedSleep = normalizeTimeForComparison(sleepStart);
-    const normalizedWake = normalizeTimeForComparison(sleepEnd);
+    const normalizedWake = normalizeWakeTimeForAveraging(sleepStart, sleepEnd);
     
     // Track earliest/latest (using normalized values for comparison)
     if (earliestBed === null || normalizedBed < normalizeTimeForComparison(earliestBed)) {
@@ -144,11 +125,13 @@ function calculateMonthlyAverages(monthDays) {
       latestSleep = sleepStart;
     }
     
-    if (earliestWake === null || normalizedWake < normalizeTimeForComparison(earliestWake)) {
+    if (earliestWake === null || normalizedWake < normalizeWakeTimeForAveraging(earliestWakeSleepStart, earliestWake)) {
       earliestWake = sleepEnd;
+      earliestWakeSleepStart = sleepStart;
     }
-    if (latestWake === null || normalizedWake > normalizeTimeForComparison(latestWake)) {
+    if (latestWake === null || normalizedWake > normalizeWakeTimeForAveraging(latestWakeSleepStart, latestWake)) {
       latestWake = sleepEnd;
+      latestWakeSleepStart = sleepStart;
     }
   });
   
@@ -246,9 +229,14 @@ function calculateDifference(current, comparison, lowerIsBetter = false, labelTe
   let normalizedComparison = comparison;
   
   if (timeBasedStats.includes(labelText)) {
-    // Normalize both values for proper comparison across midnight
-    normalizedCurrent = normalizeTimeForComparison(current);
-    normalizedComparison = normalizeTimeForComparison(comparison);
+    // Wake averages are clock faces (often afternoon); normalizeTimeForComparison breaks PM vs AM.
+    if (labelText === 'Time to wake:') {
+      normalizedCurrent = current;
+      normalizedComparison = comparison;
+    } else {
+      normalizedCurrent = normalizeTimeForComparison(current);
+      normalizedComparison = normalizeTimeForComparison(comparison);
+    }
   }
   
   // Calculate difference using normalized values to get correct direction

@@ -8,3 +8,6 @@ Thumbs.db
 
 # Dependencies (if you add any later)
 node_modules/
+
+# Generated local dev metadata (run stamp-dev-branch.cmd or hooks)
+dev-git-branch.js

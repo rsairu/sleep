@@ -69,6 +69,33 @@ function calculateTotalSleep(day) {
   return total;
 }
 
+const FRAGMENTATION_LEVELS = new Set(['mild', 'moderate', 'severe']);
+
+/** Per-night fragmentation for JSON field `fragmentation`; null if absent or invalid. */
+function normalizeFragmentationLevel(day) {
+  const v = day && day.fragmentation;
+  return typeof v === 'string' && FRAGMENTATION_LEVELS.has(v) ? v : null;
+}
+
+/**
+ * Diagonal stripe overlay on SVG sleep duration bars (dashboard / graph).
+ * Inserts foreignObject above the bar rect; pointer-events none.
+ */
+function appendSvgSleepBarFragmentation(parentG, x, y, width, height, level) {
+  if (!level || width <= 0 || height <= 0) return;
+  const fo = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject');
+  fo.setAttribute('x', String(x));
+  fo.setAttribute('y', String(y));
+  fo.setAttribute('width', String(width));
+  fo.setAttribute('height', String(height));
+  fo.setAttribute('class', 'sleep-bar-frag-fo');
+  const div = document.createElement('div');
+  div.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+  div.className = `sleep-bar-frag-fill sleep-fragmentation sleep-fragmentation--${level}`;
+  fo.appendChild(div);
+  parentG.appendChild(fo);
+}
+
 // Parse date string to month and day array
 function parseDateString(dateString) {
   return dateString.split('/').map(Number);
@@ -116,6 +143,22 @@ function normalizeTimeForAveraging(minutes) {
     return minutes + 1440; // Add 24 hours
   }
   return minutes;
+}
+
+/**
+ * Wake clock (sleepEnd) on the same extended timeline as fell-asleep averaging.
+ * After an overnight span (wake clock before sleep-start clock), wake is next calendar segment (+1440).
+ * Same-calendar-day segment uses normalizeTimeForAveraging(wake) so morning naps stay compatible with night sleep.
+ * Overnight wrap uses sleep-start clock; same-calendar segment defers to normalizeTimeForAveraging.
+ */
+function normalizeWakeTimeForAveraging(sleepStartMinutes, wakeMinutes) {
+  if (wakeMinutes < sleepStartMinutes) {
+    return wakeMinutes + 1440;
+  }
+  if (sleepStartMinutes < 360 && wakeMinutes >= 600) {
+    return wakeMinutes + 1440;
+  }
+  return normalizeTimeForAveraging(wakeMinutes);
 }
 
 // Denormalize time back to 0-1440 range
@@ -575,8 +618,9 @@ function computeRecentSevenDayWakeBasis(days) {
   let sleepEndSum = 0;
   for (let i = 0; i < recent.length; i++) {
     const d = recent[i];
-    sleepStartSum += normalizeTimeForAveraging(timeToMinutes(d.sleepStart));
-    sleepEndSum += normalizeTimeForAveraging(timeToMinutes(d.sleepEnd));
+    const ss = timeToMinutes(d.sleepStart);
+    sleepStartSum += normalizeTimeForAveraging(ss);
+    sleepEndSum += normalizeWakeTimeForAveraging(ss, timeToMinutes(d.sleepEnd));
   }
   const n = recent.length;
   const avgSleepStart = denormalizeTimeForAveraging(Math.round(sleepStartSum / n));
@@ -829,6 +873,21 @@ function initRemainingWakeThresholdsConfig() {
   }
 }
 
+// Reserves vertical space under the fixed dev banner so the nav header is not overlapped.
+// syncDevBannerFixedLayout is bound to resize once per window (see initDayNightTheme).
+function syncDevBannerFixedLayout() {
+  const wrap = document.querySelector('.nav-wrapper');
+  if (!wrap) return;
+  const banner = wrap.querySelector('.nav-dev-banner');
+  if (!banner) {
+    wrap.style.paddingTop = '';
+    return;
+  }
+  const mb = parseFloat(getComputedStyle(banner).marginBottom) || 0;
+  const h = banner.getBoundingClientRect().height;
+  wrap.style.paddingTop = `${Math.ceil(h + mb)}px`;
+}
+
 // Initializes day/night theme, click handler, and timer to re-check (when in auto mode)
 function initDayNightTheme() {
   applyDayNightTheme();
@@ -840,6 +899,14 @@ function initDayNightTheme() {
     applyDayNightTheme();
     updateDayNightIcon();
   }, 60000);
+
+  requestAnimationFrame(function () {
+    syncDevBannerFixedLayout();
+    if (typeof window !== 'undefined' && !window.__devBannerLayoutResizeBound) {
+      window.__devBannerLayoutResizeBound = true;
+      window.addEventListener('resize', syncDevBannerFixedLayout);
+    }
+  });
 }
 
 // Hamburger menu: toggle dropdown, theme buttons, close on outside click
@@ -925,6 +992,25 @@ function isDevBuildContext() {
   return false;
 }
 
+function escapeHtmlBannerText(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function escapeHtmlBannerAttr(s) {
+  return escapeHtmlBannerText(s).replace(/"/g, '&quot;');
+}
+
+function getDevGitBranchLabel() {
+  if (typeof window === 'undefined') return '';
+  const b = window.__DEV_GIT_BRANCH__;
+  if (b == null || b === '') return '';
+  const t = String(b).trim();
+  return t || '';
+}
+
 // Render navigation bar
 function renderNavBar(currentPage) {
   applyDayNightTheme();
@@ -966,8 +1052,18 @@ function renderNavBar(currentPage) {
   const remainingWakeSlot = `<div class="nav-remaining-wake" id="nav-remaining-wake"></div>`;
   const headerRow = `<div class="nav-header nav-header--remaining-wake">${appName}${remainingWakeSlot}${navRight}</div>`;
   const tabsRow = `<div class="nav-tabs-row"><div class="nav-tabs">${navItems}</div></div>`;
+  const branchLabel = getDevGitBranchLabel();
+  // Feather-style git-branch (MIT); stroke scales with banner font size.
+  const gitBranchIcon =
+    '<svg class="nav-dev-banner-branch-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>';
+  const devBannerBody = branchLabel
+    ? `<div class="nav-dev-banner-line">Dev Build</div><div class="nav-dev-banner-branch-row">${gitBranchIcon}<span class="nav-dev-banner-branch-name">${escapeHtmlBannerText(branchLabel)}</span></div>`
+    : '<div class="nav-dev-banner-line">Dev Build</div>';
+  const devAria = branchLabel
+    ? `Development build, branch ${escapeHtmlBannerAttr(branchLabel)}`
+    : 'Development build';
   const devBanner = isDevBuildContext()
-    ? '<div class="nav-dev-banner" role="status" aria-label="Development build">Dev Build</div>'
+    ? `<div class="nav-dev-banner" role="status" aria-label="${devAria}">${devBannerBody}</div>`
     : '';
   return `<div class="nav-wrapper nav-wrapper--remaining-wake">${devBanner}${headerRow}${tabsRow}</div>`;
 }
