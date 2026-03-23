@@ -13,39 +13,12 @@
   <div class="container">
     <div class="graph-page-header">
       <h1 class="page-title">Sleep Graph</h1>
-      <div class="show-hide-section">
-        <div class="show-hide-title">show/hide</div>
-        <label class="time-toggle">
-          <input type="checkbox" id="show-bedtime-line" checked>
-          <div class="legend-line bedtime"></div>
-          <span>bed time</span>
-        </label>
-        <label class="time-toggle">
-          <input type="checkbox" id="show-sleep-start-line" checked>
-          <div class="legend-line sleep-start"></div>
-          <span>fell asleep</span>
-        </label>
-        <label class="time-toggle">
-          <input type="checkbox" id="show-getup-line" checked>
-          <div class="legend-line getup"></div>
-          <span>get up</span>
-        </label>
-        <label class="time-toggle">
-          <input type="checkbox" id="show-getup-regression" checked>
-          <div class="legend-line getup-regression"></div>
-          <span>get up trend</span>
-        </label>
-        <label class="time-toggle">
-          <input type="checkbox" id="show-sleep-start-regression" checked>
-          <div class="legend-line sleep-start-regression"></div>
-          <span>fell asleep trend</span>
-        </label>
-        <label class="time-toggle">
-          <input type="checkbox" id="show-bedtime-regression" checked>
-          <div class="legend-line bedtime-regression"></div>
-          <span>bed time trend</span>
-        </label>
-      </div>
+      <nav class="graph-chart-toc" aria-label="Jump to a chart">
+        <a href="#chart-bed-sleep-getup">Bed time, fell asleep, and get up</a>
+        <a href="#chart-sleep-duration">Sleep duration</a>
+        <a href="#chart-wake-delay">Wake delay (first alarm to get up)</a>
+        <a href="#chart-sol">Sleep onset latency (SOL)</a>
+      </nav>
     </div>
     <div class="graph-range-toolbar" role="toolbar" aria-label="Chart date range">
       <span class="graph-range-label">Range</span>
@@ -57,14 +30,72 @@
         <button type="button" class="graph-range-btn" data-range="all" aria-pressed="false">All</button>
       </div>
     </div>
+    <h2 class="graph-chart-heading" id="chart-bed-sleep-getup">Bed time, fell asleep, and get up</h2>
     <div class="graph-container" id="graph-container">
       <svg id="graph-svg"></svg>
     </div>
+    <div class="graph-show-hide-wrap">
+      <div class="show-hide-section graph-show-hide-section">
+        <div class="show-hide-title">show/hide</div>
+        <div class="graph-show-hide-columns" role="group" aria-label="Line chart visibility">
+          <div class="graph-show-hide-col">
+            <label class="time-toggle graph-sh-toggle-label">
+              <input type="checkbox" id="show-all-data-lines" checked>
+              <span class="graph-sh-legend-gap" aria-hidden="true"></span>
+              <span>All data</span>
+            </label>
+            <label class="time-toggle graph-sh-toggle-label">
+              <input type="checkbox" id="show-bedtime-line" checked>
+              <div class="legend-line bedtime"></div>
+              <span>bed time</span>
+            </label>
+            <label class="time-toggle graph-sh-toggle-label">
+              <input type="checkbox" id="show-sleep-start-line" checked>
+              <div class="legend-line sleep-start"></div>
+              <span>fell asleep</span>
+            </label>
+            <label class="time-toggle graph-sh-toggle-label">
+              <input type="checkbox" id="show-getup-line" checked>
+              <div class="legend-line getup"></div>
+              <span>get up</span>
+            </label>
+          </div>
+          <div class="graph-show-hide-col">
+            <label class="time-toggle graph-sh-toggle-label">
+              <input type="checkbox" id="show-all-trend-lines" checked>
+              <span class="graph-sh-legend-gap" aria-hidden="true"></span>
+              <span>All trends</span>
+            </label>
+            <label class="time-toggle graph-sh-toggle-label">
+              <input type="checkbox" id="show-bedtime-regression" checked>
+              <div class="legend-line bedtime-regression"></div>
+              <span>trend</span>
+            </label>
+            <label class="time-toggle graph-sh-toggle-label">
+              <input type="checkbox" id="show-sleep-start-regression" checked>
+              <div class="legend-line sleep-start-regression"></div>
+              <span>trend</span>
+            </label>
+            <label class="time-toggle graph-sh-toggle-label">
+              <input type="checkbox" id="show-getup-regression" checked>
+              <div class="legend-line getup-regression"></div>
+              <span>trend</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+    <h2 class="graph-chart-heading" id="chart-sleep-duration">Sleep duration</h2>
     <div class="graph-container chart-section" id="bar-chart-container">
       <svg id="bar-chart-svg"></svg>
     </div>
+    <h2 class="graph-chart-heading" id="chart-wake-delay">Wake delay (first alarm to get up)</h2>
     <div class="graph-container chart-section" id="delay-chart-container">
       <svg id="delay-chart-svg"></svg>
+    </div>
+    <h2 class="graph-chart-heading" id="chart-sol">Sleep onset latency (SOL)</h2>
+    <div class="graph-container chart-section" id="sol-chart-container">
+      <svg id="sol-chart-svg"></svg>
     </div>
   </div>
   <div class="tooltip" id="tooltip"></div>
