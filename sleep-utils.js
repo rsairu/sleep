@@ -348,6 +348,7 @@ const SUNSET_MINUTES = 18 * 60;
 const THEME_OVERRIDE_KEY = 'sleep-app-theme-override';
 const REMAINING_WAKE_THRESHOLDS_KEY = 'sleep-app-remaining-wake-thresholds';
 const CLOCK_FORMAT_KEY = 'sleep-app-clock-format';
+const TONIGHT_PROJECTION_ADJUSTMENT_KEY = 'sleep-app-tonight-projection-adjustment';
 
 // Default remaining wake phase thresholds (percent of wake time remaining): open >= openMin, winding >= windingMin, presleep < windingMin.
 const DEFAULT_REMAINING_WAKE_OPEN_MIN = 35;
@@ -610,6 +611,43 @@ function modMinutes1440(n) {
   return ((n % 1440) + 1440) % 1440;
 }
 
+function isValidClockMinute(n) {
+  return Number.isInteger(n) && n >= 0 && n <= 1439;
+}
+
+function getTonightProjectionAdjustment() {
+  try {
+    const raw = localStorage.getItem(TONIGHT_PROJECTION_ADJUSTMENT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+    const sleep = parsed.sleep;
+    const wake = parsed.wake;
+    if (!isValidClockMinute(sleep) || !isValidClockMinute(wake)) return null;
+    if (sleep === wake) return null;
+    return { sleep, wake };
+  } catch (_) {
+    return null;
+  }
+}
+
+function setTonightProjectionAdjustment(sleep, wake) {
+  if (!isValidClockMinute(sleep) || !isValidClockMinute(wake)) return;
+  if (sleep === wake) return;
+  try {
+    localStorage.setItem(TONIGHT_PROJECTION_ADJUSTMENT_KEY, JSON.stringify({
+      sleep: modMinutes1440(sleep),
+      wake: modMinutes1440(wake)
+    }));
+  } catch (_) {}
+}
+
+function clearTonightProjectionAdjustment() {
+  try {
+    localStorage.removeItem(TONIGHT_PROJECTION_ADJUSTMENT_KEY);
+  } catch (_) {}
+}
+
 /** Last 7 days in `days`: average get-up, average fell-asleep, and wake-window length (minutes between them). */
 function computeRecentSevenDayWakeBasis(days) {
   if (!days || days.length === 0) return null;
@@ -627,6 +665,25 @@ function computeRecentSevenDayWakeBasis(days) {
   const avgSleepEnd = denormalizeTimeForAveraging(Math.round(sleepEndSum / n));
   const totalWakeMins = durationMinutes(avgSleepEnd, avgSleepStart);
   return { avgSleepStart, avgSleepEnd, totalWakeMins };
+}
+
+function applyTonightProjectionAdjustmentToBasis(basis, adjustment) {
+  if (!basis) return null;
+  if (!adjustment) return basis;
+  if (!isValidClockMinute(adjustment.sleep) || !isValidClockMinute(adjustment.wake)) return basis;
+  // Remaining wake countdown is anchored by current -> sleep target.
+  // Keep wake-window length from recent baseline so wake-only adjustments do not skew progress.
+  const avgSleepStart = modMinutes1440(adjustment.sleep);
+  return {
+    avgSleepStart,
+    avgSleepEnd: basis.avgSleepEnd,
+    totalWakeMins: basis.totalWakeMins
+  };
+}
+
+function getEffectiveRemainingWakeBasis(days) {
+  const base = computeRecentSevenDayWakeBasis(days);
+  return applyTonightProjectionAdjustmentToBasis(base, getTonightProjectionAdjustment());
 }
 
 /** Wall-clock minute (0–1439) when only `percentWakeRemaining` of the average wake window remains before average sleep. */
@@ -1108,7 +1165,7 @@ function getRemainingWakeDisplayFromBasis(basis) {
  * Recent 7 days: average get-up and fell-asleep; phase uses minutes-until-sleep vs that wake-window length. */
 function getRemainingWakeDisplayFromDays(days) {
   if (!days || days.length === 0) return null;
-  const basis = computeRecentSevenDayWakeBasis(days);
+  const basis = getEffectiveRemainingWakeBasis(days);
   return getRemainingWakeDisplayFromBasis(basis);
 }
 
@@ -1145,11 +1202,10 @@ function initRemainingWakeNav() {
   fetch('sleep-data.json')
     .then(r => r.json())
     .then(data => {
-      const basis = computeRecentSevenDayWakeBasis(data.days);
-      updateRemainingWakeNav(getRemainingWakeDisplayFromBasis(basis));
+      updateRemainingWakeNav(getRemainingWakeDisplayFromBasis(getEffectiveRemainingWakeBasis(data.days)));
       if (typeof window !== 'undefined') {
         window[timerKey] = setInterval(function () {
-          updateRemainingWakeNav(getRemainingWakeDisplayFromBasis(basis));
+          updateRemainingWakeNav(getRemainingWakeDisplayFromBasis(getEffectiveRemainingWakeBasis(data.days)));
         }, 60000);
       }
     })

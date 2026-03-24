@@ -488,9 +488,21 @@ if (dashboardContainer) {
       bindDashboardResponsiveRerender(sleepData.days);
 
       const recentDays = sleepData.days.slice(0, Math.min(7, sleepData.days.length));
-      if (recentDays.length > 0 && typeof getRemainingWakeDisplay === 'function' && typeof updateRemainingWakeNav === 'function') {
+      if (recentDays.length > 0 && typeof initDashboardTonightAdjuster === 'function' && typeof getRemainingWakeDisplayFromBasis === 'function' && typeof updateRemainingWakeNav === 'function') {
         const recentAverages = calculateAverages(recentDays);
-        updateRemainingWakeNav(getRemainingWakeDisplay(recentAverages));
+        const baseWakeWindowMins = durationMinutes(recentAverages.avgSleepEnd, recentAverages.avgSleepStart);
+        initDashboardTonightAdjuster(recentAverages, function (projection) {
+          const basis = {
+            avgSleepStart: projection.sleepTarget,
+            avgSleepEnd: recentAverages.avgSleepEnd,
+            totalWakeMins: baseWakeWindowMins
+          };
+          updateRemainingWakeNav(getRemainingWakeDisplayFromBasis(basis));
+        });
+      }
+
+      if (typeof getRemainingWakeDisplayFromDays === 'function' && typeof updateRemainingWakeNav === 'function') {
+        updateRemainingWakeNav(getRemainingWakeDisplayFromDays(sleepData.days));
       }
     })
     .catch(error => {
