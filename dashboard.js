@@ -484,6 +484,7 @@ if (dashboardContainer) {
   fetch('sleep-data.json').then(r => r.json())
     .then((sleepData) => {
       dashboardContainer.innerHTML = renderDashboardContent(sleepData.days);
+      if (typeof initDeviationFlagChips === 'function') initDeviationFlagChips();
       renderDashboard7DayGraphs(sleepData.days);
       bindDashboardResponsiveRerender(sleepData.days);
 

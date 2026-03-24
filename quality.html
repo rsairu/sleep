@@ -8,9 +8,19 @@
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
 </head>
-<body>
+<body class="quality-page">
   <div id="nav-container"></div>
   <div class="container">
+    <section class="quality-variation-guide" aria-labelledby="quality-variation-heading">
+      <h2 id="quality-variation-heading">How strong is a daily flag?</h2>
+      <p> The flag color is how far that measure drifted from your <strong>previous seven logged nights</strong>. (Fewer than 7 prior nights in the log will show an insufficient-data message.)</p>
+      <ul>
+        <li><span class="quality-swatch quality-swatch--slight" aria-hidden="true"></span> <span><strong>Slightly</strong> off pattern.</span></li>
+        <li><span class="quality-swatch quality-swatch--moderate" aria-hidden="true"></span> <span><strong>Moderately</strong> off pattern.</span></li>
+        <li><span class="quality-swatch quality-swatch--severe" aria-hidden="true"></span> <span><strong>Severely</strong> off pattern.</span></li>
+      </ul>
+      <strong>😴 Asleep</strong> is only flagged when you fell asleep <em>later</em> than your baseline; falling asleep earlier is not flagged. <strong>⌛ Duration</strong> uses the <em>worse</em> of two checks (not added together): shorter than your recent average, <em>or</em> absolute short sleep—under 6 hours (slight), under 5 hours (moderate), under 4 hours (severe)—based on total sleep including naps. <strong>🌅 Wake</strong> compares earlier or later than the baseline. <strong>🧩 WASO</strong> (wake after sleep onset) counts wake episodes longer than 20 minutes: 1 → slight, 2 → moderate, 3 or more → severe. On the <strong>history calendar</strong>, the cell color is the worst of those severities among asleep, duration, and WASO.</p>
+    </section>
     <div id="quality-container"></div>
   </div>
 

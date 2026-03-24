@@ -69,12 +69,18 @@ function calculateTotalSleep(day) {
   return total;
 }
 
-const FRAGMENTATION_LEVELS = new Set(['mild', 'moderate', 'severe']);
-
-/** Per-night fragmentation for JSON field `fragmentation`; null if absent or invalid. */
+/**
+ * Stripe level from JSON `WASO` (wake-after-sleep-onset episode count): 1 → mild, 2 → moderate, 3+ → severe.
+ * Returns null when WASO is 0, missing, or invalid.
+ */
 function normalizeFragmentationLevel(day) {
-  const v = day && day.fragmentation;
-  return typeof v === 'string' && FRAGMENTATION_LEVELS.has(v) ? v : null;
+  const n = day && day.WASO;
+  if (typeof n !== 'number' || !Number.isFinite(n)) return null;
+  const w = Math.floor(n);
+  if (w < 1) return null;
+  if (w === 1) return 'mild';
+  if (w === 2) return 'moderate';
+  return 'severe';
 }
 
 /**
@@ -186,7 +192,7 @@ function normalizeTimeForYAxis(minutes) {
   return minutes;
 }
 
-// Calculate longest uninterrupted sleep (ignoring bathroom, including alarms and sick)
+// Calculate longest uninterrupted sleep (ignoring bathroom; alarms count as interruptions)
 function calculateLongestUninterrupted(day) {
   const sleepStart = timeToMinutes(day.sleepStart);
   const sleepEnd = timeToMinutes(day.sleepEnd);
@@ -205,12 +211,7 @@ function calculateLongestUninterrupted(day) {
     .map(normalizeInterruption)
     .filter(m => m >= sleepStart && m <= normalizedSleepEnd);
 
-  const sickInterruptions = (day.sick || [])
-    .map(timeToMinutes)
-    .map(normalizeInterruption)
-    .filter(m => m >= sleepStart && m <= normalizedSleepEnd);
-
-  const interruptions = [...alarmInterruptions, ...sickInterruptions];
+  const interruptions = [...alarmInterruptions];
   interruptions.sort((a, b) => a - b);
 
   if (interruptions.length === 0) {

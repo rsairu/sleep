@@ -1,8 +1,15 @@
 // Configuration constants
 const YEAR = 2026;
 const ALARM_TO_WAKE_WARNING_THRESHOLD = 60; // minutes
-const DEVIATION_FLAG_THRESHOLD = 20; // minutes - flags only show if deviation is >= this
-const WAKE_DEVIATION_FLAG_THRESHOLD = 30; // minutes - wake-up time deviation (display only, does not affect sleep quality)
+/** Prior nights required before timing flags or heatmap colors apply. */
+const LOOKBACK_DAYS = 7;
+const DAY_MINUTES = 1440;
+/** Weight when blending sleep-relative vs day-relative variation (internal only). */
+const BLEND_ALPHA = 0.75;
+/** Total sleep (main + nap) below these minute thresholds adds a duration flag (absolute floor; combined with relative short-sleep via max severity, not stacked). */
+const ABS_DURATION_SLIGHT_LT_MIN = 360; // < 6h → slight
+const ABS_DURATION_MODERATE_LT_MIN = 300; // < 5h → moderate
+const ABS_DURATION_SEVERE_LT_MIN = 240; // < 4h → severe
 const DATA_FILES = {
   sleep: 'sleep-data.json'
 };
@@ -111,169 +118,255 @@ function bedMinutesForTimeline(bedMinutes) {
 // Note: normalizeTimeForComparison, normalizeTimeForAveraging, and denormalizeTimeForAveraging 
 // are now in sleep-utils.js
 
+function blendedVariationPercent(diffMinutes, avgSleepDurationMinutes) {
+  const sleepBase = Math.max(avgSleepDurationMinutes, 1);
+  const pctSleep = (diffMinutes / sleepBase) * 100;
+  const pctDay = (diffMinutes / DAY_MINUTES) * 100;
+  return BLEND_ALPHA * pctSleep + (1 - BLEND_ALPHA) * pctDay;
+}
+
+/** @returns {'slight'|'moderate'|'severe'|null} */
+function severityFromBlendedPercent(p) {
+  if (p < 5) return null;
+  if (p < 10) return 'slight';
+  if (p < 19) return 'moderate';
+  return 'severe';
+}
+
+const SEVERITY_RANK = { slight: 1, moderate: 2, severe: 3 };
+
+function maxSeverity(a, b) {
+  if (!a) return b || null;
+  if (!b) return a;
+  return SEVERITY_RANK[a] >= SEVERITY_RANK[b] ? a : b;
+}
+
+/** Total sleep minutes (including nap): absolute short-sleep tiers; null if ≥ 6h. */
+function severityFromAbsoluteTotalSleepMinutes(totalMinutes) {
+  if (totalMinutes >= ABS_DURATION_SLIGHT_LT_MIN) return null;
+  if (totalMinutes < ABS_DURATION_SEVERE_LT_MIN) return 'severe';
+  if (totalMinutes < ABS_DURATION_MODERATE_LT_MIN) return 'moderate';
+  return 'slight';
+}
+
+/** Calendar / quality ramp: slight | moderate | severe from WASO count, or null if none. */
+function wasoQualitySeverity(day) {
+  const frag = normalizeFragmentationLevel(day);
+  if (!frag) return null;
+  if (frag === 'mild') return 'slight';
+  if (frag === 'moderate') return 'moderate';
+  return 'severe';
+}
+
 // Calculate recent averages for deviation detection (excluding current day)
-function calculateRecentAverages(days, currentIndex, lookbackDays = 7) {
-  // Get recent days excluding the current day
+function calculateRecentAverages(days, currentIndex, lookbackDays = LOOKBACK_DAYS) {
   const startIndex = Math.max(0, currentIndex + 1);
   const endIndex = Math.min(days.length, currentIndex + 1 + lookbackDays);
   const recentDays = days.slice(startIndex, endIndex);
-  
-  if (recentDays.length === 0) {
-    return null;
+
+  if (recentDays.length < lookbackDays) {
+    return {
+      insufficient: true,
+      sampleSize: recentDays.length
+    };
   }
-  
-  let bedTimeSum = 0;
+
   let fellAsleepTimeSum = 0;
   let wakeTimeSum = 0;
   let sleepDurationSum = 0;
-  
+
   recentDays.forEach(day => {
-    // Normalize bed time before averaging to handle times that cross midnight
-    const bedTime = timeToMinutes(day.bed);
-    const normalizedBedTime = normalizeTimeForComparison(bedTime);
-    bedTimeSum += normalizedBedTime;
-    
-    // Normalize fell asleep before averaging to handle times that cross midnight
     const fellAsleepTime = timeToMinutes(day.sleepStart);
     const normalizedFellAsleepTime = normalizeTimeForAveraging(fellAsleepTime);
     fellAsleepTimeSum += normalizedFellAsleepTime;
-    
+
     const wakeTime = timeToMinutes(day.sleepEnd);
     wakeTimeSum += normalizeWakeTimeForAveraging(fellAsleepTime, wakeTime);
-    
+
     sleepDurationSum += calculateTotalSleep(day);
   });
-  
+
   return {
-    avgBedTime: bedTimeSum / recentDays.length, // This is normalized
-    avgFellAsleepTime: fellAsleepTimeSum / recentDays.length, // This is normalized
-    avgWakeTime: wakeTimeSum / recentDays.length, // Normalized for comparison
+    insufficient: false,
+    avgFellAsleepTime: fellAsleepTimeSum / recentDays.length,
+    avgWakeTime: wakeTimeSum / recentDays.length,
     avgSleepDuration: sleepDurationSum / recentDays.length
   };
 }
 
-// Check for deviations and return warning messages
-function checkDeviations(day, recentAverages) {
-  if (!recentAverages) return [];
-  
-  const warnings = [];
-  
-  // Check bed time (later than average)
-  const bedTime = timeToMinutes(day.bed);
-  const normalizedBedTime = normalizeTimeForComparison(bedTime);
-  // avgBedTime is already normalized from calculateRecentAverages
-  if (normalizedBedTime > recentAverages.avgBedTime) {
-    const diff = normalizedBedTime - recentAverages.avgBedTime;
-    if (diff >= DEVIATION_FLAG_THRESHOLD) {
-      warnings.push(`⚠️🛌 <strong>Bed Time</strong>: ${formatDuration(Math.round(diff))} later than recent average`);
-    }
-  }
-  
-  // Check fell asleep (later than average)
+function analyzeTimingDeviations(day, recentAverages) {
+  const avgSleep = recentAverages.avgSleepDuration;
   const fellAsleepTime = timeToMinutes(day.sleepStart);
-  const normalizedFellAsleepTime = normalizeTimeForAveraging(fellAsleepTime);
-  // avgFellAsleepTime is already normalized from calculateRecentAverages
-  if (normalizedFellAsleepTime > recentAverages.avgFellAsleepTime) {
-    const diff = normalizedFellAsleepTime - recentAverages.avgFellAsleepTime;
-    if (diff >= DEVIATION_FLAG_THRESHOLD) {
-      warnings.push(`⚠️😴 <strong>Asleep</strong>: ${formatDuration(Math.round(diff))} later than recent average`);
-    }
-  }
-  
-  // Check sleep duration (shorter than average)
+  const normalizedFellAsleep = normalizeTimeForAveraging(fellAsleepTime);
+  // Only flag asleep when later than average (earlier is not penalized).
+  const asleepLaterThanAvg = normalizedFellAsleep > recentAverages.avgFellAsleepTime;
+  const asleepDiff = asleepLaterThanAvg
+    ? normalizedFellAsleep - recentAverages.avgFellAsleepTime
+    : 0;
+  const asleepSeverity = asleepLaterThanAvg
+    ? severityFromBlendedPercent(blendedVariationPercent(asleepDiff, avgSleep))
+    : null;
+
   const sleepDuration = calculateTotalSleep(day);
-  if (sleepDuration < recentAverages.avgSleepDuration) {
-    const diff = recentAverages.avgSleepDuration - sleepDuration;
-    if (diff >= DEVIATION_FLAG_THRESHOLD) {
-      warnings.push(`⚠️⌛ <strong>Duration</strong>: ${formatDuration(Math.round(diff))} shorter than recent average`);
-    }
-  }
-  
-  // Check wake-up time deviation (earlier or later than average; display only, does not affect sleep quality)
+  // Relative: only when shorter than average. Absolute: < 6h / < 5h / < 4h. Worst of the two (not additive).
+  const durationShorterThanAvg = sleepDuration < recentAverages.avgSleepDuration;
+  const durDiff = durationShorterThanAvg
+    ? recentAverages.avgSleepDuration - sleepDuration
+    : 0;
+  const relativeDurationSeverity = durationShorterThanAvg
+    ? severityFromBlendedPercent(blendedVariationPercent(durDiff, avgSleep))
+    : null;
+  const absoluteDurationSeverity = severityFromAbsoluteTotalSleepMinutes(sleepDuration);
+  const durationSeverity = maxSeverity(relativeDurationSeverity, absoluteDurationSeverity);
+
   const wakeTime = timeToMinutes(day.sleepEnd);
-  const normalizedWakeTime = normalizeWakeTimeForAveraging(fellAsleepTime, wakeTime);
-  const wakeDiff = Math.abs(normalizedWakeTime - recentAverages.avgWakeTime);
-  if (wakeDiff >= WAKE_DEVIATION_FLAG_THRESHOLD) {
-    const later = normalizedWakeTime > recentAverages.avgWakeTime;
-    warnings.push(`⚠️🌅 <strong>Wake</strong>: ${formatDuration(Math.round(wakeDiff))} ${later ? 'later' : 'earlier'} than recent average`);
+  const normalizedWake = normalizeWakeTimeForAveraging(fellAsleepTime, wakeTime);
+  const wakeDiff = Math.abs(normalizedWake - recentAverages.avgWakeTime);
+  const wakeSeverity = severityFromBlendedPercent(blendedVariationPercent(wakeDiff, avgSleep));
+
+  return {
+    normalizedFellAsleep,
+    asleepDiff,
+    asleepSeverity,
+    sleepDuration,
+    durDiff,
+    durationSeverity,
+    relativeDurationSeverity,
+    absoluteDurationSeverity,
+    normalizedWake,
+    wakeDiff,
+    wakeSeverity
+  };
+}
+
+function computeWorstQualitySeverity(day, recentAverages) {
+  if (!recentAverages || recentAverages.insufficient) return 'none';
+  const t = analyzeTimingDeviations(day, recentAverages);
+  let worst = maxSeverity(t.asleepSeverity, t.durationSeverity);
+  worst = maxSeverity(worst, wasoQualitySeverity(day));
+  return worst || 'none';
+}
+
+/** Prefer explaining whichever source sets combined duration severity (relative vs absolute). */
+function durationDeviationCopy(t) {
+  const abs = t.absoluteDurationSeverity;
+  const rel = t.relativeDurationSeverity;
+  if (!t.durationSeverity) return { html: '', plain: '' };
+  const absDrives = abs && (!rel || SEVERITY_RANK[abs] >= SEVERITY_RANK[rel]);
+  if (absDrives && abs) {
+    if (abs === 'severe') {
+      return { html: '<strong>Duration</strong>: under 4 hours total', plain: 'Duration: under 4 hours total' };
+    }
+    if (abs === 'moderate') {
+      return { html: '<strong>Duration</strong>: under 5 hours total', plain: 'Duration: under 5 hours total' };
+    }
+    return { html: '<strong>Duration</strong>: under 6 hours total', plain: 'Duration: under 6 hours total' };
   }
-  
-  // Fragmentation level from data (display only; does not affect sleep quality)
+  const d = formatDuration(Math.round(t.durDiff));
+  const plain = `Duration: ${d} shorter than recent average`;
+  return { html: `<strong>Duration</strong>: ${d} shorter than recent average`, plain };
+}
+
+function durationDeviationBodyHtml(t) {
+  return durationDeviationCopy(t).html;
+}
+
+// Check for deviations and return warning objects (severity drives CSS; category emoji only, no yield/stop)
+function checkDeviations(day, recentAverages) {
+  if (!recentAverages || recentAverages.insufficient) {
+    return [{
+      severity: 'insufficient',
+      plainSummary: 'Not enough data (need 7 prior nights in the log).',
+      bodyHtml: 'Not enough data (need 7 prior nights in the log).'
+    }];
+  }
+
+  const warnings = [];
+  const t = analyzeTimingDeviations(day, recentAverages);
+
+  if (t.asleepSeverity) {
+    const detail = `${formatDuration(Math.round(t.asleepDiff))} later than recent average`;
+    warnings.push({
+      severity: t.asleepSeverity,
+      emoji: '😴',
+      plainSummary: `Asleep: ${detail}`,
+      bodyHtml: `<strong>Asleep</strong>: ${detail}`
+    });
+  }
+
+  if (t.durationSeverity) {
+    const { html, plain } = durationDeviationCopy(t);
+    warnings.push({
+      severity: t.durationSeverity,
+      emoji: '⌛',
+      plainSummary: plain,
+      bodyHtml: html
+    });
+  }
+
+  if (t.wakeSeverity) {
+    const later = t.normalizedWake > recentAverages.avgWakeTime;
+    const detail = `${formatDuration(Math.round(t.wakeDiff))} ${later ? 'later' : 'earlier'} than recent average`;
+    warnings.push({
+      severity: t.wakeSeverity,
+      emoji: '🌅',
+      plainSummary: `Wake: ${detail}`,
+      bodyHtml: `<strong>Wake</strong>: ${detail}`
+    });
+  }
+
   const fragLevel = normalizeFragmentationLevel(day);
   if (fragLevel) {
-    warnings.push(formatFragmentationDeviationWarning(fragLevel));
+    const fragSeverity = fragLevel === 'mild' ? 'slight' : fragLevel === 'moderate' ? 'moderate' : 'severe';
+    const label = fragSeverity === 'slight' ? 'Slight' : fragSeverity === 'moderate' ? 'Moderate' : 'Severe';
+    warnings.push({
+      severity: fragSeverity,
+      emoji: '🧩',
+      plainSummary: `${label} WASO`,
+      bodyHtml: `<strong>${label}</strong> WASO`
+    });
   }
-  
+
   return warnings;
 }
 
-/** Fragmentation strip: mild matches default alerts; moderate/severe use warmer CSS modifiers. */
-function formatFragmentationDeviationWarning(level) {
-  const cap = level.charAt(0).toUpperCase() + level.slice(1);
-  let extraClass = '';
-  if (level === 'moderate') extraClass = ' deviation-warning--frag-moderate';
-  if (level === 'severe') extraClass = ' deviation-warning--frag-severe';
-  const icon = level === 'severe' ? '🛑🧩' : '⚠️🧩';
-  return {
-    html: `${icon} <strong>${cap}</strong> fragmentation`,
-    extraClass
-  };
+function escapeHtmlAttr(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;');
+}
+
+function escapeHtmlText(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 
 function deviationWarningMarkup(w) {
   if (typeof w === 'string') {
-    return `<div class="deviation-warning">${w}</div>`;
+    return `<button type="button" class="deviation-flag-chip deviation-flag-chip--insufficient" aria-expanded="false" aria-label="${escapeHtmlAttr(w)}"><span class="deviation-flag-chip-icon" aria-hidden="true">⋯</span><span class="deviation-flag-chip-text">${escapeHtmlText(w)}</span></button>`;
   }
-  return `<div class="deviation-warning${w.extraClass || ''}">${w.html}</div>`;
+  const label = w.plainSummary || '';
+  const aria = escapeHtmlAttr(label);
+  if (w.severity === 'insufficient') {
+    return `<button type="button" class="deviation-flag-chip deviation-flag-chip--insufficient" aria-expanded="false" aria-label="${aria}"><span class="deviation-flag-chip-icon" aria-hidden="true">⋯</span><span class="deviation-flag-chip-text">${w.bodyHtml}</span></button>`;
+  }
+  const sevClass = `deviation-flag-chip--${w.severity}`;
+  return `<button type="button" class="deviation-flag-chip ${sevClass}" aria-expanded="false" aria-label="${aria}"><span class="deviation-flag-chip-icon" aria-hidden="true">${w.emoji}</span><span class="deviation-flag-chip-text">${w.bodyHtml}</span></button>`;
 }
 
-// Check for deviations and return flag types with icons
+// Flag emojis for calendar tooltip (timing uses blended % thresholds; 🧩 when WASO ≥ 1)
 function getFlagTypes(day, recentAverages) {
-  if (!recentAverages) return [];
-  
+  if (!recentAverages || recentAverages.insufficient) return [];
+
+  const t = analyzeTimingDeviations(day, recentAverages);
   const flagTypes = [];
-  
-  // Check bed time (later than average)
-  const bedTime = timeToMinutes(day.bed);
-  const normalizedBedTime = normalizeTimeForComparison(bedTime);
-  if (normalizedBedTime > recentAverages.avgBedTime) {
-    const diff = normalizedBedTime - recentAverages.avgBedTime;
-    if (diff >= DEVIATION_FLAG_THRESHOLD) {
-      flagTypes.push('🛌');
-    }
-  }
-  
-  // Check fell asleep (later than average)
-  const fellAsleepTime = timeToMinutes(day.sleepStart);
-  const normalizedFellAsleepTime = normalizeTimeForAveraging(fellAsleepTime);
-  if (normalizedFellAsleepTime > recentAverages.avgFellAsleepTime) {
-    const diff = normalizedFellAsleepTime - recentAverages.avgFellAsleepTime;
-    if (diff >= DEVIATION_FLAG_THRESHOLD) {
-      flagTypes.push('😴');
-    }
-  }
-  
-  // Check sleep duration (shorter than average)
-  const sleepDuration = calculateTotalSleep(day);
-  if (sleepDuration < recentAverages.avgSleepDuration) {
-    const diff = recentAverages.avgSleepDuration - sleepDuration;
-    if (diff >= DEVIATION_FLAG_THRESHOLD) {
-      flagTypes.push('⌛');
-    }
-  }
-  
-  // Check wake-up time deviation (display only, does not affect sleep quality)
-  const wakeTime = timeToMinutes(day.sleepEnd);
-  const normalizedWakeTime = normalizeWakeTimeForAveraging(fellAsleepTime, wakeTime);
-  if (Math.abs(normalizedWakeTime - recentAverages.avgWakeTime) >= WAKE_DEVIATION_FLAG_THRESHOLD) {
-    flagTypes.push('🌅');
-  }
-  
-  // Recorded fragmentation (display only; does not affect sleep quality heatmap count)
-  if (normalizeFragmentationLevel(day)) {
-    flagTypes.push('🧩');
-  }
-  
+  if (t.asleepSeverity) flagTypes.push('😴');
+  if (t.durationSeverity) flagTypes.push('⌛');
+  if (t.wakeSeverity) flagTypes.push('🌅');
+  if (normalizeFragmentationLevel(day)) flagTypes.push('🧩');
   return flagTypes;
 }
 
@@ -347,8 +440,8 @@ function renderDay(day, days, dayIndex, options) {
   // Check for deviations from recent averages
   const recentAverages = calculateRecentAverages(days, dayIndex);
   const deviations = checkDeviations(day, recentAverages);
-  const deviationWarnings = deviations.length > 0 
-    ? `<div class="deviation-warnings">${deviations.map(deviationWarningMarkup).join('')}</div>`
+  const deviationWarnings = deviations.length > 0
+    ? `<div class="deviation-warnings deviation-warnings--chips">${deviations.map(deviationWarningMarkup).join('')}</div>`
     : '';
   
   // Convert times to timeline positions
@@ -398,11 +491,6 @@ function renderDay(day, days, dayIndex, options) {
   day.alarm.forEach(time => {
     const minutes = timeToTimelinePosition(timeToMinutes(time));
     html += `<div class="event alarm" style="--m:${minutes}" data-tooltip="${time} alarm"></div>`;
-  });
-  
-  (day.sick || []).forEach(time => {
-    const minutes = timeToTimelinePosition(timeToMinutes(time));
-    html += `<div class="event sick" style="--m:${minutes}" data-tooltip="${time} sick"></div>`;
   });
   
   day.bathroom.forEach(time => {
@@ -549,28 +637,15 @@ function renderWeek(week, weekIndex, allDays) {
   `;
 }
 
-// Flags that affect sleep quality (heatmap color). Wake and fragmentation are display-only.
-const QUALITY_FLAG_TYPES = ['🛌', '😴', '⌛'];
-
-// Count flags for a specific day (quality-affecting only; wake + fragmentation excluded)
-function countFlagsForDay(day, days, dayIndex) {
-  const flagTypes = getFlagTypesForDay(day, days, dayIndex);
-  return flagTypes.filter(t => QUALITY_FLAG_TYPES.includes(t)).length;
-}
-
-// Get flag types for a specific day
-function getFlagTypesForDay(day, days, dayIndex) {
-  const recentAverages = calculateRecentAverages(days, dayIndex);
-  return getFlagTypes(day, recentAverages);
-}
-
-// Build flag count map for all days
+// Heatmap cell color = worst severity among 😴, ⌛, and 🧩 (WASO); 🌅 is tooltip-only.
 function buildFlagCountMap(days) {
   const flagMap = new Map();
   days.forEach((day, index) => {
-    const flagCount = countFlagsForDay(day, days, index);
-    const flagTypes = getFlagTypesForDay(day, days, index);
-    flagMap.set(day.date, { count: flagCount, types: flagTypes });
+    const recentAverages = calculateRecentAverages(days, index);
+    const insufficient = !recentAverages || recentAverages.insufficient;
+    const types = getFlagTypes(day, recentAverages);
+    const qualitySeverity = insufficient ? 'none' : computeWorstQualitySeverity(day, recentAverages);
+    flagMap.set(day.date, { insufficient, qualitySeverity, types });
   });
   return flagMap;
 }
@@ -623,12 +698,13 @@ function generateCalendarHeatmap(year, flagMap, latestDataDate) {
         flatDays.push(null);
       } else {
         const dateStr = formatDateShort(date);
-        const flagData = flagMap.get(dateStr) || { count: 0, types: [] };
+        const flagData = flagMap.get(dateStr) || { insufficient: false, qualitySeverity: 'none', types: [] };
         flatDays.push({
           date: date,
           dateStr: dateStr,
           day: day,
-          flagCount: flagData.count,
+          insufficient: flagData.insufficient,
+          qualitySeverity: flagData.qualitySeverity,
           flagTypes: flagData.types
         });
       }
@@ -649,7 +725,7 @@ function generateCalendarHeatmap(year, flagMap, latestDataDate) {
       while (last.length < 7) last.push(null);
     }
 
-    const flagCounts = { '🛌': 0, '😴': 0, '⌛': 0, '🌅': 0, '🧩': 0 };
+    const flagCounts = { '😴': 0, '⌛': 0, '🌅': 0, '🧩': 0 };
     flatDays.forEach(day => {
       if (day && day.flagTypes) {
         day.flagTypes.forEach(flagType => {
@@ -669,18 +745,27 @@ function generateCalendarHeatmap(year, flagMap, latestDataDate) {
   return months;
 }
 
-// Get color class for flag count
-function getFlagColorClass(flagCount) {
-  if (flagCount === 0) return 'flag-none';
-  if (flagCount === 1) return 'flag-one';
-  if (flagCount === 2) return 'flag-two';
+function getCalendarSquareColorClass(dayCell) {
+  if (!dayCell) return 'empty';
+  if (dayCell.insufficient) return 'flag-insufficient';
+  const s = dayCell.qualitySeverity || 'none';
+  if (s === 'none') return 'flag-none';
+  if (s === 'slight') return 'flag-one';
+  if (s === 'moderate') return 'flag-two';
   return 'flag-three-plus';
+}
+
+function calendarSquareTooltip(dayCell) {
+  if (dayCell.insufficient) return `${dayCell.dateStr}: not enough data`;
+  if (dayCell.flagTypes && dayCell.flagTypes.length > 0) {
+    return `${dayCell.dateStr}: ${dayCell.flagTypes.join(' ')}`;
+  }
+  return `${dayCell.dateStr}: normal`;
 }
 
 // Render a single month block (for heatmap). large: true adds --large class for 2x size on dashboard.
 function renderMonthBlock(month, large) {
   const flagSlots = [
-    { emoji: '🛌', count: month.flagCounts['🛌'] },
     { emoji: '😴', count: month.flagCounts['😴'] },
     { emoji: '⌛', count: month.flagCounts['⌛'] },
     { emoji: '🌅', count: month.flagCounts['🌅'] },
@@ -703,11 +788,8 @@ function renderMonthBlock(month, large) {
               if (day === null) {
                 return `<div class="calendar-square empty"></div>`;
               }
-              const colorClass = getFlagColorClass(day.flagCount);
-              const hasAnyFlags = day.flagTypes && day.flagTypes.length > 0;
-              const tooltip = hasAnyFlags
-                ? `${day.dateStr}: ${day.flagTypes.join(' ')}`
-                : `${day.dateStr}: normal`;
+              const colorClass = getCalendarSquareColorClass(day);
+              const tooltip = calendarSquareTooltip(day);
               return `<div class="calendar-square ${colorClass}" data-tooltip="${tooltip}" title="${tooltip}"><span class="calendar-square-day">${day.day}</span></div>`;
             }).join('')}
           </div>
@@ -724,24 +806,31 @@ function renderCalendarHeatmapHeader() {
       <h3 class="calendar-heatmap-title">Sleep Quality history</h3>
       <div class="calendar-heatmap-legend calendar-heatmap-legend--compact">
         <div class="legend-colors-row">
-          <span class="legend-label">normal</span>
+          <span class="legend-label">need data</span>
+          <div class="legend-colors">
+            <div class="legend-square flag-insufficient" title="Fewer than 7 prior nights"></div>
+          </div>
+          <span class="legend-divider">·</span>
+          <span class="legend-label">good</span>
           <div class="legend-colors">
             <div class="legend-square flag-none"></div>
-            <div class="legend-square flag-one"></div>
-            <div class="legend-square flag-two"></div>
-            <div class="legend-square flag-three-plus"></div>
           </div>
-          <span class="legend-label">worse</span>
+          <span class="legend-label">→</span>
+          <div class="legend-colors">
+            <div class="legend-square flag-one" title="Slightly"></div>
+            <div class="legend-square flag-two" title="Moderately"></div>
+            <div class="legend-square flag-three-plus" title="Severe"></div>
+          </div>
+          <span class="legend-label">off pattern</span>
         </div>
         <span class="legend-divider">·</span>
         <div class="legend-meaning legend-meaning--inline">
-          <span class="legend-meaning-item">🛌 bed late</span>
-          <span class="legend-meaning-item">😴 asleep late</span>
-          <span class="legend-meaning-item">⌛ short</span>
-          <span class="legend-meaning-item">🌅 wake deviation</span>
-          <span class="legend-meaning-item">🧩 fragmentation</span>
+          <span class="legend-meaning-item">😴 asleep late vs avg</span>
+          <span class="legend-meaning-item">⌛ shorter duration vs avg</span>
+          <span class="legend-meaning-item">🌅 wake vs avg</span>
+          <span class="legend-meaning-item">🧩 WASO</span>
         </div>
-        <span class="legend-explanation legend-explanation--inline">(vs 7-day avg; bed/asleep/duration 20+ min, wake 30+ min; 🌅 🧩 display only)</span>
+        <span class="legend-explanation legend-explanation--inline">(cell color from worst of 😴 ⌛ 🧩; 🌅 icon only; see Quality page for bands)</span>
       </div>
     </div>
   `;
@@ -1207,7 +1296,6 @@ function renderTimelineLegendControls() {
           <span class="nap">nap</span>
           <span class="bed">bed</span>
           <span class="alarm">alarm</span>
-          <span class="sick">sick</span>
           <span class="bath">bathroom</span>
           <span class="up">get up</span>
         </div>
@@ -1252,6 +1340,45 @@ function toggleFlags(show) {
   document.querySelectorAll('.deviation-warnings').forEach(warnings => {
     warnings.classList.toggle('hidden', !show);
   });
+}
+
+let deviationFlagChipListenersBound = false;
+
+function onDeviationFlagDocumentClick(e) {
+  const chip = e.target.closest('.deviation-flag-chip');
+  if (chip) {
+    const wasOpen = chip.classList.contains('is-expanded');
+    document.querySelectorAll('.deviation-flag-chip.is-expanded').forEach(c => {
+      c.classList.remove('is-expanded');
+      c.setAttribute('aria-expanded', 'false');
+    });
+    if (!wasOpen) {
+      chip.classList.add('is-expanded');
+      chip.setAttribute('aria-expanded', 'true');
+    }
+    return;
+  }
+  document.querySelectorAll('.deviation-flag-chip.is-expanded').forEach(c => {
+    c.classList.remove('is-expanded');
+    c.setAttribute('aria-expanded', 'false');
+  });
+}
+
+function onDeviationFlagEscape(e) {
+  if (e.key !== 'Escape') return;
+  document.querySelectorAll('.deviation-flag-chip.is-expanded').forEach(c => {
+    c.classList.remove('is-expanded');
+    c.setAttribute('aria-expanded', 'false');
+  });
+}
+
+/** Tap/click to expand chips; click outside or Escape closes. Safe to call multiple times. */
+function initDeviationFlagChips() {
+  if (deviationFlagChipListenersBound) return;
+  if (typeof document === 'undefined') return;
+  deviationFlagChipListenersBound = true;
+  document.addEventListener('click', onDeviationFlagDocumentClick);
+  document.addEventListener('keydown', onDeviationFlagEscape);
 }
 
 // Toggle week collapse/expand
@@ -1304,3 +1431,5 @@ if (daysContainer) {
       daysContainer.innerHTML = '<p>Error loading data</p>';
     });
 }
+
+initDeviationFlagChips();
