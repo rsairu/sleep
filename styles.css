@@ -17,7 +17,6 @@
   --color-nap: #c4b5fd;
   --color-bed: #60a5fa;
   --color-alarm: #c2410c;
-  --color-sick: #ec4899;
   --color-bath: #fbbf24;
   --color-up: #34d399;
   --color-sunrise: #f59e0b;
@@ -31,6 +30,8 @@
   --previous-day-overlay: rgba(0, 0, 0, 0.3);
   --weekend-bg: rgba(96, 165, 250, 0.15);
   --weekend-border: rgba(96, 165, 250, 0.4);
+  --weekend-lip-width: 6px;
+  --deviation-lip-width: 6px;
   --warning-bg: rgba(251, 191, 36, 0.1);
   --warning-border: rgba(251, 191, 36, 0.4);
   /* Fragmentation deviation strip: moderate between default amber and severe red */
@@ -50,11 +51,16 @@
   --frag-stripe-sev-a: rgba(118, 8, 32, 0.58);
   --frag-stripe-sev-b: rgba(138, 4, 28, 0.48);
 
+  /* Shared quality ramp (daily flags + calendar; matches sleep-quality-palettes) */
+  --quality-slight: #ca8a04;
+  --quality-moderate: #b45309;
+  --quality-severe: #7f1d1d;
   /* Calendar/legend quality-flag colors */
+  --flag-insufficient: #64748b;
   --flag-none: #15803d;
-  --flag-one: #c89f04;
-  --flag-two: #a16207;
-  --flag-three-plus: #991b1b;
+  --flag-one: var(--quality-slight);
+  --flag-two: var(--quality-moderate);
+  --flag-three-plus: var(--quality-severe);
 
   --chart-error-bg: rgba(194, 65, 12, 0.1);
 
@@ -98,7 +104,6 @@
   --color-nap: #6d28d9;
   --color-bed: #1d4ed8;
   --color-alarm: #9a3412;
-  --color-sick: #9d174d;
   --color-bath: #b45309;
   --color-up: #047857;
   --color-sunrise: #b45309;
@@ -115,11 +120,12 @@
   --frag-stripe-sev-a: rgba(205, 55, 90, 0.54);
   --frag-stripe-sev-b: rgba(198, 40, 78, 0.44);
 
-  /* Day mode: darker flag square colours so labels/contrast are easier to read */
+  /* Day mode: darker green for “good” cell; severity ramp unchanged */
   --flag-none: #166534;
-  --flag-one: #a16207;
-  --flag-two: #854d0e;
-  --flag-three-plus: #7f1d1d;
+  --flag-insufficient: #64748b;
+  --flag-one: var(--quality-slight);
+  --flag-two: var(--quality-moderate);
+  --flag-three-plus: var(--quality-severe);
 
   /* Nav app title: darker blue for light mode (softer than icon blue) */
   --nav-app-text-color: #25408a;
@@ -1644,8 +1650,8 @@ body{
 
 .day.weekend{
   background: transparent;
-  border-left: 2px solid var(--weekend-border);
-  padding-left: calc(var(--space-3) - 2px);
+  border-left: var(--weekend-lip-width) solid var(--weekend-border);
+  padding-left: calc(var(--space-3) - var(--weekend-lip-width));
 }
 
 .week-days .day:last-child {
@@ -1691,25 +1697,143 @@ body{
 
 .deviation-warning{
   font-size: 11px;
-  color: var(--color-bath);
-  opacity: 0.9;
+  color: var(--text);
+  opacity: 0.95;
   padding: 4px 8px;
   background: var(--warning-bg);
   border-radius: 6px;
-  border-left: 2px solid var(--warning-border);
+  border-left: var(--deviation-lip-width) solid var(--warning-border);
   width: fit-content;
 }
 
-.deviation-warning--frag-moderate{
-  color: var(--frag-dev-mod-text);
-  background: var(--frag-dev-mod-bg);
-  border-left-color: var(--frag-dev-mod-border);
+.deviation-warning--slight{
+  border-left-color: var(--quality-slight);
+  background: rgba(202, 138, 4, 0.14);
 }
 
-.deviation-warning--frag-severe{
-  color: var(--frag-dev-sev-text);
-  background: var(--frag-dev-sev-bg);
-  border-left-color: var(--frag-dev-sev-border);
+.deviation-warning--moderate{
+  border-left-color: var(--quality-moderate);
+  background: rgba(180, 83, 9, 0.14);
+}
+
+.deviation-warning--severe{
+  border-left-color: var(--quality-severe);
+  background: rgba(127, 29, 29, 0.16);
+}
+
+.deviation-warning--insufficient{
+  border-left-color: var(--flag-insufficient);
+  background: rgba(100, 116, 139, 0.2);
+  color: var(--text);
+}
+
+/* Daily / dashboard: compact flag chips (icon + severity color; hover or tap expands copy) */
+.deviation-warnings--chips{
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.deviation-flag-chip{
+  -webkit-appearance: none;
+  appearance: none;
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  margin: 0;
+  padding: 4px 6px 4px 5px;
+  min-height: 34px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 11px;
+  font-family: inherit;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.96);
+  touch-action: manipulation;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
+  transition: box-shadow 0.15s ease, transform 0.12s ease;
+  vertical-align: middle;
+}
+
+.deviation-flag-chip strong{
+  font-weight: 700;
+  color: inherit;
+}
+
+.deviation-flag-chip:active{
+  transform: scale(0.98);
+}
+
+.deviation-flag-chip:focus-visible{
+  outline: 2px solid var(--color-hover-blue);
+  outline-offset: 2px;
+}
+
+.deviation-flag-chip-icon{
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.deviation-flag-chip-text{
+  display: inline-block;
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  vertical-align: middle;
+  transition: max-width 0.24s ease, opacity 0.18s ease, padding 0.2s ease;
+  padding: 0;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+
+.deviation-flag-chip.is-expanded{
+  z-index: 8;
+}
+
+/* Keep nowrap while max-width animates — avoids a 1→2 line flash that shifts layout */
+.deviation-flag-chip.is-expanded .deviation-flag-chip-text{
+  max-width: min(320px, 92vw);
+  opacity: 1;
+  padding-left: 8px;
+}
+
+@media (hover: hover) and (pointer: fine){
+  .deviation-flag-chip:hover{
+    z-index: 8;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+  }
+
+  .deviation-flag-chip:hover .deviation-flag-chip-text,
+  .deviation-flag-chip:focus-visible .deviation-flag-chip-text{
+    max-width: min(320px, 92vw);
+    opacity: 1;
+    padding-left: 8px;
+  }
+}
+
+.deviation-flag-chip--slight{
+  background: var(--quality-slight);
+}
+
+.deviation-flag-chip--moderate{
+  background: var(--quality-moderate);
+}
+
+.deviation-flag-chip--severe{
+  background: var(--quality-severe);
+}
+
+.deviation-flag-chip--insufficient{
+  background: var(--flag-insufficient);
+  color: rgba(255, 255, 255, 0.95);
 }
 
 .day-stats{
@@ -2008,7 +2132,6 @@ body{
 
 .event.bed{ background: var(--color-bed); }
 .event.alarm{ background: var(--color-alarm); }
-.event.sick{ background: var(--color-sick); }
 .event.bath{ background: var(--color-bath); }
 .event.up{ background: var(--color-up); }
 
@@ -2038,7 +2161,6 @@ body{
 .legend .nap{ color: var(--color-nap); }
 .legend .bed{ color: var(--color-bed); }
 .legend .alarm{ color: var(--color-alarm); }
-.legend .sick{ color: var(--color-sick); }
 .legend .bath{ color: var(--color-bath); }
 .legend .up{ color: var(--color-up); }
 
@@ -2833,6 +2955,10 @@ svg {
   background: var(--flag-three-plus);
 }
 
+.legend-square.flag-insufficient {
+  background: var(--flag-insufficient);
+}
+
 .calendar-heatmap {
   position: relative;
   overflow-x: auto;
@@ -3090,11 +3216,67 @@ svg {
   background: var(--flag-three-plus);
 }
 
+.calendar-square.flag-insufficient {
+  background: var(--flag-insufficient);
+}
+
 .calendar-square:not(.empty):hover {
   outline: 1px solid rgba(255, 255, 255, 0.5);
   outline-offset: 1px;
   transform: scale(1.2);
   z-index: 10;
+}
+
+/* Sleep Quality page — how daily severity maps to color */
+.quality-page .quality-variation-guide {
+  max-width: 42rem;
+  margin-bottom: var(--space-5);
+  padding: var(--panel-padding);
+  background: var(--panel);
+  border-radius: var(--panel-radius);
+  border: 1px solid var(--panel-border-color);
+  box-shadow: var(--panel-shadow);
+}
+
+.quality-page .quality-variation-guide h2 {
+  margin-top: 0;
+  font-size: 1.25rem;
+}
+
+.quality-page .quality-variation-guide ul {
+  list-style: none;
+  padding-left: 0;
+  margin: 0.75rem 0 0;
+}
+
+.quality-page .quality-variation-guide li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 0.5rem;
+}
+
+.quality-swatch {
+  flex-shrink: 0;
+  width: 1.25rem;
+  height: 0.65rem;
+  border-radius: 3px;
+}
+
+.quality-swatch--slight {
+  background: var(--quality-slight);
+}
+
+.quality-swatch--moderate {
+  background: var(--quality-moderate);
+}
+
+.quality-swatch--severe {
+  background: var(--quality-severe);
+}
+
+.quality-swatch--insufficient {
+  background: var(--flag-insufficient);
 }
 
 /* For first week row of first month, show tooltip below so it's not cut off */

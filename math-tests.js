@@ -79,8 +79,7 @@ function runTests() {
   const interruptionsDay = {
     sleepStart: '23:00',
     sleepEnd: '07:00',
-    alarm: ['01:00', '04:00'],
-    sick: ['06:00']
+    alarm: ['01:00', '04:00']
   };
   expectEqual(u.calculateLongestUninterrupted(interruptionsDay), 180, 'longest uninterrupted span');
 
@@ -142,12 +141,10 @@ function runTests() {
       } else {
         passed += 1;
       }
-      if (Object.prototype.hasOwnProperty.call(d, 'fragmentation') && d.fragmentation != null && d.fragmentation !== '') {
-        if (u.normalizeFragmentationLevel(d) === null) {
-          failures.push(`dataset invariant day ${idx} (${d.date}): fragmentation must be mild, moderate, or severe`);
-        } else {
-          passed += 1;
-        }
+      if (typeof d.WASO !== 'number' || !Number.isFinite(d.WASO) || d.WASO < 0 || d.WASO !== Math.floor(d.WASO)) {
+        failures.push(`dataset invariant day ${idx} (${d.date}): WASO must be a non-negative integer`);
+      } else {
+        passed += 1;
       }
     });
   }

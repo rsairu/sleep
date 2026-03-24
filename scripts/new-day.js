@@ -33,8 +33,8 @@ function templateFromPrevious(prev) {
       sleepEnd: '7:00',
       bathroom: [],
       alarm: [],
-      sick: [],
-      nap: null
+      nap: null,
+      WASO: 0
     };
   }
   return {
@@ -43,8 +43,8 @@ function templateFromPrevious(prev) {
     sleepEnd: prev.sleepEnd,
     bathroom: [...(prev.bathroom || [])],
     alarm: [...(prev.alarm || [])],
-    sick: [],
-    nap: null
+    nap: null,
+    WASO: 0
   };
 }
 
