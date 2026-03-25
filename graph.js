@@ -60,7 +60,7 @@ let graphPageRangeKey = 'all';
 let graphPageTogglesBound = false;
 
 // Load and render graph
-fetch('sleep-data.json').then(response => response.json())
+loadSleepData()
   .then((data) => {
     graphPageAllPoints = data.days.map(day => {
       const rawBedMinutes = timeToMinutes(day.bed);

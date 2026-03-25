@@ -19,6 +19,267 @@ const HOLIDAYS_BY_YEAR = {
 };
 if (typeof window !== 'undefined') window.HOLIDAYS_BY_YEAR = HOLIDAYS_BY_YEAR;
 
+const SUPABASE_URL_STORAGE_KEY = 'restore_supabase_url';
+const SUPABASE_ANON_KEY_STORAGE_KEY = 'restore_supabase_anon_key';
+const RESTORE_LAST_DATA_SOURCE_KEY = 'restore_last_data_source';
+
+function safeReadStorage(key) {
+  try {
+    if (typeof localStorage === 'undefined') return '';
+    return localStorage.getItem(key) || '';
+  } catch (_) {
+    return '';
+  }
+}
+
+function safeWriteStorage(key, value) {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    if (value) localStorage.setItem(key, value);
+    else localStorage.removeItem(key);
+  } catch (_) {}
+}
+
+function getSupabaseConfig() {
+  const urlFromStorage = safeReadStorage(SUPABASE_URL_STORAGE_KEY).trim();
+  const anonFromStorage = safeReadStorage(SUPABASE_ANON_KEY_STORAGE_KEY).trim();
+  const urlFromWindow = typeof window !== 'undefined' && window.RESTORE_SUPABASE_URL ? String(window.RESTORE_SUPABASE_URL).trim() : '';
+  const anonFromWindow = typeof window !== 'undefined' && window.RESTORE_SUPABASE_ANON_KEY ? String(window.RESTORE_SUPABASE_ANON_KEY).trim() : '';
+  const url = urlFromStorage || urlFromWindow;
+  const anonKey = anonFromStorage || anonFromWindow;
+  return { url, anonKey, enabled: Boolean(url && anonKey) };
+}
+
+function setSupabaseConfig(url, anonKey) {
+  safeWriteStorage(SUPABASE_URL_STORAGE_KEY, (url || '').trim());
+  safeWriteStorage(SUPABASE_ANON_KEY_STORAGE_KEY, (anonKey || '').trim());
+}
+
+function clearSupabaseConfig() {
+  safeWriteStorage(SUPABASE_URL_STORAGE_KEY, '');
+  safeWriteStorage(SUPABASE_ANON_KEY_STORAGE_KEY, '');
+}
+
+function getDataSourceState() {
+  const explicit = typeof window !== 'undefined' ? window.__RESTORE_DATA_SOURCE__ : '';
+  if (explicit === 'cloud' || explicit === 'local') return explicit;
+  const stored = safeReadStorage(RESTORE_LAST_DATA_SOURCE_KEY);
+  if (stored === 'cloud' || stored === 'local') return stored;
+  return getSupabaseConfig().enabled ? 'cloud' : 'local';
+}
+
+function getDataSourceBadgeModel(source) {
+  if (source === 'cloud') {
+    return {
+      icon: '☁️',
+      className: 'nav-data-source-badge--cloud',
+      title: 'Data source: Supabase cloud'
+    };
+  }
+  return {
+    icon: '💾',
+    className: 'nav-data-source-badge--local',
+    title: 'Data source: local JSON fallback'
+  };
+}
+
+function renderDataSourceBadge(source) {
+  const model = getDataSourceBadgeModel(source);
+  return (
+    '<a href="config.html#cloud-sync" class="nav-data-source-badge ' + model.className + '" id="nav-data-source-badge" title="' + escapeHtmlBannerAttr(model.title) + '" aria-label="' + escapeHtmlBannerAttr(model.title) + '">' +
+      '<span class="nav-data-source-badge-icon" aria-hidden="true">' + model.icon + '</span>' +
+    '</a>'
+  );
+}
+
+function updateDataSourceBadge(source) {
+  const resolved = source === 'cloud' || source === 'local' ? source : getDataSourceState();
+  if (typeof window !== 'undefined') window.__RESTORE_DATA_SOURCE__ = resolved;
+  safeWriteStorage(RESTORE_LAST_DATA_SOURCE_KEY, resolved);
+  const el = document.getElementById('nav-data-source-badge');
+  if (!el) return;
+  const model = getDataSourceBadgeModel(resolved);
+  el.classList.remove('nav-data-source-badge--cloud', 'nav-data-source-badge--local');
+  el.classList.add(model.className);
+  el.title = model.title;
+  el.setAttribute('aria-label', model.title);
+  el.innerHTML = '<span class="nav-data-source-badge-icon" aria-hidden="true">' + model.icon + '</span>';
+}
+
+function mapSupabaseRowToDay(row) {
+  if (!row || !row.date_md) return null;
+  return {
+    date: row.date_md,
+    bed: row.bed,
+    sleepStart: row.sleep_start,
+    sleepEnd: row.sleep_end,
+    bathroom: Array.isArray(row.bathroom) ? row.bathroom : [],
+    alarm: Array.isArray(row.alarm) ? row.alarm : [],
+    nap: row.nap_start && row.nap_end ? { start: row.nap_start, end: row.nap_end } : null,
+    WASO: Number.isFinite(row.waso) ? row.waso : 0
+  };
+}
+
+function mapDayToSupabaseRow(day) {
+  return {
+    date_md: day.date,
+    bed: day.bed,
+    sleep_start: day.sleepStart,
+    sleep_end: day.sleepEnd,
+    bathroom: Array.isArray(day.bathroom) ? day.bathroom : [],
+    alarm: Array.isArray(day.alarm) ? day.alarm : [],
+    nap_start: day.nap && day.nap.start ? day.nap.start : null,
+    nap_end: day.nap && day.nap.end ? day.nap.end : null,
+    waso: Number.isFinite(day.WASO) ? day.WASO : 0
+  };
+}
+
+function sortDaysNewestFirst(days) {
+  return days.slice().sort((a, b) => getDateFromString(b.date) - getDateFromString(a.date));
+}
+
+function fetchStaticSleepData() {
+  return fetch('sleep-data.json').then(r => r.json());
+}
+
+function fetchSupabaseSleepData(config) {
+  const url = config.url.replace(/\/+$/, '') + '/rest/v1/sleep_days?select=date_md,bed,sleep_start,sleep_end,bathroom,alarm,nap_start,nap_end,waso';
+  return fetch(url, {
+    headers: {
+      apikey: config.anonKey,
+      Authorization: 'Bearer ' + config.anonKey
+    }
+  }).then(function (res) {
+    if (!res.ok) throw new Error('Supabase read failed: ' + res.status);
+    return res.json();
+  }).then(function (rows) {
+    const days = (rows || []).map(mapSupabaseRowToDay).filter(Boolean);
+    return { days: sortDaysNewestFirst(days) };
+  });
+}
+
+function loadSleepData() {
+  const config = getSupabaseConfig();
+  if (!config.enabled) {
+    updateDataSourceBadge('local');
+    return fetchStaticSleepData();
+  }
+  return fetchSupabaseSleepData(config)
+    .then(function (data) {
+      updateDataSourceBadge('cloud');
+      return data;
+    })
+    .catch(function (error) {
+      console.warn('Supabase load failed; falling back to sleep-data.json.', error);
+      updateDataSourceBadge('local');
+      return fetchStaticSleepData();
+    });
+}
+
+function upsertSleepDay(day) {
+  const config = getSupabaseConfig();
+  if (!config.enabled) {
+    return Promise.reject(new Error('Supabase is not configured. Set URL and anon key in Settings.'));
+  }
+  const row = mapDayToSupabaseRow(day);
+  const url = config.url.replace(/\/+$/, '') + '/rest/v1/sleep_days?on_conflict=date_md';
+  return fetch(url, {
+    method: 'POST',
+    headers: {
+      apikey: config.anonKey,
+      Authorization: 'Bearer ' + config.anonKey,
+      'Content-Type': 'application/json',
+      Prefer: 'resolution=merge-duplicates,return=representation'
+    },
+    body: JSON.stringify([row])
+  }).then(function (res) {
+    if (!res.ok) throw new Error('Supabase upsert failed: ' + res.status);
+    return res.json();
+  });
+}
+
+function initSupabaseConfigForm() {
+  const mount = document.getElementById('supabase-config-mount');
+  if (!mount) return;
+  const cfg = getSupabaseConfig();
+  mount.innerHTML =
+    '<div class="supabase-config-card">' +
+      '<p class="section-intro">Connect Restore to Supabase for cloud sync. If blank, the app uses local <code>sleep-data.json</code> as read-only fallback.</p>' +
+      '<label class="supabase-config-label" for="supabase-url-input">Supabase URL</label>' +
+      '<input class="supabase-config-input" id="supabase-url-input" type="url" placeholder="https://YOUR-PROJECT.supabase.co" value="' + escapeHtmlBannerAttr(cfg.url) + '">' +
+      '<label class="supabase-config-label" for="supabase-anon-input">Supabase anon key</label>' +
+      '<input class="supabase-config-input" id="supabase-anon-input" type="password" placeholder="eyJ..." value="' + escapeHtmlBannerAttr(cfg.anonKey) + '">' +
+      '<div class="supabase-config-actions">' +
+        '<button type="button" class="about-theme-option" id="supabase-save-btn">Save</button>' +
+        '<button type="button" class="about-theme-option" id="supabase-test-btn">Test connection</button>' +
+        '<button type="button" class="about-theme-option" id="supabase-clear-btn">Clear</button>' +
+      '</div>' +
+      '<p class="section-intro supabase-config-status" id="supabase-config-status"></p>' +
+    '</div>';
+
+  const statusEl = document.getElementById('supabase-config-status');
+  const urlEl = document.getElementById('supabase-url-input');
+  const keyEl = document.getElementById('supabase-anon-input');
+  const saveBtn = document.getElementById('supabase-save-btn');
+  const testBtn = document.getElementById('supabase-test-btn');
+  const clearBtn = document.getElementById('supabase-clear-btn');
+  if (!statusEl || !urlEl || !keyEl || !saveBtn || !testBtn || !clearBtn) return;
+
+  function setStatus(text, isError) {
+    statusEl.textContent = text;
+    statusEl.classList.toggle('supabase-config-status--error', Boolean(isError));
+  }
+
+  saveBtn.addEventListener('click', function () {
+    const url = (urlEl.value || '').trim();
+    const anonKey = (keyEl.value || '').trim();
+    if (!url || !anonKey) {
+      setStatus('Enter both URL and anon key to enable cloud sync.', true);
+      return;
+    }
+    setSupabaseConfig(url, anonKey);
+    setStatus('Saved. Reload any page to use cloud data.', false);
+  });
+
+  testBtn.addEventListener('click', function () {
+    const url = (urlEl.value || '').trim();
+    const anonKey = (keyEl.value || '').trim();
+    if (!url || !anonKey) {
+      setStatus('Enter both URL and anon key before testing.', true);
+      return;
+    }
+    testBtn.disabled = true;
+    setStatus('Testing connection...', false);
+    const endpoint = url.replace(/\/+$/, '') + '/rest/v1/sleep_days?select=date_md&limit=1';
+    fetch(endpoint, {
+      headers: {
+        apikey: anonKey,
+        Authorization: 'Bearer ' + anonKey
+      }
+    })
+      .then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(function () {
+        setStatus('Connection successful.', false);
+      })
+      .catch(function (error) {
+        setStatus('Connection failed: ' + (error && error.message ? error.message : 'unknown error'), true);
+      })
+      .finally(function () {
+        testBtn.disabled = false;
+      });
+  });
+
+  clearBtn.addEventListener('click', function () {
+    clearSupabaseConfig();
+    urlEl.value = '';
+    keyEl.value = '';
+    setStatus('Cleared. App will fall back to sleep-data.json.', false);
+  });
+}
+
 // Convert HH:MM to minutes from midnight
 function timeToMinutes(time) {
   const [hours, minutes] = time.split(':').map(Number);
@@ -819,10 +1080,7 @@ function initRemainingWakeThresholdsConfig() {
   const overlay = document.getElementById('config-rw-bar-overlay');
   if (!inputOpen || !inputWinding || !barWrap || !overlay) return;
 
-  fetch('sleep-data.json')
-    .then(function (r) {
-      return r.json();
-    })
+  loadSleepData()
     .then(function (data) {
       configRemainingWakeBasis = computeRecentSevenDayWakeBasis(data.days);
       const { openMin, windingMin } = getRemainingWakeThresholds();
@@ -950,6 +1208,7 @@ function syncDevBannerFixedLayout() {
 function initDayNightTheme() {
   applyDayNightTheme();
   updateDayNightIcon();
+  updateDataSourceBadge();
   const pillWrap = document.getElementById('nav-daynight');
   if (pillWrap) pillWrap.addEventListener('click', handleDayNightClick);
   initNavMenu();
@@ -1103,7 +1362,8 @@ function renderNavBar(currentPage) {
       '<a href="' + GITHUB_REPO_URL + '" class="nav-menu-item" role="menuitem" target="_blank" rel="noopener noreferrer"><span class="nav-menu-item-icon-wrap">' + githubIcon + '</span><span>GitHub</span></a>' +
     '</div>'
   );
-  const navRight = `<div class="nav-right nav-menu-wrap">${menuTrigger}${menuItems}</div>`;
+  const dataSourceBadge = renderDataSourceBadge(getDataSourceState());
+  const navRight = `<div class="nav-right nav-menu-wrap">${dataSourceBadge}${menuTrigger}${menuItems}</div>`;
 
   const appIcon = '<img src="icon_512.png" alt="" class="nav-app-icon" width="36" height="36">';
   const appName = `<a href="dashboard.html" class="nav-app-block" title="Dashboard"><span class="nav-app-icon-wrap">${appIcon}</span><span class="nav-app-text"><span class="nav-app-name">Restore</span><span class="nav-app-subtitle">Sleep Tracker</span></span></a>`;
@@ -1200,8 +1460,7 @@ function initRemainingWakeNav() {
     clearInterval(window[timerKey]);
     window[timerKey] = null;
   }
-  fetch('sleep-data.json')
-    .then(r => r.json())
+  loadSleepData()
     .then(data => {
       updateRemainingWakeNav(getRemainingWakeDisplayFromBasis(getEffectiveRemainingWakeBasis(data.days)));
       if (typeof window !== 'undefined') {
