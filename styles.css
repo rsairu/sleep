@@ -1316,6 +1316,19 @@ body{
   overflow: hidden;
 }
 
+/* Fell-asleep → wake span (follows thumb CSS variables) */
+.dashboard-tonight-adjust-range-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--tonight-sleep-pct);
+  width: max(0%, calc(var(--tonight-wake-pct) - var(--tonight-sleep-pct)));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-sleep) 62%, transparent);
+  pointer-events: none;
+  z-index: 2;
+}
+
 .dashboard-tonight-adjust-recommended-window {
   position: absolute;
   top: 0;
@@ -1329,6 +1342,7 @@ body{
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  z-index: 1;
 }
 
 .dashboard-tonight-adjust-recommended-text {
@@ -1412,6 +1426,14 @@ body{
 }
 
 .dashboard-tonight-adjust-slider input[type="range"]#dashboard-tonight-wake-slider {
+  z-index: 3;
+}
+
+.dashboard-tonight-adjust-slider input[type="range"]#quick-add-sleep-slider {
+  z-index: 2;
+}
+
+.dashboard-tonight-adjust-slider input[type="range"]#quick-add-wake-slider {
   z-index: 3;
 }
 
@@ -3917,64 +3939,181 @@ svg {
   color: var(--color-warning);
 }
 
-/* Dashboard quick add */
-.quick-add-fab {
-  position: fixed;
-  right: 24px;
-  bottom: 24px;
-  z-index: 220;
-  border: 0;
-  border-radius: 999px;
-  background: var(--color-bed);
-  color: #fff;
-  font-weight: 700;
-  padding: 12px 16px;
-  cursor: pointer;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
-}
-
-.quick-add-modal {
-  position: fixed;
-  inset: 0;
-  z-index: 230;
-  display: grid;
-  place-items: center;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.12s ease;
-}
-
-.quick-add-modal.is-open {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.quick-add-backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-}
-
-.quick-add-dialog {
-  position: relative;
-  width: min(560px, calc(100vw - 32px));
-  max-height: calc(100vh - 40px);
-  overflow: auto;
-  background: var(--panel);
-  color: var(--text);
-  border-radius: var(--panel-radius);
+/* Dashboard quick add — pull-down drawer under nav */
+.quick-add-drawer {
+  margin: 0 0 var(--space-3) 0;
   border: 1px solid var(--panel-border-color);
+  border-radius: var(--panel-radius);
+  background: var(--panel);
   box-shadow: var(--panel-shadow);
-  padding: var(--space-4);
+  overflow: hidden;
 }
 
-.quick-add-title {
-  margin-top: 0;
+.quick-add-drawer-shell {
+  display: grid;
+  grid-template-rows: auto 0fr;
+  transition: grid-template-rows 0.38s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.quick-add-drawer.is-expanded .quick-add-drawer-shell {
+  grid-template-rows: auto 1fr;
+}
+
+.quick-add-drawer-handle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  margin: 0;
+  padding: 10px 12px 12px;
+  border: none;
+  border-bottom: 1px solid transparent;
+  background: color-mix(in srgb, var(--panel) 92%, var(--bar));
+  color: var(--text);
+  font: inherit;
+  cursor: grab;
+  touch-action: none;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.quick-add-drawer.is-expanded .quick-add-drawer-handle {
+  border-bottom-color: var(--panel-border-color);
+}
+
+.quick-add-drawer-handle:hover {
+  background: var(--hover-bg);
+}
+
+.quick-add-drawer-handle:active {
+  cursor: grabbing;
+}
+
+.quick-add-drawer-grip {
+  width: 40px;
+  height: 5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text) 28%, transparent);
+  opacity: 0.9;
+}
+
+.quick-add-drawer-label {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.quick-add-drawer-hint {
+  font-size: 0.72rem;
+  opacity: 0.6;
+  font-weight: 500;
+}
+
+.quick-add-drawer-body {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.quick-add-drawer-body-inner {
+  padding: var(--space-3) var(--space-4) var(--space-4);
+}
+
+.quick-add-alarm-pool {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: var(--space-2) 0 4px;
+  flex-wrap: wrap;
+  max-width: min(26rem, 100%);
+}
+
+.quick-add-alarm-chip {
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  padding: 2px;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.quick-add-alarm-chip:active {
+  cursor: grabbing;
+}
+
+.quick-add-alarm-hint-text {
+  font-size: 0.78rem;
+  opacity: 0.78;
+  line-height: 1.35;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.quick-add-adjust-slider .quick-add-alarm-marker {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 8;
+}
+
+.quick-add-adjust-slider .quick-add-alarm-marker-icon {
+  position: absolute;
+  top: -26px;
+  left: var(--quick-add-alarm-pct, 50%);
+  transform: translateX(-50%);
+  pointer-events: auto;
+  cursor: grab;
+  font-size: 1rem;
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25));
+}
+
+.quick-add-adjust-slider .quick-add-alarm-marker-icon:active {
+  cursor: grabbing;
+}
+
+.quick-add-adjust-slider .quick-add-alarm-marker-time {
+  position: absolute;
+  top: 60px;
+  left: var(--quick-add-alarm-pct, 50%);
+  transform: translateX(-50%);
+  font-size: 0.76rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  opacity: 0.9;
+  color: color-mix(in srgb, var(--color-bed) 85%, var(--text));
+}
+
+.dashboard-empty-msg {
+  margin: var(--space-2) 0;
+}
+
+.quick-add-adjust-slider.dashboard-tonight-adjust-slider {
+  padding-bottom: 48px;
+}
+
+.quick-add-adjust-slider {
+  margin-top: 4px;
 }
 
 .quick-add-form {
   display: grid;
   gap: var(--space-2);
+}
+
+.quick-add-field-compact {
+  max-width: min(17rem, 100%);
+}
+
+.quick-add-field-compact .quick-add-label {
+  margin-bottom: 6px;
 }
 
 .quick-add-label {
@@ -3989,8 +4128,198 @@ svg {
   padding: 10px 12px;
 }
 
+.quick-add-input--date {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: 44px;
+  box-sizing: border-box;
+  padding: 0 14px;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--panel-border-color) 92%, var(--text));
+  background: color-mix(in srgb, var(--bar) 88%, var(--panel));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text) 6%, transparent);
+  color-scheme: light dark;
+}
+
+.quick-add-input--date::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.72;
+  padding: 4px;
+  margin-right: 2px;
+}
+
+.quick-add-input--date:focus {
+  outline: 2px solid color-mix(in srgb, var(--color-sleep) 45%, transparent);
+  outline-offset: 1px;
+}
+
+.quick-add-input--waso {
+  max-width: 7.5rem;
+  width: 100%;
+  height: 44px;
+  box-sizing: border-box;
+}
+
 .quick-add-advanced {
   margin-top: var(--space-2);
+}
+
+.quick-add-advanced-blocks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+  max-width: min(22rem, 100%);
+}
+
+.quick-add-adv-row .quick-add-label {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.quick-add-nap-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+  max-width: min(28rem, 100%);
+}
+
+.quick-add-nap-pair .quick-add-input {
+  min-width: 0;
+}
+
+.quick-add-time-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.quick-add-time-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.quick-add-time-row--nap {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.quick-add-sublabel {
+  display: block;
+  font-size: 0.8rem;
+  opacity: 0.78;
+  margin-bottom: 4px;
+}
+
+.quick-add-time-spin {
+  display: flex;
+  flex-direction: column;
+  width: 32px;
+  height: 44px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--panel-border-color);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--panel);
+}
+
+.quick-add-time-spin-btn {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.5rem;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.quick-add-time-spin-btn + .quick-add-time-spin-btn {
+  border-top: 1px solid var(--panel-border-color);
+}
+
+.quick-add-time-spin-btn:hover {
+  background: var(--hover-bg);
+}
+
+.quick-add-time-spin-btn:active {
+  background: color-mix(in srgb, var(--hover-bg) 70%, var(--text));
+}
+
+.quick-add-time-native {
+  min-width: 0;
+  width: 100%;
+  margin: 0;
+  height: 44px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 0.92rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.quick-add-time-remove {
+  box-sizing: border-box;
+  width: 36px;
+  height: 44px;
+  min-width: 36px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--panel-border-color);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-size: 1.15rem;
+  font-weight: 400;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+
+.quick-add-time-remove:hover {
+  background: var(--hover-bg);
+}
+
+.quick-add-time-add-btn {
+  margin-top: 10px;
+  align-self: flex-start;
+  padding: 6px 12px;
+  border: 1px dashed var(--panel-border-color);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  opacity: 0.92;
+}
+
+.quick-add-time-add-btn:hover {
+  background: var(--hover-bg);
+  border-style: solid;
 }
 
 .quick-add-status {
