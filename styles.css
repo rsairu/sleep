@@ -1297,6 +1297,7 @@ body{
 }
 
 .dashboard-tonight-adjust-slider {
+  --tonight-bed-pct: 30%;
   --tonight-sleep-pct: 40%;
   --tonight-wake-pct: 60%;
   --tonight-mid-pct: 50%;
@@ -1371,6 +1372,10 @@ body{
   left: var(--tonight-wake-pct);
 }
 
+.dashboard-tonight-adjust-thumb-icon--bed {
+  left: var(--tonight-bed-pct);
+}
+
 .dashboard-tonight-adjust-slider input[type="range"] {
   position: absolute;
   left: 0;
@@ -1427,6 +1432,10 @@ body{
 
 .dashboard-tonight-adjust-slider input[type="range"]#dashboard-tonight-wake-slider {
   z-index: 3;
+}
+
+.dashboard-tonight-adjust-slider input[type="range"]#quick-add-bed-slider {
+  z-index: 1;
 }
 
 .dashboard-tonight-adjust-slider input[type="range"]#quick-add-sleep-slider {
@@ -4018,6 +4027,7 @@ svg {
   padding: var(--space-3) var(--space-4) var(--space-4);
 }
 
+.quick-add-dnd-pool,
 .quick-add-alarm-pool {
   display: flex;
   align-items: center;
@@ -4060,7 +4070,7 @@ svg {
   top: 0;
   bottom: 0;
   pointer-events: none;
-  z-index: 8;
+  z-index: 9;
 }
 
 .quick-add-adjust-slider .quick-add-alarm-marker-icon {
@@ -4087,8 +4097,60 @@ svg {
   font-size: 0.76rem;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  opacity: 0.9;
-  color: color-mix(in srgb, var(--color-bed) 85%, var(--text));
+  opacity: 0.92;
+  color: var(--text);
+}
+
+.quick-add-bathroom-markers {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 7;
+}
+
+.quick-add-bathroom-marker-item {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.quick-add-bathroom-marker-icon {
+  position: absolute;
+  top: -26px;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: auto;
+  cursor: grab;
+  font-size: 1rem;
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25));
+}
+
+.quick-add-bathroom-marker-icon:active {
+  cursor: grabbing;
+}
+
+.quick-add-bathroom-marker-time {
+  position: absolute;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.76rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  opacity: 0.92;
+  color: var(--color-bath);
+}
+
+.quick-add-bed-thumb-label {
+  top: 60px;
+  left: var(--tonight-bed-pct);
+  color: var(--color-bed);
 }
 
 .dashboard-empty-msg {
@@ -4096,7 +4158,7 @@ svg {
 }
 
 .quick-add-adjust-slider.dashboard-tonight-adjust-slider {
-  padding-bottom: 48px;
+  padding-bottom: 58px;
 }
 
 .quick-add-adjust-slider {
