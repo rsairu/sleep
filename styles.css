@@ -228,6 +228,47 @@ body{
   justify-self: center;
 }
 
+.nav-data-source-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  padding: 0;
+  border: 1px solid transparent;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.nav-data-source-badge-icon {
+  font-size: 0.9rem;
+}
+
+.nav-data-source-badge--cloud {
+  background: rgba(52, 211, 153, 0.12);
+  border-color: rgba(52, 211, 153, 0.42);
+  color: #6ee7b7;
+}
+
+.nav-data-source-badge--local {
+  background: rgba(148, 163, 184, 0.14);
+  border-color: rgba(148, 163, 184, 0.45);
+  color: #cbd5e1;
+}
+
+[data-theme="day"] .nav-data-source-badge--cloud {
+  background: rgba(5, 150, 105, 0.12);
+  border-color: rgba(5, 150, 105, 0.35);
+  color: #065f46;
+}
+
+[data-theme="day"] .nav-data-source-badge--local {
+  background: rgba(71, 85, 105, 0.1);
+  border-color: rgba(71, 85, 105, 0.28);
+  color: #334155;
+}
+
 .nav-header--remaining-wake .nav-right {
   justify-self: end;
 }
@@ -3831,5 +3872,140 @@ svg {
 .about-phase-range {
   opacity: 0.9;
   font-size: 0.9em;
+}
+
+/* Cloud sync settings */
+.supabase-config-card {
+  background: var(--panel);
+  border: 1px solid var(--panel-border-color);
+  border-radius: var(--panel-radius);
+  box-shadow: var(--panel-shadow);
+  padding: var(--space-4);
+  margin-top: var(--space-3);
+}
+
+.supabase-config-label {
+  display: block;
+  margin-top: var(--space-3);
+  margin-bottom: var(--space-1);
+  font-size: 0.92rem;
+  opacity: 0.9;
+}
+
+.supabase-config-input {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--panel-border-color);
+  background: var(--bar);
+  color: var(--text);
+  padding: 10px 12px;
+  box-sizing: border-box;
+}
+
+.supabase-config-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.supabase-config-status {
+  margin-top: var(--space-2);
+  min-height: 1.3em;
+}
+
+.supabase-config-status--error {
+  color: var(--color-warning);
+}
+
+/* Dashboard quick add */
+.quick-add-fab {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 220;
+  border: 0;
+  border-radius: 999px;
+  background: var(--color-bed);
+  color: #fff;
+  font-weight: 700;
+  padding: 12px 16px;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+.quick-add-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 230;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+
+.quick-add-modal.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.quick-add-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.quick-add-dialog {
+  position: relative;
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  background: var(--panel);
+  color: var(--text);
+  border-radius: var(--panel-radius);
+  border: 1px solid var(--panel-border-color);
+  box-shadow: var(--panel-shadow);
+  padding: var(--space-4);
+}
+
+.quick-add-title {
+  margin-top: 0;
+}
+
+.quick-add-form {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.quick-add-label {
+  font-size: 0.92rem;
+}
+
+.quick-add-input {
+  border-radius: 10px;
+  border: 1px solid var(--panel-border-color);
+  background: var(--bar);
+  color: var(--text);
+  padding: 10px 12px;
+}
+
+.quick-add-advanced {
+  margin-top: var(--space-2);
+}
+
+.quick-add-status {
+  min-height: 1.2em;
+  margin: 0;
+}
+
+.quick-add-status--error {
+  color: var(--color-warning);
+}
+
+.quick-add-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
 }
 

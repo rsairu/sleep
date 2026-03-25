@@ -3,7 +3,7 @@
 
 const qualityContainer = document.getElementById('quality-container');
 if (qualityContainer) {
-  fetch('sleep-data.json').then(r => r.json())
+  loadSleepData()
     .then((sleepData) => {
       const flagMap = buildFlagCountMap(sleepData.days);
       const latestDataDate = getLatestDataDate(sleepData.days, YEAR);

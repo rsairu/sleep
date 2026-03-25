@@ -1399,7 +1399,7 @@ function toggleWeek(weekId) {
 // Load and render data (only on timeline page when #days-container exists)
 const daysContainer = document.getElementById('days-container');
 if (daysContainer) {
-  fetch(DATA_FILES.sleep).then(response => response.json())
+  loadSleepData()
     .then((sleepData) => {
 
       const legendControlsEl = document.getElementById('timeline-legend-controls');

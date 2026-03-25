@@ -492,7 +492,7 @@ function updateComparison(monthIndex, comparisonIndex, allMonthStats) {
 
 // Load and render stats
 Promise.all([
-  fetch('sleep-data.json').then(response => response.json())
+  loadSleepData()
 ])
   .then(([data]) => {
     const months = groupDaysByMonth(data.days);

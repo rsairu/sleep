@@ -2,6 +2,7 @@
   "name": "sleep-proj",
   "private": true,
   "scripts": {
-    "new-day": "node scripts/new-day.js"
+    "new-day": "node scripts/new-day.js",
+    "migrate-supabase": "node scripts/migrate-json-to-supabase.js"
   }
 }

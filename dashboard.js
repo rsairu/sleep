@@ -465,7 +465,8 @@ function renderDashboard7DayGraphs(days) {
 }
 
 let dashboardResizeRenderBound = false;
-function bindDashboardResponsiveRerender(days) {
+let dashboardCurrentDays = [];
+function bindDashboardResponsiveRerender() {
   if (dashboardResizeRenderBound) return;
   dashboardResizeRenderBound = true;
 
@@ -473,41 +474,57 @@ function bindDashboardResponsiveRerender(days) {
   window.addEventListener('resize', () => {
     if (resizeTimer) clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
-      renderDashboard7DayGraphs(days);
+      renderDashboard7DayGraphs(dashboardCurrentDays);
     }, 120);
   });
 }
 
 // --- Dashboard bootstrap ---
 const dashboardContainer = document.getElementById('dashboard-container');
-if (dashboardContainer) {
-  fetch('sleep-data.json').then(r => r.json())
+function renderDashboardFromData(sleepData) {
+  dashboardCurrentDays = Array.isArray(sleepData.days) ? sleepData.days : [];
+  dashboardContainer.innerHTML = renderDashboardContent(dashboardCurrentDays);
+  if (typeof initDeviationFlagChips === 'function') initDeviationFlagChips();
+  renderDashboard7DayGraphs(dashboardCurrentDays);
+  bindDashboardResponsiveRerender();
+
+  const recentDays = dashboardCurrentDays.slice(0, Math.min(7, dashboardCurrentDays.length));
+  if (recentDays.length > 0 && typeof initDashboardTonightAdjuster === 'function' && typeof getRemainingWakeDisplayFromBasis === 'function' && typeof updateRemainingWakeNav === 'function') {
+    const recentAverages = calculateAverages(recentDays);
+    const baseWakeWindowMins = durationMinutes(recentAverages.avgSleepEnd, recentAverages.avgSleepStart);
+    initDashboardTonightAdjuster(recentAverages, function (projection) {
+      const basis = {
+        avgSleepStart: projection.sleepTarget,
+        avgSleepEnd: recentAverages.avgSleepEnd,
+        totalWakeMins: baseWakeWindowMins
+      };
+      updateRemainingWakeNav(getRemainingWakeDisplayFromBasis(basis));
+    });
+  }
+
+  if (typeof getRemainingWakeDisplayFromDays === 'function' && typeof updateRemainingWakeNav === 'function') {
+    updateRemainingWakeNav(getRemainingWakeDisplayFromDays(dashboardCurrentDays));
+  }
+}
+
+function loadDashboardData() {
+  return loadSleepData()
     .then((sleepData) => {
-      dashboardContainer.innerHTML = renderDashboardContent(sleepData.days);
-      if (typeof initDeviationFlagChips === 'function') initDeviationFlagChips();
-      renderDashboard7DayGraphs(sleepData.days);
-      bindDashboardResponsiveRerender(sleepData.days);
-
-      const recentDays = sleepData.days.slice(0, Math.min(7, sleepData.days.length));
-      if (recentDays.length > 0 && typeof initDashboardTonightAdjuster === 'function' && typeof getRemainingWakeDisplayFromBasis === 'function' && typeof updateRemainingWakeNav === 'function') {
-        const recentAverages = calculateAverages(recentDays);
-        const baseWakeWindowMins = durationMinutes(recentAverages.avgSleepEnd, recentAverages.avgSleepStart);
-        initDashboardTonightAdjuster(recentAverages, function (projection) {
-          const basis = {
-            avgSleepStart: projection.sleepTarget,
-            avgSleepEnd: recentAverages.avgSleepEnd,
-            totalWakeMins: baseWakeWindowMins
-          };
-          updateRemainingWakeNav(getRemainingWakeDisplayFromBasis(basis));
+      renderDashboardFromData(sleepData);
+      if (typeof initQuickAddEntryModal === 'function') {
+        initQuickAddEntryModal({
+          onSaved: function () {
+            return loadDashboardData();
+          }
         });
-      }
-
-      if (typeof getRemainingWakeDisplayFromDays === 'function' && typeof updateRemainingWakeNav === 'function') {
-        updateRemainingWakeNav(getRemainingWakeDisplayFromDays(sleepData.days));
       }
     })
     .catch(error => {
       console.error('Error loading dashboard data:', error);
       dashboardContainer.innerHTML = '<p>Error loading data.</p>';
     });
+}
+
+if (dashboardContainer) {
+  loadDashboardData();
 }
