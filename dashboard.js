@@ -505,6 +505,8 @@ function renderDashboardFromData(sleepData) {
   if (typeof getRemainingWakeDisplayFromDays === 'function' && typeof updateRemainingWakeNav === 'function') {
     updateRemainingWakeNav(getRemainingWakeDisplayFromDays(dashboardCurrentDays));
   }
+
+  if (typeof wireQuickAddDrawerSliders === 'function') wireQuickAddDrawerSliders();
 }
 
 function loadDashboardData() {
@@ -517,6 +519,8 @@ function loadDashboardData() {
             return loadDashboardData();
           }
         });
+      } else if (typeof wireQuickAddDrawerSliders === 'function') {
+        wireQuickAddDrawerSliders();
       }
     })
     .catch(error => {

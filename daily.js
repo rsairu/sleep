@@ -945,6 +945,173 @@ function clampTonightProjectionNorms(base, sleepNorm, wakeNorm) {
   return { sleepNorm: clampedSleep, wakeNorm: clampedWake };
 }
 
+/** Default “recent average” when there is no history (minutes from midnight). */
+const QUICK_ADD_FALLBACK_AVERAGES = {
+  avgSleepStart: 22 * 60 + 30,
+  avgSleepEnd: 7 * 60,
+  avgSleepDuration: Math.round(8.5 * 60),
+  avgLongestUninterrupted: Math.round(7.5 * 60),
+  avgFirstAlarmToWake: null
+};
+
+/** Average bed time on the same extended axis as sleep (for slider init). */
+function averageBedClockNormalizedMinutes(recentDays) {
+  if (!recentDays || recentDays.length === 0) {
+    return normalizeTimeForAveraging(22 * 60 + 8);
+  }
+  let sum = 0;
+  recentDays.forEach(function (d) {
+    sum += normalizeTimeForAveraging(timeToMinutes(d.bed));
+  });
+  return Math.round(sum / recentDays.length);
+}
+
+function getQuickAddInitialBedNorm(base, sleepNorm, recentDays) {
+  const g = TONIGHT_ADJUST_MIN_GAP_MINUTES;
+  const rec = averageBedClockNormalizedMinutes(recentDays);
+  const maxBed = sleepNorm - g;
+  let b = rec;
+  if (b > maxBed) b = maxBed;
+  if (b < base.scopeStartNorm) b = base.scopeStartNorm;
+  return b;
+}
+
+function getQuickAddSliderProjection(recentAverages, recentDays) {
+  const base = getTonightProjectionBaseState(recentAverages);
+  const sleepNorm = base.recommendedSleepNorm;
+  const wakeNorm = base.recommendedWakeNorm;
+  const clamped = clampTonightProjectionNorms(base, sleepNorm, wakeNorm);
+  const scopeSpan = base.scopeEndNorm - base.scopeStartNorm;
+  const sleepPct = ((clamped.sleepNorm - base.scopeStartNorm) / scopeSpan) * 100;
+  const wakePct = ((clamped.wakeNorm - base.scopeStartNorm) / scopeSpan) * 100;
+  const bedNorm = getQuickAddInitialBedNorm(base, clamped.sleepNorm, recentDays || []);
+  const bedPct = ((bedNorm - base.scopeStartNorm) / scopeSpan) * 100;
+  const recStartPct = ((base.recommendedSleepNorm - base.scopeStartNorm) / scopeSpan) * 100;
+  const recEndPct = ((base.recommendedWakeNorm - base.scopeStartNorm) / scopeSpan) * 100;
+  const sleepClock = modMinutes1440(clamped.sleepNorm);
+  const wakeClock = modMinutes1440(clamped.wakeNorm);
+  const bedClock = modMinutes1440(bedNorm);
+  return {
+    base,
+    bedNorm,
+    sleepNorm: clamped.sleepNorm,
+    wakeNorm: clamped.wakeNorm,
+    bedClock,
+    sleepClock,
+    wakeClock,
+    bedPct,
+    sleepPct,
+    wakePct,
+    recStartPct,
+    recEndPct,
+    midPct: (sleepPct + wakePct) / 2
+  };
+}
+
+function renderQuickAddDrawer(recentAverages, recentDays) {
+  const proj = getQuickAddSliderProjection(recentAverages, recentDays);
+  const base = proj.base;
+  return `
+    <div class="quick-add-drawer" id="quick-add-drawer">
+      <div class="quick-add-drawer-shell">
+        <button type="button" class="quick-add-drawer-handle" id="quick-add-drawer-handle" aria-expanded="false" aria-controls="quick-add-drawer-body">
+          <span class="quick-add-drawer-grip" aria-hidden="true"></span>
+          <span class="quick-add-drawer-label">Log night</span>
+          <span class="quick-add-drawer-hint" aria-hidden="true">Pull down or tap</span>
+        </button>
+        <div class="quick-add-drawer-body" id="quick-add-drawer-body">
+          <div class="quick-add-drawer-body-inner">
+            <form id="quick-add-form" class="quick-add-form" data-initial-bed-norm="${proj.bedNorm}" data-initial-sleep-norm="${proj.sleepNorm}" data-initial-wake-norm="${proj.wakeNorm}">
+              <div class="quick-add-field-compact">
+                <label class="quick-add-label" for="quick-add-date">Date</label>
+                <input class="quick-add-input quick-add-input--date" id="quick-add-date" type="date" required>
+              </div>
+              <div class="quick-add-dnd-pool" aria-hidden="false">
+                <span class="quick-add-bathroom-chip" id="quick-add-bathroom-chip" role="img" aria-label="Bathroom wake">🧻</span>
+                <span class="quick-add-alarm-chip" id="quick-add-alarm-chip" role="img" aria-label="Alarm">⏰</span>
+                <span class="quick-add-alarm-hint-text">Drag 🧻 or ⏰ on / off the bar.</span>
+              </div>
+              <div
+                class="dashboard-tonight-adjust-slider quick-add-adjust-slider"
+                id="quick-add-adjust-slider"
+                style="--tonight-bed-pct:${proj.bedPct}%;--tonight-sleep-pct:${proj.sleepPct}%;--tonight-wake-pct:${proj.wakePct}%;--tonight-mid-pct:${proj.midPct}%;--tonight-rec-start-pct:${proj.recStartPct}%;--tonight-rec-end-pct:${proj.recEndPct}%;--quick-add-alarm-pct:50%;">
+                <div class="dashboard-tonight-adjust-track">
+                  <div class="dashboard-tonight-adjust-range-fill" aria-hidden="true"></div>
+                  <div class="dashboard-tonight-adjust-recommended-window quick-add-adjust-recommended-window" aria-hidden="true"></div>
+                </div>
+                <input type="range" id="quick-add-bed-slider" min="${base.scopeStartNorm}" max="${base.scopeEndNorm}" step="1" value="${proj.bedNorm}" aria-label="Bed time">
+                <input type="range" id="quick-add-sleep-slider" min="${base.scopeStartNorm}" max="${base.scopeEndNorm}" step="1" value="${proj.sleepNorm}" aria-label="Fell asleep (saved as sleep start)">
+                <input type="range" id="quick-add-wake-slider" min="${base.scopeStartNorm}" max="${base.scopeEndNorm}" step="1" value="${proj.wakeNorm}" aria-label="Wake up">
+                <div class="dashboard-tonight-adjust-overlay" id="quick-add-adjust-overlay" aria-hidden="true"></div>
+                <div class="quick-add-bathroom-markers" id="quick-add-bathroom-markers"></div>
+                <div class="quick-add-alarm-marker" id="quick-add-alarm-marker" hidden>
+                  <span class="quick-add-alarm-marker-icon" id="quick-add-alarm-marker-icon">⏰</span>
+                  <span class="quick-add-alarm-marker-time" id="quick-add-alarm-marker-time"></span>
+                </div>
+                <div class="dashboard-tonight-adjust-thumb-icon dashboard-tonight-adjust-thumb-icon--bed quick-add-bed-thumb-icon" aria-hidden="true">🛏️</div>
+                <div class="dashboard-tonight-adjust-thumb-icon dashboard-tonight-adjust-thumb-icon--sleep" aria-hidden="true">🌙</div>
+                <div class="dashboard-tonight-adjust-thumb-icon dashboard-tonight-adjust-thumb-icon--wake" aria-hidden="true">🌅</div>
+                <div class="dashboard-tonight-adjust-thumb-label quick-add-bed-thumb-label" id="quick-add-bed-thumb-label">${formatTime(proj.bedClock)}</div>
+                <div class="dashboard-tonight-adjust-thumb-label dashboard-tonight-adjust-thumb-label--sleep" id="quick-add-sleep-thumb-label">${formatTime(proj.sleepClock)}</div>
+                <div class="dashboard-tonight-adjust-thumb-label dashboard-tonight-adjust-thumb-label--wake" id="quick-add-wake-thumb-label">${formatTime(proj.wakeClock)}</div>
+              </div>
+              <details class="quick-add-advanced">
+                <summary>Advanced fields (optional)</summary>
+                <div class="quick-add-advanced-blocks">
+                  <div class="quick-add-adv-row">
+                    <span class="quick-add-label" id="quick-add-bathroom-legend">Bathroom wake times</span>
+                    <div class="quick-add-time-list" id="quick-add-bathroom-list" aria-labelledby="quick-add-bathroom-legend"></div>
+                    <button type="button" class="quick-add-time-add-btn" id="quick-add-bathroom-add">+ Add time</button>
+                  </div>
+                  <div class="quick-add-adv-row">
+                    <span class="quick-add-label" id="quick-add-alarm-adv-legend">Alarm times</span>
+                    <div class="quick-add-time-list" id="quick-add-alarm-adv-list" aria-labelledby="quick-add-alarm-adv-legend"></div>
+                    <button type="button" class="quick-add-time-add-btn" id="quick-add-alarm-adv-add">+ Add time</button>
+                  </div>
+                  <div class="quick-add-adv-row">
+                    <span class="quick-add-label" id="quick-add-nap-legend">Nap</span>
+                    <div class="quick-add-nap-pair">
+                      <div>
+                        <span class="quick-add-sublabel">Start</span>
+                        <div class="quick-add-time-row quick-add-time-row--nap">
+                          <input class="quick-add-input quick-add-time-native" id="quick-add-nap-start" type="time" step="60" value="" aria-labelledby="quick-add-nap-legend" aria-label="Nap start">
+                          <div class="quick-add-time-spin">
+                            <button type="button" class="quick-add-time-spin-btn quick-add-time-spin-btn--up" aria-label="Nap start one minute later">▲</button>
+                            <button type="button" class="quick-add-time-spin-btn quick-add-time-spin-btn--down" aria-label="Nap start one minute earlier">▼</button>
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <span class="quick-add-sublabel">End</span>
+                        <div class="quick-add-time-row quick-add-time-row--nap">
+                          <input class="quick-add-input quick-add-time-native" id="quick-add-nap-end" type="time" step="60" value="" aria-labelledby="quick-add-nap-legend" aria-label="Nap end">
+                          <div class="quick-add-time-spin">
+                            <button type="button" class="quick-add-time-spin-btn quick-add-time-spin-btn--up" aria-label="Nap end one minute later">▲</button>
+                            <button type="button" class="quick-add-time-spin-btn quick-add-time-spin-btn--down" aria-label="Nap end one minute earlier">▼</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="quick-add-adv-row quick-add-adv-row--waso">
+                    <label class="quick-add-label" for="quick-add-waso">WASO count</label>
+                    <input class="quick-add-input quick-add-input--waso" id="quick-add-waso" type="number" min="0" step="1" value="0">
+                  </div>
+                </div>
+              </details>
+              <p class="quick-add-status" id="quick-add-status"></p>
+              <div class="quick-add-actions">
+                <button type="button" class="about-theme-option" id="quick-add-cancel">Cancel</button>
+                <button type="submit" class="about-theme-option" id="quick-add-save">Save</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function getTonightProjectionState(recentAverages) {
   const base = getTonightProjectionBaseState(recentAverages);
   const override = typeof getTonightProjectionAdjustment === 'function' ? getTonightProjectionAdjustment() : null;
@@ -1028,6 +1195,7 @@ function renderDashboardProjection(recentAverages) {
             id="dashboard-tonight-adjust-slider"
             style="--tonight-sleep-pct:${projection.sleepPct}%;--tonight-wake-pct:${projection.wakePct}%;--tonight-mid-pct:${(projection.sleepPct + projection.wakePct) / 2}%;--tonight-rec-start-pct:${projection.recStartPct}%;--tonight-rec-end-pct:${projection.recEndPct}%;">
             <div class="dashboard-tonight-adjust-track">
+              <div class="dashboard-tonight-adjust-range-fill" aria-hidden="true"></div>
               <div class="dashboard-tonight-adjust-recommended-window" aria-hidden="true">
                 <span class="dashboard-tonight-adjust-recommended-text">recent average</span>
               </div>
@@ -1234,11 +1402,21 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
 // Render dashboard content: projection, recent average, lifetime average, recent nights (timeline rows), sleep quality history.
 // Used by dashboard.html; kept here to share calculation/render helpers.
 function renderDashboardContent(days) {
+  const recentDays = days && days.length
+    ? days.slice(0, Math.min(7, days.length))
+    : [];
+  const recentAverages = recentDays.length
+    ? calculateAverages(recentDays)
+    : QUICK_ADD_FALLBACK_AVERAGES;
+  const quickAddDrawerHtml = renderQuickAddDrawer(recentAverages, recentDays);
+
   if (!days || days.length === 0) {
-    return '<p>No sleep data yet.</p>';
+    return `
+    <div class="dashboard-content">
+      ${quickAddDrawerHtml}
+      <p class="dashboard-empty-msg">No sleep data yet.</p>
+    </div>`;
   }
-  const recentDays = days.slice(0, Math.min(7, days.length));
-  const recentAverages = calculateAverages(recentDays);
 
   const flagMap = buildFlagCountMap(days);
   const latestDataDate = getLatestDataDate(days, YEAR);
@@ -1272,6 +1450,7 @@ function renderDashboardContent(days) {
 
   return `
     <div class="dashboard-content">
+      ${quickAddDrawerHtml}
       <div class="dashboard-top-row">
         <div class="dashboard-top-col dashboard-top-col--tonight">
           ${renderDashboardProjection(recentAverages)}
