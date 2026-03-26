@@ -656,7 +656,29 @@ const SUNSET_MINUTES = 18 * 60;
 const THEME_OVERRIDE_KEY = 'sleep-app-theme-override';
 const REMAINING_WAKE_THRESHOLDS_KEY = 'sleep-app-remaining-wake-thresholds';
 const CLOCK_FORMAT_KEY = 'sleep-app-clock-format';
+const QUALITY_PALETTE_KEY = 'sleep-app-quality-palette';
 const TONIGHT_PROJECTION_ADJUSTMENT_KEY = 'sleep-app-tonight-projection-adjustment';
+
+// Six-step ramps (best → worst). Tiers 4–6 map to severity flags (slight / moderate / severe); 1–3 reserved for future use.
+const QUALITY_PALETTES = {
+  meadow: {
+    label: 'Meadow',
+    colors: ['#2a9641', '#6da035', '#b0aa28', '#ca8a04', '#b45309', '#7f1d1d']
+  },
+  harbor: {
+    label: 'Harbor',
+    colors: ['#3db0a4', '#2f8f82', '#8fb88a', '#bdb14a', '#8f5f50', '#42202e']
+  }
+};
+
+const QUALITY_PALETTE_CSS_VARS = [
+  '--quality-excellent',
+  '--quality-great',
+  '--quality-good',
+  '--quality-slight',
+  '--quality-moderate',
+  '--quality-severe'
+];
 
 // Default remaining wake phase thresholds (percent of wake time remaining): open >= openMin, winding >= windingMin, presleep < windingMin.
 const DEFAULT_REMAINING_WAKE_OPEN_MIN = 35;
@@ -731,6 +753,75 @@ function setClockFormatPreference(format) {
   try {
     localStorage.setItem(CLOCK_FORMAT_KEY, format);
   } catch (_) {}
+}
+
+function getQualityPaletteId() {
+  try {
+    const v = localStorage.getItem(QUALITY_PALETTE_KEY);
+    if (v === 'meadow' || v === 'harbor') return v;
+  } catch (_) {}
+  return 'meadow';
+}
+
+function setQualityPaletteId(id) {
+  if (id !== 'meadow' && id !== 'harbor') return;
+  try {
+    localStorage.setItem(QUALITY_PALETTE_KEY, id);
+  } catch (_) {}
+}
+
+function applyQualityPaletteToDocument() {
+  const id = getQualityPaletteId();
+  const pal = QUALITY_PALETTES[id];
+  if (!pal || pal.colors.length !== 6) return;
+  const root = document.documentElement;
+  for (let i = 0; i < 6; i++) {
+    root.style.setProperty(QUALITY_PALETTE_CSS_VARS[i], pal.colors[i]);
+  }
+}
+
+function hydrateQualityPalettePreviewBars() {
+  const wrap = document.getElementById('config-quality-palette');
+  if (!wrap) return;
+  wrap.querySelectorAll('[data-quality-palette]').forEach(function (btn) {
+    const pid = btn.getAttribute('data-quality-palette');
+    const pal = QUALITY_PALETTES[pid];
+    const bar = btn.querySelector('.config-quality-palette-bar');
+    if (!pal || !bar) return;
+    bar.innerHTML = pal.colors
+      .map(function (c) {
+        return '<span style="background-color:' + c + '"></span>';
+      })
+      .join('');
+  });
+}
+
+function updateQualityPaletteSelector() {
+  const wrap = document.getElementById('config-quality-palette');
+  if (!wrap) return;
+  const selected = getQualityPaletteId();
+  wrap.querySelectorAll('[data-quality-palette]').forEach(function (btn) {
+    const on = btn.getAttribute('data-quality-palette') === selected;
+    btn.classList.toggle('active', on);
+    btn.setAttribute('aria-pressed', on);
+  });
+}
+
+function initQualityPaletteSelector() {
+  hydrateQualityPalettePreviewBars();
+  updateQualityPaletteSelector();
+  const wrap = document.getElementById('config-quality-palette');
+  if (!wrap) return;
+  wrap.addEventListener('click', function (e) {
+    const btn = e.target.closest('[data-quality-palette]');
+    if (!btn) return;
+    const id = btn.getAttribute('data-quality-palette');
+    if (!QUALITY_PALETTES[id]) return;
+    setQualityPaletteId(id);
+    applyQualityPaletteToDocument();
+    updateQualityPaletteSelector();
+    document.dispatchEvent(new CustomEvent('quality-palette-changed', { detail: { palette: id } }));
+  });
 }
 
 // Effective theme: override if set, otherwise from time
@@ -1079,7 +1170,7 @@ function snapPercentTo1(frac) {
 
 /** Markup for the default-values control + bar/sliders (Settings and About). `ariaLabelledBy` is the id of the visible section heading. */
 function getRemainingWakeThresholdsControlHTML(ariaLabelledBy) {
-  const labelId = ariaLabelledBy || 'remaining-wake-thresholds';
+  const labelId = ariaLabelledBy || 'remaining-wake';
   return (
     '<p class="config-remaining-wake-default-row">' +
       '<button type="button" class="config-rw-defaults-button" id="config-rw-use-defaults">Use default values <span class="config-rw-default-values"></span></button>' +
@@ -1252,6 +1343,7 @@ function syncDevBannerFixedLayout() {
 
 // Initializes day/night theme, click handler, and timer to re-check (when in auto mode)
 function initDayNightTheme() {
+  applyQualityPaletteToDocument();
   applyDayNightTheme();
   updateDayNightIcon();
   updateDataSourceBadge();
