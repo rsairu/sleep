@@ -20,9 +20,12 @@
   <script src="sleep-utils.js"></script>
   <script src="daily.js"></script>
   <script>
-    document.getElementById('nav-container').innerHTML = renderNavBar('timeline');
-    initDayNightTheme();
-    initRemainingWakeNav();
+    (async function initDailyPage() {
+      await initI18n(document);
+      document.getElementById('nav-container').innerHTML = renderNavBar('timeline');
+      initDayNightTheme();
+      initRemainingWakeNav();
+    })();
   </script>
 </body>
 </html>

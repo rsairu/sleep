@@ -105,9 +105,12 @@
   <script src="sleep-utils.js"></script>
   <script src="graph.js"></script>
   <script>
-    document.getElementById('nav-container').innerHTML = renderNavBar('graph');
-    initDayNightTheme();
-    initRemainingWakeNav();
+    (async function initGraphPage() {
+      await initI18n(document);
+      document.getElementById('nav-container').innerHTML = renderNavBar('graph');
+      initDayNightTheme();
+      initRemainingWakeNav();
+    })();
   </script>
 </body>
 </html>

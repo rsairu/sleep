@@ -22,8 +22,11 @@
   <script src="quick-actions.js"></script>
   <script src="dashboard.js"></script>
   <script>
-    document.getElementById('nav-container').innerHTML = renderNavBar('dashboard');
-    initDayNightTheme();
+    (async function initDashboardPage() {
+      await initI18n(document);
+      document.getElementById('nav-container').innerHTML = renderNavBar('dashboard');
+      initDayNightTheme();
+    })();
   </script>
 </body>
 </html>
