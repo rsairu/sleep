@@ -2,7 +2,7 @@
  * Import local sleep-data.json into Supabase table sleep_days.
  *
  * Usage:
- *   SUPABASE_URL="https://project.supabase.co" SUPABASE_ANON_KEY="..." node scripts/migrate-json-to-supabase.js
+ *   SUPABASE_URL="https://project.supabase.co" SUPABASE_ANON_KEY="..." node supabase/migrate-json-to-supabase.js
  */
 const fs = require('fs');
 const path = require('path');

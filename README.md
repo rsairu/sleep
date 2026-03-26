@@ -11,7 +11,7 @@ Restore is a lightweight sleep tracking web app for logging and visualizing slee
 - The top nav now shows a source badge (`☁️ Cloud` or `💾 Local`) so you can see at a glance where data is coming from.
 - If Supabase is not configured (or unreachable), pages read from local `sleep-data.json` as fallback.
 - One-time import from JSON to Supabase:
-  - Create table with `supabase-schema.sql`
+  - Create table with `supabase/schema.sql`
   - Run `npm run migrate-supabase` with `SUPABASE_URL` and `SUPABASE_ANON_KEY` env vars set.
 
 ---
@@ -103,14 +103,14 @@ Time is normalized as **minutes from midnight** (0–1440) everywhere, with expl
 |------|------|
 | `index.html` | Redirects to `dashboard.html` (entry point) |
 | `sleep-data.json` | Local fallback dataset (`{ days: [...] }`) and migration source |
-| `supabase-schema.sql` | SQL schema for the Supabase `sleep_days` table |
+| `supabase/schema.sql` | SQL schema for the Supabase `sleep_days` table |
 | `sleep-utils.js` | Time/date helpers, `calculateTotalSleep()`, `renderNavBar()`, `HOLIDAYS_BY_YEAR` |
 | `daily.js` | Timeline rendering, week grouping, dashboard content, deviation logic, heatmap |
 | `dashboard.js` | Fetches data and calls `renderDashboardContent()` |
 | `quality.js` | Fetches data and calls `renderCalendarHeatmapFullHistory()` for full history |
 | `graph.js` | Fetches data, regression, SVG line/bar charts |
 | `stats.js` | Monthly aggregation and stat rendering |
-| `scripts/migrate-json-to-supabase.js` | One-time import tool from local JSON to Supabase |
+| `supabase/migrate-json-to-supabase.js` | One-time import tool from local JSON to Supabase |
 | `styles.css` | Global styles and CSS variables |
 
 ---

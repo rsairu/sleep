@@ -3,6 +3,6 @@
   "private": true,
   "scripts": {
     "new-day": "node scripts/new-day.js",
-    "migrate-supabase": "node scripts/migrate-json-to-supabase.js"
+    "migrate-supabase": "node supabase/migrate-json-to-supabase.js"
   }
 }
