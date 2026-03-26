@@ -120,16 +120,64 @@ function mapSupabaseRowToDay(row) {
   };
 }
 
+/**
+ * Parse a wall-clock string to minutes from midnight (0–1439).
+ * Accepts 24-hour "HH:MM" / "H:MM" and 12-hour "h:mm AM/PM" (case-insensitive).
+ */
+function parseWallClockToMinutes(timeStr) {
+  if (timeStr == null || timeStr === '') return NaN;
+  const s = String(timeStr).trim();
+  const m12 = s.match(/^(\d{1,2}):(\d{2})\s*([AaPp][Mm])$/);
+  if (m12) {
+    let h = parseInt(m12[1], 10);
+    const min = parseInt(m12[2], 10);
+    const ap = m12[3].toUpperCase();
+    if (h < 1 || h > 12 || min < 0 || min > 59) return NaN;
+    if (ap === 'AM') {
+      h = h === 12 ? 0 : h;
+    } else {
+      h = h === 12 ? 12 : h + 12;
+    }
+    return h * 60 + min;
+  }
+  const m24 = s.match(/^(\d{1,2}):(\d{2})$/);
+  if (m24) {
+    const h = parseInt(m24[1], 10);
+    const min = parseInt(m24[2], 10);
+    if (h < 0 || h > 23 || min < 0 || min > 59) return NaN;
+    return h * 60 + min;
+  }
+  return NaN;
+}
+
+function formatMinutesTo24hString(minutes) {
+  const total = ((Math.round(Number(minutes)) % 1440) + 1440) % 1440;
+  const hours = Math.floor(total / 60);
+  const mins = total % 60;
+  return String(hours).padStart(2, '0') + ':' + String(mins).padStart(2, '0');
+}
+
+/** Canonicalize time text for Supabase (always HH:MM 24-hour). */
+function normalizeTimeStringForSupabase(timeStr) {
+  if (timeStr == null) return null;
+  if (timeStr === '') return '';
+  const m = parseWallClockToMinutes(timeStr);
+  if (!Number.isFinite(m)) return String(timeStr).trim();
+  return formatMinutesTo24hString(m);
+}
+
 function mapDayToSupabaseRow(day) {
+  const bathroom = Array.isArray(day.bathroom) ? day.bathroom.map(normalizeTimeStringForSupabase) : [];
+  const alarm = Array.isArray(day.alarm) ? day.alarm.map(normalizeTimeStringForSupabase) : [];
   return {
     date_md: day.date,
-    bed: day.bed,
-    sleep_start: day.sleepStart,
-    sleep_end: day.sleepEnd,
-    bathroom: Array.isArray(day.bathroom) ? day.bathroom : [],
-    alarm: Array.isArray(day.alarm) ? day.alarm : [],
-    nap_start: day.nap && day.nap.start ? day.nap.start : null,
-    nap_end: day.nap && day.nap.end ? day.nap.end : null,
+    bed: normalizeTimeStringForSupabase(day.bed),
+    sleep_start: normalizeTimeStringForSupabase(day.sleepStart),
+    sleep_end: normalizeTimeStringForSupabase(day.sleepEnd),
+    bathroom: bathroom,
+    alarm: alarm,
+    nap_start: day.nap && day.nap.start != null && day.nap.start !== '' ? normalizeTimeStringForSupabase(day.nap.start) : null,
+    nap_end: day.nap && day.nap.end != null && day.nap.end !== '' ? normalizeTimeStringForSupabase(day.nap.end) : null,
     waso: Number.isFinite(day.WASO) ? day.WASO : 0
   };
 }
@@ -280,10 +328,8 @@ function initSupabaseConfigForm() {
   });
 }
 
-// Convert HH:MM to minutes from midnight
 function timeToMinutes(time) {
-  const [hours, minutes] = time.split(':').map(Number);
-  return hours * 60 + minutes;
+  return parseWallClockToMinutes(time);
 }
 
 // Minutes between start and end, handling midnight crossover

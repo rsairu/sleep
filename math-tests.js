@@ -46,6 +46,12 @@ function runTests() {
   // Core rollover + conversion math
   expectEqual(u.timeToMinutes('00:00'), 0, 'timeToMinutes midnight');
   expectEqual(u.timeToMinutes('23:59'), 1439, 'timeToMinutes late night');
+  expectEqual(u.timeToMinutes('11:00 PM'), 23 * 60, 'timeToMinutes 11 PM');
+  expectEqual(u.timeToMinutes('10:40 PM'), 22 * 60 + 40, 'timeToMinutes 12h with space');
+  expectEqual(u.timeToMinutes('12:00 AM'), 0, 'timeToMinutes midnight 12h');
+  expectEqual(u.timeToMinutes('12:30 PM'), 12 * 60 + 30, 'timeToMinutes noon 12h');
+  expectEqual(u.normalizeTimeStringForSupabase('10:40 PM'), '22:40', 'normalizeTimeStringForSupabase 12h');
+  expectEqual(u.normalizeTimeStringForSupabase('22:45'), '22:45', 'normalizeTimeStringForSupabase already 24h');
   expectEqual(u.durationMinutes(23 * 60 + 30, 7 * 60 + 15), 465, 'durationMinutes crosses midnight');
   expectEqual(u.durationMinutes(9 * 60, 17 * 60), 480, 'durationMinutes same day');
   expectEqual(u.modMinutes1440(-1), 1439, 'modMinutes1440 negative input');
