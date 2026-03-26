@@ -1,11 +1,7 @@
-// Dashboard quick-add: pull-down drawer above Tonight, same dual-slider pattern as tonight adjuster.
+// Night entry form: document-level handlers; log page (full panel) or legacy pull-down drawer if present.
 (function () {
   let quickAddOptions = {};
   let quickAddHostBound = false;
-  let sliderWireAbort = null;
-  let quickAddAlarmNorm = null;
-  let quickAddBathroomNorms = [];
-  let bathroomMarkerDragIndex = null;
 
   function formatMonthDayFromDate(date) {
     return (date.getMonth() + 1) + '/' + date.getDate();
@@ -60,7 +56,7 @@
   function setDrawerExpanded(expanded) {
     const drawer = document.getElementById('quick-add-drawer');
     const handle = document.getElementById('quick-add-drawer-handle');
-    if (!drawer || !handle) return;
+    if (!drawer || drawer.classList.contains('quick-add-drawer--page') || !handle) return;
     drawer.classList.toggle('is-expanded', expanded);
     handle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
   }
@@ -81,14 +77,9 @@
 
   function initQuickAddDynamicTimeLists() {
     const bath = document.getElementById('quick-add-bathroom-list');
-    const alarmList = document.getElementById('quick-add-alarm-adv-list');
     if (bath) {
       bath.innerHTML = '';
       appendQuickAddTimeRow(bath);
-    }
-    if (alarmList) {
-      alarmList.innerHTML = '';
-      appendQuickAddTimeRow(alarmList);
     }
   }
 
@@ -101,71 +92,6 @@
       if (n) out.push(n);
     }
     return out;
-  }
-
-  function mergeUniqueNormalizedTimes(a, b) {
-    const seen = new Set();
-    const out = [];
-    for (let i = 0; i < a.length; i++) {
-      if (a[i] && !seen.has(a[i])) {
-        seen.add(a[i]);
-        out.push(a[i]);
-      }
-    }
-    for (let j = 0; j < b.length; j++) {
-      if (b[j] && !seen.has(b[j])) {
-        seen.add(b[j]);
-        out.push(b[j]);
-      }
-    }
-    return out;
-  }
-
-  function normsNearlyEqual(na, nb) {
-    return Math.abs(na - nb) < 2;
-  }
-
-  function renderQuickAddBathroomMarkers() {
-    const layer = document.getElementById('quick-add-bathroom-markers');
-    const sleepSlider = document.getElementById('quick-add-sleep-slider');
-    if (!layer || !sleepSlider) return;
-    const min = parseInt(sleepSlider.min, 10);
-    const max = parseInt(sleepSlider.max, 10);
-    const span = max - min;
-    layer.innerHTML = '';
-    for (let i = 0; i < quickAddBathroomNorms.length; i++) {
-      const norm = quickAddBathroomNorms[i];
-      const pct = span > 0 ? ((norm - min) / span) * 100 : 0;
-      const item = document.createElement('div');
-      item.className = 'quick-add-bathroom-marker-item';
-      item.setAttribute('data-index', String(i));
-      item.style.left = pct + '%';
-      item.innerHTML =
-        '<span class="quick-add-bathroom-marker-icon" draggable="false">🧻</span>' +
-        '<span class="quick-add-bathroom-marker-time">' + formatTime(modMinutes1440(norm)) + '</span>';
-      layer.appendChild(item);
-    }
-  }
-
-  function sortQuickAddBathroomNorms() {
-    quickAddBathroomNorms.sort(function (a, b) { return a - b; });
-  }
-
-  function updateBathroomMarkerAtIndex(idx, norm) {
-    if (idx < 0 || idx >= quickAddBathroomNorms.length) return;
-    quickAddBathroomNorms[idx] = norm;
-    const layer = document.getElementById('quick-add-bathroom-markers');
-    const sleepSlider = document.getElementById('quick-add-sleep-slider');
-    if (!layer || !sleepSlider) return;
-    const item = layer.querySelector('.quick-add-bathroom-marker-item[data-index="' + idx + '"]');
-    if (!item) return;
-    const min = parseInt(sleepSlider.min, 10);
-    const max = parseInt(sleepSlider.max, 10);
-    const span = max - min;
-    const pct = span > 0 ? ((norm - min) / span) * 100 : 0;
-    item.style.left = pct + '%';
-    const timeEl = item.querySelector('.quick-add-bathroom-marker-time');
-    if (timeEl) timeEl.textContent = formatTime(modMinutes1440(norm));
   }
 
   function quickAddStepTimeMinutes(input, deltaMinutes) {
@@ -198,10 +124,26 @@
     row.remove();
   }
 
+  function applyInitialMainTimesFromFormDataset() {
+    const form = document.getElementById('quick-add-form');
+    if (!form || !form.dataset) return;
+    const bedEl = document.getElementById('quick-add-bed');
+    const sleepEl = document.getElementById('quick-add-sleep');
+    const wakeEl = document.getElementById('quick-add-wake');
+    if (bedEl && form.dataset.initialBed) bedEl.value = form.dataset.initialBed;
+    if (sleepEl && form.dataset.initialSleep) sleepEl.value = form.dataset.initialSleep;
+    if (wakeEl && form.dataset.initialWake) wakeEl.value = form.dataset.initialWake;
+  }
+
   function resetQuickAddFormToDefaults() {
     const dateInput = document.getElementById('quick-add-date');
     if (dateInput) dateInput.value = monthDayToDateInput(formatMonthDayFromDate(new Date()));
     initQuickAddDynamicTimeLists();
+    applyInitialMainTimesFromFormDataset();
+
+    const alarmEl = document.getElementById('quick-add-alarm');
+    if (alarmEl) alarmEl.value = '';
+
     const napS = document.getElementById('quick-add-nap-start');
     const napE = document.getElementById('quick-add-nap-end');
     if (napS) napS.value = '';
@@ -209,24 +151,6 @@
     const waso = document.getElementById('quick-add-waso');
     if (waso) waso.value = '0';
     setQuickAddStatus('', false);
-
-    const bedSlider = document.getElementById('quick-add-bed-slider');
-    const sleepSlider = document.getElementById('quick-add-sleep-slider');
-    const wakeSlider = document.getElementById('quick-add-wake-slider');
-    const form = document.getElementById('quick-add-form');
-    if (bedSlider && sleepSlider && wakeSlider && form && form.dataset) {
-      const ib = parseInt(form.dataset.initialBedNorm, 10);
-      const is = parseInt(form.dataset.initialSleepNorm, 10);
-      const iw = parseInt(form.dataset.initialWakeNorm, 10);
-      if (Number.isFinite(ib)) bedSlider.value = String(ib);
-      if (Number.isFinite(is)) sleepSlider.value = String(is);
-      if (Number.isFinite(iw)) wakeSlider.value = String(iw);
-    }
-    quickAddAlarmNorm = null;
-    quickAddBathroomNorms = [];
-    updateQuickAddalarmMarkerDisplay();
-    renderQuickAddBathroomMarkers();
-    updateQuickAddSliderVisualsFromDom();
   }
 
   function closeQuickAddDrawer() {
@@ -234,390 +158,56 @@
     resetQuickAddFormToDefaults();
   }
 
-  function updateQuickAddalarmMarkerDisplay() {
-    const marker = document.getElementById('quick-add-alarm-marker');
-    const timeEl = document.getElementById('quick-add-alarm-marker-time');
-    const wrap = document.getElementById('quick-add-adjust-slider');
-    if (!marker || !timeEl || !wrap) return;
-    if (quickAddAlarmNorm === null) {
-      marker.hidden = true;
-      wrap.style.removeProperty('--quick-add-alarm-pct');
-      timeEl.textContent = '';
-      return;
-    }
-    marker.hidden = false;
-    const scopeStart = parseInt(document.getElementById('quick-add-sleep-slider').min, 10);
-    const scopeEnd = parseInt(document.getElementById('quick-add-sleep-slider').max, 10);
-    const span = scopeEnd - scopeStart;
-    const pct = span > 0 ? ((quickAddAlarmNorm - scopeStart) / span) * 100 : 50;
-    wrap.style.setProperty('--quick-add-alarm-pct', pct + '%');
-    timeEl.textContent = formatTime(modMinutes1440(quickAddAlarmNorm));
-  }
-
-  function updateQuickAddSliderVisualsFromDom() {
-    const wrap = document.getElementById('quick-add-adjust-slider');
-    const bedSlider = document.getElementById('quick-add-bed-slider');
-    const sleepSlider = document.getElementById('quick-add-sleep-slider');
-    const wakeSlider = document.getElementById('quick-add-wake-slider');
-    const bedLabel = document.getElementById('quick-add-bed-thumb-label');
-    const sleepLabel = document.getElementById('quick-add-sleep-thumb-label');
-    const wakeLabel = document.getElementById('quick-add-wake-thumb-label');
-    if (!wrap || !bedSlider || !sleepSlider || !wakeSlider || !bedLabel || !sleepLabel || !wakeLabel) return;
-
-    const min = parseInt(sleepSlider.min, 10);
-    const max = parseInt(sleepSlider.max, 10);
-    const span = max - min;
-    const bedNorm = parseInt(bedSlider.value, 10);
-    const sleepNorm = parseInt(sleepSlider.value, 10);
-    const wakeNorm = parseInt(wakeSlider.value, 10);
-    const bedPct = span > 0 ? ((bedNorm - min) / span) * 100 : 0;
-    const sleepPct = span > 0 ? ((sleepNorm - min) / span) * 100 : 0;
-    const wakePct = span > 0 ? ((wakeNorm - min) / span) * 100 : 0;
-    wrap.style.setProperty('--tonight-bed-pct', bedPct + '%');
-    wrap.style.setProperty('--tonight-sleep-pct', sleepPct + '%');
-    wrap.style.setProperty('--tonight-wake-pct', wakePct + '%');
-    wrap.style.setProperty('--tonight-mid-pct', (sleepPct + wakePct) / 2 + '%');
-    bedLabel.textContent = formatTime(modMinutes1440(bedNorm));
-    sleepLabel.textContent = formatTime(modMinutes1440(sleepNorm));
-    wakeLabel.textContent = formatTime(modMinutes1440(wakeNorm));
-    updateQuickAddalarmMarkerDisplay();
-    if (bathroomMarkerDragIndex === null) renderQuickAddBathroomMarkers();
-  }
-
   function wireQuickAddDrawerSliders() {
-    if (sliderWireAbort) sliderWireAbort.abort();
-    sliderWireAbort = new AbortController();
-    const signal = sliderWireAbort.signal;
-
-    const drawer = document.getElementById('quick-add-drawer');
-    const handle = document.getElementById('quick-add-drawer-handle');
-    const bedSlider = document.getElementById('quick-add-bed-slider');
-    const sleepSlider = document.getElementById('quick-add-sleep-slider');
-    const wakeSlider = document.getElementById('quick-add-wake-slider');
-    const sliderWrap = document.getElementById('quick-add-adjust-slider');
-    const sliderOverlay = document.getElementById('quick-add-adjust-overlay');
-    const bathroomChip = document.getElementById('quick-add-bathroom-chip');
-    const alarmChip = document.getElementById('quick-add-alarm-chip');
-    const alarmMarker = document.getElementById('quick-add-alarm-marker');
-    const alarmMarkerIcon = document.getElementById('quick-add-alarm-marker-icon');
     const form = document.getElementById('quick-add-form');
+    if (!form || !document.getElementById('quick-add-bed')) return;
+
     const dateInput = document.getElementById('quick-add-date');
-
-    if (!drawer || !handle || !bedSlider || !sleepSlider || !wakeSlider || !sliderWrap || !sliderOverlay || !form) return;
-
-    quickAddAlarmNorm = null;
-    quickAddBathroomNorms = [];
-    renderQuickAddBathroomMarkers();
     if (dateInput) dateInput.value = monthDayToDateInput(formatMonthDayFromDate(new Date()));
     initQuickAddDynamicTimeLists();
 
-    const scopeMin = parseInt(sleepSlider.min, 10);
-    const scopeMax = parseInt(sleepSlider.max, 10);
-    const baseLike = {
-      scopeStartNorm: scopeMin,
-      scopeEndNorm: scopeMax
-    };
+    const waso = document.getElementById('quick-add-waso');
+    if (waso && (waso.value === '' || waso.value === null)) waso.value = '0';
+  }
 
-    function clampPair(sleepNorm, wakeNorm, changedSide) {
-      let s = sleepNorm;
-      let w = wakeNorm;
-      if (changedSide === 'sleep' && s >= w) s = w - TONIGHT_ADJUST_MIN_GAP_MINUTES;
-      else if (changedSide === 'wake' && w <= s) w = s + TONIGHT_ADJUST_MIN_GAP_MINUTES;
-      return clampTonightProjectionNorms(baseLike, s, w);
+  function normalizedTimesToFormattedWallClock(normList) {
+    const out = [];
+    for (let i = 0; i < normList.length; i++) {
+      const m = timeToMinutes(normList[i]);
+      if (Number.isFinite(m)) out.push(formatTime(m));
     }
-
-    function syncBedSleepWake(changedSide) {
-      const g = TONIGHT_ADJUST_MIN_GAP_MINUTES;
-      let b = parseInt(bedSlider.value, 10);
-      let s = parseInt(sleepSlider.value, 10);
-      let w = parseInt(wakeSlider.value, 10);
-      if (changedSide === 'sleep' || changedSide === 'wake') {
-        const c = clampTonightProjectionNorms(baseLike, s, w);
-        s = c.sleepNorm;
-        w = c.wakeNorm;
-      }
-      if (changedSide === 'bed') {
-        b = Math.max(scopeMin, Math.min(s - g, b));
-      }
-      if (b > s - g) b = s - g;
-      b = Math.max(scopeMin, b);
-      if (s < b + g) {
-        s = b + g;
-        const c2 = clampTonightProjectionNorms(baseLike, s, w);
-        s = c2.sleepNorm;
-        w = c2.wakeNorm;
-        if (b > s - g) b = s - g;
-        b = Math.max(scopeMin, b);
-      }
-      bedSlider.value = String(b);
-      sleepSlider.value = String(s);
-      wakeSlider.value = String(w);
-      updateQuickAddSliderVisualsFromDom();
-    }
-
-    function getNormFromClientX(clientX) {
-      const rect = sliderWrap.getBoundingClientRect();
-      const frac = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-      return Math.round(scopeMin + frac * (scopeMax - scopeMin));
-    }
-
-    function pointInSliderBar(clientX, clientY) {
-      const rect = sliderWrap.getBoundingClientRect();
-      const pad = 12;
-      return clientX >= rect.left - pad && clientX <= rect.right + pad &&
-        clientY >= rect.top - pad && clientY <= rect.bottom + 36;
-    }
-
-    function elSetBed(norm) {
-      bedSlider.value = String(norm);
-      syncBedSleepWake('bed');
-    }
-    function elSetSleep(norm) {
-      sleepSlider.value = String(norm);
-      syncBedSleepWake('sleep');
-    }
-    function elSetWake(norm) {
-      wakeSlider.value = String(norm);
-      syncBedSleepWake('wake');
-    }
-
-    let dragging = null;
-    function onOverlayPointerDown(e) {
-      if (e.button !== undefined && e.button !== 0) return;
-      if (e.touches && e.touches.length > 1) return;
-      if (e.cancelable) e.preventDefault();
-      const norm = getNormFromClientX(e.touches ? e.touches[0].clientX : e.clientX);
-      const bedNorm = parseInt(bedSlider.value, 10);
-      const sleepNorm = parseInt(sleepSlider.value, 10);
-      const wakeNorm = parseInt(wakeSlider.value, 10);
-      const distB = Math.abs(norm - bedNorm);
-      const distS = Math.abs(norm - sleepNorm);
-      const distW = Math.abs(norm - wakeNorm);
-      if (distB <= distS && distB <= distW) dragging = 'bed';
-      else if (distS <= distW) dragging = 'sleep';
-      else dragging = 'wake';
-      if (dragging === 'bed') elSetBed(norm);
-      else if (dragging === 'sleep') elSetSleep(norm);
-      else elSetWake(norm);
-    }
-
-    function onOverlayPointerMove(e) {
-      if (!dragging) return;
-      if (e.cancelable) e.preventDefault();
-      const norm = getNormFromClientX(e.touches ? e.touches[0].clientX : e.clientX);
-      if (dragging === 'bed') elSetBed(norm);
-      else if (dragging === 'sleep') elSetSleep(norm);
-      else elSetWake(norm);
-    }
-
-    function onOverlayPointerUp() {
-      dragging = null;
-    }
-
-    sliderOverlay.addEventListener('mousedown', onOverlayPointerDown, { signal: signal });
-    sliderOverlay.addEventListener('touchstart', onOverlayPointerDown, { passive: false, signal: signal });
-    document.addEventListener('mousemove', onOverlayPointerMove, { signal: signal });
-    document.addEventListener('touchmove', onOverlayPointerMove, { passive: false, signal: signal });
-    document.addEventListener('mouseup', onOverlayPointerUp, { signal: signal });
-    document.addEventListener('touchend', onOverlayPointerUp, { signal: signal });
-    document.addEventListener('touchcancel', onOverlayPointerUp, { signal: signal });
-
-    bedSlider.addEventListener('input', function () {
-      syncBedSleepWake('bed');
-    }, { signal: signal });
-
-    sleepSlider.addEventListener('input', function () {
-      const w = parseInt(wakeSlider.value, 10);
-      const c = clampPair(parseInt(sleepSlider.value, 10), w, 'sleep');
-      sleepSlider.value = String(c.sleepNorm);
-      wakeSlider.value = String(c.wakeNorm);
-      syncBedSleepWake('sleep');
-    }, { signal: signal });
-
-    wakeSlider.addEventListener('input', function () {
-      const s = parseInt(sleepSlider.value, 10);
-      const c = clampPair(s, parseInt(wakeSlider.value, 10), 'wake');
-      sleepSlider.value = String(c.sleepNorm);
-      wakeSlider.value = String(c.wakeNorm);
-      syncBedSleepWake('wake');
-    }, { signal: signal });
-
-    let handleStartY = null;
-    let handlePulled = false;
-    handle.addEventListener('pointerdown', function (e) {
-      if (e.pointerType === 'mouse' && e.button !== 0) return;
-      handleStartY = e.clientY;
-      handlePulled = false;
-      try {
-        handle.setPointerCapture(e.pointerId);
-      } catch (_err) { /* ignore */ }
-    }, { signal: signal });
-    handle.addEventListener('pointermove', function (e) {
-      if (handleStartY === null) return;
-      if (e.clientY - handleStartY > 22) handlePulled = true;
-    }, { signal: signal });
-    handle.addEventListener('pointerup', function () {
-      if (handleStartY === null) return;
-      if (handlePulled) setDrawerExpanded(true);
-      else setDrawerExpanded(!drawer.classList.contains('is-expanded'));
-      handleStartY = null;
-      handlePulled = false;
-    }, { signal: signal });
-    handle.addEventListener('pointercancel', function () {
-      handleStartY = null;
-      handlePulled = false;
-    }, { signal: signal });
-
-    let alarmDragMode = null;
-    let poolDragKind = null;
-
-    function clearAlarmIfOutside(clientX, clientY) {
-      if (!pointInSliderBar(clientX, clientY)) {
-        quickAddAlarmNorm = null;
-        updateQuickAddalarmMarkerDisplay();
-      }
-    }
-
-    function bindPoolDrag(el, kind) {
-      if (!el) return;
-      el.addEventListener('pointerdown', function (e) {
-        if (e.button !== undefined && e.button !== 0) return;
-        e.preventDefault();
-        poolDragKind = kind;
-        el.setPointerCapture(e.pointerId);
-      }, { signal: signal });
-      el.addEventListener('pointermove', function (e) {
-        if (poolDragKind !== kind) return;
-        if (kind === 'alarm' && pointInSliderBar(e.clientX, e.clientY)) {
-          quickAddAlarmNorm = getNormFromClientX(e.clientX);
-          updateQuickAddalarmMarkerDisplay();
-        }
-      }, { signal: signal });
-      el.addEventListener('pointerup', function (e) {
-        if (poolDragKind !== kind) return;
-        poolDragKind = null;
-        try {
-          el.releasePointerCapture(e.pointerId);
-        } catch (_err) { /* ignore */ }
-        if (pointInSliderBar(e.clientX, e.clientY)) {
-          const n = getNormFromClientX(e.clientX);
-          if (kind === 'alarm') {
-            quickAddAlarmNorm = n;
-            updateQuickAddalarmMarkerDisplay();
-          } else {
-            if (!quickAddBathroomNorms.some(function (x) { return normsNearlyEqual(x, n); })) {
-              quickAddBathroomNorms.push(n);
-              sortQuickAddBathroomNorms();
-            }
-            renderQuickAddBathroomMarkers();
-          }
-        } else if (kind === 'alarm') {
-          quickAddAlarmNorm = null;
-          updateQuickAddalarmMarkerDisplay();
-        }
-      }, { signal: signal });
-      el.addEventListener('pointercancel', function () {
-        if (poolDragKind === kind) poolDragKind = null;
-      }, { signal: signal });
-    }
-
-    function bindAlarmMarkerDrag(markerRoot, iconEl) {
-      if (!markerRoot || !iconEl) return;
-      iconEl.addEventListener('pointerdown', function (e) {
-        if (e.button !== undefined && e.button !== 0) return;
-        e.preventDefault();
-        e.stopPropagation();
-        alarmDragMode = 'marker';
-        iconEl.setPointerCapture(e.pointerId);
-      }, { signal: signal });
-      iconEl.addEventListener('pointermove', function (e) {
-        if (alarmDragMode !== 'marker') return;
-        if (pointInSliderBar(e.clientX, e.clientY)) {
-          quickAddAlarmNorm = getNormFromClientX(e.clientX);
-          updateQuickAddalarmMarkerDisplay();
-        }
-      }, { signal: signal });
-      iconEl.addEventListener('pointerup', function (e) {
-        if (alarmDragMode !== 'marker') return;
-        alarmDragMode = null;
-        try {
-          iconEl.releasePointerCapture(e.pointerId);
-        } catch (_err) { /* ignore */ }
-        clearAlarmIfOutside(e.clientX, e.clientY);
-        updateQuickAddalarmMarkerDisplay();
-      }, { signal: signal });
-      iconEl.addEventListener('pointercancel', function () {
-        alarmDragMode = null;
-      }, { signal: signal });
-    }
-
-    if (bathroomChip) bindPoolDrag(bathroomChip, 'bathroom');
-    if (alarmChip) bindPoolDrag(alarmChip, 'alarm');
-    bindAlarmMarkerDrag(alarmMarker, alarmMarkerIcon || alarmMarker);
-
-    sliderWrap.addEventListener('pointerdown', function (e) {
-      const icon = e.target.closest && e.target.closest('.quick-add-bathroom-marker-icon');
-      if (!icon || !sliderWrap.contains(icon)) return;
-      const item = icon.closest('.quick-add-bathroom-marker-item');
-      if (!item) return;
-      bathroomMarkerDragIndex = parseInt(item.getAttribute('data-index'), 10);
-      if (!Number.isFinite(bathroomMarkerDragIndex)) return;
-      if (e.cancelable) e.preventDefault();
-      e.stopPropagation();
-      try {
-        icon.setPointerCapture(e.pointerId);
-      } catch (_err) { /* ignore */ }
-    }, { signal: signal });
-
-    document.addEventListener('pointermove', function (e) {
-      if (bathroomMarkerDragIndex === null) return;
-      if (e.cancelable) e.preventDefault();
-      if (pointInSliderBar(e.clientX, e.clientY)) {
-        updateBathroomMarkerAtIndex(bathroomMarkerDragIndex, getNormFromClientX(e.clientX));
-      }
-    }, { signal: signal });
-
-    document.addEventListener('pointerup', function (e) {
-      if (bathroomMarkerDragIndex === null) return;
-      const idx = bathroomMarkerDragIndex;
-      bathroomMarkerDragIndex = null;
-      if (pointInSliderBar(e.clientX, e.clientY)) {
-        quickAddBathroomNorms[idx] = getNormFromClientX(e.clientX);
-      } else {
-        quickAddBathroomNorms.splice(idx, 1);
-      }
-      sortQuickAddBathroomNorms();
-      renderQuickAddBathroomMarkers();
-    }, { signal: signal });
-
-    document.addEventListener('pointercancel', function () {
-      if (bathroomMarkerDragIndex !== null) {
-        bathroomMarkerDragIndex = null;
-        renderQuickAddBathroomMarkers();
-      }
-    }, { signal: signal });
-
-    updateQuickAddSliderVisualsFromDom();
+    return out;
   }
 
   function handleSubmit(event) {
     event.preventDefault();
     const dateMd = dateInputToMonthDay(document.getElementById('quick-add-date').value);
-    const bedNorm = parseInt(document.getElementById('quick-add-bed-slider').value, 10);
-    const sleepNorm = parseInt(document.getElementById('quick-add-sleep-slider').value, 10);
-    const wakeNorm = parseInt(document.getElementById('quick-add-wake-slider').value, 10);
-    const bed = formatTime(modMinutes1440(bedNorm));
-    const sleepStart = formatTime(modMinutes1440(sleepNorm));
-    const sleepEnd = formatTime(modMinutes1440(wakeNorm));
 
-    const bathroomFromList = collectNormalizedTimesFromList(document.getElementById('quick-add-bathroom-list'));
-    const bathroomFromBar = quickAddBathroomNorms.map(function (n) {
-      return formatTime(modMinutes1440(n));
-    });
-    const bathroom = mergeUniqueNormalizedTimes(bathroomFromList, bathroomFromBar);
-    let alarm = collectNormalizedTimesFromList(document.getElementById('quick-add-alarm-adv-list'));
-    if (quickAddAlarmNorm !== null) {
-      alarm = [formatTime(modMinutes1440(quickAddAlarmNorm))];
+    const bedEl = document.getElementById('quick-add-bed');
+    const sleepEl = document.getElementById('quick-add-sleep');
+    const wakeEl = document.getElementById('quick-add-wake');
+    const bedRaw = bedEl && bedEl.value;
+    const sleepRaw = sleepEl && sleepEl.value;
+    const wakeRaw = wakeEl && wakeEl.value;
+
+    const bedM = bedRaw ? timeToMinutes(bedRaw) : NaN;
+    const sleepM = sleepRaw ? timeToMinutes(sleepRaw) : NaN;
+    const wakeM = wakeRaw ? timeToMinutes(wakeRaw) : NaN;
+
+    const bed = Number.isFinite(bedM) ? formatTime(bedM) : null;
+    const sleepStart = Number.isFinite(sleepM) ? formatTime(sleepM) : null;
+    const sleepEnd = Number.isFinite(wakeM) ? formatTime(wakeM) : null;
+
+    const bathroomNorms = collectNormalizedTimesFromList(document.getElementById('quick-add-bathroom-list'));
+    const bathroom = normalizedTimesToFormattedWallClock(bathroomNorms);
+
+    const alarmEl = document.getElementById('quick-add-alarm');
+    const alarmRaw = alarmEl && alarmEl.value;
+    const alarmNormSingle = alarmRaw ? timeInputValueToNormalized(alarmRaw) : null;
+    let alarm = [];
+    if (alarmNormSingle) {
+      const am = timeToMinutes(alarmNormSingle);
+      if (Number.isFinite(am)) alarm = [formatTime(am)];
     }
 
     const napStartRaw = document.getElementById('quick-add-nap-start').value;
@@ -628,7 +218,7 @@
     const waso = wasoRaw === '' ? 0 : Number(wasoRaw);
 
     if (!dateMd || !bed || !sleepStart || !sleepEnd) {
-      setQuickAddStatus('Pick a date and adjust the sleep bar (fell asleep & wake).', true);
+      setQuickAddStatus('Pick a date and set bed, sleep, and wake times.', true);
       return;
     }
     if ((napStart && !napEnd) || (!napStart && napEnd)) {
@@ -662,7 +252,11 @@
     upsertSleepDay(day)
       .then(function () {
         setQuickAddStatus('Saved.', false);
-        closeQuickAddDrawer();
+        const drawerEl = document.getElementById('quick-add-drawer');
+        const isLogPage = drawerEl && drawerEl.classList.contains('quick-add-drawer--page');
+        if (!isLogPage) {
+          closeQuickAddDrawer();
+        }
         if (quickAddOptions && typeof quickAddOptions.onSaved === 'function') {
           return quickAddOptions.onSaved();
         }
@@ -678,16 +272,17 @@
   }
 
   function bindQuickAddHostOnce() {
-    const host = document.getElementById('dashboard-container');
-    if (!host || quickAddHostBound) return;
+    if (quickAddHostBound) return;
     quickAddHostBound = true;
-    host.addEventListener('submit', function (e) {
+    document.addEventListener('submit', function (e) {
       const t = e.target;
       if (t && t.id === 'quick-add-form') handleSubmit(e);
     });
-    host.addEventListener('click', function (e) {
+    document.addEventListener('click', function (e) {
       const t = e.target;
-      if (!t || !host.contains(t)) return;
+      if (!t) return;
+      const form = t.closest && t.closest('#quick-add-form');
+      if (!form) return;
 
       if (t.id === 'quick-add-cancel') {
         e.preventDefault();
@@ -700,22 +295,27 @@
         appendQuickAddTimeRow(document.getElementById('quick-add-bathroom-list'));
         return;
       }
-      if (t.id === 'quick-add-alarm-adv-add') {
-        e.preventDefault();
-        appendQuickAddTimeRow(document.getElementById('quick-add-alarm-adv-list'));
-        return;
-      }
 
       const rm = t.closest && t.closest('.quick-add-time-remove');
-      if (rm && host.contains(rm)) {
+      if (rm && form.contains(rm)) {
         e.preventDefault();
         onQuickAddRemoveTimeRow(rm);
         return;
       }
 
       const spinBtn = t.closest && t.closest('.quick-add-time-spin-btn');
-      if (spinBtn && host.contains(spinBtn)) {
+      if (spinBtn && form.contains(spinBtn)) {
         e.preventDefault();
+        if (spinBtn.closest('.quick-add-waso-spin')) {
+          const inp = document.getElementById('quick-add-waso');
+          if (!inp) return;
+          let v = inp.value === '' ? 0 : parseInt(inp.value, 10);
+          if (!Number.isFinite(v)) v = 0;
+          const up = spinBtn.classList.contains('quick-add-time-spin-btn--up');
+          v = Math.max(0, v + (up ? 1 : -1));
+          inp.value = String(v);
+          return;
+        }
         const row = spinBtn.closest('.quick-add-time-row');
         const inp = row && row.querySelector('.quick-add-time-native');
         if (inp) {
@@ -727,7 +327,8 @@
     document.addEventListener('keydown', function (e) {
       if (e.key !== 'Escape') return;
       const drawer = document.getElementById('quick-add-drawer');
-      if (drawer && drawer.classList.contains('is-expanded')) {
+      if (!drawer || drawer.classList.contains('quick-add-drawer--page')) return;
+      if (drawer.classList.contains('is-expanded')) {
         closeQuickAddDrawer();
       }
     });

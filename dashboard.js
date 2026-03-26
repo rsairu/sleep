@@ -506,22 +506,20 @@ function renderDashboardFromData(sleepData) {
     updateRemainingWakeNav(getRemainingWakeDisplayFromDays(dashboardCurrentDays));
   }
 
-  if (typeof wireQuickAddDrawerSliders === 'function') wireQuickAddDrawerSliders();
+  if (typeof initDashboardQuickActions === 'function') {
+    initDashboardQuickActions(
+      function () {
+        return dashboardCurrentDays;
+      },
+      loadDashboardData
+    );
+  }
 }
 
 function loadDashboardData() {
   return loadSleepData()
     .then((sleepData) => {
       renderDashboardFromData(sleepData);
-      if (typeof initQuickAddEntryModal === 'function') {
-        initQuickAddEntryModal({
-          onSaved: function () {
-            return loadDashboardData();
-          }
-        });
-      } else if (typeof wireQuickAddDrawerSliders === 'function') {
-        wireQuickAddDrawerSliders();
-      }
     })
     .catch(error => {
       console.error('Error loading dashboard data:', error);

@@ -1128,6 +1128,15 @@ body{
   text-align: center;
 }
 
+#dashboard-tonight-projection .dashboard-projection-title {
+  margin-bottom: 2px;
+}
+
+#dashboard-tonight-projection .dashboard-tonight-adjust {
+  margin-top: 6px;
+  gap: 6px;
+}
+
 .dashboard-projection-copy {
   font-size: 0.8rem;
   margin: 0 0 14px 0;
@@ -1250,9 +1259,7 @@ body{
   gap: 10px;
 }
 
-.dashboard-tonight-adjust-toggle,
-.dashboard-tonight-adjust-reset,
-.dashboard-tonight-adjust-set {
+.dashboard-tonight-adjust-reset {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1267,23 +1274,10 @@ body{
   letter-spacing: 0.01em;
   cursor: pointer;
   transition: background 0.2s, border-color 0.2s;
-}
-
-.dashboard-tonight-adjust-toggle {
-  padding: 6px 12px;
-}
-
-.dashboard-tonight-adjust-reset {
   padding: 5px 10px;
 }
 
-.dashboard-tonight-adjust-set {
-  padding: 5px 12px;
-}
-
-.dashboard-tonight-adjust-toggle:hover,
-.dashboard-tonight-adjust-reset:hover,
-.dashboard-tonight-adjust-set:hover {
+.dashboard-tonight-adjust-reset:hover {
   background: var(--hover-bg);
 }
 
@@ -1309,6 +1303,145 @@ body{
   position: relative;
   width: 100%;
   padding: 14px 0 30px;
+}
+
+/* Dashboard Tonight: Sleep/Wake row above bar, thick track, ruler below (quick-add unchanged) */
+.dashboard-tonight-adjust-slider--main {
+  padding: 0 0 6px;
+}
+
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-pole-row {
+  position: relative;
+  width: 100%;
+  min-height: 1.65rem;
+  margin-bottom: 6px;
+  pointer-events: none;
+}
+
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-pole-label {
+  position: absolute;
+  bottom: 0;
+  transform: translateX(-50%);
+  z-index: 5;
+  font-size: 0.85rem;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-pole-label--sleep {
+  left: var(--tonight-sleep-pct);
+}
+
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-pole-label--wake {
+  left: var(--tonight-wake-pct);
+}
+
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-slider-core {
+  position: relative;
+  padding: 0 0 40px;
+}
+
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-track {
+  height: 24px;
+}
+
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-range-fill,
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-recommended-window {
+  border-radius: 999px;
+}
+
+/* Let label stay readable; sleep→wake fill stays below this band where they overlap */
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-range-fill {
+  z-index: 2;
+}
+
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-recommended-window {
+  z-index: 3;
+}
+
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-recommended-text--main {
+  font-size: 0.65rem;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: 0.07em;
+  font-variant: small-caps;
+  color: #ffffff;
+  text-shadow: 0 0 1px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.4);
+  opacity: 0.98;
+  white-space: nowrap;
+  padding: 0 6px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Input box height matches visual track so the native track lines up with .dashboard-tonight-adjust-track */
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-slider-core input[type="range"] {
+  top: 0;
+  height: 24px;
+  padding: 0;
+  border: none;
+  box-sizing: border-box;
+}
+
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-slider-core input[type="range"]::-webkit-slider-runnable-track {
+  height: 24px;
+}
+
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-slider-core input[type="range"]::-moz-range-track {
+  height: 24px;
+}
+
+/* Knobs slightly larger than the 24px bar, centered on the track */
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-slider-core input[type="range"]::-webkit-slider-thumb {
+  width: 28px;
+  height: 28px;
+  margin-top: -2px;
+}
+
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-slider-core input[type="range"]::-moz-range-thumb {
+  width: 28px;
+  height: 28px;
+}
+
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-slider-core input[type="range"]::-moz-focus-outer {
+  border: 0;
+}
+
+/* Cover track plus thumb overhang (2px above/below vs 24px bar) */
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-overlay {
+  top: -2px;
+  height: 28px;
+}
+
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-thumb-label {
+  top: calc(24px + 14px);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-baseline-label {
+  display: none;
+}
+
+.dashboard-tonight-adjust-duration-row {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin-top: 6px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.dashboard-tonight-adjust-center-duration {
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  color: var(--text);
+  opacity: 0.92;
+  white-space: nowrap;
 }
 
 .dashboard-tonight-adjust-track {
@@ -1437,18 +1570,6 @@ body{
   z-index: 3;
 }
 
-.dashboard-tonight-adjust-slider input[type="range"]#quick-add-bed-slider {
-  z-index: 1;
-}
-
-.dashboard-tonight-adjust-slider input[type="range"]#quick-add-sleep-slider {
-  z-index: 2;
-}
-
-.dashboard-tonight-adjust-slider input[type="range"]#quick-add-wake-slider {
-  z-index: 3;
-}
-
 .dashboard-tonight-adjust-overlay {
   position: absolute;
   left: 0;
@@ -1517,6 +1638,40 @@ body{
   justify-content: center;
   gap: 8px;
   margin-top: 4px;
+}
+
+.app-toast-host {
+  position: fixed;
+  left: 50%;
+  bottom: max(24px, env(safe-area-inset-bottom, 0px) + 16px);
+  transform: translateX(-50%);
+  z-index: 10050;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+  max-width: min(420px, calc(100vw - 32px));
+}
+
+.app-toast {
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--panel-border-color);
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: var(--panel-shadow);
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-align: center;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+.app-toast--visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .dashboard-averages-panel{
@@ -3986,6 +4141,78 @@ svg {
   overflow: hidden;
 }
 
+.quick-add-drawer--page {
+  margin-bottom: var(--space-4);
+}
+
+.quick-add-drawer-body-inner--page {
+  padding: var(--space-3) var(--space-4) var(--space-4);
+}
+
+.quick-add-advanced--page {
+  margin-top: var(--space-3);
+}
+
+.log-page-root {
+  padding-bottom: var(--space-4);
+}
+
+.log-page-title {
+  margin-bottom: var(--space-2);
+  color: var(--nav-app-text-color);
+}
+
+/* Dashboard: compact strip (replaces pull-down log drawer) */
+.dashboard-quick-actions {
+  margin: 0 0 var(--space-3) 0;
+}
+
+.dashboard-quick-actions-inner {
+  padding: var(--space-2) var(--space-3) var(--space-3);
+}
+
+.dashboard-quick-actions-label {
+  margin: 0 0 10px 0;
+  font-size: 0.75rem;
+  font-style: italic;
+  font-weight: 500;
+  opacity: 0.62;
+  letter-spacing: 0.02em;
+}
+
+.dashboard-quick-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.dashboard-quick-action-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+}
+
+.dashboard-quick-action-icon {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+button.dashboard-quick-action-btn {
+  min-height: 40px;
+  padding: 0.45em 0.85em;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: var(--panel-radius, 10px);
+}
+
+.dashboard-quick-actions-row .dashboard-quick-action-btn + .dashboard-quick-action-btn,
+.dashboard-quick-actions-row .dashboard-quick-action-btn + .dashboard-quick-action-link {
+  margin-left: 0;
+}
+
 .quick-add-drawer-shell {
   display: grid;
   grid-template-rows: auto 0fr;
@@ -4055,142 +4282,101 @@ svg {
   padding: var(--space-3) var(--space-4) var(--space-4);
 }
 
-.quick-add-dnd-pool,
-.quick-add-alarm-pool {
-  display: flex;
+.quick-add-log-pair {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
   align-items: center;
-  gap: 10px;
-  margin: var(--space-2) 0 4px;
-  flex-wrap: wrap;
-  max-width: min(26rem, 100%);
+  column-gap: var(--space-3);
+  row-gap: var(--space-1);
+  max-width: min(36rem, 100%);
 }
 
-.quick-add-alarm-chip {
-  font-size: 1.35rem;
-  line-height: 1;
-  cursor: grab;
-  user-select: none;
-  touch-action: none;
-  padding: 2px;
-  margin: 0;
-  border: none;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-.quick-add-alarm-chip:active {
-  cursor: grabbing;
-}
-
-.quick-add-alarm-hint-text {
-  font-size: 0.78rem;
-  opacity: 0.78;
-  line-height: 1.35;
-  flex: 0 1 auto;
+.quick-add-log-pair > .quick-add-time-row,
+.quick-add-log-pair > .quick-add-input--date {
+  justify-self: end;
+  width: 100%;
+  max-width: min(17.5rem, 100%);
   min-width: 0;
 }
 
-.quick-add-adjust-slider .quick-add-alarm-marker {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  pointer-events: none;
-  z-index: 9;
+.quick-add-log-pair__right {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
+  justify-self: end;
+  width: 100%;
+  max-width: min(17.5rem, 100%);
+  min-width: 0;
 }
 
-.quick-add-adjust-slider .quick-add-alarm-marker-icon {
-  position: absolute;
-  top: -26px;
-  left: var(--quick-add-alarm-pct, 50%);
-  transform: translateX(-50%);
-  pointer-events: auto;
-  cursor: grab;
-  font-size: 1rem;
+.quick-add-log-pair .quick-add-time-list {
+  width: 100%;
+}
+
+.quick-add-log-pair .quick-add-nap-pair {
+  max-width: 100%;
+}
+
+.quick-add-main-times {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: min(36rem, 100%);
+}
+
+.quick-add-label--emoji-line {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--nav-app-text-color);
+}
+
+.quick-add-log-emoji {
+  font-size: 2rem;
   line-height: 1;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25));
+  flex-shrink: 0;
 }
 
-.quick-add-adjust-slider .quick-add-alarm-marker-icon:active {
-  cursor: grabbing;
+@media (max-width: 420px) {
+  .quick-add-log-pair {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .quick-add-log-pair > .quick-add-time-row,
+  .quick-add-log-pair > .quick-add-input--date,
+  .quick-add-log-pair__right {
+    justify-self: stretch;
+    max-width: 100%;
+  }
 }
 
-.quick-add-adjust-slider .quick-add-alarm-marker-time {
-  position: absolute;
-  top: 60px;
-  left: var(--quick-add-alarm-pct, 50%);
-  transform: translateX(-50%);
-  font-size: 0.76rem;
+.quick-add-waso-row .quick-add-waso-value {
+  min-width: 0;
+  width: 100%;
+  height: 44px;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0 12px;
+  font: inherit;
+  font-size: 0.92rem;
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  opacity: 0.92;
-  color: var(--text);
 }
 
-.quick-add-bathroom-markers {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  pointer-events: none;
-  z-index: 7;
+.quick-add-waso-value::-webkit-outer-spin-button,
+.quick-add-waso-value::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
-.quick-add-bathroom-marker-item {
-  position: absolute;
-  top: 0;
-  transform: translateX(-50%);
-  pointer-events: none;
-  z-index: 1;
-}
-
-.quick-add-bathroom-marker-icon {
-  position: absolute;
-  top: -26px;
-  left: 50%;
-  transform: translateX(-50%);
-  pointer-events: auto;
-  cursor: grab;
-  font-size: 1rem;
-  line-height: 1;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25));
-}
-
-.quick-add-bathroom-marker-icon:active {
-  cursor: grabbing;
-}
-
-.quick-add-bathroom-marker-time {
-  position: absolute;
-  top: 60px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 0.76rem;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  opacity: 0.92;
-  color: var(--color-bath);
-}
-
-.quick-add-bed-thumb-label {
-  top: 60px;
-  left: var(--tonight-bed-pct);
-  color: var(--color-bed);
+.quick-add-waso-value {
+  -moz-appearance: textfield;
+  appearance: textfield;
 }
 
 .dashboard-empty-msg {
   margin: var(--space-2) 0;
-}
-
-.quick-add-adjust-slider.dashboard-tonight-adjust-slider {
-  padding-bottom: 58px;
-}
-
-.quick-add-adjust-slider {
-  margin-top: 4px;
 }
 
 .quick-add-form {
@@ -4202,19 +4388,24 @@ svg {
   max-width: min(17rem, 100%);
 }
 
+.quick-add-field-compact.quick-add-log-pair {
+  max-width: min(36rem, 100%);
+}
+
 .quick-add-field-compact .quick-add-label {
   margin-bottom: 6px;
 }
 
 .quick-add-label {
   font-size: 0.92rem;
+  color: var(--nav-app-text-color);
 }
 
 .quick-add-input {
   border-radius: 10px;
   border: 1px solid var(--panel-border-color);
   background: var(--bar);
-  color: var(--text);
+  color: var(--nav-app-text-color);
   padding: 10px 12px;
 }
 
@@ -4234,7 +4425,15 @@ svg {
   border: 1px solid color-mix(in srgb, var(--panel-border-color) 92%, var(--text));
   background: color-mix(in srgb, var(--bar) 88%, var(--panel));
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text) 6%, transparent);
-  color-scheme: light dark;
+  color: var(--nav-app-text-color);
+}
+
+[data-theme="day"] .quick-add-input--date {
+  color-scheme: light;
+}
+
+[data-theme="night"] .quick-add-input--date {
+  color-scheme: dark;
 }
 
 .quick-add-input--date::-webkit-calendar-picker-indicator {
@@ -4245,15 +4444,8 @@ svg {
 }
 
 .quick-add-input--date:focus {
-  outline: 2px solid color-mix(in srgb, var(--color-sleep) 45%, transparent);
+  outline: 2px solid color-mix(in srgb, var(--panel-border-color) 55%, var(--text));
   outline-offset: 1px;
-}
-
-.quick-add-input--waso {
-  max-width: 7.5rem;
-  width: 100%;
-  height: 44px;
-  box-sizing: border-box;
 }
 
 .quick-add-advanced {
@@ -4265,12 +4457,17 @@ svg {
   flex-direction: column;
   gap: var(--space-3);
   margin-top: var(--space-2);
-  max-width: min(22rem, 100%);
+  max-width: min(36rem, 100%);
 }
 
 .quick-add-adv-row .quick-add-label {
   display: block;
   margin-bottom: 6px;
+}
+
+.quick-add-adv-row.quick-add-log-pair > .quick-add-label,
+.quick-add-adv-row.quick-add-log-pair > .quick-add-label--emoji-line {
+  margin-bottom: 0;
 }
 
 .quick-add-nap-pair {
@@ -4304,7 +4501,7 @@ svg {
 .quick-add-sublabel {
   display: block;
   font-size: 0.8rem;
-  opacity: 0.78;
+  color: color-mix(in srgb, var(--nav-app-text-color) 78%, transparent);
   margin-bottom: 4px;
 }
 
@@ -4329,7 +4526,7 @@ svg {
   border: none;
   border-radius: 0;
   background: var(--panel);
-  color: var(--text);
+  color: var(--nav-app-text-color);
   font: inherit;
   font-size: 0.5rem;
   line-height: 1;
@@ -4363,6 +4560,40 @@ svg {
   font: inherit;
   font-size: 0.92rem;
   font-variant-numeric: tabular-nums;
+  color: var(--nav-app-text-color);
+}
+
+[data-theme="day"] .quick-add-time-native {
+  color-scheme: light;
+}
+
+[data-theme="night"] .quick-add-time-native {
+  color-scheme: dark;
+}
+
+/* WebKit: native date/time edit segments inherit themed color (otherwise often render as black) */
+.quick-add-time-native::-webkit-datetime-edit,
+.quick-add-time-native::-webkit-datetime-edit-fields-wrapper {
+  color: inherit;
+}
+
+.quick-add-time-native::-webkit-datetime-edit-text,
+.quick-add-time-native::-webkit-datetime-edit-month-field,
+.quick-add-time-native::-webkit-datetime-edit-day-field,
+.quick-add-time-native::-webkit-datetime-edit-year-field,
+.quick-add-time-native::-webkit-datetime-edit-hour-field,
+.quick-add-time-native::-webkit-datetime-edit-minute-field,
+.quick-add-time-native::-webkit-datetime-edit-ampm-field {
+  color: inherit;
+}
+
+.quick-add-input--date::-webkit-datetime-edit,
+.quick-add-input--date::-webkit-datetime-edit-fields-wrapper,
+.quick-add-input--date::-webkit-datetime-edit-text,
+.quick-add-input--date::-webkit-datetime-edit-month-field,
+.quick-add-input--date::-webkit-datetime-edit-day-field,
+.quick-add-input--date::-webkit-datetime-edit-year-field {
+  color: inherit;
 }
 
 .quick-add-time-remove {
@@ -4375,7 +4606,7 @@ svg {
   border: 1px solid var(--panel-border-color);
   border-radius: 10px;
   background: var(--panel);
-  color: var(--text);
+  color: var(--nav-app-text-color);
   font: inherit;
   font-size: 1.15rem;
   font-weight: 400;
@@ -4399,7 +4630,7 @@ svg {
   border: 1px dashed var(--panel-border-color);
   border-radius: 10px;
   background: transparent;
-  color: var(--text);
+  color: var(--nav-app-text-color);
   font: inherit;
   font-size: 0.88rem;
   font-weight: 600;
