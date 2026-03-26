@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Dashboard</title>
+<title>Log</title>
 <link rel="stylesheet" href="styles.css">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
@@ -11,18 +11,16 @@
 <body>
   <div id="nav-container"></div>
   <div class="container">
-    <div id="dashboard-container"></div>
+    <div id="log-page-root" class="log-page-root"></div>
   </div>
-  <div class="tooltip" id="tooltip"></div>
-  <div class="day-panel" id="day-panel"></div>
 
   <script src="dev-git-branch.js"></script>
   <script src="sleep-utils.js"></script>
   <script src="daily.js"></script>
-  <script src="quick-actions.js"></script>
-  <script src="dashboard.js"></script>
+  <script src="entry-modal.js"></script>
+  <script src="log.js"></script>
   <script>
-    document.getElementById('nav-container').innerHTML = renderNavBar('dashboard');
+    document.getElementById('nav-container').innerHTML = renderNavBar('log');
     initDayNightTheme();
   </script>
 </body>

@@ -115,7 +115,9 @@ function mapSupabaseRowToDay(row) {
     sleepEnd: row.sleep_end,
     bathroom: Array.isArray(row.bathroom) ? row.bathroom : [],
     alarm: Array.isArray(row.alarm) ? row.alarm : [],
-    nap: row.nap_start && row.nap_end ? { start: row.nap_start, end: row.nap_end } : null,
+    nap: row.nap_start
+      ? { start: row.nap_start, end: row.nap_end != null && row.nap_end !== '' ? row.nap_end : null }
+      : null,
     WASO: Number.isFinite(row.waso) ? row.waso : 0
   };
 }
@@ -1472,6 +1474,7 @@ function renderNavBar(currentPage) {
 
   const pages = [
     { id: 'dashboard', name: 'Dashboard', url: 'dashboard.html', icon: '🛌' },
+    { id: 'log', name: 'Log', url: 'log.html', icon: '✏️' },
     { id: 'quality', name: 'Quality', url: 'quality.html', icon: '🟢' },
     { id: 'timeline', name: 'Daily', url: 'daily.html', icon: '📅' },
     { id: 'graph', name: 'Graphs', url: 'graph.html', icon: '📊' },

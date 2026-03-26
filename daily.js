@@ -473,7 +473,7 @@ function renderDay(day, days, dayIndex, options) {
             ${TIME_TICKS.map((minutes, i) => `<div class="time-tick" style="--m:${minutes}"><span class="tick-label">${tickLabels[i]}</span></div>`).join('')}
   `;
   
-  if (day.nap) {
+  if (day.nap && day.nap.start && day.nap.end) {
     const napStart = timeToTimelinePosition(timeToMinutes(day.nap.start));
     const napEnd = timeToTimelinePosition(timeToMinutes(day.nap.end));
     if (napEnd >= napStart) {
@@ -870,7 +870,7 @@ function renderCalendarHeatmapFullHistory(year, flagMap, latestDataDate) {
 // Recommended sleep/wake window: sleep band ±30 min; wake band ±15 min (wake consistency is more important).
 const PROJECTION_BAND_MINUTES = 30;
 const WAKE_PROJECTION_BAND_MINUTES = 15;
-const TONIGHT_ADJUST_SCOPE_PAD_MINUTES = 360;
+const TONIGHT_ADJUST_SCOPE_PAD_MINUTES = 180;
 const TONIGHT_ADJUST_MIN_GAP_MINUTES = 1;
 
 /** Returns { phase, icon, timeLabel, percentRemaining } for remaining wake time (used by dashboard nav). */
@@ -1008,68 +1008,37 @@ function getQuickAddSliderProjection(recentAverages, recentDays) {
   };
 }
 
-function renderQuickAddDrawer(recentAverages, recentDays) {
+/** @param {'drawer'|'page'} layout — drawer: dashboard strip; page: full log screen, advanced fields always visible */
+function renderQuickAddDrawer(recentAverages, recentDays, layout = 'drawer') {
   const proj = getQuickAddSliderProjection(recentAverages, recentDays);
-  const base = proj.base;
-  return `
-    <div class="quick-add-drawer" id="quick-add-drawer">
-      <div class="quick-add-drawer-shell">
-        <button type="button" class="quick-add-drawer-handle" id="quick-add-drawer-handle" aria-expanded="false" aria-controls="quick-add-drawer-body">
-          <span class="quick-add-drawer-grip" aria-hidden="true"></span>
-          <span class="quick-add-drawer-label">Log night</span>
-          <span class="quick-add-drawer-hint" aria-hidden="true">Pull down or tap</span>
-        </button>
-        <div class="quick-add-drawer-body" id="quick-add-drawer-body">
-          <div class="quick-add-drawer-body-inner">
-            <form id="quick-add-form" class="quick-add-form" data-initial-bed-norm="${proj.bedNorm}" data-initial-sleep-norm="${proj.sleepNorm}" data-initial-wake-norm="${proj.wakeNorm}">
-              <div class="quick-add-field-compact">
-                <label class="quick-add-label" for="quick-add-date">Date</label>
-                <input class="quick-add-input quick-add-input--date" id="quick-add-date" type="date" required>
-              </div>
-              <div class="quick-add-dnd-pool" aria-hidden="false">
-                <span class="quick-add-bathroom-chip" id="quick-add-bathroom-chip" role="img" aria-label="Bathroom wake">🧻</span>
-                <span class="quick-add-alarm-chip" id="quick-add-alarm-chip" role="img" aria-label="Alarm">⏰</span>
-                <span class="quick-add-alarm-hint-text">Drag 🧻 or ⏰ on / off the bar.</span>
-              </div>
-              <div
-                class="dashboard-tonight-adjust-slider quick-add-adjust-slider"
-                id="quick-add-adjust-slider"
-                style="--tonight-bed-pct:${proj.bedPct}%;--tonight-sleep-pct:${proj.sleepPct}%;--tonight-wake-pct:${proj.wakePct}%;--tonight-mid-pct:${proj.midPct}%;--tonight-rec-start-pct:${proj.recStartPct}%;--tonight-rec-end-pct:${proj.recEndPct}%;--quick-add-alarm-pct:50%;">
-                <div class="dashboard-tonight-adjust-track">
-                  <div class="dashboard-tonight-adjust-range-fill" aria-hidden="true"></div>
-                  <div class="dashboard-tonight-adjust-recommended-window quick-add-adjust-recommended-window" aria-hidden="true"></div>
-                </div>
-                <input type="range" id="quick-add-bed-slider" min="${base.scopeStartNorm}" max="${base.scopeEndNorm}" step="1" value="${proj.bedNorm}" aria-label="Bed time">
-                <input type="range" id="quick-add-sleep-slider" min="${base.scopeStartNorm}" max="${base.scopeEndNorm}" step="1" value="${proj.sleepNorm}" aria-label="Fell asleep (saved as sleep start)">
-                <input type="range" id="quick-add-wake-slider" min="${base.scopeStartNorm}" max="${base.scopeEndNorm}" step="1" value="${proj.wakeNorm}" aria-label="Wake up">
-                <div class="dashboard-tonight-adjust-overlay" id="quick-add-adjust-overlay" aria-hidden="true"></div>
-                <div class="quick-add-bathroom-markers" id="quick-add-bathroom-markers"></div>
-                <div class="quick-add-alarm-marker" id="quick-add-alarm-marker" hidden>
-                  <span class="quick-add-alarm-marker-icon" id="quick-add-alarm-marker-icon">⏰</span>
-                  <span class="quick-add-alarm-marker-time" id="quick-add-alarm-marker-time"></span>
-                </div>
-                <div class="dashboard-tonight-adjust-thumb-icon dashboard-tonight-adjust-thumb-icon--bed quick-add-bed-thumb-icon" aria-hidden="true">🛏️</div>
-                <div class="dashboard-tonight-adjust-thumb-icon dashboard-tonight-adjust-thumb-icon--sleep" aria-hidden="true">🌙</div>
-                <div class="dashboard-tonight-adjust-thumb-icon dashboard-tonight-adjust-thumb-icon--wake" aria-hidden="true">🌅</div>
-                <div class="dashboard-tonight-adjust-thumb-label quick-add-bed-thumb-label" id="quick-add-bed-thumb-label">${formatTime(proj.bedClock)}</div>
-                <div class="dashboard-tonight-adjust-thumb-label dashboard-tonight-adjust-thumb-label--sleep" id="quick-add-sleep-thumb-label">${formatTime(proj.sleepClock)}</div>
-                <div class="dashboard-tonight-adjust-thumb-label dashboard-tonight-adjust-thumb-label--wake" id="quick-add-wake-thumb-label">${formatTime(proj.wakeClock)}</div>
-              </div>
-              <details class="quick-add-advanced">
-                <summary>Advanced fields (optional)</summary>
+  const bedVal = formatMinutesTo24hString(proj.bedClock);
+  const sleepVal = formatMinutesTo24hString(proj.sleepClock);
+  const wakeVal = formatMinutesTo24hString(proj.wakeClock);
+
+  const mainTimeSpin = (suffix) =>
+    `<div class="quick-add-time-spin">
+                          <button type="button" class="quick-add-time-spin-btn quick-add-time-spin-btn--up" aria-label="${suffix} one minute later">▲</button>
+                          <button type="button" class="quick-add-time-spin-btn quick-add-time-spin-btn--down" aria-label="${suffix} one minute earlier">▼</button>
+                        </div>`;
+
+  const advancedBlocks = `
                 <div class="quick-add-advanced-blocks">
-                  <div class="quick-add-adv-row">
-                    <span class="quick-add-label" id="quick-add-bathroom-legend">Bathroom wake times</span>
-                    <div class="quick-add-time-list" id="quick-add-bathroom-list" aria-labelledby="quick-add-bathroom-legend"></div>
-                    <button type="button" class="quick-add-time-add-btn" id="quick-add-bathroom-add">+ Add time</button>
+                  <div class="quick-add-adv-row quick-add-log-pair">
+                    <span class="quick-add-label quick-add-label--emoji-line" id="quick-add-bathroom-legend"><span class="quick-add-log-emoji" aria-hidden="true">🧻</span> Bathroom</span>
+                    <div class="quick-add-log-pair__right">
+                      <div class="quick-add-time-list" id="quick-add-bathroom-list" aria-labelledby="quick-add-bathroom-legend"></div>
+                      <button type="button" class="quick-add-time-add-btn" id="quick-add-bathroom-add">+ Add time</button>
+                    </div>
                   </div>
-                  <div class="quick-add-adv-row">
-                    <span class="quick-add-label" id="quick-add-alarm-adv-legend">Alarm times</span>
-                    <div class="quick-add-time-list" id="quick-add-alarm-adv-list" aria-labelledby="quick-add-alarm-adv-legend"></div>
-                    <button type="button" class="quick-add-time-add-btn" id="quick-add-alarm-adv-add">+ Add time</button>
+                  <div class="quick-add-adv-row quick-add-log-pair">
+                    <span class="quick-add-label quick-add-label--emoji-line" id="quick-add-alarm-legend"><span class="quick-add-log-emoji" aria-hidden="true">🕐</span> Alarm(s)</span>
+                    <div class="quick-add-time-row quick-add-time-row--nap">
+                      <input class="quick-add-input quick-add-time-native" id="quick-add-alarm" type="time" step="60" value="" aria-labelledby="quick-add-alarm-legend" aria-label="Alarm time">
+                      ${mainTimeSpin('Alarm')}
+                    </div>
                   </div>
-                  <div class="quick-add-adv-row">
-                    <span class="quick-add-label" id="quick-add-nap-legend">Nap</span>
+                  <div class="quick-add-adv-row quick-add-log-pair">
+                    <span class="quick-add-label quick-add-label--emoji-line" id="quick-add-nap-legend"><span class="quick-add-log-emoji" aria-hidden="true">😴</span> Nap</span>
                     <div class="quick-add-nap-pair">
                       <div>
                         <span class="quick-add-sublabel">Start</span>
@@ -1093,23 +1062,127 @@ function renderQuickAddDrawer(recentAverages, recentDays) {
                       </div>
                     </div>
                   </div>
-                  <div class="quick-add-adv-row quick-add-adv-row--waso">
-                    <label class="quick-add-label" for="quick-add-waso">WASO count</label>
-                    <input class="quick-add-input quick-add-input--waso" id="quick-add-waso" type="number" min="0" step="1" value="0">
+                  <div class="quick-add-adv-row quick-add-adv-row--waso quick-add-log-pair">
+                    <span class="quick-add-label quick-add-label--emoji-line" id="quick-add-waso-legend"><span class="quick-add-log-emoji" aria-hidden="true">🧩</span> WASO count</span>
+                    <div class="quick-add-time-row quick-add-time-row--nap quick-add-waso-row" aria-labelledby="quick-add-waso-legend">
+                      <input class="quick-add-input quick-add-waso-value" id="quick-add-waso" type="number" min="0" step="1" value="0" inputmode="numeric" aria-labelledby="quick-add-waso-legend">
+                      <div class="quick-add-time-spin quick-add-waso-spin">
+                        <button type="button" class="quick-add-time-spin-btn quick-add-time-spin-btn--up" aria-label="Increase WASO count">▲</button>
+                        <button type="button" class="quick-add-time-spin-btn quick-add-time-spin-btn--down" aria-label="Decrease WASO count">▼</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>`;
+  const advancedSection =
+    layout === 'drawer'
+      ? `<details class="quick-add-advanced">
+                <summary>Advanced fields (optional)</summary>
+                ${advancedBlocks}
+              </details>`
+      : `<div class="quick-add-advanced quick-add-advanced--page" aria-label="Additional fields">
+                ${advancedBlocks}
+              </div>`;
+
+  const formHtml = `
+            <form id="quick-add-form" class="quick-add-form" data-initial-bed="${bedVal}" data-initial-sleep="${sleepVal}" data-initial-wake="${wakeVal}">
+              <div class="quick-add-field-compact quick-add-log-pair">
+                <label class="quick-add-label" for="quick-add-date">Date</label>
+                <input class="quick-add-input quick-add-input--date" id="quick-add-date" type="date" required>
+              </div>
+              <div class="quick-add-main-times" role="group" aria-label="Bed, sleep, and wake">
+                <div class="quick-add-adv-row quick-add-log-pair">
+                  <span class="quick-add-label quick-add-label--emoji-line" id="quick-add-bed-legend"><span class="quick-add-log-emoji" aria-hidden="true">🛏️</span> Bed</span>
+                  <div class="quick-add-time-row quick-add-time-row--nap">
+                    <input class="quick-add-input quick-add-time-native" id="quick-add-bed" type="time" step="60" value="${bedVal}" aria-labelledby="quick-add-bed-legend" aria-label="Bed time">
+                    ${mainTimeSpin('Bed time')}
                   </div>
                 </div>
-              </details>
+                <div class="quick-add-adv-row quick-add-log-pair">
+                  <span class="quick-add-label quick-add-label--emoji-line" id="quick-add-sleep-legend"><span class="quick-add-log-emoji" aria-hidden="true">🌙</span> Sleep</span>
+                  <div class="quick-add-time-row quick-add-time-row--nap">
+                    <input class="quick-add-input quick-add-time-native" id="quick-add-sleep" type="time" step="60" value="${sleepVal}" aria-labelledby="quick-add-sleep-legend" aria-label="Fell asleep">
+                    ${mainTimeSpin('Fell asleep')}
+                  </div>
+                </div>
+                <div class="quick-add-adv-row quick-add-log-pair">
+                  <span class="quick-add-label quick-add-label--emoji-line" id="quick-add-wake-legend"><span class="quick-add-log-emoji" aria-hidden="true">🌅</span> Wake</span>
+                  <div class="quick-add-time-row quick-add-time-row--nap">
+                    <input class="quick-add-input quick-add-time-native" id="quick-add-wake" type="time" step="60" value="${wakeVal}" aria-labelledby="quick-add-wake-legend" aria-label="Wake up">
+                    ${mainTimeSpin('Wake up')}
+                  </div>
+                </div>
+              </div>
+              ${advancedSection}
               <p class="quick-add-status" id="quick-add-status"></p>
               <div class="quick-add-actions">
                 <button type="button" class="about-theme-option" id="quick-add-cancel">Cancel</button>
                 <button type="submit" class="about-theme-option" id="quick-add-save">Save</button>
               </div>
-            </form>
+            </form>`;
+
+  if (layout === 'page') {
+    return `
+    <div class="quick-add-drawer quick-add-drawer--page" id="quick-add-drawer">
+      <div class="quick-add-drawer-body-inner quick-add-drawer-body-inner--page">
+        ${formHtml}
+      </div>
+    </div>`;
+  }
+
+  return `
+    <div class="quick-add-drawer" id="quick-add-drawer">
+      <div class="quick-add-drawer-shell">
+        <button type="button" class="quick-add-drawer-handle" id="quick-add-drawer-handle" aria-expanded="false" aria-controls="quick-add-drawer-body">
+          <span class="quick-add-drawer-grip" aria-hidden="true"></span>
+          <span class="quick-add-drawer-label">Log night</span>
+          <span class="quick-add-drawer-hint" aria-hidden="true">Pull down or tap</span>
+        </button>
+        <div class="quick-add-drawer-body" id="quick-add-drawer-body">
+          <div class="quick-add-drawer-body-inner">
+            ${formHtml}
           </div>
         </div>
       </div>
     </div>
   `;
+}
+
+function renderQuickActionsSection() {
+  return `
+    <div class="dashboard-quick-actions quick-add-drawer" aria-label="Quick actions">
+      <div class="dashboard-quick-actions-inner">
+        <p class="dashboard-quick-actions-label">Quick actions</p>
+        <div class="dashboard-quick-actions-row" id="dashboard-quick-actions-buttons" role="group" aria-label="Suggested actions"></div>
+      </div>
+    </div>
+  `;
+}
+
+/** Brief non-blocking message (e.g. after resetting Tonight targets). */
+function showAppToast(message) {
+  if (typeof document === 'undefined') return;
+  let host = document.getElementById('app-toast-host');
+  if (!host) {
+    host = document.createElement('div');
+    host.id = 'app-toast-host';
+    host.className = 'app-toast-host';
+    host.setAttribute('aria-live', 'polite');
+    host.setAttribute('aria-atomic', 'true');
+    document.body.appendChild(host);
+  }
+  const el = document.createElement('div');
+  el.className = 'app-toast';
+  el.textContent = message;
+  host.appendChild(el);
+  requestAnimationFrame(function () {
+    el.classList.add('app-toast--visible');
+  });
+  window.setTimeout(function () {
+    el.classList.remove('app-toast--visible');
+    window.setTimeout(function () {
+      el.remove();
+    }, 280);
+  }, 2600);
 }
 
 function getTonightProjectionState(recentAverages) {
@@ -1152,67 +1225,45 @@ function renderDashboardProjection(recentAverages) {
   const projection = getTonightProjectionState(recentAverages);
   const base = projection.base;
   const durationMins = durationMinutes(projection.sleepClock, projection.wakeClock);
-  const targetClass = projection.isAdjusted ? ' dashboard-projection-target--adjusted' : '';
-  const adjustButtonText = 'Adjust';
-  const sleepRecommendedHiddenClass = projection.sleepClock === base.sleepTarget ? ' dashboard-projection-recommended--hidden' : '';
-  const wakeRecommendedHiddenClass = projection.wakeClock === base.wakeTarget ? ' dashboard-projection-recommended--hidden' : '';
-  const durationRecommendedHiddenClass = projection.isAdjusted ? '' : ' dashboard-projection-duration--hidden';
 
   return `
     <div class="dashboard-projection" id="dashboard-tonight-projection" data-rec-sleep="${base.sleepTarget}" data-rec-wake="${base.wakeTarget}">
       <h2 class="dashboard-projection-title">Tonight</h2>
-      <div class="dashboard-projection-grid">
-        <div class="dashboard-projection-item">
-          <span class="dashboard-projection-label"><span class="proj-keyword proj-sleep">🌙 Sleep</span></span>
-          <div class="dashboard-projection-row">
-            <span class="dashboard-projection-bounds">${formatTime(base.sleepByLow)}</span>
-            <span class="dashboard-projection-sep">—</span>
-            <span class="dashboard-projection-target${targetClass}" id="dashboard-tonight-sleep-target">${formatTime(projection.sleepClock)}</span>
-            <span class="dashboard-projection-sep">—</span>
-            <span class="dashboard-projection-bounds">${formatTime(base.sleepByHigh)}</span>
-          </div>
-          <div class="dashboard-projection-recommended${sleepRecommendedHiddenClass}" id="dashboard-tonight-sleep-recommended">recent average: <span id="dashboard-tonight-sleep-rec">${formatTime(base.sleepTarget)}</span></div>
-        </div>
-        <div class="dashboard-projection-item dashboard-projection-item--wake">
-          <span class="dashboard-projection-label"><span class="proj-keyword proj-wake">🌅 Wake</span></span>
-          <div class="dashboard-projection-row">
-            <span class="dashboard-projection-bounds">${formatTime(base.wakeByLow)}</span>
-            <span class="dashboard-projection-sep">—</span>
-            <span class="dashboard-projection-target${targetClass}" id="dashboard-tonight-wake-target">${formatTime(projection.wakeClock)}</span>
-            <span class="dashboard-projection-sep">—</span>
-            <span class="dashboard-projection-bounds">${formatTime(base.wakeByHigh)}</span>
-          </div>
-          <div class="dashboard-projection-recommended${wakeRecommendedHiddenClass}" id="dashboard-tonight-wake-recommended">recent average: <span id="dashboard-tonight-wake-rec">${formatTime(base.wakeTarget)}</span></div>
-        </div>
-      </div>
-      <p class="dashboard-projection-duration" id="dashboard-tonight-duration">target: ~${formatDuration(durationMins)} sleep</p>
-      <p class="dashboard-projection-duration dashboard-projection-duration--recommended${durationRecommendedHiddenClass}" id="dashboard-tonight-duration-recommended">recent average: ~${formatDuration(base.recommendedDurationMins)} sleep</p>
       <div class="dashboard-tonight-adjust">
-        <button type="button" class="dashboard-tonight-adjust-toggle" id="dashboard-tonight-adjust-toggle" aria-expanded="false" aria-controls="dashboard-tonight-adjust-panel">${adjustButtonText}</button>
-        <div class="dashboard-tonight-adjust-panel dashboard-tonight-adjust-panel--hidden" id="dashboard-tonight-adjust-panel">
+        <div class="dashboard-tonight-adjust-panel" id="dashboard-tonight-adjust-panel">
           <div
-            class="dashboard-tonight-adjust-slider"
+            class="dashboard-tonight-adjust-slider dashboard-tonight-adjust-slider--main"
             id="dashboard-tonight-adjust-slider"
             style="--tonight-sleep-pct:${projection.sleepPct}%;--tonight-wake-pct:${projection.wakePct}%;--tonight-mid-pct:${(projection.sleepPct + projection.wakePct) / 2}%;--tonight-rec-start-pct:${projection.recStartPct}%;--tonight-rec-end-pct:${projection.recEndPct}%;">
-            <div class="dashboard-tonight-adjust-track">
-              <div class="dashboard-tonight-adjust-range-fill" aria-hidden="true"></div>
-              <div class="dashboard-tonight-adjust-recommended-window" aria-hidden="true">
-                <span class="dashboard-tonight-adjust-recommended-text">recent average</span>
+            <div class="dashboard-tonight-adjust-pole-row" aria-hidden="true">
+              <div class="dashboard-tonight-adjust-pole-label dashboard-tonight-adjust-pole-label--sleep">
+                <span class="proj-keyword proj-sleep">🌙 Sleep</span>
+              </div>
+              <div class="dashboard-tonight-adjust-pole-label dashboard-tonight-adjust-pole-label--wake">
+                <span class="proj-keyword proj-wake">🌅 Wake</span>
               </div>
             </div>
-            <input type="range" id="dashboard-tonight-sleep-slider" min="${base.scopeStartNorm}" max="${base.scopeEndNorm}" step="1" value="${projection.sleepNorm}" aria-label="Tonight sleep target">
-            <input type="range" id="dashboard-tonight-wake-slider" min="${base.scopeStartNorm}" max="${base.scopeEndNorm}" step="1" value="${projection.wakeNorm}" aria-label="Tomorrow wake target">
-            <div class="dashboard-tonight-adjust-overlay" id="dashboard-tonight-adjust-overlay" aria-hidden="true"></div>
-            <div class="dashboard-tonight-adjust-thumb-icon dashboard-tonight-adjust-thumb-icon--sleep" aria-hidden="true">🛏️</div>
-            <div class="dashboard-tonight-adjust-thumb-icon dashboard-tonight-adjust-thumb-icon--wake" aria-hidden="true">🌅</div>
-            <div class="dashboard-tonight-adjust-baseline-label dashboard-tonight-adjust-baseline-label--sleep dashboard-tonight-adjust-baseline-label--hidden" id="dashboard-tonight-sleep-baseline-label">${formatTime(base.sleepTarget)}</div>
-            <div class="dashboard-tonight-adjust-baseline-label dashboard-tonight-adjust-baseline-label--wake dashboard-tonight-adjust-baseline-label--hidden" id="dashboard-tonight-wake-baseline-label">${formatTime(base.wakeTarget)}</div>
-            <div class="dashboard-tonight-adjust-thumb-label dashboard-tonight-adjust-thumb-label--sleep" id="dashboard-tonight-sleep-thumb-label">${formatTime(projection.sleepClock)}</div>
-            <div class="dashboard-tonight-adjust-thumb-label dashboard-tonight-adjust-thumb-label--wake" id="dashboard-tonight-wake-thumb-label">${formatTime(projection.wakeClock)}</div>
+            <div class="dashboard-tonight-adjust-slider-core">
+              <div class="dashboard-tonight-adjust-track">
+                <div class="dashboard-tonight-adjust-range-fill" aria-hidden="true"></div>
+                <div class="dashboard-tonight-adjust-recommended-window" aria-hidden="true">
+                  <span class="dashboard-tonight-adjust-recommended-text dashboard-tonight-adjust-recommended-text--main">recent average</span>
+                </div>
+              </div>
+              <input type="range" id="dashboard-tonight-sleep-slider" min="${base.scopeStartNorm}" max="${base.scopeEndNorm}" step="1" value="${projection.sleepNorm}" aria-label="Tonight sleep target">
+              <input type="range" id="dashboard-tonight-wake-slider" min="${base.scopeStartNorm}" max="${base.scopeEndNorm}" step="1" value="${projection.wakeNorm}" aria-label="Tomorrow wake target">
+              <div class="dashboard-tonight-adjust-overlay" id="dashboard-tonight-adjust-overlay" aria-hidden="true"></div>
+              <div class="dashboard-tonight-adjust-baseline-label dashboard-tonight-adjust-baseline-label--sleep dashboard-tonight-adjust-baseline-label--hidden" id="dashboard-tonight-sleep-baseline-label">${formatTime(base.sleepTarget)}</div>
+              <div class="dashboard-tonight-adjust-baseline-label dashboard-tonight-adjust-baseline-label--wake dashboard-tonight-adjust-baseline-label--hidden" id="dashboard-tonight-wake-baseline-label">${formatTime(base.wakeTarget)}</div>
+              <div class="dashboard-tonight-adjust-thumb-label dashboard-tonight-adjust-thumb-label--sleep" id="dashboard-tonight-sleep-thumb-label">${formatTime(projection.sleepClock)}</div>
+              <div class="dashboard-tonight-adjust-thumb-label dashboard-tonight-adjust-thumb-label--wake" id="dashboard-tonight-wake-thumb-label">${formatTime(projection.wakeClock)}</div>
+            </div>
+            <div class="dashboard-tonight-adjust-duration-row">
+              <span class="dashboard-tonight-adjust-center-duration" id="dashboard-tonight-slider-duration">~${formatDuration(durationMins)} sleep</span>
+            </div>
           </div>
           <div class="dashboard-tonight-adjust-actions">
             <button type="button" class="dashboard-tonight-adjust-reset" id="dashboard-tonight-adjust-reset">Use recent average</button>
-            <button type="button" class="dashboard-tonight-adjust-set" id="dashboard-tonight-adjust-set">Set</button>
           </div>
         </div>
       </div>
@@ -1222,7 +1273,6 @@ function renderDashboardProjection(recentAverages) {
 
 function initDashboardTonightAdjuster(recentAverages, onChange) {
   const root = document.getElementById('dashboard-tonight-projection');
-  const toggleButton = document.getElementById('dashboard-tonight-adjust-toggle');
   const panel = document.getElementById('dashboard-tonight-adjust-panel');
   const sliderWrap = document.getElementById('dashboard-tonight-adjust-slider');
   const sliderOverlay = document.getElementById('dashboard-tonight-adjust-overlay');
@@ -1230,27 +1280,16 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
   const wakeSlider = document.getElementById('dashboard-tonight-wake-slider');
   const sleepLabel = document.getElementById('dashboard-tonight-sleep-thumb-label');
   const wakeLabel = document.getElementById('dashboard-tonight-wake-thumb-label');
-  const sleepTargetEl = document.getElementById('dashboard-tonight-sleep-target');
-  const wakeTargetEl = document.getElementById('dashboard-tonight-wake-target');
-  const durationEl = document.getElementById('dashboard-tonight-duration');
-  const sleepRecommendedEl = document.getElementById('dashboard-tonight-sleep-recommended');
-  const wakeRecommendedEl = document.getElementById('dashboard-tonight-wake-recommended');
-  const durationRecommendedEl = document.getElementById('dashboard-tonight-duration-recommended');
+  const centerDurationEl = document.getElementById('dashboard-tonight-slider-duration');
   const sleepBaselineLabelEl = document.getElementById('dashboard-tonight-sleep-baseline-label');
   const wakeBaselineLabelEl = document.getElementById('dashboard-tonight-wake-baseline-label');
   const resetButton = document.getElementById('dashboard-tonight-adjust-reset');
-  const setButton = document.getElementById('dashboard-tonight-adjust-set');
-  if (!root || !toggleButton || !panel || !sliderWrap || !sliderOverlay || !sleepSlider || !wakeSlider || !sleepLabel || !wakeLabel || !sleepTargetEl || !wakeTargetEl || !durationEl || !sleepRecommendedEl || !wakeRecommendedEl || !durationRecommendedEl || !sleepBaselineLabelEl || !wakeBaselineLabelEl || !resetButton || !setButton) {
+  if (!root || !panel || !sliderWrap || !sliderOverlay || !sleepSlider || !wakeSlider || !sleepLabel || !wakeLabel || !sleepBaselineLabelEl || !wakeBaselineLabelEl || !resetButton) {
     return;
   }
 
   const base = getTonightProjectionBaseState(recentAverages);
   let state = getTonightProjectionState(recentAverages);
-
-  function closePanel() {
-    panel.classList.add('dashboard-tonight-adjust-panel--hidden');
-    toggleButton.setAttribute('aria-expanded', 'false');
-  }
 
   function updateVisualState(persistOverride) {
     const sleepPct = ((state.sleepNorm - base.scopeStartNorm) / (base.scopeEndNorm - base.scopeStartNorm)) * 100;
@@ -1263,24 +1302,18 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
     sleepSlider.value = String(state.sleepNorm);
     wakeSlider.value = String(state.wakeNorm);
 
-    sleepTargetEl.textContent = formatTime(state.sleepClock);
-    wakeTargetEl.textContent = formatTime(state.wakeClock);
     sleepLabel.textContent = formatTime(state.sleepClock);
     wakeLabel.textContent = formatTime(state.wakeClock);
 
     const duration = durationMinutes(state.sleepClock, state.wakeClock);
-    durationEl.textContent = `target: ~${formatDuration(duration)} sleep`;
+    if (centerDurationEl) {
+      centerDurationEl.textContent = `~${formatDuration(duration)} sleep`;
+    }
 
     const sleepAdjusted = state.sleepClock !== base.sleepTarget;
     const wakeAdjusted = state.wakeClock !== base.wakeTarget;
-    sleepTargetEl.classList.toggle('dashboard-projection-target--adjusted', state.isAdjusted);
-    wakeTargetEl.classList.toggle('dashboard-projection-target--adjusted', state.isAdjusted);
-    sleepRecommendedEl.classList.toggle('dashboard-projection-recommended--hidden', !sleepAdjusted);
-    wakeRecommendedEl.classList.toggle('dashboard-projection-recommended--hidden', !wakeAdjusted);
-    durationRecommendedEl.classList.toggle('dashboard-projection-duration--hidden', !state.isAdjusted);
     sleepBaselineLabelEl.classList.toggle('dashboard-tonight-adjust-baseline-label--hidden', !sleepAdjusted);
     wakeBaselineLabelEl.classList.toggle('dashboard-tonight-adjust-baseline-label--hidden', !wakeAdjusted);
-    toggleButton.textContent = 'Adjust';
     root.classList.toggle('dashboard-tonight-projection--adjusted', state.isAdjusted);
 
     if (persistOverride && typeof setTonightProjectionAdjustment === 'function' && typeof clearTonightProjectionAdjustment === 'function') {
@@ -1363,12 +1396,6 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
     updateFromSliders('wake');
   });
 
-  toggleButton.addEventListener('click', function () {
-    const isHidden = panel.classList.contains('dashboard-tonight-adjust-panel--hidden');
-    panel.classList.toggle('dashboard-tonight-adjust-panel--hidden', !isHidden);
-    toggleButton.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
-  });
-
   resetButton.addEventListener('click', function () {
     state = {
       ...state,
@@ -1380,12 +1407,7 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
     };
     if (typeof clearTonightProjectionAdjustment === 'function') clearTonightProjectionAdjustment();
     updateVisualState(false);
-    closePanel();
-  });
-
-  setButton.addEventListener('click', function () {
-    closePanel();
-    updateVisualState(false);
+    showAppToast('Using recent average sleep and wake times');
   });
 
   sliderOverlay.addEventListener('mousedown', onPointerDown);
@@ -1402,22 +1424,18 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
 // Render dashboard content: projection, recent average, lifetime average, recent nights (timeline rows), sleep quality history.
 // Used by dashboard.html; kept here to share calculation/render helpers.
 function renderDashboardContent(days) {
-  const recentDays = days && days.length
-    ? days.slice(0, Math.min(7, days.length))
-    : [];
-  const recentAverages = recentDays.length
-    ? calculateAverages(recentDays)
-    : QUICK_ADD_FALLBACK_AVERAGES;
-  const quickAddDrawerHtml = renderQuickAddDrawer(recentAverages, recentDays);
+  const quickActionsHtml = renderQuickActionsSection();
 
   if (!days || days.length === 0) {
     return `
     <div class="dashboard-content">
-      ${quickAddDrawerHtml}
+      ${quickActionsHtml}
       <p class="dashboard-empty-msg">No sleep data yet.</p>
     </div>`;
   }
 
+  const recentDays = days.slice(0, Math.min(7, days.length));
+  const recentAverages = calculateAverages(recentDays);
   const flagMap = buildFlagCountMap(days);
   const latestDataDate = getLatestDataDate(days, YEAR);
   const calendarBlockOnly = renderCalendarCurrentMonthOnlyBlock(YEAR, flagMap, latestDataDate);
@@ -1450,7 +1468,7 @@ function renderDashboardContent(days) {
 
   return `
     <div class="dashboard-content">
-      ${quickAddDrawerHtml}
+      ${quickActionsHtml}
       <div class="dashboard-top-row">
         <div class="dashboard-top-col dashboard-top-col--tonight">
           ${renderDashboardProjection(recentAverages)}
