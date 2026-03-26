@@ -41,12 +41,24 @@
       </button>
     </div>
 
-    <h2 class="section-title" id="remaining-wake-thresholds">Remaining wake time thresholds</h2>
+    <h2 class="section-title" id="quality-palette">Quality colors</h2>
+    <div id="config-quality-palette" class="about-theme" role="group" aria-label="Quality color palette">
+      <button type="button" class="about-theme-option config-quality-palette-option" data-quality-palette="meadow" aria-pressed="false">
+        <span class="config-quality-palette-bar" aria-hidden="true"></span>
+        <span>Meadow</span>
+      </button>
+      <button type="button" class="about-theme-option config-quality-palette-option" data-quality-palette="harbor" aria-pressed="false">
+        <span class="config-quality-palette-bar" aria-hidden="true"></span>
+        <span>Harbor</span>
+      </button>
+    </div>
+
+    <h2 class="section-title" id="remaining-wake">Remaining wake time</h2>
     <p class="section-intro">Set when the app transitions between Active, Winding Down, and Pre-Sleep modes. Percentages represent your share of wake time remaining; the sample times shown are based on your 7-day average.</p>
     <p class="section-intro">
       <a href="about.html#remaining-wake-time" class="content-link">More about remaining wake times</a>
     </p>
-    <div id="remaining-wake-thresholds-mount"></div>
+    <div id="remaining-wake-mount"></div>
 
     <h2 class="section-title" id="cloud-sync">Cloud sync</h2>
     <div id="supabase-config-mount"></div>
@@ -59,8 +71,9 @@
     initDayNightTheme();
     initClockFormatSelector();
     initConfigThemeSelector();
-    document.getElementById('remaining-wake-thresholds-mount').innerHTML =
-      getRemainingWakeThresholdsControlHTML('remaining-wake-thresholds');
+    initQualityPaletteSelector();
+    document.getElementById('remaining-wake-mount').innerHTML =
+      getRemainingWakeThresholdsControlHTML('remaining-wake');
     initRemainingWakeNav();
     initRemainingWakeThresholdsConfig();
     initSupabaseConfigForm();

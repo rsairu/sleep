@@ -51,13 +51,16 @@
   --frag-stripe-sev-a: rgba(118, 8, 32, 0.58);
   --frag-stripe-sev-b: rgba(138, 4, 28, 0.48);
 
-  /* Shared quality ramp (daily flags + calendar; matches sleep-quality-palettes) */
+  /* Shared quality ramp (daily flags + calendar; Meadow default; overridable via Settings → Harbor) */
+  --quality-excellent: #2a9641;
+  --quality-great: #6da035;
+  --quality-good: #b0aa28;
   --quality-slight: #ca8a04;
   --quality-moderate: #b45309;
   --quality-severe: #7f1d1d;
-  /* Calendar/legend quality-flag colors */
+  /* Calendar/legend quality-flag colors (“good” / rested = top palette step) */
   --flag-insufficient: #64748b;
-  --flag-none: #15803d;
+  --flag-none: var(--quality-excellent);
   --flag-one: var(--quality-slight);
   --flag-two: var(--quality-moderate);
   --flag-three-plus: var(--quality-severe);
@@ -120,8 +123,6 @@
   --frag-stripe-sev-a: rgba(205, 55, 90, 0.54);
   --frag-stripe-sev-b: rgba(198, 40, 78, 0.44);
 
-  /* Day mode: darker green for “good” cell; severity ramp unchanged */
-  --flag-none: #166534;
   --flag-insufficient: #64748b;
   --flag-one: var(--quality-slight);
   --flag-two: var(--quality-moderate);
@@ -1078,10 +1079,11 @@ body{
   justify-content: center;
 }
 
-.dashboard-top-col--calendar .calendar-month-block--large .calendar-weekday-label {
+.dashboard-top-col--calendar .calendar-month-block--large .calendar-weekday-cells--in-block .calendar-weekday-label {
   flex: 0 0 28px;
   width: 28px;
   min-width: 28px;
+  max-width: 28px;
   box-sizing: border-box;
   text-align: center;
 }
@@ -1101,6 +1103,7 @@ body{
   width: 100%;
   min-width: 0;
   justify-content: center;
+  gap: 6px;
 }
 
 .dashboard-top-col--calendar .calendar-month-block--large .calendar-square {
@@ -3335,6 +3338,10 @@ svg {
   border-radius: 3px;
 }
 
+.quality-swatch--rested {
+  background: var(--quality-excellent);
+}
+
 .quality-swatch--slight {
   background: var(--quality-slight);
 }
@@ -3491,6 +3498,27 @@ svg {
 
 .container--config #theme.section-title {
   margin-top: 1rem;
+}
+
+.container--config #quality-palette.section-title {
+  margin-top: 1rem;
+}
+
+/* Settings: quality palette options (6-step preview + name) */
+#config-quality-palette .config-quality-palette-bar {
+  display: flex;
+  flex: 0 0 auto;
+  width: 108px;
+  min-width: 108px;
+  height: 20px;
+  border-radius: 5px;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 14%, transparent);
+}
+
+#config-quality-palette .config-quality-palette-bar > span {
+  flex: 1;
+  min-width: 0;
 }
 
 /* Remaining wake time thresholds — bar + two sliders (same colors as nav phases) */
