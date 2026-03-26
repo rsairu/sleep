@@ -20,8 +20,11 @@
   <script src="entry-modal.js"></script>
   <script src="log.js"></script>
   <script>
-    document.getElementById('nav-container').innerHTML = renderNavBar('log');
-    initDayNightTheme();
+    (async function initLogPage() {
+      await initI18n(document);
+      document.getElementById('nav-container').innerHTML = renderNavBar('log');
+      initDayNightTheme();
+    })();
   </script>
 </body>
 </html>

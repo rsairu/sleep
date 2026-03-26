@@ -11,72 +11,86 @@ next<!doctype html>
 <body>
   <div id="nav-container"></div>
   <div class="container container--config">
-    <h1 class="page-title config-page-title">Settings</h1>
+    <h1 class="page-title config-page-title" data-i18n="config.title">Settings</h1>
 
-    <h2 class="section-title" id="clock">Clock</h2>
-    <div id="config-clock" class="about-theme" role="group" aria-label="Clock format preference">
+    <h2 class="section-title" id="clock" data-i18n="config.clock.title">Clock</h2>
+    <div id="config-clock" class="about-theme" role="group" aria-label="Clock format preference" data-i18n-aria-label="config.clock.ariaLabel">
       <button type="button" class="about-theme-option" data-clock-format="12h" aria-pressed="false">
         <span class="about-theme-option-icon" aria-hidden="true">
           <span class="clock-format-icon-text">AM/PM</span>
         </span>
-        <span>12-hour</span>
+        <span data-i18n="config.clock.option12">12-hour</span>
       </button>
       <button type="button" class="about-theme-option" data-clock-format="24h" aria-pressed="false">
         <span class="about-theme-option-icon" aria-hidden="true">
           <span class="clock-format-icon-text">00:00</span>
         </span>
-        <span>24-hour</span>
+        <span data-i18n="config.clock.option24">24-hour</span>
       </button>
     </div>
 
-    <h2 class="section-title" id="theme">Theme</h2>
-    <div id="config-theme" class="about-theme" role="group" aria-label="Theme preference">
-      <div class="about-theme-row about-theme-row--light-dark" id="config-theme-light-dark-row" role="button" tabindex="0" aria-label="Light / Dark">
+    <h2 class="section-title" id="language" data-i18n="config.language.title">Language</h2>
+    <div class="config-language-select-wrap">
+      <label for="config-language-select" class="section-intro config-language-label" data-i18n="config.language.label">Choose display language</label>
+      <select id="config-language-select" class="config-language-select" aria-label="Display language" data-i18n-aria-label="config.language.ariaLabel">
+        <option value="en" data-i18n="config.language.optionEnglish">🇺🇸 English</option>
+        <option value="ja" data-i18n="config.language.optionJapanese">🇯🇵 Japanese</option>
+      </select>
+    </div>
+
+    <h2 class="section-title" id="theme" data-i18n="config.theme.title">Theme</h2>
+    <div id="config-theme" class="about-theme" role="group" aria-label="Theme preference" data-i18n-aria-label="config.theme.ariaLabel">
+      <div class="about-theme-row about-theme-row--light-dark" id="config-theme-light-dark-row" role="button" tabindex="0" aria-label="Light / Dark" data-i18n-aria-label="config.theme.lightDarkAriaLabel">
         <span class="about-theme-option-icon" id="config-theme-toggle-wrap"></span>
-        <span>Light / Dark</span>
+        <span data-i18n="config.theme.lightDark">Light / Dark</span>
       </div>
       <button type="button" class="about-theme-option" data-theme="auto" aria-pressed="false">
         <span class="about-theme-option-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg></span>
-        <span>Auto (time-based)</span>
+        <span data-i18n="config.theme.auto">Auto (time-based)</span>
       </button>
     </div>
 
-    <h2 class="section-title" id="quality-palette">Quality colors</h2>
-    <div id="config-quality-palette" class="about-theme" role="group" aria-label="Quality color palette">
+    <h2 class="section-title" id="quality-palette" data-i18n="config.quality.title">Quality colors</h2>
+    <div id="config-quality-palette" class="about-theme" role="group" aria-label="Quality color palette" data-i18n-aria-label="config.quality.ariaLabel">
       <button type="button" class="about-theme-option config-quality-palette-option" data-quality-palette="meadow" aria-pressed="false">
         <span class="config-quality-palette-bar" aria-hidden="true"></span>
-        <span>Stepa's Meadow</span>
+        <span data-i18n="config.quality.meadow">Stepa's Meadow</span>
       </button>
       <button type="button" class="about-theme-option config-quality-palette-option" data-quality-palette="harbor" aria-pressed="false">
         <span class="config-quality-palette-bar" aria-hidden="true"></span>
-        <span>Dima's Harbor</span>
+        <span data-i18n="config.quality.harbor">Dima's Harbor</span>
       </button>
     </div>
 
-    <h2 class="section-title" id="remaining-wake">Remaining wake time</h2>
-    <p class="section-intro">Set when the app transitions between Active, Winding Down, and Pre-Sleep modes. Percentages represent your share of wake time remaining; the sample times shown are based on your 7-day average.</p>
+    <h2 class="section-title" id="remaining-wake" data-i18n="config.remainingWake.title">Remaining wake time</h2>
+    <p class="section-intro" data-i18n="config.remainingWake.intro">Set when the app transitions between Active, Winding Down, and Pre-Sleep modes. Percentages represent your share of wake time remaining; the sample times shown are based on your 7-day average.</p>
     <p class="section-intro">
-      <a href="about.html#remaining-wake-time" class="content-link">More about remaining wake times</a>
+      <a href="about.html#remaining-wake-time" class="content-link" data-i18n="config.remainingWake.link">More about remaining wake times</a>
     </p>
     <div id="remaining-wake-mount"></div>
 
-    <h2 class="section-title" id="cloud-sync">Cloud sync</h2>
+    <h2 class="section-title" id="cloud-sync" data-i18n="config.cloudSync.title">Cloud sync</h2>
     <div id="supabase-config-mount"></div>
   </div>
 
   <script src="dev-git-branch.js"></script>
   <script src="sleep-utils.js"></script>
   <script>
-    document.getElementById('nav-container').innerHTML = renderNavBar('config');
-    initDayNightTheme();
-    initClockFormatSelector();
-    initConfigThemeSelector();
-    initQualityPaletteSelector();
-    document.getElementById('remaining-wake-mount').innerHTML =
-      getRemainingWakeThresholdsControlHTML('remaining-wake');
-    initRemainingWakeNav();
-    initRemainingWakeThresholdsConfig();
-    initSupabaseConfigForm();
+    (async function initConfigPage() {
+      await initI18n(document);
+      document.getElementById('nav-container').innerHTML = renderNavBar('config');
+      applyTranslations(document.getElementById('nav-container'));
+      initDayNightTheme();
+      initClockFormatSelector();
+      initLanguageSelector();
+      initConfigThemeSelector();
+      initQualityPaletteSelector();
+      document.getElementById('remaining-wake-mount').innerHTML =
+        getRemainingWakeThresholdsControlHTML('remaining-wake');
+      initRemainingWakeNav();
+      initRemainingWakeThresholdsConfig();
+      initSupabaseConfigForm();
+    })();
   </script>
 </body>
 </html>

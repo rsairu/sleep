@@ -30,9 +30,12 @@
   <script src="daily.js"></script>
   <script src="quality.js"></script>
   <script>
-    document.getElementById('nav-container').innerHTML = renderNavBar('quality');
-    initDayNightTheme();
-    initRemainingWakeNav();
+    (async function initQualityPage() {
+      await initI18n(document);
+      document.getElementById('nav-container').innerHTML = renderNavBar('quality');
+      initDayNightTheme();
+      initRemainingWakeNav();
+    })();
   </script>
 </body>
 </html>

@@ -94,12 +94,15 @@
   <script src="dev-git-branch.js"></script>
   <script src="sleep-utils.js"></script>
   <script>
-    document.getElementById('nav-container').innerHTML = renderNavBar('about');
-    initDayNightTheme();
-    initRemainingWakeNav();
-    document.getElementById('about-remaining-wake-mount').innerHTML =
-      getRemainingWakeThresholdsControlHTML('about-remaining-wake-thresholds');
-    initRemainingWakeThresholdsConfig();
+    (async function initAboutPage() {
+      await initI18n(document);
+      document.getElementById('nav-container').innerHTML = renderNavBar('about');
+      initDayNightTheme();
+      initRemainingWakeNav();
+      document.getElementById('about-remaining-wake-mount').innerHTML =
+        getRemainingWakeThresholdsControlHTML('about-remaining-wake-thresholds');
+      initRemainingWakeThresholdsConfig();
+    })();
 
     (function() {
       var deck = document.getElementById('about-deck');

@@ -40,6 +40,116 @@ function safeWriteStorage(key, value) {
   } catch (_) {}
 }
 
+const LANGUAGE_KEY = 'sleep-app-language';
+const DEFAULT_LANGUAGE = 'en';
+const LOCALE_DICTIONARY_URL = 'locales.json';
+const SUPPORTED_LANGUAGES = ['en', 'ja'];
+let localeDictionaryCache = null;
+let localeDictionaryPromise = null;
+
+function normalizeLanguage(value) {
+  const raw = String(value || '').toLowerCase();
+  if (raw === 'ja' || raw.startsWith('ja-')) return 'ja';
+  return 'en';
+}
+
+function getLanguagePreference() {
+  const stored = safeReadStorage(LANGUAGE_KEY);
+  if (stored) return normalizeLanguage(stored);
+  if (typeof navigator !== 'undefined' && navigator.language) {
+    return normalizeLanguage(navigator.language);
+  }
+  return DEFAULT_LANGUAGE;
+}
+
+function setLanguagePreference(language) {
+  const normalized = normalizeLanguage(language);
+  safeWriteStorage(LANGUAGE_KEY, normalized);
+  return normalized;
+}
+
+function getLocalizedValue(dict, language, key) {
+  if (!dict || typeof dict !== 'object') return '';
+  const langDict = dict[language];
+  if (!langDict || typeof langDict !== 'object') return '';
+  let node = langDict;
+  const parts = String(key || '').split('.');
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    if (!node || typeof node !== 'object' || !(part in node)) return '';
+    node = node[part];
+  }
+  return typeof node === 'string' ? node : '';
+}
+
+function t(key, fallback) {
+  const language = getLanguagePreference();
+  const preferred = getLocalizedValue(localeDictionaryCache, language, key);
+  if (preferred) return preferred;
+  const english = getLocalizedValue(localeDictionaryCache, 'en', key);
+  if (english) return english;
+  return fallback == null ? '' : String(fallback);
+}
+
+async function loadLocaleDictionary() {
+  if (localeDictionaryCache) return localeDictionaryCache;
+  if (localeDictionaryPromise) return localeDictionaryPromise;
+  localeDictionaryPromise = fetch(LOCALE_DICTIONARY_URL, { cache: 'no-store' })
+    .then(function (res) {
+      if (!res.ok) return {};
+      return res.json();
+    })
+    .then(function (json) {
+      if (!json || typeof json !== 'object') return {};
+      return json;
+    })
+    .catch(function () {
+      return {};
+    })
+    .then(function (dict) {
+      localeDictionaryCache = dict;
+      if (typeof window !== 'undefined') window.__RESTORE_LOCALE_DICTIONARY__ = dict;
+      return dict;
+    })
+    .finally(function () {
+      localeDictionaryPromise = null;
+    });
+  return localeDictionaryPromise;
+}
+
+function applyTranslations(root) {
+  const base = root || document;
+  if (!base) return;
+  base.querySelectorAll('[data-i18n]').forEach(function (el) {
+    const key = el.getAttribute('data-i18n');
+    const fallback = el.textContent || '';
+    const value = t(key, fallback);
+    if (value) el.textContent = value;
+  });
+  base.querySelectorAll('[data-i18n-aria-label]').forEach(function (el) {
+    const key = el.getAttribute('data-i18n-aria-label');
+    const fallback = el.getAttribute('aria-label') || '';
+    const value = t(key, fallback);
+    if (value) el.setAttribute('aria-label', value);
+  });
+  base.querySelectorAll('[data-i18n-title]').forEach(function (el) {
+    const key = el.getAttribute('data-i18n-title');
+    const fallback = el.getAttribute('title') || '';
+    const value = t(key, fallback);
+    if (value) el.setAttribute('title', value);
+  });
+}
+
+async function initI18n(root) {
+  await loadLocaleDictionary();
+  const language = getLanguagePreference();
+  if (typeof document !== 'undefined' && document.documentElement) {
+    document.documentElement.setAttribute('lang', language);
+  }
+  applyTranslations(root || document);
+  return language;
+}
+
 function getSupabaseConfig() {
   const urlFromStorage = safeReadStorage(SUPABASE_URL_STORAGE_KEY).trim();
   const anonFromStorage = safeReadStorage(SUPABASE_ANON_KEY_STORAGE_KEY).trim();
@@ -970,6 +1080,19 @@ function initClockFormatSelector() {
   });
 }
 
+function initLanguageSelector() {
+  const select = document.getElementById('config-language-select');
+  if (!select) return;
+  const current = getLanguagePreference();
+  select.value = current;
+  select.addEventListener('change', async function () {
+    const selected = normalizeLanguage(select.value);
+    if (SUPPORTED_LANGUAGES.indexOf(selected) === -1) return;
+    setLanguagePreference(selected);
+    await initI18n(document);
+  });
+}
+
 // Initializes the Config page theme selector: inject Light/Dark toggle, attach row and Auto handlers.
 function initConfigThemeSelector() {
   const wrap = document.getElementById('config-theme');
@@ -1143,7 +1266,9 @@ function applyRemainingWakeThresholdsUI(pos1, pos2) {
     if (tim) tim.textContent = timeOpen;
     percentLeft.setAttribute(
       'aria-label',
-      'Active until ' + openMin + '% wake time remains, around ' + timeOpen + ' with your 7-day averages'
+      t('config.remainingWake.leftThumbAria', 'Active until {percent}% wake time remains, around {time} with your 7-day averages')
+        .replace('{percent}', String(openMin))
+        .replace('{time}', String(timeOpen))
     );
   }
   if (percentRight) {
@@ -1154,7 +1279,9 @@ function applyRemainingWakeThresholdsUI(pos1, pos2) {
     if (tim) tim.textContent = timeWinding;
     percentRight.setAttribute(
       'aria-label',
-      'Winding down until ' + windingMin + '% wake time remains, around ' + timeWinding + ' with your 7-day averages'
+      t('config.remainingWake.rightThumbAria', 'Winding down until {percent}% wake time remains, around {time} with your 7-day averages')
+        .replace('{percent}', String(windingMin))
+        .replace('{time}', String(timeWinding))
     );
   }
 
@@ -1173,17 +1300,25 @@ function snapPercentTo1(frac) {
 /** Markup for the default-values control + bar/sliders (Settings and About). `ariaLabelledBy` is the id of the visible section heading. */
 function getRemainingWakeThresholdsControlHTML(ariaLabelledBy) {
   const labelId = ariaLabelledBy || 'remaining-wake';
+  const phaseOpen = t('config.remainingWake.phase.open', 'Active');
+  const phaseWinding = t('config.remainingWake.phase.winding', 'Winding');
+  const phasePresleep = t('config.remainingWake.phase.presleep', 'Pre-sleep');
+  const defaultsLabel = t('config.remainingWake.defaultsButton', 'Use default values');
+  const openBoundaryAria = t('config.remainingWake.openBoundaryAria', 'Active / Winding boundary (percent remaining)');
+  const windingBoundaryAria = t('config.remainingWake.windingBoundaryAria', 'Winding / Pre-sleep boundary (percent remaining)');
+  const wakeLabel = t('config.remainingWake.wakeLabel', 'Wake');
+  const sleepLabel = t('config.remainingWake.sleepLabel', 'Sleep');
   return (
     '<p class="config-remaining-wake-default-row">' +
-      '<button type="button" class="config-rw-defaults-button" id="config-rw-use-defaults">Use default values <span class="config-rw-default-values"></span></button>' +
+      '<button type="button" class="config-rw-defaults-button" id="config-rw-use-defaults">' + defaultsLabel + ' <span class="config-rw-default-values"></span></button>' +
     '</p>' +
     '<div class="config-remaining-wake" id="config-remaining-wake" role="group" aria-labelledby="' +
     labelId +
     '">' +
     '<div class="config-remaining-wake-icons" aria-hidden="true">' +
-    '<span class="config-remaining-wake-icon-seg" id="config-rw-icon-open"><span class="config-rw-icon-emoji">☀️</span><span class="config-rw-icon-label">Active</span></span>' +
-    '<span class="config-remaining-wake-icon-seg" id="config-rw-icon-winding"><span class="config-rw-icon-emoji">🌇</span><span class="config-rw-icon-label">Winding</span></span>' +
-    '<span class="config-remaining-wake-icon-seg" id="config-rw-icon-presleep"><span class="config-rw-icon-emoji">🛏️</span><span class="config-rw-icon-label">Pre-sleep</span></span>' +
+    '<span class="config-remaining-wake-icon-seg" id="config-rw-icon-open"><span class="config-rw-icon-emoji">☀️</span><span class="config-rw-icon-label">' + phaseOpen + '</span></span>' +
+    '<span class="config-remaining-wake-icon-seg" id="config-rw-icon-winding"><span class="config-rw-icon-emoji">🌇</span><span class="config-rw-icon-label">' + phaseWinding + '</span></span>' +
+    '<span class="config-remaining-wake-icon-seg" id="config-rw-icon-presleep"><span class="config-rw-icon-emoji">🛏️</span><span class="config-rw-icon-label">' + phasePresleep + '</span></span>' +
     '</div>' +
     '<div class="config-remaining-wake-bar-wrap">' +
     '<div class="config-remaining-wake-bar">' +
@@ -1191,13 +1326,13 @@ function getRemainingWakeThresholdsControlHTML(ariaLabelledBy) {
     '<div class="config-remaining-wake-seg config-remaining-wake-seg--winding" id="config-rw-seg-winding"></div>' +
     '<div class="config-remaining-wake-seg config-remaining-wake-seg--presleep" id="config-rw-seg-presleep"></div>' +
     '</div>' +
-    '<input type="range" id="config-open-min" min="0" max="100" step="1" value="65" aria-label="Active / Winding boundary (percent remaining)" tabindex="0">' +
-    '<input type="range" id="config-winding-min" min="0" max="100" step="1" value="85" aria-label="Winding / Pre-sleep boundary (percent remaining)" tabindex="0">' +
+    '<input type="range" id="config-open-min" min="0" max="100" step="1" value="65" aria-label="' + openBoundaryAria + '" tabindex="0">' +
+    '<input type="range" id="config-winding-min" min="0" max="100" step="1" value="85" aria-label="' + windingBoundaryAria + '" tabindex="0">' +
     '<div class="config-remaining-wake-bar-overlay" id="config-rw-bar-overlay" aria-hidden="true"></div>' +
     '</div>' +
     '<div class="config-remaining-wake-labels">' +
-    '<span class="config-rw-end-label"><span class="config-rw-end-title">Wake</span><span class="config-rw-end-time" id="config-rw-end-wake-time" aria-hidden="true">—</span></span>' +
-    '<span class="config-rw-end-label"><span class="config-rw-end-title">Sleep</span><span class="config-rw-end-time" id="config-rw-end-sleep-time" aria-hidden="true">—</span></span>' +
+    '<span class="config-rw-end-label"><span class="config-rw-end-title">' + wakeLabel + '</span><span class="config-rw-end-time" id="config-rw-end-wake-time" aria-hidden="true">—</span></span>' +
+    '<span class="config-rw-end-label"><span class="config-rw-end-title">' + sleepLabel + '</span><span class="config-rw-end-time" id="config-rw-end-sleep-time" aria-hidden="true">—</span></span>' +
     '</div>' +
     '<div class="config-remaining-wake-percent-under" id="config-rw-percent-under" aria-live="polite">' +
     '<span class="config-rw-percent-thumb" id="config-rw-percent-left">' +
@@ -1311,13 +1446,15 @@ function initRemainingWakeThresholdsConfig() {
     const defaultsLabel = `(${DEFAULT_REMAINING_WAKE_OPEN_MIN}%, ${DEFAULT_REMAINING_WAKE_WINDING_MIN}%)`;
     const span = defaultsBtn.querySelector('.config-rw-default-values');
     if (span) span.textContent = defaultsLabel;
+    const defaultsAria = t(
+      'config.remainingWake.defaultsAria',
+      'Reset remaining wake thresholds to defaults: {open}% and {winding}%'
+    )
+      .replace('{open}', String(DEFAULT_REMAINING_WAKE_OPEN_MIN))
+      .replace('{winding}', String(DEFAULT_REMAINING_WAKE_WINDING_MIN));
     defaultsBtn.setAttribute(
       'aria-label',
-      'Reset remaining wake thresholds to defaults: ' +
-        DEFAULT_REMAINING_WAKE_OPEN_MIN +
-        '% and ' +
-        DEFAULT_REMAINING_WAKE_WINDING_MIN +
-        '%'
+      defaultsAria
     );
     defaultsBtn.addEventListener('click', function () {
       setRemainingWakeThresholds(DEFAULT_REMAINING_WAKE_OPEN_MIN, DEFAULT_REMAINING_WAKE_WINDING_MIN);
@@ -1473,23 +1610,24 @@ function renderNavBar(currentPage) {
   applyDayNightTheme();
 
   const pages = [
-    { id: 'dashboard', name: 'Dashboard', url: 'dashboard.html', icon: '🛌' },
-    { id: 'log', name: 'Log', url: 'log.html', icon: '✏️' },
-    { id: 'quality', name: 'Quality', url: 'quality.html', icon: '🟢' },
-    { id: 'timeline', name: 'Daily', url: 'daily.html', icon: '📅' },
-    { id: 'graph', name: 'Graphs', url: 'graph.html', icon: '📊' },
-    { id: 'stats', name: 'Stats', url: 'stats.html', icon: '🔢' }
+    { id: 'dashboard', key: 'nav.tabs.dashboard', defaultName: 'Dashboard', url: 'dashboard.html', icon: '🛌' },
+    { id: 'log', key: 'nav.tabs.log', defaultName: 'Log', url: 'log.html', icon: '✏️' },
+    { id: 'quality', key: 'nav.tabs.quality', defaultName: 'Quality', url: 'quality.html', icon: '🟢' },
+    { id: 'timeline', key: 'nav.tabs.daily', defaultName: 'Daily', url: 'daily.html', icon: '📅' },
+    { id: 'graph', key: 'nav.tabs.graphs', defaultName: 'Graphs', url: 'graph.html', icon: '📊' },
+    { id: 'stats', key: 'nav.tabs.stats', defaultName: 'Stats', url: 'stats.html', icon: '🔢' }
   ];
 
   const navItems = pages.map(page => {
     const isActive = page.id === currentPage;
-    return `<a href="${page.url}" class="nav-tab ${isActive ? 'active' : ''}" aria-label="${page.name}"><span class="nav-icon">${page.icon}</span><span class="nav-tab-label">${page.name}</span></a>`;
+    const name = t(page.key, page.defaultName);
+    return `<a href="${page.url}" class="nav-tab ${isActive ? 'active' : ''}" aria-label="${name}"><span class="nav-icon">${page.icon}</span><span class="nav-tab-label">${name}</span></a>`;
   }).join('');
 
   const theme = getEffectiveTheme();
   const nightActive = theme === 'night';
   const hamburgerIcon = '<svg class="nav-menu-trigger-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/></svg>';
-  const menuTrigger = `<button type="button" class="nav-menu-trigger" id="nav-menu-trigger" aria-label="Options" aria-expanded="false" aria-haspopup="true">${hamburgerIcon}</button>`;
+  const menuTrigger = `<button type="button" class="nav-menu-trigger" id="nav-menu-trigger" aria-label="${t('nav.menu.options', 'Options')}" aria-expanded="false" aria-haspopup="true">${hamburgerIcon}</button>`;
   const configIcon = `<svg class="nav-menu-item-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97 0-.33-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.31-.61-.22l-2.49 1c-.52-.39-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.09-.49 0-.61.22l-2 3.46c-.13.22-.08.49.12.64L4.57 11c-.04.34-.07.67-.07 1 0 .33.03.65.07.97l-2.11 1.66c-.19.15-.25.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1.01c.52.4 1.06.74 1.69.99l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.26 1.17-.59 1.69-.99l2.49 1.01c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.66z"/></svg>`;
   const aboutIcon = `<svg class="nav-menu-item-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>`;
   const githubIcon = `<svg class="nav-menu-item-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>`;
@@ -1497,9 +1635,9 @@ function renderNavBar(currentPage) {
   const themeToggleHTML = getThemeToggleHTML(nightActive, 'nav-menu-theme-toggle', 'nav');
   const menuItems = (
     '<div class="nav-menu-dropdown" id="nav-menu-dropdown" role="menu" hidden>' +
-      '<a href="about.html" class="nav-menu-item" role="menuitem"><span class="nav-menu-item-icon-wrap">' + aboutIcon + '</span><span>About</span></a>' +
-      '<a href="config.html" class="nav-menu-item" role="menuitem"><span class="nav-menu-item-icon-wrap">' + configIcon + '</span><span>Settings</span></a>' +
-      '<div class="nav-menu-item nav-menu-theme-row" role="none"><span class="nav-menu-item-icon-wrap">' + themeToggleHTML + '</span><span>Theme</span></div>' +
+      '<a href="about.html" class="nav-menu-item" role="menuitem"><span class="nav-menu-item-icon-wrap">' + aboutIcon + '</span><span>' + t('nav.menu.about', 'About') + '</span></a>' +
+      '<a href="config.html" class="nav-menu-item" role="menuitem"><span class="nav-menu-item-icon-wrap">' + configIcon + '</span><span>' + t('nav.menu.settings', 'Settings') + '</span></a>' +
+      '<div class="nav-menu-item nav-menu-theme-row" role="none"><span class="nav-menu-item-icon-wrap">' + themeToggleHTML + '</span><span>' + t('nav.menu.theme', 'Theme') + '</span></div>' +
       '<a href="' + GITHUB_REPO_URL + '" class="nav-menu-item" role="menuitem" target="_blank" rel="noopener noreferrer"><span class="nav-menu-item-icon-wrap">' + githubIcon + '</span><span>GitHub</span></a>' +
     '</div>'
   );
@@ -1507,7 +1645,7 @@ function renderNavBar(currentPage) {
   const navRight = `<div class="nav-right nav-menu-wrap">${dataSourceBadge}${menuTrigger}${menuItems}</div>`;
 
   const appIcon = '<img src="assets/icon_512.png" alt="" class="nav-app-icon" width="36" height="36">';
-  const appName = `<a href="dashboard.html" class="nav-app-block" title="Dashboard"><span class="nav-app-icon-wrap">${appIcon}</span><span class="nav-app-text"><span class="nav-app-name">Restore</span><span class="nav-app-subtitle">Sleep Tracker</span></span></a>`;
+  const appName = `<a href="dashboard.html" class="nav-app-block" title="${t('nav.tabs.dashboard', 'Dashboard')}"><span class="nav-app-icon-wrap">${appIcon}</span><span class="nav-app-text"><span class="nav-app-name">Restore</span><span class="nav-app-subtitle">${t('nav.app.subtitle', 'Sleep Tracker')}</span></span></a>`;
   const remainingWakeSlot = `<div class="nav-remaining-wake" id="nav-remaining-wake"></div>`;
   const headerRow = `<div class="nav-header nav-header--remaining-wake">${appName}${remainingWakeSlot}${navRight}</div>`;
   const tabsRow = `<div class="nav-tabs-row"><div class="nav-tabs">${navItems}</div></div>`;

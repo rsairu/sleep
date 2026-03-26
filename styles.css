@@ -3659,6 +3659,32 @@ svg {
   margin-top: 1rem;
 }
 
+.config-language-select-wrap {
+  margin-bottom: 1.5rem;
+}
+
+.config-language-label {
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.config-language-select {
+  width: 100%;
+  max-width: 320px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--card-bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.95rem;
+}
+
+.config-language-select:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  outline-offset: 1px;
+}
+
 /* Settings: quality palette options (6-step preview + name) */
 #config-quality-palette .config-quality-palette-bar {
   display: flex;

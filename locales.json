@@ -1,0 +1,144 @@
+{
+  "en": {
+    "nav": {
+      "app": {
+        "subtitle": "Sleep Tracker"
+      },
+      "tabs": {
+        "dashboard": "Dashboard",
+        "log": "Log",
+        "quality": "Quality",
+        "daily": "Daily",
+        "graphs": "Graphs",
+        "stats": "Stats"
+      },
+      "menu": {
+        "options": "Options",
+        "about": "About",
+        "settings": "Settings",
+        "theme": "Theme"
+      }
+    },
+    "config": {
+      "title": "Settings",
+      "clock": {
+        "title": "Clock",
+        "ariaLabel": "Clock format preference",
+        "option12": "12-hour",
+        "option24": "24-hour"
+      },
+      "language": {
+        "title": "Language",
+        "label": "Choose display language",
+        "ariaLabel": "Display language",
+        "optionEnglish": "🇺🇸 English",
+        "optionJapanese": "🇯🇵 Japanese"
+      },
+      "theme": {
+        "title": "Theme",
+        "ariaLabel": "Theme preference",
+        "lightDarkAriaLabel": "Light / Dark",
+        "lightDark": "Light / Dark",
+        "auto": "Auto (time-based)"
+      },
+      "quality": {
+        "title": "Quality colors",
+        "ariaLabel": "Quality color palette",
+        "meadow": "Stepa's Meadow",
+        "harbor": "Dima's Harbor"
+      },
+      "remainingWake": {
+        "title": "Remaining wake time",
+        "intro": "Set when the app transitions between Active, Winding Down, and Pre-Sleep modes. Percentages represent your share of wake time remaining; the sample times shown are based on your 7-day average.",
+        "link": "More about remaining wake times",
+        "defaultsButton": "Use default values",
+        "defaultsAria": "Reset remaining wake thresholds to defaults: {open}% and {winding}%",
+        "phase": {
+          "open": "Active",
+          "winding": "Winding",
+          "presleep": "Pre-sleep"
+        },
+        "openBoundaryAria": "Active / Winding boundary (percent remaining)",
+        "windingBoundaryAria": "Winding / Pre-sleep boundary (percent remaining)",
+        "wakeLabel": "Wake",
+        "sleepLabel": "Sleep",
+        "leftThumbAria": "Active until {percent}% wake time remains, around {time} with your 7-day averages",
+        "rightThumbAria": "Winding down until {percent}% wake time remains, around {time} with your 7-day averages"
+      },
+      "cloudSync": {
+        "title": "Cloud sync"
+      }
+    }
+  },
+  "ja": {
+    "nav": {
+      "app": {
+        "subtitle": "睡眠トラッカー"
+      },
+      "tabs": {
+        "dashboard": "ダッシュボード",
+        "log": "記録",
+        "quality": "睡眠の質",
+        "daily": "日別",
+        "graphs": "グラフ",
+        "stats": "統計"
+      },
+      "menu": {
+        "options": "オプション",
+        "about": "このアプリについて",
+        "settings": "設定",
+        "theme": "テーマ"
+      }
+    },
+    "config": {
+      "title": "設定",
+      "clock": {
+        "title": "時計表示",
+        "ariaLabel": "時刻表示の設定",
+        "option12": "12時間表示",
+        "option24": "24時間表示"
+      },
+      "language": {
+        "title": "言語",
+        "label": "表示言語を選択",
+        "ariaLabel": "表示言語",
+        "optionEnglish": "🇺🇸 English",
+        "optionJapanese": "🇯🇵 日本語"
+      },
+      "theme": {
+        "title": "テーマ",
+        "ariaLabel": "テーマ設定",
+        "lightDarkAriaLabel": "ライト / ダーク",
+        "lightDark": "ライト / ダーク",
+        "auto": "自動（時間帯ベース）"
+      },
+      "quality": {
+        "title": "カラーの質",
+        "ariaLabel": "睡眠の質のカラーパレット",
+        "meadow": "ステパのメドウ",
+        "harbor": "ディマのハーバー"
+      },
+      "remainingWake": {
+        "title": "残り覚醒時間",
+        "intro": "活動中・リラックスタイム・就寝前 の切り替えタイミングを設定します。割合は残り覚醒時間の比率で、表示される時刻は直近7日平均に基づきます。",
+        "link": "残り覚醒時間について詳しく",
+        "defaultsButton": "デフォルト値に戻す",
+        "defaultsAria": "残り覚醒時間のしきい値をデフォルトに戻す: {open}% と {winding}%",
+        "phase": {
+          "open": "活動中",
+          "winding": "リラックスタイム",
+          "presleep": "就寝前"
+        },
+        "openBoundaryAria": "活動中 / リラックスタイム の境界（残り割合）",
+        "windingBoundaryAria": "リラックスタイム / 就寝前 の境界（残り割合）",
+        "wakeLabel": "起床",
+        "sleepLabel": "就寝",
+        "leftThumbAria": "残り覚醒時間が {percent}% になるまで活動中（目安 {time}、直近7日平均ベース）",
+        "rightThumbAria": "残り覚醒時間が {percent}% になるまでリラックスタイム（目安 {time}、直近7日平均ベース）"
+      },
+      "cloudSync": {
+        "title": "クラウド同期"
+      }
+    }
+  }
+}
