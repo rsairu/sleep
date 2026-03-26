@@ -1411,7 +1411,7 @@ function renderNavBar(currentPage) {
   const dataSourceBadge = renderDataSourceBadge(getDataSourceState());
   const navRight = `<div class="nav-right nav-menu-wrap">${dataSourceBadge}${menuTrigger}${menuItems}</div>`;
 
-  const appIcon = '<img src="icon_512.png" alt="" class="nav-app-icon" width="36" height="36">';
+  const appIcon = '<img src="assets/icon_512.png" alt="" class="nav-app-icon" width="36" height="36">';
   const appName = `<a href="dashboard.html" class="nav-app-block" title="Dashboard"><span class="nav-app-icon-wrap">${appIcon}</span><span class="nav-app-text"><span class="nav-app-name">Restore</span><span class="nav-app-subtitle">Sleep Tracker</span></span></a>`;
   const remainingWakeSlot = `<div class="nav-remaining-wake" id="nav-remaining-wake"></div>`;
   const headerRow = `<div class="nav-header nav-header--remaining-wake">${appName}${remainingWakeSlot}${navRight}</div>`;

@@ -35,25 +35,40 @@
     }
     .lede {
       color: var(--muted);
-      max-width: 42rem;
+      max-width: 28rem;
       margin: 0 0 2rem;
     }
     .grid {
       display: grid;
-      gap: 1.5rem;
-      max-width: 52rem;
+      gap: 1.25rem;
+      max-width: 28rem;
     }
     .scheme {
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: 12px;
-      padding: 1.1rem 1.25rem 1.25rem;
+      padding: 1rem 1.1rem 1.15rem;
     }
-    .scheme h2 {
-      margin: 0 0 0.65rem;
-      font-size: 1rem;
+    .scheme-title {
+      margin: 0 0 0.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+    .copy-name {
+      font-family: Fraunces, Georgia, serif;
       font-weight: 600;
+      font-size: 1.125rem;
+      letter-spacing: -0.02em;
       color: var(--text);
+      line-height: 1.2;
+    }
+    .scheme-sub {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
     }
     .scheme p.desc {
       margin: 0 0 1rem;
@@ -67,10 +82,32 @@
       font-variant-numeric: tabular-nums;
       word-break: break-all;
     }
+    .bar-wrap {
+      display: grid;
+      grid-template-columns: auto minmax(140px, 220px) auto;
+      align-items: center;
+      gap: 0.5rem 0.6rem;
+      width: fit-content;
+      max-width: 100%;
+    }
+    .bar-pole {
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      line-height: 1.25;
+      max-width: 4.5rem;
+    }
+    .bar-pole--high { text-align: right; }
+    .bar-pole--low { text-align: left; }
+    .bar-inner {
+      min-width: 0;
+    }
     .bar {
       display: flex;
-      height: 3rem;
-      border-radius: 8px;
+      height: 2.25rem;
+      border-radius: 7px;
       overflow: hidden;
       box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
     }
@@ -78,37 +115,28 @@
       flex: 1;
       min-width: 0;
     }
-    .labels {
-      display: flex;
-      margin-top: 0.5rem;
-      font-size: 0.68rem;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-    .labels span {
-      flex: 1;
-      text-align: center;
-    }
     .note {
       margin-top: 2rem;
       padding-top: 1.25rem;
       border-top: 1px solid var(--border);
       font-size: 0.8125rem;
       color: var(--muted);
-      max-width: 42rem;
+      max-width: 28rem;
     }
   </style>
 </head>
 <body>
   <h1>Sleep quality palettes</h1>
   <p class="lede">
-    Two six-step spectra (best → worst), hard edges between tiers. Primary follows the Traffic + Earth hybrid: a stronger top green, your midpoint green, a yellow-green step into amber, then honey and wine. Alternate keeps the same shape (cool “rest” highs → warm “stress” lows) with teal and sage instead of grass green.
+    Two six-step spectra (best → worst), hard edges between tiers. <strong>Meadow Signal</strong> (primary) is the Traffic + Earth hybrid: a stronger top green, your midpoint green, a yellow-green step into amber, then honey and wine. <strong>Harbor Rest</strong> (alternate) keeps the same shape (cool “rest” highs → warm “stress” lows) with teal and sage instead of grass green.
   </p>
 
   <div class="grid">
     <section class="scheme">
-      <h2>Primary — Traffic + Earth hybrid (6 steps)</h2>
+      <h2 class="scheme-title">
+        <span class="copy-name">Meadow Signal</span>
+        <span class="scheme-sub">Primary · Traffic + Earth · 6 steps</span>
+      </h2>
       <p class="desc">
         <strong>Excellent</strong> is a bit cleaner and brighter than the midpoint green without going Traffic-neon.
         <strong>Great</strong> stays the Traffic / Earth midpoint (<code style="color:#c4c9d4">#318f2d</code>).
@@ -117,43 +145,52 @@
       <p class="hex-list">
         #41b746 · #318f2d · #b0aa28 · #ca8a04 · #b45309 · #7f1d1d
       </p>
-      <div class="bar" aria-hidden="true">
-        <span style="background:#41b746"></span>
-        <span style="background:#318f2d"></span>
-        <span style="background:#b0aa28"></span>
-        <span style="background:#ca8a04"></span>
-        <span style="background:#b45309"></span>
-        <span style="background:#7f1d1d"></span>
-      </div>
-      <div class="labels">
-        <span>Excellent</span><span>Great</span><span>Good</span><span>OK</span><span>Poor</span><span>Bad</span>
+      <div class="bar-wrap" role="img" aria-label="Six-step sleep quality scale from rested to rough, left to right">
+        <span class="bar-pole bar-pole--high">Rested</span>
+        <div class="bar-inner">
+          <div class="bar" aria-hidden="true">
+            <span style="background:#41b746"></span>
+            <span style="background:#318f2d"></span>
+            <span style="background:#b0aa28"></span>
+            <span style="background:#ca8a04"></span>
+            <span style="background:#b45309"></span>
+            <span style="background:#7f1d1d"></span>
+          </div>
+        </div>
+        <span class="bar-pole bar-pole--low">Rough</span>
       </div>
     </section>
 
     <section class="scheme">
-      <h2>Alternate — same philosophy, cool highs</h2>
+      <h2 class="scheme-title">
+        <span class="copy-name">Harbor Rest</span>
+        <span class="scheme-sub">Alternate · Cool highs · 6 steps</span>
+      </h2>
       <p class="desc">
-        Same six roles: two cool “good sleep” greens/teals, one mixed bridge into warm gold, then ochre, terracotta, and deep burgundy. For people who prefer blue-green over grass green; still natural and stepped, not rainbow.
+        Same six roles: two cool “good sleep” greens/teals, one mixed bridge, then a different low end than Primary—dusty olive-gold, rose-leaning rust, and cool plum—so the two schemes do not share the same Traffic-style amber / honey / wine trio.
       </p>
       <p class="hex-list">
-        #3db0a4 · #2f8f82 · #8fb88a · #d4a03d · #c0643a · #6c2528
+        #3db0a4 · #2f8f82 · #8fb88a · #bdb14a · #8f5f50 · #42202e
       </p>
-      <div class="bar" aria-hidden="true">
-        <span style="background:#3db0a4"></span>
-        <span style="background:#2f8f82"></span>
-        <span style="background:#8fb88a"></span>
-        <span style="background:#d4a03d"></span>
-        <span style="background:#c0643a"></span>
-        <span style="background:#6c2528"></span>
-      </div>
-      <div class="labels">
-        <span>Excellent</span><span>Great</span><span>Good</span><span>OK</span><span>Poor</span><span>Bad</span>
+      <div class="bar-wrap" role="img" aria-label="Six-step sleep quality scale from rested to rough, left to right">
+        <span class="bar-pole bar-pole--high">Rested</span>
+        <div class="bar-inner">
+          <div class="bar" aria-hidden="true">
+            <span style="background:#3db0a4"></span>
+            <span style="background:#2f8f82"></span>
+            <span style="background:#8fb88a"></span>
+            <span style="background:#bdb14a"></span>
+            <span style="background:#8f5f50"></span>
+            <span style="background:#42202e"></span>
+          </div>
+        </div>
+        <span class="bar-pole bar-pole--low">Rough</span>
       </div>
     </section>
   </div>
 
   <p class="note">
-    Six equal segments per bar. Map your quality buckets to these stops in order, or split/merge tiers in your app if you use fewer than six labels.
+    Six equal segments per bar; UI mock shows only end captions (<strong>Rested</strong> / <strong>Rough</strong>) beside the strip. Map your quality buckets to the six tiers in order (e.g. Excellent → Bad), or split/merge if you use fewer labels.
   </p>
 </body>
 </html>

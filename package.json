@@ -2,7 +2,8 @@
   "name": "sleep-proj",
   "private": true,
   "scripts": {
-    "new-day": "node scripts/new-day.js",
-    "migrate-supabase": "node supabase/migrate-json-to-supabase.js"
+    "migrate-supabase": "node supabase/migrate-json-to-supabase.js",
+    "test:math": "node math-tests.js",
+    "report:duration-flags": "node scripts/report-duration-flag-impact.js"
   }
 }
