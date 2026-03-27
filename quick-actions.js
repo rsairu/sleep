@@ -330,11 +330,11 @@
     const parts = [];
     if (phase === 'wake') {
       parts.push(
-        '<button type="button" class="dashboard-quick-action-btn about-theme-option" data-qa="wake">Wake up</button>'
+        '<button type="button" class="dashboard-quick-action-btn about-theme-option" data-qa="wake"><span aria-hidden="true">🌅</span> Wake up</button>'
       );
       if (showAlarm) {
         parts.push(
-          '<button type="button" class="dashboard-quick-action-btn about-theme-option" data-qa="alarm">Log alarm</button>'
+          '<button type="button" class="dashboard-quick-action-btn about-theme-option" data-qa="alarm"><span aria-hidden="true">⏰</span> Log alarm</button>'
         );
       }
     } else if (phase === 'sleep') {

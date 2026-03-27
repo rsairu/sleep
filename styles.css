@@ -179,6 +179,22 @@ body{
   font-weight: 700;
 }
 
+.nav-dev-banner-line--hint {
+  font-weight: 400;
+  text-transform: none;
+}
+
+.nav-dev-banner .nav-dev-banner-link,
+.nav-dev-banner .nav-dev-banner-link:visited,
+.nav-dev-banner .nav-dev-banner-link:hover,
+.nav-dev-banner .nav-dev-banner-link:active,
+.nav-dev-banner .nav-dev-banner-link:focus {
+  color: #ffffff;
+  opacity: 1;
+  font-weight: 400;
+  text-transform: none;
+}
+
 .nav-dev-banner-branch-row {
   display: inline-flex;
   align-items: center;
