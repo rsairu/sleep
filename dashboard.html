@@ -26,6 +26,7 @@
       await initI18n(document);
       document.getElementById('nav-container').innerHTML = renderNavBar('dashboard');
       initDayNightTheme();
+      initRemainingWakeNav({ interval: false });
     })();
   </script>
 </body>
