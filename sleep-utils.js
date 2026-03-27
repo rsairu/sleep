@@ -1869,8 +1869,12 @@ function updateRemainingWakeNav(display) {
   }
 }
 
-/** Fetches sleep data and fills remaining wake in nav. Call on every page so header is consistent. */
-function initRemainingWakeNav() {
+/**
+ * Fetches sleep data and fills remaining wake in nav. Call on every page so header is consistent.
+ * @param {{ interval?: boolean }} [options] — pass `{ interval: false }` when the page already refreshes the nav (e.g. log) or to avoid racing before `nav-container` is filled (dashboard runs load before inline nav render).
+ */
+function initRemainingWakeNav(options) {
+  const runInterval = !options || options.interval !== false;
   const timerKey = '__sleepAppRemainingWakeNavTimer';
   if (typeof window !== 'undefined' && window[timerKey]) {
     clearInterval(window[timerKey]);
@@ -1879,7 +1883,7 @@ function initRemainingWakeNav() {
   loadSleepData()
     .then(data => {
       updateRemainingWakeNav(getRemainingWakeDisplayFromBasis(getEffectiveRemainingWakeBasis(data.days)));
-      if (typeof window !== 'undefined') {
+      if (runInterval && typeof window !== 'undefined') {
         window[timerKey] = setInterval(function () {
           updateRemainingWakeNav(getRemainingWakeDisplayFromBasis(getEffectiveRemainingWakeBasis(data.days)));
         }, 60000);
