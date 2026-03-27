@@ -1,6 +1,7 @@
 // Time-aware dashboard quick actions (wake / nap / sleep) using recent averages; persists via upsertSleepDay.
 (function () {
   const NAP_STORAGE_KEY = 'restore_quick_nap_v1';
+  const QA_SLEEP_LOGGED_KEY = 'restore_qa_sleep_logged_v1';
   const WAKE_PROXIMITY_MINS = 105;
   const SLEEP_WINDOW_BEFORE = 120;
   const SLEEP_WINDOW_AFTER = 240;
@@ -93,6 +94,86 @@
 
   function recordDateMdForWake(now) {
     return formatMdFromDate(now);
+  }
+
+  function readQaSleepFlags() {
+    try {
+      const raw = localStorage.getItem(QA_SLEEP_LOGGED_KEY);
+      if (!raw) return {};
+      const o = JSON.parse(raw);
+      return o && typeof o === 'object' ? o : {};
+    } catch (_e) {
+      return {};
+    }
+  }
+
+  function writeQaSleepFlags(map) {
+    try {
+      localStorage.setItem(QA_SLEEP_LOGGED_KEY, JSON.stringify(map));
+    } catch (_e) { /* ignore */ }
+  }
+
+  function markQaSleepFlag(nightMd, kind) {
+    const map = readQaSleepFlags();
+    if (!map[nightMd]) map[nightMd] = {};
+    map[nightMd][kind] = true;
+    writeQaSleepFlags(map);
+  }
+
+  function hasQaBedAndSleepFlags(nightMd) {
+    const e = readQaSleepFlags()[nightMd];
+    return Boolean(e && e.bed && e.sleep);
+  }
+
+  /** True if a wall-clock time (no calendar in data) plausibly falls within the last `hoursBack` hours. */
+  function isWallClockWithinRecentHours(now, timeStr, hoursBack) {
+    const m = timeToMinutes(timeStr);
+    if (!Number.isFinite(m)) return false;
+    const hh = Math.floor(mod1440(m) / 60);
+    const mi = mod1440(m) % 60;
+    const y = now.getFullYear();
+    const mo = now.getMonth();
+    const d = now.getDate();
+    const candidates = [
+      new Date(y, mo, d, hh, mi, 0, 0),
+      new Date(y, mo, d - 1, hh, mi, 0, 0),
+      new Date(y, mo, d + 1, hh, mi, 0, 0)
+    ];
+    const lo = now.getTime() - hoursBack * 3600000;
+    const hi = now.getTime() + 45 * 60000;
+    for (var i = 0; i < candidates.length; i++) {
+      const t = candidates[i].getTime();
+      if (t >= lo && t <= hi) return true;
+    }
+    return false;
+  }
+
+  function pickDayForNightMd(nightMd, liveDays) {
+    let d = findDayByMd(liveDays, nightMd);
+    if (d) return d;
+    const c = typeof readSleepDataLocalCache === 'function' ? readSleepDataLocalCache() : null;
+    if (c && c.data && Array.isArray(c.data.days)) {
+      d = findDayByMd(c.data.days, nightMd);
+    }
+    return d || null;
+  }
+
+  /**
+   * Bed + fell-asleep already recorded for this sleep-period row (local cache / live days),
+   * both differing from stub defaults and within the last 12h, or both via quick actions (flags).
+   */
+  function bedAndSleepCompleteForSleepPeriod(nightMd, liveDays, averages, now) {
+    if (hasQaBedAndSleepFlags(nightMd)) return true;
+    const day = pickDayForNightMd(nightMd, liveDays);
+    if (!day) return false;
+    const stub = newStubDay(nightMd, liveDays, averages);
+    const bedDiff = String(day.bed || '') !== String(stub.bed || '');
+    const sleepDiff = String(day.sleepStart || '') !== String(stub.sleepStart || '');
+    if (!bedDiff || !sleepDiff) return false;
+    return (
+      isWallClockWithinRecentHours(now, day.bed, 12) &&
+      isWallClockWithinRecentHours(now, day.sleepStart, 12)
+    );
   }
 
   function readNapSession() {
@@ -244,7 +325,10 @@
       payload = cloneDayBase(day);
       payload.bed = bedClock;
     }
-    return persist(payload, onReload);
+    return persist(payload, onReload).then(function () {
+      markQaSleepFlag(md, 'bed');
+      return null;
+    });
   }
 
   /** Fell-asleep time only — does not change bed. */
@@ -260,6 +344,24 @@
     } else {
       payload = cloneDayBase(day);
       payload.sleepStart = startClock;
+    }
+    return persist(payload, onReload).then(function () {
+      markQaSleepFlag(md, 'sleep');
+      return null;
+    });
+  }
+
+  function handleBathroomTripNow(days, averages, onReload, now) {
+    const md = recordDateMdForSleep(now, averages.avgSleepEnd);
+    const t = formatTimeFromDate(now);
+    let day = findDayByMd(days, md);
+    let payload;
+    if (!day) {
+      payload = newStubDay(md, days, averages);
+      payload.bathroom = mergeUniqueTimeStrings([], t);
+    } else {
+      payload = cloneDayBase(day);
+      payload.bathroom = mergeUniqueTimeStrings(payload.bathroom, t);
     }
     return persist(payload, onReload);
   }
@@ -326,7 +428,7 @@
     return persist(payload, onReload);
   }
 
-  function renderButtons(phase, showAlarm, napActive) {
+  function renderButtons(phase, showAlarm, napActive, bedSleepLoggedForNight) {
     const parts = [];
     if (phase === 'wake') {
       parts.push(
@@ -339,10 +441,18 @@
       }
     } else if (phase === 'sleep') {
       parts.push(
-        '<button type="button" class="dashboard-quick-action-btn about-theme-option" data-qa="bed-now">Get in bed</button>',
-        '<button type="button" class="dashboard-quick-action-btn about-theme-option" data-qa="sleep-0">Go to sleep</button>',
-        '<button type="button" class="dashboard-quick-action-btn about-theme-option" data-qa="sleep-10">Sleep in 10 min</button>'
+        '<button type="button" class="dashboard-quick-action-btn about-theme-option" data-qa="bed-now"><span aria-hidden="true">🛏️</span> Get in bed</button>',
+        '<button type="button" class="dashboard-quick-action-btn about-theme-option" data-qa="sleep-0"><span aria-hidden="true">🌙</span> Go to sleep</button>'
       );
+      if (bedSleepLoggedForNight) {
+        parts.push(
+          '<button type="button" class="dashboard-quick-action-btn about-theme-option" data-qa="bathroom-trip"><span aria-hidden="true">🧻</span> Bathroom break</button>'
+        );
+      } else {
+        parts.push(
+          '<button type="button" class="dashboard-quick-action-btn about-theme-option" data-qa="sleep-10"><span aria-hidden="true">🌙</span> Sleep in 10 min</button>'
+        );
+      }
     } else {
       parts.push(
         '<button type="button" class="dashboard-quick-action-btn about-theme-option" data-qa="nap-start"><span aria-hidden="true">😴</span> Start a nap</button>'
@@ -364,7 +474,10 @@
     const phase = inferPhase(now, averages);
     const napActive = isNapActive(days, now);
     const showAlarm = averages.avgFirstAlarmToWake != null;
-    mount.innerHTML = renderButtons(phase, showAlarm, napActive);
+    const nightMd = recordDateMdForSleep(now, averages.avgSleepEnd);
+    const bedSleepLogged =
+      phase === 'sleep' && bedAndSleepCompleteForSleepPeriod(nightMd, days, averages, now);
+    mount.innerHTML = renderButtons(phase, showAlarm, napActive, bedSleepLogged);
 
   }
 
@@ -394,6 +507,9 @@
     } else if (qa === 'sleep-10') {
       e.preventDefault();
       handleSleepAt(days, averages, onReload, now, 10);
+    } else if (qa === 'bathroom-trip') {
+      e.preventDefault();
+      handleBathroomTripNow(days, averages, onReload, now);
     } else if (qa === 'nap-start') {
       e.preventDefault();
       handleNapStart(days, averages, onReload, now).then(function () {

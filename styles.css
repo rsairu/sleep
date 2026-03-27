@@ -807,6 +807,17 @@ body{
   letter-spacing: 0.02em;
 }
 
+.nav-remaining-wake-time--soft {
+  font-weight: 500;
+  font-size: 0.9375rem;
+  letter-spacing: 0.05em;
+  opacity: 0.68;
+}
+
+[data-theme="day"] .nav-remaining-wake-time--soft {
+  opacity: 0.62;
+}
+
 .nav-remaining-wake-progress {
   display: inline-block;
   flex: 0 0 auto;
