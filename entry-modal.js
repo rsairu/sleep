@@ -61,6 +61,18 @@
     handle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
   }
 
+  function syncQuickAddTimeListRemoveButtons(listEl) {
+    if (!listEl) return;
+    const rows = listEl.querySelectorAll('.quick-add-time-row');
+    const showRemove = rows.length > 1;
+    for (let i = 0; i < rows.length; i++) {
+      const btn = rows[i].querySelector('.quick-add-time-remove');
+      if (!btn) continue;
+      btn.hidden = !showRemove;
+      btn.setAttribute('aria-hidden', showRemove ? 'false' : 'true');
+    }
+  }
+
   function appendQuickAddTimeRow(listEl) {
     if (!listEl) return;
     const row = document.createElement('div');
@@ -73,6 +85,7 @@
       '</div>' +
       '<button type="button" class="quick-add-time-remove" aria-label="Remove time">×</button>';
     listEl.appendChild(row);
+    syncQuickAddTimeListRemoveButtons(listEl);
   }
 
   function initQuickAddDynamicTimeLists() {
@@ -80,6 +93,11 @@
     if (bath) {
       bath.innerHTML = '';
       appendQuickAddTimeRow(bath);
+    }
+    const alarm = document.getElementById('quick-add-alarm-list');
+    if (alarm) {
+      alarm.innerHTML = '';
+      appendQuickAddTimeRow(alarm);
     }
   }
 
@@ -116,12 +134,9 @@
     const list = row && row.parentElement;
     if (!row || !list) return;
     const rows = list.querySelectorAll('.quick-add-time-row');
-    if (rows.length <= 1) {
-      const inp = row.querySelector('.quick-add-time-native');
-      if (inp) inp.value = '';
-      return;
-    }
+    if (rows.length <= 1) return;
     row.remove();
+    syncQuickAddTimeListRemoveButtons(list);
   }
 
   function applyInitialMainTimesFromFormDataset() {
@@ -141,9 +156,25 @@
     initQuickAddDynamicTimeLists();
     applyInitialMainTimesFromFormDataset();
 
-    const alarmEl = document.getElementById('quick-add-alarm');
-    if (alarmEl) alarmEl.value = '';
+    const napS = document.getElementById('quick-add-nap-start');
+    const napE = document.getElementById('quick-add-nap-end');
+    if (napS) napS.value = '';
+    if (napE) napE.value = '';
+    const waso = document.getElementById('quick-add-waso');
+    if (waso) waso.value = '0';
+    setQuickAddStatus('', false);
+  }
 
+  function clearQuickAddFormEntirely() {
+    const dateInput = document.getElementById('quick-add-date');
+    if (dateInput) dateInput.value = '';
+    const bedEl = document.getElementById('quick-add-bed');
+    const sleepEl = document.getElementById('quick-add-sleep');
+    const wakeEl = document.getElementById('quick-add-wake');
+    if (bedEl) bedEl.value = '';
+    if (sleepEl) sleepEl.value = '';
+    if (wakeEl) wakeEl.value = '';
+    initQuickAddDynamicTimeLists();
     const napS = document.getElementById('quick-add-nap-start');
     const napE = document.getElementById('quick-add-nap-end');
     if (napS) napS.value = '';
@@ -201,14 +232,8 @@
     const bathroomNorms = collectNormalizedTimesFromList(document.getElementById('quick-add-bathroom-list'));
     const bathroom = normalizedTimesToFormattedWallClock(bathroomNorms);
 
-    const alarmEl = document.getElementById('quick-add-alarm');
-    const alarmRaw = alarmEl && alarmEl.value;
-    const alarmNormSingle = alarmRaw ? timeInputValueToNormalized(alarmRaw) : null;
-    let alarm = [];
-    if (alarmNormSingle) {
-      const am = timeToMinutes(alarmNormSingle);
-      if (Number.isFinite(am)) alarm = [formatTime(am)];
-    }
+    const alarmNorms = collectNormalizedTimesFromList(document.getElementById('quick-add-alarm-list'));
+    const alarm = normalizedTimesToFormattedWallClock(alarmNorms);
 
     const napStartRaw = document.getElementById('quick-add-nap-start').value;
     const napEndRaw = document.getElementById('quick-add-nap-end').value;
@@ -284,15 +309,31 @@
       const form = t.closest && t.closest('#quick-add-form');
       if (!form) return;
 
-      if (t.id === 'quick-add-cancel') {
+      const cancelBtn = t.closest && t.closest('#quick-add-cancel');
+      if (cancelBtn && form.contains(cancelBtn)) {
         e.preventDefault();
         closeQuickAddDrawer();
         return;
       }
 
-      if (t.id === 'quick-add-bathroom-add') {
+      const clearAllBtn = t.closest && t.closest('#quick-add-clear-all');
+      if (clearAllBtn && form.contains(clearAllBtn)) {
+        e.preventDefault();
+        clearQuickAddFormEntirely();
+        return;
+      }
+
+      const bathAdd = t.closest && t.closest('#quick-add-bathroom-add');
+      if (bathAdd && form.contains(bathAdd)) {
         e.preventDefault();
         appendQuickAddTimeRow(document.getElementById('quick-add-bathroom-list'));
+        return;
+      }
+
+      const alarmAdd = t.closest && t.closest('#quick-add-alarm-add');
+      if (alarmAdd && form.contains(alarmAdd)) {
+        e.preventDefault();
+        appendQuickAddTimeRow(document.getElementById('quick-add-alarm-list'));
         return;
       }
 
