@@ -799,11 +799,27 @@ function renderMonthBlock(month, large) {
   `;
 }
 
-// Shared header and legend for sleep quality calendar (used by dashboard and quality page)
-function renderCalendarHeatmapHeader() {
+/** @param {{ qualityPage?: boolean }} [options] */
+function renderCalendarHeatmapHeader(options) {
+  const qualityPage = Boolean(options && options.qualityPage);
+  const swatchLegend = qualityPage
+    ? `
+      <ul class="calendar-heatmap-swatch-legend" aria-label="Daily flag severity">
+        <li><span class="quality-swatch quality-swatch--rested" aria-hidden="true"></span> <span><strong>Rested</strong> — on your recent pattern; no flag.</span></li>
+        <li><span class="quality-swatch quality-swatch--slight" aria-hidden="true"></span> <span><strong>Slightly</strong> off pattern.</span></li>
+        <li><span class="quality-swatch quality-swatch--moderate" aria-hidden="true"></span> <span><strong>Moderately</strong> off pattern.</span></li>
+        <li><span class="quality-swatch quality-swatch--severe" aria-hidden="true"></span> <span><strong>Severely</strong> off pattern.</span></li>
+      </ul>`
+    : '';
+  const aboutLink = qualityPage
+    ? `<p class="calendar-heatmap-about"><a class="content-link" href="about.html#daily-flags">About daily flags</a></p>`
+    : '';
   return `
-    <div class="calendar-heatmap-header">
-      <h3 class="calendar-heatmap-title">Sleep Quality history</h3>
+    <div class="calendar-heatmap-header${qualityPage ? ' calendar-heatmap-header--quality-page' : ''}">
+      <div class="calendar-heatmap-header-titles">
+        <h3 class="calendar-heatmap-title">Sleep Quality history</h3>
+        ${aboutLink}
+      </div>
       <div class="calendar-heatmap-legend calendar-heatmap-legend--compact">
         <div class="legend-colors-row">
           <span class="legend-label">need data</span>
@@ -830,8 +846,9 @@ function renderCalendarHeatmapHeader() {
           <span class="legend-meaning-item">🌅 wake vs avg</span>
           <span class="legend-meaning-item">🧩 WASO</span>
         </div>
-        <span class="legend-explanation legend-explanation--inline">(cell color from worst of 😴 ⌛ 🧩; 🌅 icon only; see Quality page for bands)</span>
+        <span class="legend-explanation legend-explanation--inline">(cell color from worst of 😴 ⌛ 🧩; 🌅 icon only)</span>
       </div>
+      ${swatchLegend}
     </div>
   `;
 }
@@ -856,8 +873,8 @@ function renderCalendarHeatmapFullHistory(year, flagMap, latestDataDate) {
   const months = generateCalendarHeatmap(year, flagMap, latestDataDate);
 
   return `
-    <div class="calendar-heatmap-container">
-      ${renderCalendarHeatmapHeader()}
+    <div class="calendar-heatmap-container calendar-heatmap-container--quality-page">
+      ${renderCalendarHeatmapHeader({ qualityPage: true })}
       <div class="calendar-heatmap">
         <div class="calendar-month-grid">
           ${months.map((month) => renderMonthBlock(month, false)).join('')}
@@ -1083,8 +1100,22 @@ function renderQuickAddDrawer(recentAverages, recentDays, layout = 'drawer') {
                 ${advancedBlocks}
               </div>`;
 
+  const clearAllBtn =
+    '<button type="button" class="about-theme-option" id="quick-add-clear-all" data-i18n="log.clearAll">Clear all</button>';
+  const pageTopToolbar = layout === 'page' ? `<div class="quick-add-page-toolbar">${clearAllBtn}</div>` : '';
+  const actionsInner =
+    layout === 'page'
+      ? `
+                <button type="button" class="about-theme-option" id="quick-add-cancel" data-i18n="log.cancel">Cancel</button>
+                <button type="submit" class="about-theme-option" id="quick-add-save" data-i18n="log.save">Save</button>`
+      : `
+                ${clearAllBtn}
+                <button type="button" class="about-theme-option" id="quick-add-cancel" data-i18n="log.cancel">Cancel</button>
+                <button type="submit" class="about-theme-option" id="quick-add-save" data-i18n="log.save">Save</button>`;
+
   const formHtml = `
             <form id="quick-add-form" class="quick-add-form" data-initial-bed="${bedVal}" data-initial-sleep="${sleepVal}" data-initial-wake="${wakeVal}">
+              ${pageTopToolbar}
               <div class="quick-add-field-compact quick-add-log-pair">
                 <label class="quick-add-label" for="quick-add-date"><span data-i18n="log.date">Date</span></label>
                 <input class="quick-add-input quick-add-input--date" id="quick-add-date" type="date">
@@ -1115,9 +1146,7 @@ function renderQuickAddDrawer(recentAverages, recentDays, layout = 'drawer') {
               ${advancedSection}
               <p class="quick-add-status" id="quick-add-status"></p>
               <div class="quick-add-actions">
-                <button type="button" class="about-theme-option" id="quick-add-clear-all" data-i18n="log.clearAll">Clear all</button>
-                <button type="button" class="about-theme-option" id="quick-add-cancel" data-i18n="log.cancel">Cancel</button>
-                <button type="submit" class="about-theme-option" id="quick-add-save" data-i18n="log.save">Save</button>
+                ${actionsInner}
               </div>
             </form>`;
 

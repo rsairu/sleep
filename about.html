@@ -10,85 +10,82 @@
 </head>
 <body>
   <div id="nav-container"></div>
-  <div class="about-deck" id="about-deck">
-    <div class="about-slides-viewport" id="about-slides-viewport">
-    <div class="about-slides" id="about-slides">
-      <!-- Slide 1: Getting started -->
-      <section class="about-slide" aria-label="Getting started">
-        <div class="container about-slide-inner">
-          <h1 class="page-title">Getting started</h1>
-          <p class="about-intro">Use the icons in the bar below to move between pages:</p>
-          <ul class="about-page-list">
-            <li>
-              <span class="about-page-icon" aria-hidden="true">🛌</span>
-              <span class="about-page-name">Dashboard</span>
-              <span class="about-page-desc">Overview with recent and lifetime averages, recent nights, and 7-day time and duration charts.</span>
-            </li>
-            <li>
-              <span class="about-page-icon" aria-hidden="true">✏️</span>
-              <span class="about-page-name">Log</span>
-              <span class="about-page-desc">Add or edit a night: bed, sleep, wake, bathroom and alarm times, nap, and WASO.</span>
-            </li>
-            <li>
-              <span class="about-page-icon" aria-hidden="true">🟩</span>
-              <span class="about-page-name">Quality</span>
-              <span class="about-page-desc">Sleep quality history over time.</span>
-            </li>
-            <li>
-              <span class="about-page-icon" aria-hidden="true">📅</span>
-              <span class="about-page-name">Daily</span>
-              <span class="about-page-desc">Day-by-day timeline of bed, sleep, and get-up times.</span>
-            </li>
-            <li>
-              <span class="about-page-icon" aria-hidden="true">📊</span>
-              <span class="about-page-name">Graphs</span>
-              <span class="about-page-desc">Time and duration charts with trend lines across your data.</span>
-            </li>
-            <li>
-              <span class="about-page-icon" aria-hidden="true">🔢</span>
-              <span class="about-page-name">Stats</span>
-              <span class="about-page-desc">Monthly sleep statistics.</span>
-            </li>
-          </ul>
+  <div class="container container--config">
+    <h1 class="page-title config-page-title">About</h1>
+
+    <h2 class="section-title">Getting started</h2>
+    <p class="about-intro">Use the icons in the bar below to move between pages:</p>
+    <ul class="about-page-list">
+      <li>
+        <span class="about-page-icon" aria-hidden="true">🛌</span>
+        <span class="about-page-name">Dashboard</span>
+        <span class="about-page-desc">Overview with recent and lifetime averages, recent nights, and 7-day time and duration charts.</span>
+      </li>
+      <li>
+        <span class="about-page-icon" aria-hidden="true">✏️</span>
+        <span class="about-page-name">Log</span>
+        <span class="about-page-desc">Add or edit a night: bed, sleep, wake, bathroom and alarm times, nap, and WASO.</span>
+      </li>
+      <li>
+        <span class="about-page-icon" aria-hidden="true">🟩</span>
+        <span class="about-page-name">Quality</span>
+        <span class="about-page-desc">Sleep quality history over time.</span>
+      </li>
+      <li>
+        <span class="about-page-icon" aria-hidden="true">📅</span>
+        <span class="about-page-name">Daily</span>
+        <span class="about-page-desc">Day-by-day timeline of bed, sleep, and get-up times.</span>
+      </li>
+      <li>
+        <span class="about-page-icon" aria-hidden="true">📊</span>
+        <span class="about-page-name">Graphs</span>
+        <span class="about-page-desc">Time and duration charts with trend lines across your data.</span>
+      </li>
+      <li>
+        <span class="about-page-icon" aria-hidden="true">🔢</span>
+        <span class="about-page-name">Stats</span>
+        <span class="about-page-desc">Monthly sleep statistics.</span>
+      </li>
+    </ul>
+
+    <h2 class="section-title" id="remaining-wake-time">Remaining Wake Time</h2>
+    <p class="section-intro">Shows how much time is left in your day before your recommended sleep time. Phases are based on the <strong>percent of wake time remaining</strong>. This is meant to gently guide your pace, not rush you. You can adjust thresholds below or in <a class="content-link" href="config.html#remaining-wake">Settings</a>.</p>
+    <p class="section-intro">The day is divided into three simple phases:</p>
+    <ul class="about-phase-list">
+      <li class="about-phase-item">
+        <span class="about-phase-icon" aria-hidden="true">☀️</span>
+        <div class="about-phase-body">
+          <span class="about-phase-name">Open time</span>
+          <span class="about-phase-range">This is the primary portion of your day, with plenty of runway. The feeling is steady, normal, and no urgency.</span>
         </div>
-      </section>
-      <!-- Slide 2: Remaining Wake Time -->
-      <section class="about-slide" id="remaining-wake-time" aria-label="Remaining Wake Time">
-        <div class="container about-slide-inner">
-          <h2 class="section-title">Remaining Wake Time</h2>
-          <p class="section-intro">Shows how much time is left in your day before your recommended sleep time. Phases are based on the <strong>percent of wake time remaining</strong>. This is meant to gently guide your pace, not rush you. You can adjust thresholds below or in <a class="content-link" href="config.html#remaining-wake">Settings</a>.</p>
-          <p class="section-intro">The day is divided into three simple phases:</p>
-          <ul class="about-phase-list">
-            <li class="about-phase-item">
-              <span class="about-phase-icon" aria-hidden="true">☀️</span>
-              <div class="about-phase-body">
-                <span class="about-phase-name">Open time</span>
-                <span class="about-phase-range">This is the primary portion of your day, with plenty of runway. The feeling is steady, normal, and no urgency.</span>
-              </div>
-            </li>
-            <li class="about-phase-item">
-              <span class="about-phase-icon" aria-hidden="true">🌇</span>
-              <div class="about-phase-body">
-                <span class="about-phase-name">Winding down</span>
-                <span class="about-phase-range">It is not quite time to sleep, but avoid starting heavy or demanding activities. Caffiene is not recommended from this point.</span>
-              </div>
-            </li>
-            <li class="about-phase-item">
-              <span class="about-phase-icon" aria-hidden="true">🛏️</span>
-              <div class="about-phase-body">
-                <span class="about-phase-name">Pre-sleep</span>
-                <span class="about-phase-range">Being preparing for rest. Avoid meals and stimulating activity.</span>
-              </div>
-            </li>
-          </ul>
-          <h3 class="section-title about-rw-thresholds-heading" id="about-remaining-wake-thresholds">Adjust thresholds</h3>
-          <p class="section-intro">Percentages are <strong>your share of wake time left</strong> from your recent 7-day average get-up time to average fell-asleep time—the same window the header clock uses. The times under each slider show roughly when those boundaries fall on a typical day.</p>
-          <div id="about-remaining-wake-mount"></div>
+      </li>
+      <li class="about-phase-item">
+        <span class="about-phase-icon" aria-hidden="true">🌇</span>
+        <div class="about-phase-body">
+          <span class="about-phase-name">Winding down</span>
+          <span class="about-phase-range">It is not quite time to sleep, but avoid starting heavy or demanding activities. Caffiene is not recommended from this point.</span>
         </div>
-      </section>
-    </div>
-    </div>
-    <div class="about-dots" id="about-dots" role="tablist" aria-label="About sections"></div>
+      </li>
+      <li class="about-phase-item">
+        <span class="about-phase-icon" aria-hidden="true">🛏️</span>
+        <div class="about-phase-body">
+          <span class="about-phase-name">Pre-sleep</span>
+          <span class="about-phase-range">Being preparing for rest. Avoid meals and stimulating activity.</span>
+        </div>
+      </li>
+    </ul>
+    <h3 class="section-title about-rw-thresholds-heading" id="about-remaining-wake-thresholds">Adjust thresholds</h3>
+    <p class="section-intro">Percentages are <strong>your share of wake time left</strong> from your recent 7-day average get-up time to average fell-asleep time—the same window the header clock uses. The times under each slider show roughly when those boundaries fall on a typical day.</p>
+    <div id="about-remaining-wake-mount"></div>
+
+    <h2 class="section-title" id="daily-flags">Daily flags</h2>
+    <h3 class="section-title about-daily-flags-subheading">How strong is a daily flag?</h3>
+    <p class="section-intro">The flag color is how far that measure drifted from your <strong>previous seven logged nights</strong>. (Fewer than 7 prior nights in the log will show an insufficient-data message.)</p>
+    <p class="section-intro"><strong>😴 Asleep</strong> is only flagged when you fell asleep <em>later</em> than your baseline; falling asleep earlier is not flagged.</p>
+    <p class="section-intro"><strong>⌛ Duration</strong> uses the <em>worse</em> of two checks (not added together): shorter than your recent average, <em>or</em> absolute short sleep—under 6 hours (slight), under 5 hours (moderate), under 4 hours (severe)—based on total sleep including naps.</p>
+    <p class="section-intro"><strong>🌅 Wake</strong> compares earlier or later than the baseline.</p>
+    <p class="section-intro"><strong>🧩 WASO</strong> (wake after sleep onset) counts wake episodes longer than 20 minutes: 1 → slight, 2 → moderate, 3 or more → severe.</p>
+    <p class="section-intro">On the <strong>history calendar</strong>, the cell color is the worst of those severities among asleep, duration, and WASO.</p>
   </div>
 
   <script src="dev-git-branch.js"></script>
@@ -102,122 +99,6 @@
       document.getElementById('about-remaining-wake-mount').innerHTML =
         getRemainingWakeThresholdsControlHTML('about-remaining-wake-thresholds');
       initRemainingWakeThresholdsConfig();
-    })();
-
-    (function() {
-      var deck = document.getElementById('about-deck');
-      var viewport = document.getElementById('about-slides-viewport');
-      var slidesEl = document.getElementById('about-slides');
-      var dotsEl = document.getElementById('about-dots');
-      var slides = slidesEl.querySelectorAll('.about-slide');
-      var total = slides.length;
-      var current = 0;
-      var touchStartX = 0;
-      var touchEndX = 0;
-      var minSwipe = 60;
-
-      var hashToIndex = { '': 0, 'remaining-wake-time': 1 };
-
-      function getSlideWidth() {
-        return viewport.offsetWidth || deck.offsetWidth || 400;
-      }
-
-      function setSlideWidths() {
-        var w = getSlideWidth();
-        for (var i = 0; i < slides.length; i++) slides[i].style.width = w + 'px';
-      }
-
-      function updateTransform() {
-        var px = current * getSlideWidth();
-        slidesEl.style.transform = 'translateX(-' + px + 'px)';
-      }
-
-      function updateDots() {
-        dotsEl.querySelectorAll('.about-dot').forEach(function(dot, i) {
-          dot.classList.toggle('active', i === current);
-          dot.setAttribute('aria-selected', i === current ? 'true' : 'false');
-        });
-      }
-
-      function goTo(index, skipHash) {
-        index = Math.max(0, Math.min(index, total - 1));
-        if (index === current) return;
-        current = index;
-        updateTransform();
-        updateDots();
-        if (!skipHash) {
-          var hash = index === 0 ? '' : (slides[current].id || '');
-          var url = location.pathname + location.search + (hash ? ('#' + hash) : '');
-          history.replaceState(null, '', url);
-        }
-      }
-
-      function buildDots() {
-        dotsEl.innerHTML = '';
-        for (var i = 0; i < total; i++) {
-          var dot = document.createElement('button');
-          dot.type = 'button';
-          dot.className = 'about-dot' + (i === 0 ? ' active' : '');
-          dot.setAttribute('role', 'tab');
-          dot.setAttribute('aria-label', 'Section ' + (i + 1) + ' of ' + total);
-          dot.setAttribute('aria-selected', i === 0 ? 'true' : 'false');
-          dot.addEventListener('click', function() { goTo(Number(this.getAttribute('data-index'))); });
-          dot.setAttribute('data-index', String(i));
-          dotsEl.appendChild(dot);
-        }
-      }
-
-      deck.addEventListener('touchstart', function(e) {
-        touchStartX = e.changedTouches ? e.changedTouches[0].screenX : e.screenX;
-      }, { passive: true });
-
-      deck.addEventListener('touchend', function(e) {
-        touchEndX = e.changedTouches ? e.changedTouches[0].screenX : e.screenX;
-        var diff = touchStartX - touchEndX;
-        if (Math.abs(diff) >= minSwipe) {
-          if (diff > 0) goTo(current + 1);
-          else goTo(current - 1);
-        }
-      }, { passive: true });
-
-      deck.addEventListener('mousedown', function(e) {
-        touchStartX = e.screenX;
-      });
-      deck.addEventListener('mouseup', function(e) {
-        touchEndX = e.screenX;
-        var diff = touchStartX - touchEndX;
-        if (Math.abs(diff) >= minSwipe) {
-          if (diff > 0) goTo(current + 1);
-          else goTo(current - 1);
-        }
-      });
-
-      document.addEventListener('keydown', function(e) {
-        if (e.key === 'ArrowLeft') goTo(current - 1);
-        if (e.key === 'ArrowRight') goTo(current + 1);
-      });
-
-      var initialHash = (location.hash || '').replace(/^#/, '');
-      var initialIndex = hashToIndex[initialHash];
-      if (initialIndex !== undefined) {
-        current = initialIndex;
-      }
-
-      setSlideWidths();
-      buildDots();
-      updateTransform();
-      updateDots();
-
-      window.addEventListener('hashchange', function() {
-        var hash = (location.hash || '').replace(/^#/, '');
-        var idx = hashToIndex[hash];
-        goTo(idx === undefined ? 0 : idx, true);
-      });
-
-      window.addEventListener('resize', function() {
-        setSlideWidths();
-        updateTransform();
-      });
     })();
   </script>
 </body>
