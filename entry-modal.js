@@ -180,7 +180,7 @@
     if (napS) napS.value = '';
     if (napE) napE.value = '';
     const waso = document.getElementById('quick-add-waso');
-    if (waso) waso.value = '0';
+    if (waso) waso.value = '';
     setQuickAddStatus('', false);
   }
 
@@ -240,7 +240,7 @@
     const napStart = napStartRaw ? timeInputValueToNormalized(napStartRaw) : null;
     const napEnd = napEndRaw ? timeInputValueToNormalized(napEndRaw) : null;
     const wasoRaw = document.getElementById('quick-add-waso').value;
-    const waso = wasoRaw === '' ? 0 : Number(wasoRaw);
+    const wasoTrim = (wasoRaw != null ? String(wasoRaw) : '').trim();
 
     if (!dateMd || !bed || !sleepStart || !sleepEnd) {
       setQuickAddStatus('Pick a date and set bed, sleep, and wake times.', true);
@@ -254,46 +254,75 @@
       setQuickAddStatus('Nap times must be valid (use the time picker or adjust with − / +).', true);
       return;
     }
-    if (!Number.isFinite(waso) || waso < 0) {
-      setQuickAddStatus('WASO must be 0 or greater.', true);
-      return;
+    if (wasoTrim !== '') {
+      const wasoNum = Number(wasoTrim);
+      if (!Number.isFinite(wasoNum) || wasoNum < 0 || Math.floor(wasoNum) !== wasoNum) {
+        setQuickAddStatus('WASO must be a whole number 0 or greater.', true);
+        return;
+      }
     }
 
-    const saveBtn = document.getElementById('quick-add-save');
-    if (saveBtn) saveBtn.disabled = true;
-    setQuickAddStatus('Saving...', false);
-
-    const day = {
+    const baseDay = {
       date: dateMd,
       bed: bed,
       sleepStart: sleepStart,
       sleepEnd: sleepEnd,
       bathroom: bathroom,
       alarm: alarm,
-      nap: napStart && napEnd ? { start: napStart, end: napEnd } : null,
-      WASO: Math.floor(waso)
+      nap: napStart && napEnd ? { start: napStart, end: napEnd } : null
     };
 
-    upsertSleepDay(day)
-      .then(function () {
-        setQuickAddStatus('Saved.', false);
-        const drawerEl = document.getElementById('quick-add-drawer');
-        const isLogPage = drawerEl && drawerEl.classList.contains('quick-add-drawer--page');
-        if (!isLogPage) {
-          closeQuickAddDrawer();
-        }
-        if (quickAddOptions && typeof quickAddOptions.onSaved === 'function') {
-          return quickAddOptions.onSaved();
-        }
-        return null;
-      })
-      .catch(function (error) {
-        console.error(error);
-        setQuickAddStatus(error && error.message ? error.message : 'Could not save. Check Settings and try again.', true);
-      })
-      .finally(function () {
-        if (saveBtn) saveBtn.disabled = false;
-      });
+    function commitDayWithWaso(wasoInt) {
+      const saveBtn = document.getElementById('quick-add-save');
+      if (saveBtn) saveBtn.disabled = true;
+      setQuickAddStatus('Saving...', false);
+      const day = Object.assign({}, baseDay, { WASO: Math.floor(wasoInt) });
+      upsertSleepDay(day)
+        .then(function () {
+          setQuickAddStatus('Saved.', false);
+          const drawerEl = document.getElementById('quick-add-drawer');
+          const isLogPage = drawerEl && drawerEl.classList.contains('quick-add-drawer--page');
+          if (!isLogPage) {
+            closeQuickAddDrawer();
+          }
+          if (quickAddOptions && typeof quickAddOptions.onSaved === 'function') {
+            return quickAddOptions.onSaved();
+          }
+          return null;
+        })
+        .catch(function (error) {
+          console.error(error);
+          setQuickAddStatus(error && error.message ? error.message : 'Could not save. Check Settings and try again.', true);
+        })
+        .finally(function () {
+          if (saveBtn) saveBtn.disabled = false;
+        });
+    }
+
+    if (wasoTrim !== '') {
+      commitDayWithWaso(Number(wasoTrim));
+    } else {
+      const saveBtnPre = document.getElementById('quick-add-save');
+      if (saveBtnPre) saveBtnPre.disabled = true;
+      setQuickAddStatus('Saving...', false);
+      loadSleepData()
+        .then(function (data) {
+          const days = Array.isArray(data && data.days) ? data.days : [];
+          var preserved = 0;
+          for (var i = 0; i < days.length; i++) {
+            if (days[i].date === dateMd && Number.isFinite(days[i].WASO)) {
+              preserved = days[i].WASO;
+              break;
+            }
+          }
+          commitDayWithWaso(preserved);
+        })
+        .catch(function (err) {
+          console.error(err);
+          setQuickAddStatus('Could not load data to preserve WASO. Enter a number or try again.', true);
+          if (saveBtnPre) saveBtnPre.disabled = false;
+        });
+    }
   }
 
   function bindQuickAddHostOnce() {

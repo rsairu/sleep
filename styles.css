@@ -3079,6 +3079,28 @@ svg {
   gap: 8px;
 }
 
+.calendar-heatmap-header--quality-page {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-3);
+}
+
+.calendar-heatmap-header-titles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.calendar-heatmap-header--quality-page .calendar-heatmap-title {
+  margin: 0;
+}
+
+.calendar-heatmap-about {
+  margin: 0;
+  font-size: 0.9375rem;
+}
+
 /* Dashboard: legend under the title */
 .calendar-heatmap-container--dashboard .calendar-heatmap-header {
   flex-direction: column;
@@ -3345,6 +3367,24 @@ svg {
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+.quality-page .calendar-month-block {
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="day"] .quality-page .calendar-month-block {
+  background: #ffffff;
+  border: 1px solid var(--grid);
+}
+
+.quality-page .calendar-month-block .calendar-month-name,
+.quality-page .calendar-month-block .calendar-month-flag-counter,
+.quality-page .calendar-month-block .calendar-flag-slot,
+.quality-page .calendar-month-block .calendar-weekday-label {
+  color: #0f172a;
+}
+
 .calendar-month-header {
   display: flex;
   flex-direction: column;
@@ -3473,33 +3513,23 @@ svg {
   z-index: 10;
 }
 
-/* Sleep Quality page — how daily severity maps to color */
-.quality-page .quality-variation-guide {
-  max-width: 42rem;
-  margin-bottom: var(--space-5);
-  padding: var(--panel-padding);
-  background: var(--panel);
-  border-radius: var(--panel-radius);
-  border: 1px solid var(--panel-border-color);
-  box-shadow: var(--panel-shadow);
-}
-
-.quality-page .quality-variation-guide h2 {
-  margin-top: 0;
-  font-size: 1.25rem;
-}
-
-.quality-page .quality-variation-guide ul {
+/* Sleep Quality page — severity swatches live under Sleep Quality history header */
+.quality-page .calendar-heatmap-swatch-legend {
   list-style: none;
-  padding-left: 0;
-  margin: 0.75rem 0 0;
+  padding: 0;
+  margin: 0;
+  max-width: 42rem;
 }
 
-.quality-page .quality-variation-guide li {
+.quality-page .calendar-heatmap-swatch-legend li {
   display: flex;
   align-items: baseline;
   gap: 10px;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.quality-page .calendar-heatmap-swatch-legend li:last-child {
+  margin-bottom: 0;
 }
 
 .quality-swatch {
@@ -3973,59 +4003,6 @@ svg {
   white-space: nowrap;
 }
 
-/* About page — section slider (swipeable deck) */
-.about-deck {
-  display: flex;
-  flex-direction: column;
-  margin: 0 -20px;
-  padding: 0;
-}
-.about-slides-viewport {
-  width: 100%;
-  overflow: hidden;
-}
-.about-slides {
-  display: flex;
-  flex-wrap: nowrap;
-  transition: transform 0.35s ease-out;
-  will-change: transform;
-}
-.about-slide {
-  flex: 0 0 auto;
-  min-width: 0;
-}
-.about-slide-inner {
-  margin: 0 20px 24px;
-}
-.about-slide-inner .section-title:first-child {
-  margin-top: 0;
-}
-.about-dots {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  padding: 16px 0 8px;
-}
-.about-dots .about-dot {
-  pointer-events: auto;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  border: none;
-  padding: 0;
-  background: var(--text);
-  opacity: 0.35;
-  cursor: pointer;
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-.about-dots .about-dot:hover {
-  opacity: 0.6;
-}
-.about-dots .about-dot.active {
-  opacity: 1;
-  transform: scale(1.2);
-}
-
 /* About page — getting started list */
 .about-intro {
   margin-bottom: 1rem;
@@ -4080,8 +4057,14 @@ svg {
   color: var(--text);
 }
 
-.about-slide-inner .about-rw-thresholds-heading {
+.about-rw-thresholds-heading {
   margin-top: 1.75rem;
+  margin-bottom: 0.4rem;
+  font-size: 1.1rem;
+}
+
+.about-daily-flags-subheading.section-title {
+  margin-top: 0.75rem;
   margin-bottom: 0.4rem;
   font-size: 1.1rem;
 }
@@ -4755,7 +4738,13 @@ button.dashboard-quick-action-btn {
   margin-top: var(--space-2);
 }
 
-#quick-add-clear-all {
+.quick-add-page-toolbar {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: var(--space-3);
+}
+
+.quick-add-actions #quick-add-clear-all {
   margin-right: auto;
 }
 
