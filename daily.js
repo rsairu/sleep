@@ -1024,51 +1024,51 @@ function renderQuickAddDrawer(recentAverages, recentDays, layout = 'drawer') {
   const advancedBlocks = `
                 <div class="quick-add-advanced-blocks">
                   <div class="quick-add-adv-row quick-add-log-pair">
-                    <span class="quick-add-label quick-add-label--emoji-line" id="quick-add-bathroom-legend"><span class="quick-add-log-emoji" aria-hidden="true">🧻</span> Bathroom</span>
-                    <div class="quick-add-log-pair__right">
+                    <span class="quick-add-label quick-add-label--emoji-line quick-add-label--bathroom" id="quick-add-bathroom-legend"><span class="quick-add-log-emoji" aria-hidden="true">🧻</span><span class="quick-add-label-text" data-i18n="log.bathroom">Bathroom</span></span>
+                    <div class="quick-add-log-pair__right quick-add-log-pair__right--with-add">
                       <div class="quick-add-time-list" id="quick-add-bathroom-list" aria-labelledby="quick-add-bathroom-legend"></div>
-                      <button type="button" class="quick-add-time-add-btn" id="quick-add-bathroom-add">+ Add time</button>
+                      <button type="button" class="quick-add-time-add-btn" id="quick-add-bathroom-add" data-i18n-aria-label="log.addTimeAria" aria-label="Add time">+</button>
                     </div>
                   </div>
                   <div class="quick-add-adv-row quick-add-log-pair">
-                    <span class="quick-add-label quick-add-label--emoji-line" id="quick-add-alarm-legend"><span class="quick-add-log-emoji" aria-hidden="true">🕐</span> Alarm(s)</span>
-                    <div class="quick-add-time-row quick-add-time-row--nap">
-                      <input class="quick-add-input quick-add-time-native" id="quick-add-alarm" type="time" step="60" value="" aria-labelledby="quick-add-alarm-legend" aria-label="Alarm time">
-                      ${mainTimeSpin('Alarm')}
+                    <span class="quick-add-label quick-add-label--emoji-line quick-add-label--alarm" id="quick-add-alarm-legend"><span class="quick-add-log-emoji" aria-hidden="true">🕐</span><span class="quick-add-label-text" data-i18n="log.alarms">Alarm(s)</span></span>
+                    <div class="quick-add-log-pair__right quick-add-log-pair__right--with-add">
+                      <div class="quick-add-time-list" id="quick-add-alarm-list" aria-labelledby="quick-add-alarm-legend"></div>
+                      <button type="button" class="quick-add-time-add-btn" id="quick-add-alarm-add" data-i18n-aria-label="log.addTimeAria" aria-label="Add time">+</button>
                     </div>
                   </div>
                   <div class="quick-add-adv-row quick-add-log-pair">
-                    <span class="quick-add-label quick-add-label--emoji-line" id="quick-add-nap-legend"><span class="quick-add-log-emoji" aria-hidden="true">😴</span> Nap</span>
+                    <span class="quick-add-label quick-add-label--emoji-line quick-add-label--nap" id="quick-add-nap-legend"><span class="quick-add-log-emoji" aria-hidden="true">😴</span><span class="quick-add-label-text" data-i18n="log.nap">Nap</span></span>
                     <div class="quick-add-nap-pair">
                       <div>
-                        <span class="quick-add-sublabel">Start</span>
+                        <span class="quick-add-sublabel"><span data-i18n="log.napStart">Start</span></span>
                         <div class="quick-add-time-row quick-add-time-row--nap">
-                          <input class="quick-add-input quick-add-time-native" id="quick-add-nap-start" type="time" step="60" value="" aria-labelledby="quick-add-nap-legend" aria-label="Nap start">
+                          <input class="quick-add-input quick-add-time-native" id="quick-add-nap-start" type="time" step="60" value="" aria-labelledby="quick-add-nap-legend" data-i18n-aria-label="log.napStartAria" aria-label="Nap start">
                           <div class="quick-add-time-spin">
-                            <button type="button" class="quick-add-time-spin-btn quick-add-time-spin-btn--up" aria-label="Nap start one minute later">▲</button>
-                            <button type="button" class="quick-add-time-spin-btn quick-add-time-spin-btn--down" aria-label="Nap start one minute earlier">▼</button>
+                            <button type="button" class="quick-add-time-spin-btn quick-add-time-spin-btn--up" data-i18n-aria-label="log.napStartLaterAria" aria-label="Nap start one minute later">▲</button>
+                            <button type="button" class="quick-add-time-spin-btn quick-add-time-spin-btn--down" data-i18n-aria-label="log.napStartEarlierAria" aria-label="Nap start one minute earlier">▼</button>
                           </div>
                         </div>
                       </div>
                       <div>
-                        <span class="quick-add-sublabel">End</span>
+                        <span class="quick-add-sublabel"><span data-i18n="log.napEnd">End</span></span>
                         <div class="quick-add-time-row quick-add-time-row--nap">
-                          <input class="quick-add-input quick-add-time-native" id="quick-add-nap-end" type="time" step="60" value="" aria-labelledby="quick-add-nap-legend" aria-label="Nap end">
+                          <input class="quick-add-input quick-add-time-native" id="quick-add-nap-end" type="time" step="60" value="" aria-labelledby="quick-add-nap-legend" data-i18n-aria-label="log.napEndAria" aria-label="Nap end">
                           <div class="quick-add-time-spin">
-                            <button type="button" class="quick-add-time-spin-btn quick-add-time-spin-btn--up" aria-label="Nap end one minute later">▲</button>
-                            <button type="button" class="quick-add-time-spin-btn quick-add-time-spin-btn--down" aria-label="Nap end one minute earlier">▼</button>
+                            <button type="button" class="quick-add-time-spin-btn quick-add-time-spin-btn--up" data-i18n-aria-label="log.napEndLaterAria" aria-label="Nap end one minute later">▲</button>
+                            <button type="button" class="quick-add-time-spin-btn quick-add-time-spin-btn--down" data-i18n-aria-label="log.napEndEarlierAria" aria-label="Nap end one minute earlier">▼</button>
                           </div>
                         </div>
                       </div>
                     </div>
                   </div>
                   <div class="quick-add-adv-row quick-add-adv-row--waso quick-add-log-pair">
-                    <span class="quick-add-label quick-add-label--emoji-line" id="quick-add-waso-legend"><span class="quick-add-log-emoji" aria-hidden="true">🧩</span> WASO count</span>
+                    <span class="quick-add-label quick-add-label--emoji-line quick-add-label--waso" id="quick-add-waso-legend"><span class="quick-add-log-emoji" aria-hidden="true">🧩</span><span class="quick-add-label-text" data-i18n="log.wasoCount">WASO count</span></span>
                     <div class="quick-add-time-row quick-add-time-row--nap quick-add-waso-row" aria-labelledby="quick-add-waso-legend">
                       <input class="quick-add-input quick-add-waso-value" id="quick-add-waso" type="number" min="0" step="1" value="0" inputmode="numeric" aria-labelledby="quick-add-waso-legend">
                       <div class="quick-add-time-spin quick-add-waso-spin">
-                        <button type="button" class="quick-add-time-spin-btn quick-add-time-spin-btn--up" aria-label="Increase WASO count">▲</button>
-                        <button type="button" class="quick-add-time-spin-btn quick-add-time-spin-btn--down" aria-label="Decrease WASO count">▼</button>
+                        <button type="button" class="quick-add-time-spin-btn quick-add-time-spin-btn--up" data-i18n-aria-label="log.wasoUpAria" aria-label="Increase WASO count">▲</button>
+                        <button type="button" class="quick-add-time-spin-btn quick-add-time-spin-btn--down" data-i18n-aria-label="log.wasoDownAria" aria-label="Decrease WASO count">▼</button>
                       </div>
                     </div>
                   </div>
@@ -1079,33 +1079,33 @@ function renderQuickAddDrawer(recentAverages, recentDays, layout = 'drawer') {
                 <summary>Advanced fields (optional)</summary>
                 ${advancedBlocks}
               </details>`
-      : `<div class="quick-add-advanced quick-add-advanced--page" aria-label="Additional fields">
+      : `<div class="quick-add-advanced quick-add-advanced--page" data-i18n-aria-label="log.advancedAria" aria-label="Additional fields">
                 ${advancedBlocks}
               </div>`;
 
   const formHtml = `
             <form id="quick-add-form" class="quick-add-form" data-initial-bed="${bedVal}" data-initial-sleep="${sleepVal}" data-initial-wake="${wakeVal}">
               <div class="quick-add-field-compact quick-add-log-pair">
-                <label class="quick-add-label" for="quick-add-date">Date</label>
-                <input class="quick-add-input quick-add-input--date" id="quick-add-date" type="date" required>
+                <label class="quick-add-label" for="quick-add-date"><span data-i18n="log.date">Date</span></label>
+                <input class="quick-add-input quick-add-input--date" id="quick-add-date" type="date">
               </div>
-              <div class="quick-add-main-times" role="group" aria-label="Bed, sleep, and wake">
+              <div class="quick-add-main-times" role="group" data-i18n-aria-label="log.mainTimesAria" aria-label="Bed, sleep, and wake">
                 <div class="quick-add-adv-row quick-add-log-pair">
-                  <span class="quick-add-label quick-add-label--emoji-line" id="quick-add-bed-legend"><span class="quick-add-log-emoji" aria-hidden="true">🛏️</span> Bed</span>
+                  <span class="quick-add-label quick-add-label--emoji-line quick-add-label--bed" id="quick-add-bed-legend"><span class="quick-add-log-emoji" aria-hidden="true">🛏️</span><span class="quick-add-label-text" data-i18n="log.bed">Bed</span></span>
                   <div class="quick-add-time-row quick-add-time-row--nap">
                     <input class="quick-add-input quick-add-time-native" id="quick-add-bed" type="time" step="60" value="${bedVal}" aria-labelledby="quick-add-bed-legend" aria-label="Bed time">
                     ${mainTimeSpin('Bed time')}
                   </div>
                 </div>
                 <div class="quick-add-adv-row quick-add-log-pair">
-                  <span class="quick-add-label quick-add-label--emoji-line" id="quick-add-sleep-legend"><span class="quick-add-log-emoji" aria-hidden="true">🌙</span> Sleep</span>
+                  <span class="quick-add-label quick-add-label--emoji-line quick-add-label--sleep" id="quick-add-sleep-legend"><span class="quick-add-log-emoji" aria-hidden="true">🌙</span><span class="quick-add-label-text" data-i18n="log.sleep">Sleep</span></span>
                   <div class="quick-add-time-row quick-add-time-row--nap">
                     <input class="quick-add-input quick-add-time-native" id="quick-add-sleep" type="time" step="60" value="${sleepVal}" aria-labelledby="quick-add-sleep-legend" aria-label="Fell asleep">
                     ${mainTimeSpin('Fell asleep')}
                   </div>
                 </div>
                 <div class="quick-add-adv-row quick-add-log-pair">
-                  <span class="quick-add-label quick-add-label--emoji-line" id="quick-add-wake-legend"><span class="quick-add-log-emoji" aria-hidden="true">🌅</span> Wake</span>
+                  <span class="quick-add-label quick-add-label--emoji-line quick-add-label--wake" id="quick-add-wake-legend"><span class="quick-add-log-emoji" aria-hidden="true">🌅</span><span class="quick-add-label-text" data-i18n="log.wake">Wake</span></span>
                   <div class="quick-add-time-row quick-add-time-row--nap">
                     <input class="quick-add-input quick-add-time-native" id="quick-add-wake" type="time" step="60" value="${wakeVal}" aria-labelledby="quick-add-wake-legend" aria-label="Wake up">
                     ${mainTimeSpin('Wake up')}
@@ -1115,8 +1115,9 @@ function renderQuickAddDrawer(recentAverages, recentDays, layout = 'drawer') {
               ${advancedSection}
               <p class="quick-add-status" id="quick-add-status"></p>
               <div class="quick-add-actions">
-                <button type="button" class="about-theme-option" id="quick-add-cancel">Cancel</button>
-                <button type="submit" class="about-theme-option" id="quick-add-save">Save</button>
+                <button type="button" class="about-theme-option" id="quick-add-clear-all" data-i18n="log.clearAll">Clear all</button>
+                <button type="button" class="about-theme-option" id="quick-add-cancel" data-i18n="log.cancel">Cancel</button>
+                <button type="submit" class="about-theme-option" id="quick-add-save" data-i18n="log.save">Save</button>
               </div>
             </form>`;
 

@@ -4352,6 +4352,23 @@ button.dashboard-quick-action-btn {
   min-width: 0;
 }
 
+.quick-add-log-pair__right.quick-add-log-pair__right--with-add {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.quick-add-log-pair__right--with-add .quick-add-time-list {
+  flex: 1;
+  min-width: 0;
+}
+
+.quick-add-log-pair__right--with-add .quick-add-time-add-btn {
+  margin-top: 0;
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+
 .quick-add-log-pair .quick-add-time-list {
   width: 100%;
 }
@@ -4372,6 +4389,38 @@ button.dashboard-quick-action-btn {
   align-items: center;
   gap: 0.45rem;
   color: var(--nav-app-text-color);
+}
+
+.quick-add-label-text {
+  color: inherit;
+}
+
+.quick-add-label--bed .quick-add-label-text {
+  color: var(--color-bed);
+}
+
+.quick-add-label--sleep .quick-add-label-text {
+  color: var(--color-sleep);
+}
+
+.quick-add-label--wake .quick-add-label-text {
+  color: var(--color-up);
+}
+
+.quick-add-label--bathroom .quick-add-label-text {
+  color: var(--color-bath);
+}
+
+.quick-add-label--alarm .quick-add-label-text {
+  color: var(--color-alarm);
+}
+
+.quick-add-label--nap .quick-add-label-text {
+  color: var(--color-nap);
+}
+
+.quick-add-label--waso .quick-add-label-text {
+  color: var(--color-sleep);
 }
 
 .quick-add-log-emoji {
@@ -4667,15 +4716,18 @@ button.dashboard-quick-action-btn {
 
 .quick-add-time-add-btn {
   margin-top: 10px;
-  align-self: flex-start;
-  padding: 6px 12px;
+  align-self: flex-end;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 10px;
   border: 1px dashed var(--panel-border-color);
   border-radius: 10px;
   background: transparent;
   color: var(--nav-app-text-color);
   font: inherit;
-  font-size: 0.88rem;
+  font-size: 1.25rem;
   font-weight: 600;
+  line-height: 1;
   cursor: pointer;
   opacity: 0.92;
 }
@@ -4696,8 +4748,14 @@ button.dashboard-quick-action-btn {
 
 .quick-add-actions {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: flex-end;
   gap: var(--space-2);
   margin-top: var(--space-2);
+}
+
+#quick-add-clear-all {
+  margin-right: auto;
 }
 

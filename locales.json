@@ -68,6 +68,33 @@
       "cloudSync": {
         "title": "Cloud sync"
       }
+    },
+    "log": {
+      "pageTitle": "Log a night",
+      "date": "Date",
+      "bed": "Bed",
+      "sleep": "Sleep",
+      "wake": "Wake",
+      "bathroom": "Bathroom",
+      "alarms": "Alarm(s)",
+      "mainTimesAria": "Bed, sleep, and wake",
+      "clearAll": "Clear all",
+      "cancel": "Cancel",
+      "save": "Save",
+      "addTimeAria": "Add time",
+      "advancedAria": "Additional fields",
+      "nap": "Nap",
+      "napStart": "Start",
+      "napEnd": "End",
+      "wasoCount": "WASO count",
+      "napStartAria": "Nap start",
+      "napEndAria": "Nap end",
+      "wasoUpAria": "Increase WASO count",
+      "wasoDownAria": "Decrease WASO count",
+      "napStartLaterAria": "Nap start one minute later",
+      "napStartEarlierAria": "Nap start one minute earlier",
+      "napEndLaterAria": "Nap end one minute later",
+      "napEndEarlierAria": "Nap end one minute earlier"
     }
   },
   "ja": {
@@ -139,6 +166,33 @@
       "cloudSync": {
         "title": "クラウド同期"
       }
+    },
+    "log": {
+      "pageTitle": "一夜を記録",
+      "date": "日付",
+      "bed": "ベッド",
+      "sleep": "就寝",
+      "wake": "起床",
+      "bathroom": "トイレ",
+      "alarms": "アラーム",
+      "mainTimesAria": "ベッド、就寝、起床",
+      "clearAll": "すべてクリア",
+      "cancel": "キャンセル",
+      "save": "保存",
+      "addTimeAria": "時刻を追加",
+      "advancedAria": "その他の項目",
+      "nap": "昼寝・仮眠",
+      "napStart": "開始",
+      "napEnd": "終了",
+      "wasoCount": "WASO 回数",
+      "napStartAria": "仮眠の開始",
+      "napEndAria": "仮眠の終了",
+      "wasoUpAria": "WASO 回数を増やす",
+      "wasoDownAria": "WASO 回数を減らす",
+      "napStartLaterAria": "仮眠の開始を1分遅く",
+      "napStartEarlierAria": "仮眠の開始を1分早く",
+      "napEndLaterAria": "仮眠の終了を1分遅く",
+      "napEndEarlierAria": "仮眠の終了を1分早く"
     }
   }
 }
