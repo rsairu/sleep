@@ -897,6 +897,17 @@ function getRemainingWakeDisplay(recentAverages) {
   const totalWakeMins = durationMinutes(wakeTarget, sleepTarget);
   const now = new Date();
   const nowMins = now.getHours() * 60 + now.getMinutes();
+  if (wakeTarget < sleepTarget && (nowMins > sleepTarget || nowMins < wakeTarget)) {
+    const phase = getRemainingWakePhase(0, totalWakeMins);
+    const icon = getRemainingWakeIcon(phase);
+    return {
+      phase,
+      icon,
+      timeLabel: 'go to bed soon',
+      timeLabelSoft: true,
+      percentRemaining: 0
+    };
+  }
   const remainingMins = sleepTarget >= nowMins
     ? sleepTarget - nowMins
     : 1440 - nowMins + sleepTarget;

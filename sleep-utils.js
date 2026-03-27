@@ -1822,12 +1822,36 @@ function getRemainingWakeIcon(phase) {
   }
 }
 
+/**
+ * After average sleep time (same evening) or before average wake (early morning), we are outside
+ * the main wake window — avoid wrapping minutes-until-sleep to ~24h.
+ * Skipped when wake and sleep order is atypical (wake >= sleep on the clock).
+ */
+function shouldShowGoToBedSoonWakeNav(nowMins, wakeMins, sleepMins) {
+  if (!Number.isFinite(nowMins) || !Number.isFinite(wakeMins) || !Number.isFinite(sleepMins)) {
+    return false;
+  }
+  if (wakeMins >= sleepMins) return false;
+  return nowMins > sleepMins || nowMins < wakeMins;
+}
+
 /** Build remaining-wake display from a computed wake basis. */
 function getRemainingWakeDisplayFromBasis(basis) {
   if (!basis || basis.totalWakeMins <= 0) return null;
-  const { avgSleepStart, totalWakeMins } = basis;
+  const { avgSleepStart, avgSleepEnd, totalWakeMins } = basis;
   const now = new Date();
   const nowMins = now.getHours() * 60 + now.getMinutes();
+  if (shouldShowGoToBedSoonWakeNav(nowMins, avgSleepEnd, avgSleepStart)) {
+    const phase = getRemainingWakePhase(0, totalWakeMins);
+    const icon = getRemainingWakeIcon(phase);
+    return {
+      phase,
+      icon,
+      timeLabel: 'go to bed soon',
+      timeLabelSoft: true,
+      percentRemaining: 0
+    };
+  }
   const remainingMins = avgSleepStart >= nowMins ? avgSleepStart - nowMins : 1440 - nowMins + avgSleepStart;
   const phase = getRemainingWakePhase(remainingMins, totalWakeMins);
   const icon = getRemainingWakeIcon(phase);
@@ -1861,7 +1885,12 @@ function updateRemainingWakeNav(display) {
     const progressBar = progress === null
       ? ''
       : `<span class="nav-remaining-wake-progress nav-remaining-wake-progress--${display.phase}" aria-hidden="true" style="--nav-rw-p1:${p1}%;--nav-rw-p2:${p2}%;--nav-rw-progress:${progress}%"><span class="nav-remaining-wake-progress-track"></span><span class="nav-remaining-wake-progress-fill"></span></span>`;
-    slot.innerHTML = `<a href="about.html#remaining-wake-time" class="nav-remaining-wake-link" title="Remaining wake time" aria-label="Remaining wake time"><span class="nav-remaining-wake-main"><span class="nav-remaining-wake-icon" aria-hidden="true">${display.icon}</span><span class="nav-remaining-wake-time">${display.timeLabel}</span></span>${progressBar}</a>`;
+    const timeClass =
+      'nav-remaining-wake-time' +
+      (display.timeLabelSoft ? ' nav-remaining-wake-time--soft' : '');
+    const ariaLabel = display.timeLabelSoft ? 'Go to bed soon' : 'Remaining wake time';
+    slot.innerHTML =
+      `<a href="about.html#remaining-wake-time" class="nav-remaining-wake-link" title="${ariaLabel}" aria-label="${ariaLabel}"><span class="nav-remaining-wake-main"><span class="nav-remaining-wake-icon" aria-hidden="true">${display.icon}</span><span class="${timeClass}">${display.timeLabel}</span></span>${progressBar}</a>`;
   }
   if (wrapper) {
     wrapper.classList.remove('nav-wrapper--phase-open', 'nav-wrapper--phase-winding', 'nav-wrapper--phase-presleep');
