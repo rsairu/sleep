@@ -22,6 +22,64 @@ if (typeof window !== 'undefined') window.HOLIDAYS_BY_YEAR = HOLIDAYS_BY_YEAR;
 const SUPABASE_URL_STORAGE_KEY = 'restore_supabase_url';
 const SUPABASE_ANON_KEY_STORAGE_KEY = 'restore_supabase_anon_key';
 const RESTORE_LAST_DATA_SOURCE_KEY = 'restore_last_data_source';
+const SLEEP_DATA_LOCAL_CACHE_KEY = 'restore_sleep_data_cache_v1';
+const SLEEP_DATA_CACHE_TTL_MS = 5 * 60 * 1000;
+
+let sleepDataCacheValue = null;
+let sleepDataCacheExpiresAt = 0;
+let sleepDataCacheKey = '';
+let sleepDataPendingPromise = null;
+
+function getSleepDataCacheKey(config) {
+  if (!config || !config.enabled) return 'local';
+  return 'cloud:' + String(config.url || '').replace(/\/+$/, '') + '|' + String(config.anonKey || '');
+}
+
+function cloneSleepData(data) {
+  return JSON.parse(JSON.stringify(data));
+}
+
+function clearSleepDataCache() {
+  sleepDataCacheValue = null;
+  sleepDataCacheExpiresAt = 0;
+  sleepDataCacheKey = '';
+  sleepDataPendingPromise = null;
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem(SLEEP_DATA_LOCAL_CACHE_KEY);
+    }
+  } catch (_) {}
+}
+
+function readSleepDataLocalCache() {
+  try {
+    if (typeof localStorage === 'undefined') return null;
+    const raw = localStorage.getItem(SLEEP_DATA_LOCAL_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+    if (typeof parsed.cacheKey !== 'string') return null;
+    if (!Number.isFinite(parsed.fetchedAt)) return null;
+    if (!parsed.data || typeof parsed.data !== 'object') return null;
+    return parsed;
+  } catch (_) {
+    return null;
+  }
+}
+
+function writeSleepDataLocalCache(cacheKey, data) {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem(
+      SLEEP_DATA_LOCAL_CACHE_KEY,
+      JSON.stringify({
+        cacheKey: cacheKey,
+        fetchedAt: Date.now(),
+        data: data
+      })
+    );
+  } catch (_) {}
+}
 
 function safeReadStorage(key) {
   try {
@@ -163,11 +221,13 @@ function getSupabaseConfig() {
 function setSupabaseConfig(url, anonKey) {
   safeWriteStorage(SUPABASE_URL_STORAGE_KEY, (url || '').trim());
   safeWriteStorage(SUPABASE_ANON_KEY_STORAGE_KEY, (anonKey || '').trim());
+  clearSleepDataCache();
 }
 
 function clearSupabaseConfig() {
   safeWriteStorage(SUPABASE_URL_STORAGE_KEY, '');
   safeWriteStorage(SUPABASE_ANON_KEY_STORAGE_KEY, '');
+  clearSleepDataCache();
 }
 
 function getDataSourceState() {
@@ -318,22 +378,71 @@ function fetchSupabaseSleepData(config) {
   });
 }
 
-function loadSleepData() {
+function loadSleepData(options) {
+  const opts = options || {};
+  const forceRefresh = Boolean(opts.forceRefresh);
   const config = getSupabaseConfig();
-  if (!config.enabled) {
-    updateDataSourceBadge('local');
-    return fetchStaticSleepData();
+  const cacheKey = getSleepDataCacheKey(config);
+  const now = Date.now();
+  const manualRefreshOnly = config.enabled && isDevBuildContext();
+
+  if (
+    !forceRefresh &&
+    sleepDataCacheValue &&
+    sleepDataCacheKey === cacheKey &&
+    (manualRefreshOnly || now < sleepDataCacheExpiresAt)
+  ) {
+    updateDataSourceBadge(config.enabled ? 'cloud' : 'local');
+    return Promise.resolve(cloneSleepData(sleepDataCacheValue));
   }
-  return fetchSupabaseSleepData(config)
-    .then(function (data) {
-      updateDataSourceBadge('cloud');
-      return data;
-    })
-    .catch(function (error) {
-      console.warn('Supabase load failed; falling back to sleep-data.json.', error);
-      updateDataSourceBadge('local');
-      return fetchStaticSleepData();
-    });
+
+  if (!forceRefresh && sleepDataPendingPromise && sleepDataCacheKey === cacheKey) {
+    return sleepDataPendingPromise.then(cloneSleepData);
+  }
+
+  if (!forceRefresh) {
+    const storedCache = readSleepDataLocalCache();
+    if (
+      storedCache &&
+      storedCache.cacheKey === cacheKey &&
+      (manualRefreshOnly || now < storedCache.fetchedAt + SLEEP_DATA_CACHE_TTL_MS)
+    ) {
+      sleepDataCacheValue = storedCache.data;
+      sleepDataCacheKey = cacheKey;
+      sleepDataCacheExpiresAt = storedCache.fetchedAt + SLEEP_DATA_CACHE_TTL_MS;
+      updateDataSourceBadge(config.enabled ? 'cloud' : 'local');
+      return Promise.resolve(cloneSleepData(storedCache.data));
+    }
+  }
+
+  sleepDataCacheKey = cacheKey;
+  const request = (config.enabled
+    ? fetchSupabaseSleepData(config)
+        .then(function (data) {
+          updateDataSourceBadge('cloud');
+          return data;
+        })
+        .catch(function (error) {
+          console.warn('Supabase load failed; falling back to sleep-data.json.', error);
+          updateDataSourceBadge('local');
+          return fetchStaticSleepData();
+        })
+    : fetchStaticSleepData().then(function (data) {
+        updateDataSourceBadge('local');
+        return data;
+      })
+  ).then(function (data) {
+    sleepDataCacheValue = data;
+    sleepDataCacheExpiresAt = Date.now() + SLEEP_DATA_CACHE_TTL_MS;
+    writeSleepDataLocalCache(cacheKey, data);
+    return cloneSleepData(data);
+  });
+
+  sleepDataPendingPromise = request.finally(function () {
+    sleepDataPendingPromise = null;
+  });
+
+  return sleepDataPendingPromise;
 }
 
 function upsertSleepDay(day) {
@@ -355,6 +464,9 @@ function upsertSleepDay(day) {
   }).then(function (res) {
     if (!res.ok) throw new Error('Supabase upsert failed: ' + res.status);
     return res.json();
+  }).then(function (rows) {
+    clearSleepDataCache();
+    return rows;
   });
 }
 
@@ -372,6 +484,7 @@ function initSupabaseConfigForm() {
       '<div class="supabase-config-actions">' +
         '<button type="button" class="about-theme-option" id="supabase-save-btn">Save</button>' +
         '<button type="button" class="about-theme-option" id="supabase-test-btn">Test connection</button>' +
+        '<button type="button" class="about-theme-option" id="supabase-refresh-btn">Fetch latest cloud data</button>' +
         '<button type="button" class="about-theme-option" id="supabase-clear-btn">Clear</button>' +
       '</div>' +
       '<p class="section-intro supabase-config-status" id="supabase-config-status"></p>' +
@@ -382,8 +495,9 @@ function initSupabaseConfigForm() {
   const keyEl = document.getElementById('supabase-anon-input');
   const saveBtn = document.getElementById('supabase-save-btn');
   const testBtn = document.getElementById('supabase-test-btn');
+  const refreshBtn = document.getElementById('supabase-refresh-btn');
   const clearBtn = document.getElementById('supabase-clear-btn');
-  if (!statusEl || !urlEl || !keyEl || !saveBtn || !testBtn || !clearBtn) return;
+  if (!statusEl || !urlEl || !keyEl || !saveBtn || !testBtn || !refreshBtn || !clearBtn) return;
 
   function setStatus(text, isError) {
     statusEl.textContent = text;
@@ -429,6 +543,28 @@ function initSupabaseConfigForm() {
       })
       .finally(function () {
         testBtn.disabled = false;
+      });
+  });
+
+  refreshBtn.addEventListener('click', function () {
+    const cfg = getSupabaseConfig();
+    if (!cfg.enabled) {
+      setStatus('Save URL and anon key first, then fetch latest cloud data.', true);
+      return;
+    }
+    refreshBtn.disabled = true;
+    setStatus('Fetching latest cloud data...', false);
+    loadSleepData({ forceRefresh: true })
+      .then(function (data) {
+        const count = data && Array.isArray(data.days) ? data.days.length : null;
+        const suffix = count == null ? '' : ' (' + count + ' nights)';
+        setStatus('Latest cloud data loaded' + suffix + '.', false);
+      })
+      .catch(function (error) {
+        setStatus('Fetch failed: ' + (error && error.message ? error.message : 'unknown error'), true);
+      })
+      .finally(function () {
+        refreshBtn.disabled = false;
       });
   });
 
@@ -1653,9 +1789,10 @@ function renderNavBar(currentPage) {
   // Feather-style git-branch (MIT); stroke scales with banner font size.
   const gitBranchIcon =
     '<svg class="nav-dev-banner-branch-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>';
+  const devDataRefreshHint = '<a href="config.html#cloud-sync" class="content-link nav-dev-banner-link">Cloud data not synced. Manually refresh in settings.</a>';
   const devBannerBody = branchLabel
-    ? `<div class="nav-dev-banner-line">Dev Build</div><div class="nav-dev-banner-branch-row">${gitBranchIcon}<span class="nav-dev-banner-branch-name">${escapeHtmlBannerText(branchLabel)}</span></div>`
-    : '<div class="nav-dev-banner-line">Dev Build</div>';
+    ? `<div class="nav-dev-banner-line">Dev Build</div><div class="nav-dev-banner-branch-row">${gitBranchIcon}<span class="nav-dev-banner-branch-name">${escapeHtmlBannerText(branchLabel)}</span></div><div class="nav-dev-banner-line nav-dev-banner-line--hint">${devDataRefreshHint}</div>`
+    : `<div class="nav-dev-banner-line">Dev Build</div><div class="nav-dev-banner-line nav-dev-banner-line--hint">${devDataRefreshHint}</div>`;
   const devAria = branchLabel
     ? `Development build, branch ${escapeHtmlBannerAttr(branchLabel)}`
     : 'Development build';
