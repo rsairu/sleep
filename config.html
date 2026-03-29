@@ -38,28 +38,43 @@
       </select>
     </div>
 
-    <h2 class="section-title" id="theme" data-i18n="config.theme.title">Theme</h2>
-    <div id="config-theme" class="about-theme" role="group" aria-label="Theme preference" data-i18n-aria-label="config.theme.ariaLabel">
-      <div class="about-theme-row about-theme-row--light-dark" id="config-theme-light-dark-row" role="button" tabindex="0" aria-label="Light / Dark" data-i18n-aria-label="config.theme.lightDarkAriaLabel">
-        <span class="about-theme-option-icon" id="config-theme-toggle-wrap"></span>
-        <span data-i18n="config.theme.lightDark">Light / Dark</span>
+    <h2 class="section-title" id="look-and-feel" data-i18n="config.personalization.title">Look and feel</h2>
+    <div class="config-personalization">
+      <h3 class="section-subtitle config-personalization-subtitle" id="light-dark" data-i18n="config.theme.title">Light / Dark</h3>
+      <div id="config-theme" class="about-theme" role="group" aria-label="Light and dark appearance" data-i18n-aria-label="config.theme.ariaLabel">
+        <div class="about-theme-row about-theme-row--light-dark" id="config-theme-light-dark-row" role="button" tabindex="0" aria-label="Light / Dark" data-i18n-aria-label="config.theme.lightDarkAriaLabel">
+          <span class="about-theme-option-icon" id="config-theme-toggle-wrap"></span>
+          <span data-i18n="config.theme.lightDark">Light / Dark</span>
+        </div>
+        <button type="button" class="about-theme-option" data-theme="auto" aria-pressed="false">
+          <span class="about-theme-option-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg></span>
+          <span data-i18n="config.theme.auto">Auto (time-based)</span>
+        </button>
       </div>
-      <button type="button" class="about-theme-option" data-theme="auto" aria-pressed="false">
-        <span class="about-theme-option-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg></span>
-        <span data-i18n="config.theme.auto">Auto (time-based)</span>
-      </button>
-    </div>
 
-    <h2 class="section-title" id="quality-palette" data-i18n="config.quality.title">Quality colors</h2>
-    <div id="config-quality-palette" class="about-theme" role="group" aria-label="Quality color palette" data-i18n-aria-label="config.quality.ariaLabel">
-      <button type="button" class="about-theme-option config-quality-palette-option" data-quality-palette="meadow" aria-pressed="false">
-        <span class="config-quality-palette-bar" aria-hidden="true"></span>
-        <span data-i18n="config.quality.meadow">Stepa's Meadow</span>
-      </button>
-      <button type="button" class="about-theme-option config-quality-palette-option" data-quality-palette="harbor" aria-pressed="false">
-        <span class="config-quality-palette-bar" aria-hidden="true"></span>
-        <span data-i18n="config.quality.harbor">Dima's Harbor</span>
-      </button>
+      <h3 class="section-subtitle config-personalization-subtitle" id="colors" data-i18n="config.quality.title">Colors</h3>
+      <p class="section-intro config-colors-intro" data-i18n="config.quality.intro">These colors are used for sleep quality flags and Sleep HP.</p>
+      <div id="config-quality-palette" class="about-theme" role="group" aria-label="Sleep quality colors" data-i18n-aria-label="config.quality.ariaLabel">
+        <button type="button" class="about-theme-option config-quality-palette-option" data-quality-palette="meadow" aria-pressed="false">
+          <span class="config-quality-palette-bar" aria-hidden="true"></span>
+          <span data-i18n="config.quality.meadow">Stepa's Meadow</span>
+        </button>
+        <button type="button" class="about-theme-option config-quality-palette-option" data-quality-palette="harbor" aria-pressed="false">
+          <span class="config-quality-palette-bar" aria-hidden="true"></span>
+          <span data-i18n="config.quality.harbor">Dima's Harbor</span>
+        </button>
+        <button type="button" class="about-theme-option config-quality-palette-option config-quality-palette-option--auto" data-quality-palette="auto" aria-pressed="false">
+          <span class="config-quality-palette-clock-slot" aria-hidden="true">
+            <span class="about-theme-option-icon config-quality-palette-clock-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg></span>
+          </span>
+          <span class="config-quality-palette-option-text">
+            <span class="config-quality-palette-auto-label-row">
+              <span class="config-quality-palette-option-label" data-i18n="config.quality.auto">Auto</span>
+            </span>
+            <span class="config-quality-palette-auto-help" data-i18n="config.quality.autoHelp">Switches with theme: Stepa's Meadow in light mode, Dima's Harbor in dark mode.</span>
+          </span>
+        </button>
+      </div>
     </div>
 
     <h2 class="section-title" id="remaining-wake" data-i18n="config.remainingWake.title">Remaining wake time</h2>

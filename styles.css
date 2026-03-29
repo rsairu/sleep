@@ -3694,10 +3694,6 @@ svg {
   white-space: nowrap;
 }
 
-#theme.section-title {
-  margin-top: 0;
-}
-
 #clock.section-title {
   margin-top: 0;
 }
@@ -3708,12 +3704,86 @@ svg {
   margin-bottom: 0.5rem;
 }
 
-.container--config #theme.section-title {
+.container--config #look-and-feel.section-title {
   margin-top: 1rem;
 }
 
-.container--config #quality-palette.section-title {
+.config-personalization {
+  margin-bottom: 0;
+}
+
+.config-personalization .section-subtitle.config-personalization-subtitle {
   margin-top: 1rem;
+  margin-bottom: 0.4rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.config-personalization .section-subtitle.config-personalization-subtitle:first-of-type {
+  margin-top: 0;
+}
+
+.config-personalization .config-colors-intro {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+}
+
+.config-personalization .about-theme {
+  margin-bottom: 0;
+}
+
+/* Clock in same 108×20 slot as palette bars so "Auto" lines up with Meadow / Harbor labels */
+#config-quality-palette .config-quality-palette-clock-slot {
+  flex: 0 0 108px;
+  width: 108px;
+  min-width: 108px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+#config-quality-palette .config-quality-palette-clock-icon {
+  width: 20px;
+  height: 20px;
+}
+
+#config-quality-palette .config-quality-palette-clock-icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.config-quality-palette-option--auto {
+  align-items: flex-start;
+}
+
+.config-quality-palette-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+/* Same 20px band as palette bars so "Auto" lines up with Meadow / Harbor names */
+.config-quality-palette-auto-label-row {
+  display: flex;
+  align-items: center;
+  min-height: 20px;
+}
+
+.config-quality-palette-option-label {
+  font-weight: 500;
+}
+
+.config-quality-palette-auto-help {
+  font-size: 0.8125rem;
+  font-weight: 400;
+  line-height: 1.35;
+  color: var(--text);
+  opacity: 0.85;
 }
 
 .config-language-select-wrap {
