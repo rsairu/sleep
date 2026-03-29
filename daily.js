@@ -1497,8 +1497,16 @@ function renderDashboardContent(days) {
     <h2 class="dashboard-section-title">Past Week</h2>
     <div class="dashboard-7d-row">
       <div class="dashboard-7d-col">
-        <h3 class="dashboard-7d-subtitle">Wake and sleep times</h3>
-        <div class="dashboard-7d-graph-container" id="dashboard-7d-time-graph"></div>
+        <div class="dashboard-7d-time-stack">
+          <div>
+            <h3 class="dashboard-7d-subtitle">Bed &amp; sleep start</h3>
+            <div class="dashboard-7d-graph-container" id="dashboard-7d-bed-sleep-graph"></div>
+          </div>
+          <div>
+            <h3 class="dashboard-7d-subtitle">Wake time</h3>
+            <div class="dashboard-7d-graph-container" id="dashboard-7d-wake-graph"></div>
+          </div>
+        </div>
       </div>
       <div class="dashboard-7d-col">
         <h3 class="dashboard-7d-subtitle">Total sleep time</h3>

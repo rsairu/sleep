@@ -1,6 +1,6 @@
 // Dashboard: recent average, lifetime average, recent nights (timeline rows), sleep quality history.
 // Uses renderDashboardContent() and shared helpers from daily.js.
-// Includes 7-day graphs: time graph (left) and sleep duration chart (right).
+// Includes 7-day graphs: bed/sleep-start and wake time (left column), duration chart (right).
 // Requires: sleep-utils.js (timeToMinutes, getDateFromString, calculateTotalSleep, formatDuration, formatTime)
 
 // --- 7-day graph helpers ---
@@ -8,12 +8,37 @@ function regressionDegree(pointCount) {
   return Math.min(2, Math.max(0, pointCount - 1));
 }
 
-/** For last-7-days charts: "Last Nite" (2 lines) for the most recent day, otherwise three-letter weekday (Mon, Tue, …). */
+/** For last-7-days charts: most recent day uses two-line "Last" / "night" (see append7DayXAxisTickLabel); else weekday (Mon, …). */
 function get7DayAxisLabel(point, index, total) {
-  if (index === total - 1) return null; // rendered as two-line "Last Nite" in the graph
+  if (index === total - 1) return null;
   const d = new Date(point.date);
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   return days[d.getDay()];
+}
+
+function append7DayXAxisTickLabel(g, ns, x, graphHeight, point, index, total) {
+  const label = ns('text');
+  label.setAttribute('x', x);
+  label.setAttribute('text-anchor', 'middle');
+  const weekday = get7DayAxisLabel(point, index, total);
+  if (weekday === null) {
+    label.setAttribute('class', 'axis-label axis-label--last-night');
+    label.setAttribute('y', graphHeight + 10);
+    const t1 = ns('tspan');
+    t1.setAttribute('x', x);
+    t1.textContent = 'Last';
+    const t2 = ns('tspan');
+    t2.setAttribute('x', x);
+    t2.setAttribute('dy', '1em');
+    t2.textContent = 'night';
+    label.appendChild(t1);
+    label.appendChild(t2);
+  } else {
+    label.setAttribute('class', 'axis-label');
+    label.setAttribute('y', graphHeight + 14);
+    label.textContent = weekday;
+  }
+  g.appendChild(label);
 }
 
 function buildPoints(days) {
@@ -54,16 +79,26 @@ function getResponsiveDashboardChartWidth(container, pointCount) {
   return Math.max(pointDrivenWidth, containerWidth);
 }
 
-function render7DayTimeGraph(container, points) {
+function timeSeriesLineClass(key) {
+  if (key === 'bedTimeMinutes') return { data: 'data-line bedtime', reg: 'regression-line bedtime-regression', point: 'data-point bedtime' };
+  if (key === 'sleepStartMinutes') return { data: 'data-line sleep-start', reg: 'regression-line sleep-start-regression', point: 'data-point sleep-start' };
+  return { data: 'data-line getup', reg: 'regression-line getup-regression', point: 'data-point getup' };
+}
+
+/** @param {string[]} seriesKeys subset of bedTimeMinutes, sleepStartMinutes, getUpMinutes */
+function render7DayTimeGraph(container, points, seriesKeys) {
   if (!points.length) return;
+  const keys = Array.isArray(seriesKeys) && seriesKeys.length
+    ? seriesKeys
+    : ['bedTimeMinutes', 'sleepStartMinutes', 'getUpMinutes'];
   const margin = { top: 24, right: 24, bottom: 36, left: 48 };
   const width = getResponsiveDashboardChartWidth(container, points.length);
   const height = 280;
   const graphWidth = width - margin.left - margin.right;
   const graphHeight = height - margin.top - margin.bottom;
 
-  // Dynamic Y range: min/max of 7-day data plus 1 hour on each side
-  const allTimes = points.flatMap(p => [p.bedTimeMinutes, p.sleepStartMinutes, p.getUpMinutes]);
+  // Dynamic Y range: min/max of selected series only, plus 1 hour on each side
+  const allTimes = points.flatMap(p => keys.map(k => p[k]));
   const dataMin = Math.min(...allTimes), dataMax = Math.max(...allTimes);
   const hourPad = 60;
   const finalYMin = Math.floor((dataMin - hourPad) / 60) * 60;
@@ -132,27 +167,7 @@ function render7DayTimeGraph(container, points) {
     tickLine.setAttribute('x2', x); tickLine.setAttribute('y2', graphHeight + 5);
     tickLine.setAttribute('class', 'axis');
     g.appendChild(tickLine);
-    const label = ns('text');
-    label.setAttribute('x', x);
-    label.setAttribute('class', 'axis-label');
-    label.setAttribute('text-anchor', 'middle');
-    const text = get7DayAxisLabel(point, index, points.length);
-    if (text === null) {
-      label.setAttribute('y', graphHeight + 10);
-      const t1 = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
-      t1.setAttribute('x', x);
-      t1.textContent = 'Last';
-      const t2 = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
-      t2.setAttribute('x', x);
-      t2.setAttribute('dy', '1em');
-      t2.textContent = 'Nite';
-      label.appendChild(t1);
-      label.appendChild(t2);
-    } else {
-      label.setAttribute('y', graphHeight + 14);
-      label.textContent = text;
-    }
-    g.appendChild(label);
+    append7DayXAxisTickLabel(g, ns, x, graphHeight, point, index, points.length);
   });
 
   const path = (pts, key) => {
@@ -164,24 +179,15 @@ function render7DayTimeGraph(container, points) {
     return d;
   };
 
-  const pathBedtime = ns('path');
-  pathBedtime.setAttribute('d', path(points, 'bedTimeMinutes'));
-  pathBedtime.setAttribute('class', 'data-line bedtime');
-  g.appendChild(pathBedtime);
-  const pathSleepStart = ns('path');
-  pathSleepStart.setAttribute('d', path(points, 'sleepStartMinutes'));
-  pathSleepStart.setAttribute('class', 'data-line sleep-start');
-  g.appendChild(pathSleepStart);
-  const pathGetUp = ns('path');
-  pathGetUp.setAttribute('d', path(points, 'getUpMinutes'));
-  pathGetUp.setAttribute('class', 'data-line getup');
-  g.appendChild(pathGetUp);
+  keys.forEach((key) => {
+    const cls = timeSeriesLineClass(key);
+    const pathEl = ns('path');
+    pathEl.setAttribute('d', path(points, key));
+    pathEl.setAttribute('class', cls.data);
+    g.appendChild(pathEl);
+  });
 
   const deg = regressionDegree(points.length);
-  const getUpReg = polynomialRegression(points.map((_, i) => i), points.map(p => p.getUpMinutes), deg);
-  const sleepStartReg = polynomialRegression(points.map((_, i) => i), points.map(p => p.sleepStartMinutes), deg);
-  const bedtimeReg = polynomialRegression(points.map((_, i) => i), points.map(p => p.bedTimeMinutes), deg);
-
   const regPath = (coeffs, key) => {
     let d = '';
     points.forEach((p, i) => {
@@ -190,29 +196,23 @@ function render7DayTimeGraph(container, points) {
     });
     return d;
   };
-  const regGetUp = ns('path');
-  regGetUp.setAttribute('d', regPath(getUpReg, 'getUpMinutes'));
-  regGetUp.setAttribute('class', 'regression-line getup-regression');
-  regGetUp.setAttribute('fill', 'none');
-  g.appendChild(regGetUp);
-  const regSleepStart = ns('path');
-  regSleepStart.setAttribute('d', regPath(sleepStartReg, 'sleepStartMinutes'));
-  regSleepStart.setAttribute('class', 'regression-line sleep-start-regression');
-  regSleepStart.setAttribute('fill', 'none');
-  g.appendChild(regSleepStart);
-  const regBedtime = ns('path');
-  regBedtime.setAttribute('d', regPath(bedtimeReg, 'bedTimeMinutes'));
-  regBedtime.setAttribute('class', 'regression-line bedtime-regression');
-  regBedtime.setAttribute('fill', 'none');
-  g.appendChild(regBedtime);
+  keys.forEach((key) => {
+    const coeffs = polynomialRegression(points.map((_, i) => i), points.map(p => p[key]), deg);
+    const cls = timeSeriesLineClass(key);
+    const regEl = ns('path');
+    regEl.setAttribute('d', regPath(coeffs, key));
+    regEl.setAttribute('class', cls.reg);
+    regEl.setAttribute('fill', 'none');
+    g.appendChild(regEl);
+  });
 
   points.forEach(p => {
-    ['bedTimeMinutes', 'sleepStartMinutes', 'getUpMinutes'].forEach((key, i) => {
+    keys.forEach((key) => {
       const circle = ns('circle');
       circle.setAttribute('cx', xScale(p.date));
       circle.setAttribute('cy', yScale(p[key]));
       circle.setAttribute('r', 3);
-      circle.setAttribute('class', 'data-point ' + (key === 'bedTimeMinutes' ? 'bedtime' : key === 'sleepStartMinutes' ? 'sleep-start' : 'getup'));
+      circle.setAttribute('class', timeSeriesLineClass(key).point);
       g.appendChild(circle);
     });
   });
@@ -326,27 +326,7 @@ function render7DayDurationChart(container, points) {
     tickLine.setAttribute('x2', x); tickLine.setAttribute('y2', graphHeight + 5);
     tickLine.setAttribute('class', 'axis');
     g.appendChild(tickLine);
-    const label = ns('text');
-    label.setAttribute('x', x);
-    label.setAttribute('class', 'axis-label');
-    label.setAttribute('text-anchor', 'middle');
-    const text = get7DayAxisLabel(point, index, points.length);
-    if (text === null) {
-      label.setAttribute('y', graphHeight + 10);
-      const t1 = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
-      t1.setAttribute('x', x);
-      t1.textContent = 'Last';
-      const t2 = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
-      t2.setAttribute('x', x);
-      t2.setAttribute('dy', '1em');
-      t2.textContent = 'Nite';
-      label.appendChild(t1);
-      label.appendChild(t2);
-    } else {
-      label.setAttribute('y', graphHeight + 14);
-      label.textContent = text;
-    }
-    g.appendChild(label);
+    append7DayXAxisTickLabel(g, ns, x, graphHeight, point, index, points.length);
   });
 
   const tooltip = document.getElementById('tooltip');
@@ -458,9 +438,11 @@ function renderDashboard7DayGraphs(days) {
   points.sort((a, b) => a.date - b.date);
   const last7 = points.slice(-7);
   if (last7.length === 0) return;
-  const timeEl = document.getElementById('dashboard-7d-time-graph');
+  const bedSleepEl = document.getElementById('dashboard-7d-bed-sleep-graph');
+  const wakeEl = document.getElementById('dashboard-7d-wake-graph');
   const durationEl = document.getElementById('dashboard-7d-duration-graph');
-  if (timeEl) render7DayTimeGraph(timeEl, last7);
+  if (bedSleepEl) render7DayTimeGraph(bedSleepEl, last7, ['bedTimeMinutes', 'sleepStartMinutes']);
+  if (wakeEl) render7DayTimeGraph(wakeEl, last7, ['getUpMinutes']);
   if (durationEl) render7DayDurationChart(durationEl, last7);
 }
 
