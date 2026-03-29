@@ -29,6 +29,19 @@
     return formatMonthDayFromDate(d);
   }
 
+  /** Calendar date for the night row: tomorrow in pre-sleep phase, else today. */
+  function getQuickAddDefaultNightDate() {
+    const wrapper = document.querySelector('.nav-wrapper');
+    const presleep = wrapper && wrapper.classList.contains('nav-wrapper--phase-presleep');
+    const d = new Date();
+    if (presleep) d.setDate(d.getDate() + 1);
+    return d;
+  }
+
+  function quickAddPresetDateInputValue() {
+    return monthDayToDateInput(formatMonthDayFromDate(getQuickAddDefaultNightDate()));
+  }
+
   function normalizeTime(value) {
     const v = String(value || '').trim();
     const match = v.match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
@@ -152,7 +165,7 @@
 
   function resetQuickAddFormToDefaults() {
     const dateInput = document.getElementById('quick-add-date');
-    if (dateInput) dateInput.value = monthDayToDateInput(formatMonthDayFromDate(new Date()));
+    if (dateInput) dateInput.value = quickAddPresetDateInputValue();
     initQuickAddDynamicTimeLists();
     applyInitialMainTimesFromFormDataset();
 
@@ -167,7 +180,7 @@
 
   function clearQuickAddFormEntirely() {
     const dateInput = document.getElementById('quick-add-date');
-    if (dateInput) dateInput.value = '';
+    if (dateInput) dateInput.value = quickAddPresetDateInputValue();
     const bedEl = document.getElementById('quick-add-bed');
     const sleepEl = document.getElementById('quick-add-sleep');
     const wakeEl = document.getElementById('quick-add-wake');
@@ -194,7 +207,7 @@
     if (!form || !document.getElementById('quick-add-bed')) return;
 
     const dateInput = document.getElementById('quick-add-date');
-    if (dateInput) dateInput.value = monthDayToDateInput(formatMonthDayFromDate(new Date()));
+    if (dateInput) dateInput.value = quickAddPresetDateInputValue();
     initQuickAddDynamicTimeLists();
 
     const waso = document.getElementById('quick-add-waso');
@@ -242,8 +255,8 @@
     const wasoRaw = document.getElementById('quick-add-waso').value;
     const wasoTrim = (wasoRaw != null ? String(wasoRaw) : '').trim();
 
-    if (!dateMd || !bed || !sleepStart || !sleepEnd) {
-      setQuickAddStatus('Pick a date and set bed, sleep, and wake times.', true);
+    if (!dateMd) {
+      setQuickAddStatus(typeof t === 'function' ? t('log.errorPickDate', 'Pick a valid date.') : 'Pick a valid date.', true);
       return;
     }
     if ((napStart && !napEnd) || (!napStart && napEnd)) {
@@ -262,67 +275,59 @@
       }
     }
 
-    const baseDay = {
-      date: dateMd,
-      bed: bed,
-      sleepStart: sleepStart,
-      sleepEnd: sleepEnd,
-      bathroom: bathroom,
-      alarm: alarm,
-      nap: napStart && napEnd ? { start: napStart, end: napEnd } : null
-    };
+    const partial = {};
+    if (bed) partial.bed = bed;
+    if (sleepStart) partial.sleepStart = sleepStart;
+    if (sleepEnd) partial.sleepEnd = sleepEnd;
+    if (bathroom.length) partial.bathroom = bathroom;
+    if (alarm.length) partial.alarm = alarm;
+    if (napStart && napEnd) partial.nap = { start: napStart, end: napEnd };
+    if (wasoTrim !== '') partial.WASO = Math.floor(Number(wasoTrim));
 
-    function commitDayWithWaso(wasoInt) {
-      const saveBtn = document.getElementById('quick-add-save');
-      if (saveBtn) saveBtn.disabled = true;
-      setQuickAddStatus('Saving...', false);
-      const day = Object.assign({}, baseDay, { WASO: Math.floor(wasoInt) });
-      upsertSleepDay(day)
-        .then(function () {
-          setQuickAddStatus('Saved.', false);
-          const drawerEl = document.getElementById('quick-add-drawer');
-          const isLogPage = drawerEl && drawerEl.classList.contains('quick-add-drawer--page');
-          if (!isLogPage) {
-            closeQuickAddDrawer();
-          }
-          if (quickAddOptions && typeof quickAddOptions.onSaved === 'function') {
-            return quickAddOptions.onSaved();
-          }
-          return null;
-        })
-        .catch(function (error) {
-          console.error(error);
-          setQuickAddStatus(error && error.message ? error.message : 'Could not save. Check Settings and try again.', true);
-        })
-        .finally(function () {
-          if (saveBtn) saveBtn.disabled = false;
-        });
+    if (Object.keys(partial).length === 0) {
+      setQuickAddStatus(
+        typeof t === 'function' ? t('log.errorNeedField', 'Pick a date and fill at least one field to save.') : 'Pick a date and fill at least one field to save.',
+        true
+      );
+      return;
     }
 
-    if (wasoTrim !== '') {
-      commitDayWithWaso(Number(wasoTrim));
-    } else {
-      const saveBtnPre = document.getElementById('quick-add-save');
-      if (saveBtnPre) saveBtnPre.disabled = true;
-      setQuickAddStatus('Saving...', false);
-      loadSleepData()
-        .then(function (data) {
-          const days = Array.isArray(data && data.days) ? data.days : [];
-          var preserved = 0;
-          for (var i = 0; i < days.length; i++) {
-            if (days[i].date === dateMd && Number.isFinite(days[i].WASO)) {
-              preserved = days[i].WASO;
-              break;
-            }
+    const saveBtn = document.getElementById('quick-add-save');
+    if (saveBtn) saveBtn.disabled = true;
+    setQuickAddStatus('Saving...', false);
+
+    loadSleepData()
+      .then(function (data) {
+        const days = Array.isArray(data && data.days) ? data.days : [];
+        var existing = null;
+        for (var i = 0; i < days.length; i++) {
+          if (days[i].date === dateMd) {
+            existing = days[i];
+            break;
           }
-          commitDayWithWaso(preserved);
-        })
-        .catch(function (err) {
-          console.error(err);
-          setQuickAddStatus('Could not load data to preserve WASO. Enter a number or try again.', true);
-          if (saveBtnPre) saveBtnPre.disabled = false;
-        });
-    }
+        }
+        const merged = mergePartialSleepDayForUpsert(existing, dateMd, partial);
+        return upsertSleepDay(merged);
+      })
+      .then(function () {
+        setQuickAddStatus('Saved.', false);
+        const drawerEl = document.getElementById('quick-add-drawer');
+        const isLogPage = drawerEl && drawerEl.classList.contains('quick-add-drawer--page');
+        if (!isLogPage) {
+          closeQuickAddDrawer();
+        }
+        if (quickAddOptions && typeof quickAddOptions.onSaved === 'function') {
+          return quickAddOptions.onSaved();
+        }
+        return null;
+      })
+      .catch(function (error) {
+        console.error(error);
+        setQuickAddStatus(error && error.message ? error.message : 'Could not save. Check Settings and try again.', true);
+      })
+      .finally(function () {
+        if (saveBtn) saveBtn.disabled = false;
+      });
   }
 
   function bindQuickAddHostOnce() {

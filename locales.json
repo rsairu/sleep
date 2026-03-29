@@ -100,7 +100,9 @@
       "napStartLaterAria": "Nap start one minute later",
       "napStartEarlierAria": "Nap start one minute earlier",
       "napEndLaterAria": "Nap end one minute later",
-      "napEndEarlierAria": "Nap end one minute earlier"
+      "napEndEarlierAria": "Nap end one minute earlier",
+      "errorPickDate": "Pick a valid date.",
+      "errorNeedField": "Pick a date and fill at least one field to save."
     }
   },
   "ja": {
@@ -204,7 +206,9 @@
       "napStartLaterAria": "仮眠の開始を1分遅く",
       "napStartEarlierAria": "仮眠の開始を1分早く",
       "napEndLaterAria": "仮眠の終了を1分遅く",
-      "napEndEarlierAria": "仮眠の終了を1分早く"
+      "napEndEarlierAria": "仮眠の終了を1分早く",
+      "errorPickDate": "有効な日付を選んでください。",
+      "errorNeedField": "日付を選び、保存する項目を1つ以上入力してください。"
     }
   }
 }

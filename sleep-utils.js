@@ -338,6 +338,34 @@ function normalizeTimeStringForSupabase(timeStr) {
   return formatMinutesTo24hString(m);
 }
 
+function emptySleepDayForDate(dateMd) {
+  return {
+    date: dateMd,
+    bed: null,
+    sleepStart: null,
+    sleepEnd: null,
+    bathroom: [],
+    alarm: [],
+    nap: null,
+    WASO: 0
+  };
+}
+
+/**
+ * Merge a partial day update onto an existing day (or empty defaults for a new date).
+ * Only keys present on `partial` are applied (`'key' in partial`), so omitted keys keep stored values.
+ */
+function mergePartialSleepDayForUpsert(existing, dateMd, partial) {
+  const base = existing ? JSON.parse(JSON.stringify(existing)) : emptySleepDayForDate(dateMd);
+  base.date = dateMd;
+  const fields = ['bed', 'sleepStart', 'sleepEnd', 'bathroom', 'alarm', 'nap', 'WASO'];
+  for (let i = 0; i < fields.length; i++) {
+    const k = fields[i];
+    if (k in partial) base[k] = partial[k];
+  }
+  return base;
+}
+
 function mapDayToSupabaseRow(day) {
   const bathroom = Array.isArray(day.bathroom) ? day.bathroom.map(normalizeTimeStringForSupabase) : [];
   const alarm = Array.isArray(day.alarm) ? day.alarm.map(normalizeTimeStringForSupabase) : [];
