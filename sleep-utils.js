@@ -1006,20 +1006,27 @@ function setClockFormatPreference(format) {
 function getQualityPaletteId() {
   try {
     const v = localStorage.getItem(QUALITY_PALETTE_KEY);
-    if (v === 'meadow' || v === 'harbor') return v;
+    if (v === 'meadow' || v === 'harbor' || v === 'auto') return v;
   } catch (_) {}
   return 'meadow';
 }
 
 function setQualityPaletteId(id) {
-  if (id !== 'meadow' && id !== 'harbor') return;
+  if (id !== 'meadow' && id !== 'harbor' && id !== 'auto') return;
   try {
     localStorage.setItem(QUALITY_PALETTE_KEY, id);
   } catch (_) {}
 }
 
+// Concrete palette used for CSS (stored 'auto' → meadow or harbor from effective theme).
+function getResolvedQualityPaletteId() {
+  const stored = getQualityPaletteId();
+  if (stored !== 'auto') return stored;
+  return getEffectiveTheme() === 'day' ? 'meadow' : 'harbor';
+}
+
 function applyQualityPaletteToDocument() {
-  const id = getQualityPaletteId();
+  const id = getResolvedQualityPaletteId();
   const pal = QUALITY_PALETTES[id];
   if (!pal || pal.colors.length !== 6) return;
   const root = document.documentElement;
@@ -1033,9 +1040,10 @@ function hydrateQualityPalettePreviewBars() {
   if (!wrap) return;
   wrap.querySelectorAll('[data-quality-palette]').forEach(function (btn) {
     const pid = btn.getAttribute('data-quality-palette');
-    const pal = QUALITY_PALETTES[pid];
     const bar = btn.querySelector('.config-quality-palette-bar');
-    if (!pal || !bar) return;
+    if (!bar) return;
+    const pal = QUALITY_PALETTES[pid];
+    if (!pal) return;
     bar.innerHTML = pal.colors
       .map(function (c) {
         return '<span style="background-color:' + c + '"></span>';
@@ -1064,7 +1072,7 @@ function initQualityPaletteSelector() {
     const btn = e.target.closest('[data-quality-palette]');
     if (!btn) return;
     const id = btn.getAttribute('data-quality-palette');
-    if (!QUALITY_PALETTES[id]) return;
+    if (id !== 'auto' && !QUALITY_PALETTES[id]) return;
     setQualityPaletteId(id);
     applyQualityPaletteToDocument();
     updateQualityPaletteSelector();
@@ -1082,6 +1090,7 @@ function getEffectiveTheme() {
 function applyDayNightTheme() {
   const theme = getEffectiveTheme();
   document.documentElement.dataset.theme = theme;
+  applyQualityPaletteToDocument();
   return theme;
 }
 
@@ -1618,7 +1627,6 @@ function syncDevBannerFixedLayout() {
 
 // Initializes day/night theme, click handler, and timer to re-check (when in auto mode)
 function initDayNightTheme() {
-  applyQualityPaletteToDocument();
   applyDayNightTheme();
   updateDayNightIcon();
   updateDataSourceBadge();

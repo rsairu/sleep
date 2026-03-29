@@ -34,18 +34,24 @@
         "optionEnglish": "🇺🇸 English",
         "optionJapanese": "🇯🇵 Japanese"
       },
+      "personalization": {
+        "title": "Look and feel"
+      },
       "theme": {
-        "title": "Theme",
-        "ariaLabel": "Theme preference",
+        "title": "Light / Dark",
+        "ariaLabel": "Light and dark appearance",
         "lightDarkAriaLabel": "Light / Dark",
         "lightDark": "Light / Dark",
         "auto": "Auto (time-based)"
       },
       "quality": {
-        "title": "Quality colors",
-        "ariaLabel": "Quality color palette",
+        "title": "Colors",
+        "intro": "These colors are used for sleep quality flags and Sleep HP.",
+        "ariaLabel": "Sleep quality colors",
         "meadow": "Stepa's Meadow",
-        "harbor": "Dima's Harbor"
+        "harbor": "Dima's Harbor",
+        "auto": "Auto",
+        "autoHelp": "Switches with theme: Stepa's Meadow in light mode, Dima's Harbor in dark mode."
       },
       "remainingWake": {
         "title": "Remaining wake time",
@@ -132,18 +138,24 @@
         "optionEnglish": "🇺🇸 English",
         "optionJapanese": "🇯🇵 日本語"
       },
+      "personalization": {
+        "title": "見た目"
+      },
       "theme": {
-        "title": "テーマ",
-        "ariaLabel": "テーマ設定",
+        "title": "ライト / ダーク",
+        "ariaLabel": "ライトとダークの外観",
         "lightDarkAriaLabel": "ライト / ダーク",
         "lightDark": "ライト / ダーク",
         "auto": "自動（時間帯ベース）"
       },
       "quality": {
-        "title": "カラーの質",
-        "ariaLabel": "睡眠の質のカラーパレット",
+        "title": "色",
+        "intro": "睡眠の質フラグと Sleep HP の表示に使われます。",
+        "ariaLabel": "睡眠の質の色",
         "meadow": "ステパのメドウ",
-        "harbor": "ディマのハーバー"
+        "harbor": "ディマのハーバー",
+        "auto": "自動",
+        "autoHelp": "テーマに合わせて切り替えます。ライトではステパのメドウ、ダークではディマのハーバーです。"
       },
       "remainingWake": {
         "title": "残り覚醒時間",
