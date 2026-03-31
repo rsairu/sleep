@@ -269,8 +269,8 @@
     return false;
   }
 
-  function persist(day, onReload) {
-    return upsertSleepDay(day)
+  function persistPartial(dateMd, partial, onReload) {
+    return saveDraftAndMaybePromote(dateMd, partial)
       .then(function () {
         if (typeof showAppToast === 'function') showAppToast('recorded');
         if (typeof onReload === 'function') return onReload();
@@ -284,48 +284,40 @@
       });
   }
 
+  function getEditableDayByMd(md, days) {
+    return getSleepDraftByDate(md)
+      .catch(function () {
+        return null;
+      })
+      .then(function (draft) {
+        if (draft) return draft;
+        return findDayByMd(days, md);
+      });
+  }
+
   function handleWakeUp(days, averages, onReload, now) {
     const md = recordDateMdForWake(now);
-    let day = findDayByMd(days, md);
-    let payload;
-    if (!day) {
-      payload = newStubDay(md, days, averages);
-      payload.sleepEnd = formatTimeFromDate(now);
-    } else {
-      payload = cloneDayBase(day);
-      payload.sleepEnd = formatTimeFromDate(now);
-    }
-    return persist(payload, onReload);
+    return persistPartial(md, { sleepEnd: formatTimeFromDate(now) }, onReload);
   }
 
   function handleAlarmNow(days, averages, onReload, now) {
     const md = recordDateMdForWake(now);
-    let day = findDayByMd(days, md);
-    let payload;
-    if (!day) {
-      payload = newStubDay(md, days, averages);
-      payload.sleepEnd = formatTimeFromDate(now);
-    } else {
-      payload = cloneDayBase(day);
-    }
-    payload.alarm = mergeUniqueTimeStrings(payload.alarm, formatTimeFromDate(now));
-    return persist(payload, onReload);
+    const alarmNow = formatTimeFromDate(now);
+    return getEditableDayByMd(md, days).then(function (day) {
+      const existingAlarm = day && Array.isArray(day.alarm) ? day.alarm : [];
+      return persistPartial(
+        md,
+        { alarm: mergeUniqueTimeStrings(existingAlarm, alarmNow) },
+        onReload
+      );
+    });
   }
 
   /** Bed time only — does not change sleepStart or sleepEnd. */
   function handleBedNow(days, averages, onReload, now) {
     const md = recordDateMdForSleep(now, averages.avgSleepEnd);
     const bedClock = formatTimeFromDate(now);
-    let day = findDayByMd(days, md);
-    let payload;
-    if (!day) {
-      payload = newStubDay(md, days, averages);
-      payload.bed = bedClock;
-    } else {
-      payload = cloneDayBase(day);
-      payload.bed = bedClock;
-    }
-    return persist(payload, onReload).then(function () {
+    return persistPartial(md, { bed: bedClock }, onReload).then(function () {
       markQaSleepFlag(md, 'bed');
       return null;
     });
@@ -335,17 +327,7 @@
   function handleSleepAt(days, averages, onReload, now, offsetMin) {
     const md = recordDateMdForSleep(now, averages.avgSleepEnd);
     const startClock = offsetMin === 0 ? formatTimeFromDate(now) : addWallMinutes(now, offsetMin);
-
-    let day = findDayByMd(days, md);
-    let payload;
-    if (!day) {
-      payload = newStubDay(md, days, averages);
-      payload.sleepStart = startClock;
-    } else {
-      payload = cloneDayBase(day);
-      payload.sleepStart = startClock;
-    }
-    return persist(payload, onReload).then(function () {
+    return persistPartial(md, { sleepStart: startClock }, onReload).then(function () {
       markQaSleepFlag(md, 'sleep');
       return null;
     });
@@ -354,16 +336,14 @@
   function handleBathroomTripNow(days, averages, onReload, now) {
     const md = recordDateMdForSleep(now, averages.avgSleepEnd);
     const t = formatTimeFromDate(now);
-    let day = findDayByMd(days, md);
-    let payload;
-    if (!day) {
-      payload = newStubDay(md, days, averages);
-      payload.bathroom = mergeUniqueTimeStrings([], t);
-    } else {
-      payload = cloneDayBase(day);
-      payload.bathroom = mergeUniqueTimeStrings(payload.bathroom, t);
-    }
-    return persist(payload, onReload);
+    return getEditableDayByMd(md, days).then(function (day) {
+      const existingBathroom = day && Array.isArray(day.bathroom) ? day.bathroom : [];
+      return persistPartial(
+        md,
+        { bathroom: mergeUniqueTimeStrings(existingBathroom, t) },
+        onReload
+      );
+    });
   }
 
   function napOpenOnDay(day) {
@@ -391,41 +371,40 @@
       if (typeof showAppToast === 'function') showAppToast('recorded');
       return Promise.resolve();
     }
-    let day = findDayByMd(days, md);
-    let payload = day ? cloneDayBase(day) : newStubDay(md, days, averages);
-    payload.nap = { start: startStr, end: null };
     writeNapSession(null);
-    return persist(payload, onReload);
+    return persistPartial(md, { nap: { start: startStr, end: null } }, onReload);
   }
 
   function handleNapEnd(days, averages, onReload, now) {
     const md = formatMdFromDate(now);
     const endStr = formatTimeFromDate(now);
-    const day = findDayByMd(days, md);
     const session = readNapSession();
-    let startStr = null;
-    let targetMd = md;
-    if (napOpenOnDay(day)) {
-      startStr = day.nap.start;
-      targetMd = day.date;
-    } else if (session && session.dateMd === md) {
-      startStr = session.start;
-      targetMd = session.dateMd;
-    }
-    if (!startStr) {
-      if (typeof showAppToast === 'function') showAppToast('Start a nap first');
-      return Promise.resolve();
-    }
     if (!isSupabaseEnabled()) {
       writeNapSession(null);
       if (typeof showAppToast === 'function') showAppToast('recorded');
       return Promise.resolve();
     }
-    let d = findDayByMd(days, targetMd);
-    let payload = d ? cloneDayBase(d) : newStubDay(targetMd, days, averages);
-    payload.nap = { start: startStr, end: endStr };
-    writeNapSession(null);
-    return persist(payload, onReload);
+    return getEditableDayByMd(md, days).then(function (day) {
+      let startStr = null;
+      let targetMd = md;
+      if (napOpenOnDay(day)) {
+        startStr = day.nap.start;
+        targetMd = day.date;
+      } else if (session && session.dateMd === md) {
+        startStr = session.start;
+        targetMd = session.dateMd;
+      }
+      if (!startStr) {
+        if (typeof showAppToast === 'function') showAppToast('Start a nap first');
+        return null;
+      }
+      writeNapSession(null);
+      return persistPartial(
+        targetMd,
+        { nap: { start: startStr, end: endStr } },
+        onReload
+      );
+    });
   }
 
   function renderButtons(phase, showAlarm, napActive, bedSleepLoggedForNight) {
