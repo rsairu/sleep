@@ -382,6 +382,58 @@ function mapDayToSupabaseRow(day) {
   };
 }
 
+function mapPartialDayToDraftPatch(partial) {
+  const patch = {};
+  if (!partial || typeof partial !== 'object') return patch;
+  if ('bed' in partial) patch.bed = normalizeTimeStringForSupabase(partial.bed);
+  if ('sleepStart' in partial) patch.sleep_start = normalizeTimeStringForSupabase(partial.sleepStart);
+  if ('sleepEnd' in partial) patch.sleep_end = normalizeTimeStringForSupabase(partial.sleepEnd);
+  if ('bathroom' in partial) {
+    patch.bathroom = Array.isArray(partial.bathroom)
+      ? partial.bathroom.map(normalizeTimeStringForSupabase)
+      : [];
+  }
+  if ('alarm' in partial) {
+    patch.alarm = Array.isArray(partial.alarm)
+      ? partial.alarm.map(normalizeTimeStringForSupabase)
+      : [];
+  }
+  if ('nap' in partial) {
+    const nap = partial.nap || {};
+    patch.nap_start = nap.start != null && nap.start !== '' ? normalizeTimeStringForSupabase(nap.start) : null;
+    patch.nap_end = nap.end != null && nap.end !== '' ? normalizeTimeStringForSupabase(nap.end) : null;
+  }
+  if ('WASO' in partial) {
+    patch.waso = Number.isFinite(partial.WASO) ? Math.max(0, Math.floor(partial.WASO)) : 0;
+  }
+  return patch;
+}
+
+function getSupabaseAuthHeaders(config, includeJson) {
+  const headers = {
+    apikey: config.anonKey,
+    Authorization: 'Bearer ' + config.anonKey
+  };
+  if (includeJson) headers['Content-Type'] = 'application/json';
+  return headers;
+}
+
+function parseSupabaseErrorPayload(res) {
+  return res.text().then(function (body) {
+    if (!body) return '';
+    try {
+      const parsed = JSON.parse(body);
+      if (parsed && typeof parsed === 'object') {
+        if (parsed.message) return String(parsed.message);
+        if (parsed.error) return String(parsed.error);
+      }
+    } catch (_e) {}
+    return body;
+  }).catch(function () {
+    return '';
+  });
+}
+
 function sortDaysNewestFirst(days) {
   return days.slice().sort((a, b) => getDateFromString(b.date) - getDateFromString(a.date));
 }
@@ -495,6 +547,103 @@ function upsertSleepDay(day) {
   }).then(function (rows) {
     clearSleepDataCache();
     return rows;
+  });
+}
+
+function getSleepDayByDate(dateMd) {
+  if (!dateMd) return Promise.resolve(null);
+  return loadSleepData().then(function (data) {
+    const days = Array.isArray(data && data.days) ? data.days : [];
+    for (let i = 0; i < days.length; i++) {
+      if (days[i].date === dateMd) return days[i];
+    }
+    return null;
+  });
+}
+
+function getSleepDraftByDate(dateMd) {
+  const config = getSupabaseConfig();
+  if (!config.enabled || !dateMd) return Promise.resolve(null);
+  const select = 'date_md,bed,sleep_start,sleep_end,bathroom,alarm,nap_start,nap_end,waso';
+  const qDate = encodeURIComponent(dateMd);
+  const url = config.url.replace(/\/+$/, '') + '/rest/v1/sleep_day_drafts?select=' + select + '&date_md=eq.' + qDate + '&limit=1';
+  return fetch(url, {
+    headers: getSupabaseAuthHeaders(config, false)
+  }).then(function (res) {
+    if (!res.ok) {
+      return parseSupabaseErrorPayload(res).then(function (msg) {
+        throw new Error('Supabase draft read failed: ' + res.status + (msg ? ' — ' + msg : ''));
+      });
+    }
+    return res.json();
+  }).then(function (rows) {
+    if (!Array.isArray(rows) || rows.length === 0) return null;
+    return mapSupabaseRowToDay(rows[0]);
+  });
+}
+
+function upsertSleepDraftPartial(dateMd, partial) {
+  const config = getSupabaseConfig();
+  if (!config.enabled) {
+    return Promise.reject(new Error('Supabase is not configured. Set URL and anon key in Settings.'));
+  }
+  if (!dateMd) {
+    return Promise.reject(new Error('Missing date for draft upsert.'));
+  }
+  return getSleepDraftByDate(dateMd).then(function (existingDraft) {
+    const merged = mergePartialSleepDayForUpsert(existingDraft, dateMd, partial || {});
+    const row = mapDayToSupabaseRow(merged);
+    const url = config.url.replace(/\/+$/, '') + '/rest/v1/sleep_day_drafts?on_conflict=date_md';
+    return fetch(url, {
+      method: 'POST',
+      headers: Object.assign(
+        {},
+        getSupabaseAuthHeaders(config, true),
+        { Prefer: 'resolution=merge-duplicates,return=representation' }
+      ),
+      body: JSON.stringify([row])
+    });
+  }).then(function (res) {
+    if (!res.ok) {
+      return parseSupabaseErrorPayload(res).then(function (msg) {
+        throw new Error('Supabase draft upsert failed: ' + res.status + (msg ? ' — ' + msg : ''));
+      });
+    }
+    return res.json();
+  });
+}
+
+function saveDraftAndMaybePromote(dateMd, partial) {
+  const config = getSupabaseConfig();
+  if (!config.enabled) {
+    return Promise.reject(new Error('Supabase is not configured. Set URL and anon key in Settings.'));
+  }
+  if (!dateMd) {
+    return Promise.reject(new Error('Missing date for draft save.'));
+  }
+  const patch = mapPartialDayToDraftPatch(partial || {});
+  if (Object.keys(patch).length === 0) {
+    return Promise.resolve({ promoted: false, date_md: dateMd });
+  }
+  const url = config.url.replace(/\/+$/, '') + '/rest/v1/rpc/promote_draft_if_complete';
+  return fetch(url, {
+    method: 'POST',
+    headers: getSupabaseAuthHeaders(config, true),
+    body: JSON.stringify({
+      p_date_md: dateMd,
+      p_patch: patch
+    })
+  }).then(function (res) {
+    if (!res.ok) {
+      return parseSupabaseErrorPayload(res).then(function (msg) {
+        throw new Error('Supabase draft save failed: ' + res.status + (msg ? ' — ' + msg : ''));
+      });
+    }
+    return res.json();
+  }).then(function (result) {
+    clearSleepDataCache();
+    if (Array.isArray(result)) return result[0] || { promoted: false, date_md: dateMd };
+    return result || { promoted: false, date_md: dateMd };
   });
 }
 

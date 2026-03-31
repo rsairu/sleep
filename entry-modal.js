@@ -2,6 +2,7 @@
 (function () {
   let quickAddOptions = {};
   let quickAddHostBound = false;
+  let quickAddDateLoadSeq = 0;
 
   function formatMonthDayFromDate(date) {
     return (date.getMonth() + 1) + '/' + date.getDate();
@@ -223,6 +224,76 @@
     return out;
   }
 
+  function toTimeInputValue(wallClock) {
+    const m = timeToMinutes(wallClock);
+    if (!Number.isFinite(m)) return '';
+    return formatMinutesTo24hString(m);
+  }
+
+  function setQuickAddTimeListFromWallClock(listId, values) {
+    const list = document.getElementById(listId);
+    if (!list) return;
+    list.innerHTML = '';
+    const entries = Array.isArray(values) && values.length ? values : [''];
+    for (let i = 0; i < entries.length; i++) {
+      appendQuickAddTimeRow(list);
+      const rows = list.querySelectorAll('.quick-add-time-row');
+      const row = rows[rows.length - 1];
+      const inp = row && row.querySelector('.quick-add-time-native');
+      if (inp) inp.value = toTimeInputValue(entries[i]);
+    }
+    syncQuickAddTimeListRemoveButtons(list);
+  }
+
+  function applyRecordToQuickAddForm(dateMd, record) {
+    const dateInput = document.getElementById('quick-add-date');
+    if (dateInput && dateMd) dateInput.value = monthDayToDateInput(dateMd);
+
+    const bedEl = document.getElementById('quick-add-bed');
+    const sleepEl = document.getElementById('quick-add-sleep');
+    const wakeEl = document.getElementById('quick-add-wake');
+    const napS = document.getElementById('quick-add-nap-start');
+    const napE = document.getElementById('quick-add-nap-end');
+    const waso = document.getElementById('quick-add-waso');
+
+    if (!record) {
+      initQuickAddDynamicTimeLists();
+      applyInitialMainTimesFromFormDataset();
+      if (napS) napS.value = '';
+      if (napE) napE.value = '';
+      if (waso) waso.value = '0';
+      return;
+    }
+
+    if (bedEl) bedEl.value = toTimeInputValue(record.bed);
+    if (sleepEl) sleepEl.value = toTimeInputValue(record.sleepStart);
+    if (wakeEl) wakeEl.value = toTimeInputValue(record.sleepEnd);
+    setQuickAddTimeListFromWallClock('quick-add-bathroom-list', record.bathroom || []);
+    setQuickAddTimeListFromWallClock('quick-add-alarm-list', record.alarm || []);
+    if (napS) napS.value = toTimeInputValue(record.nap && record.nap.start);
+    if (napE) napE.value = toTimeInputValue(record.nap && record.nap.end);
+    if (waso) waso.value = String(Number.isFinite(record.WASO) ? Math.max(0, Math.floor(record.WASO)) : 0);
+  }
+
+  function loadQuickAddFormForDate(dateMd) {
+    if (!dateMd) return Promise.resolve();
+    const seq = ++quickAddDateLoadSeq;
+    return Promise.all([
+      getSleepDayByDate(dateMd).catch(function () { return null; }),
+      getSleepDraftByDate(dateMd).catch(function () { return null; })
+    ]).then(function (results) {
+      if (seq !== quickAddDateLoadSeq) return null;
+      const canonical = results[0];
+      const draft = results[1];
+      applyRecordToQuickAddForm(dateMd, canonical || draft || null);
+      return null;
+    }).catch(function () {
+      if (seq !== quickAddDateLoadSeq) return null;
+      applyRecordToQuickAddForm(dateMd, null);
+      return null;
+    });
+  }
+
   function handleSubmit(event) {
     event.preventDefault();
     const dateMd = dateInputToMonthDay(document.getElementById('quick-add-date').value);
@@ -296,19 +367,7 @@
     if (saveBtn) saveBtn.disabled = true;
     setQuickAddStatus('Saving...', false);
 
-    loadSleepData()
-      .then(function (data) {
-        const days = Array.isArray(data && data.days) ? data.days : [];
-        var existing = null;
-        for (var i = 0; i < days.length; i++) {
-          if (days[i].date === dateMd) {
-            existing = days[i];
-            break;
-          }
-        }
-        const merged = mergePartialSleepDayForUpsert(existing, dateMd, partial);
-        return upsertSleepDay(merged);
-      })
+    saveDraftAndMaybePromote(dateMd, partial)
       .then(function () {
         setQuickAddStatus('Saved.', false);
         const drawerEl = document.getElementById('quick-add-drawer');
@@ -399,6 +458,13 @@
         }
       }
     });
+    document.addEventListener('change', function (e) {
+      const t = e.target;
+      if (!t || t.id !== 'quick-add-date') return;
+      const dateMd = dateInputToMonthDay(t.value);
+      if (!dateMd) return;
+      loadQuickAddFormForDate(dateMd);
+    });
     document.addEventListener('keydown', function (e) {
       if (e.key !== 'Escape') return;
       const drawer = document.getElementById('quick-add-drawer');
@@ -413,6 +479,9 @@
     quickAddOptions = options || {};
     bindQuickAddHostOnce();
     wireQuickAddDrawerSliders();
+    const dateInput = document.getElementById('quick-add-date');
+    const dateMd = dateInputToMonthDay(dateInput && dateInput.value);
+    if (dateMd) loadQuickAddFormForDate(dateMd);
   }
 
   window.initQuickAddEntryModal = initQuickAddEntryModal;
