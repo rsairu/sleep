@@ -69,7 +69,7 @@ function groupDaysByWeek(days) {
 
 // True if the week is current or the week immediately before (both shown expanded by default)
 function isCurrentOrPreviousWeek(monday) {
-  const currentMonday = getMondayOfWeek(new Date());
+  const currentMonday = getMondayOfWeek(getAppDate());
   currentMonday.setHours(0, 0, 0, 0);
   const weekMon = new Date(monday);
   weekMon.setHours(0, 0, 0, 0);
@@ -677,7 +677,7 @@ function sleepFragmentationOverlayHtml(day) {
 // Generate calendar heatmap data
 // Returns array of months; each month has weeks (array of 7-cell rows, Sun-Sat aligned)
 function generateCalendarHeatmap(year, flagMap, latestDataDate) {
-  const today = new Date();
+  const today = getAppDate();
   today.setHours(0, 0, 0, 0);
   const cutoff = latestDataDate && latestDataDate < today ? latestDataDate : today;
 
@@ -856,7 +856,7 @@ function renderCalendarHeatmapHeader(options) {
 // Dashboard inline: current month calendar only (no header, no legend)
 function renderCalendarCurrentMonthOnlyBlock(year, flagMap, latestDataDate) {
   const months = generateCalendarHeatmap(year, flagMap, latestDataDate);
-  const now = new Date();
+  const now = getAppDate();
   const isCurrentYear = year === now.getFullYear();
   const currentMonthIndex = isCurrentYear ? now.getMonth() : null;
   const currentMonthBlock = currentMonthIndex !== null ? renderMonthBlock(months[currentMonthIndex], true) : '';
@@ -895,7 +895,7 @@ function getRemainingWakeDisplay(recentAverages) {
   const sleepTarget = recentAverages.avgSleepStart;
   const wakeTarget = recentAverages.avgSleepEnd;
   const totalWakeMins = durationMinutes(wakeTarget, sleepTarget);
-  const now = new Date();
+  const now = getAppDate();
   const nowMins = now.getHours() * 60 + now.getMinutes();
   if (wakeTarget < sleepTarget && (nowMins > sleepTarget || nowMins < wakeTarget)) {
     const phase = getRemainingWakePhase(0, totalWakeMins);

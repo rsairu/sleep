@@ -9,7 +9,7 @@
   }
 
   function getAppYear() {
-    return typeof YEAR === 'number' ? YEAR : new Date().getFullYear();
+    return typeof YEAR === 'number' ? YEAR : getAppDate().getFullYear();
   }
 
   function monthDayToDateInput(md) {
@@ -34,7 +34,7 @@
   function getQuickAddDefaultNightDate() {
     const wrapper = document.querySelector('.nav-wrapper');
     const presleep = wrapper && wrapper.classList.contains('nav-wrapper--phase-presleep');
-    const d = new Date();
+    const d = getAppDate();
     if (presleep) d.setDate(d.getDate() + 1);
     return d;
   }

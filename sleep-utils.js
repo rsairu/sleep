@@ -74,7 +74,7 @@ function writeSleepDataLocalCache(cacheKey, data) {
       SLEEP_DATA_LOCAL_CACHE_KEY,
       JSON.stringify({
         cacheKey: cacheKey,
-        fetchedAt: Date.now(),
+        fetchedAt: getAppNowMs(),
         data: data
       })
     );
@@ -463,7 +463,7 @@ function loadSleepData(options) {
   const forceRefresh = Boolean(opts.forceRefresh);
   const config = getSupabaseConfig();
   const cacheKey = getSleepDataCacheKey(config);
-  const now = Date.now();
+  const now = getAppNowMs();
   const manualRefreshOnly = config.enabled && isDevBuildContext();
 
   if (
@@ -513,7 +513,7 @@ function loadSleepData(options) {
       })
   ).then(function (data) {
     sleepDataCacheValue = data;
-    sleepDataCacheExpiresAt = Date.now() + SLEEP_DATA_CACHE_TTL_MS;
+    sleepDataCacheExpiresAt = getAppNowMs() + SLEEP_DATA_CACHE_TTL_MS;
     writeSleepDataLocalCache(cacheKey, data);
     return cloneSleepData(data);
   });
@@ -1073,6 +1073,7 @@ function evaluatePolynomial(coefficients, x) {
 // Project repo (used in nav bar)
 const GITHUB_REPO_URL = 'https://github.com/rsairu/sleep/';
 const DEV_BANNER_OVERRIDE_KEY = 'sleep-app-force-dev-banner';
+const DEV_CLOCK_OVERRIDE_MS_KEY = 'sleep-app-dev-clock-override-ms';
 
 // Day/night mode: sunrise and sunset in local time (hours 0-23, minutes 0-59)
 const SUNRISE_MINUTES = 6 * 60;
@@ -1141,7 +1142,7 @@ function setRemainingWakeThresholds(openMin, windingMin) {
 
 // Returns 'day' if current local time is between sunrise and sunset, else 'night'
 function getThemeFromTime() {
-  const now = new Date();
+  const now = getAppDate();
   const minutesSinceMidnight = now.getHours() * 60 + now.getMinutes();
   return minutesSinceMidnight >= SUNRISE_MINUTES && minutesSinceMidnight < SUNSET_MINUTES ? 'day' : 'night';
 }
@@ -1787,6 +1788,42 @@ function initRemainingWakeThresholdsConfig() {
   }
 }
 
+// Binds dev-banner datetime override (dev build only). Apply / Real time reload the page.
+function initDevClockControl() {
+  if (typeof window === 'undefined' || !isDevBuildContext()) return;
+  if (window.__devClockControlBound) return;
+  window.__devClockControlBound = true;
+
+  function bindWhenReady() {
+    const input = document.getElementById('nav-dev-banner-dev-clock-input');
+    const applyBtn = document.getElementById('nav-dev-banner-dev-clock-apply');
+    const resetBtn = document.getElementById('nav-dev-banner-dev-clock-reset');
+    if (!input || !applyBtn || !resetBtn) return;
+
+    input.value = formatDateForDatetimeLocal(getAppDate());
+
+    applyBtn.addEventListener('click', function () {
+      const v = input.value;
+      if (!v) return;
+      const t = new Date(v);
+      if (Number.isNaN(t.getTime())) return;
+      try {
+        localStorage.setItem(DEV_CLOCK_OVERRIDE_MS_KEY, String(t.getTime()));
+      } catch (_) {}
+      window.location.reload();
+    });
+
+    resetBtn.addEventListener('click', function () {
+      try {
+        localStorage.removeItem(DEV_CLOCK_OVERRIDE_MS_KEY);
+      } catch (_) {}
+      window.location.reload();
+    });
+  }
+
+  requestAnimationFrame(bindWhenReady);
+}
+
 // Reserves vertical space under the fixed dev banner so the nav header is not overlapped.
 // syncDevBannerFixedLayout is bound to resize once per window (see initDayNightTheme).
 function syncDevBannerFixedLayout() {
@@ -1810,6 +1847,7 @@ function initDayNightTheme() {
   const pillWrap = document.getElementById('nav-daynight');
   if (pillWrap) pillWrap.addEventListener('click', handleDayNightClick);
   initNavMenu();
+  initDevClockControl();
   setInterval(function () {
     applyDayNightTheme();
     updateDayNightIcon();
@@ -1817,6 +1855,11 @@ function initDayNightTheme() {
 
   requestAnimationFrame(function () {
     syncDevBannerFixedLayout();
+    if (isDevBuildContext()) {
+      requestAnimationFrame(function () {
+        syncDevBannerFixedLayout();
+      });
+    }
     if (typeof window !== 'undefined' && !window.__devBannerLayoutResizeBound) {
       window.__devBannerLayoutResizeBound = true;
       window.addEventListener('resize', syncDevBannerFixedLayout);
@@ -1907,6 +1950,40 @@ function isDevBuildContext() {
   return false;
 }
 
+/** Epoch ms from localStorage when dev build + valid key; else null. Ignored outside dev context. */
+function readDevClockOverrideMs() {
+  if (!isDevBuildContext()) return null;
+  try {
+    const raw = localStorage.getItem(DEV_CLOCK_OVERRIDE_MS_KEY);
+    if (raw == null || raw === '') return null;
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return null;
+    return n;
+  } catch (_) {
+    return null;
+  }
+}
+
+/** Wall clock for app logic: dev override ms or Date.now(). Theme interval still uses real time. */
+function getAppNowMs() {
+  const o = readDevClockOverrideMs();
+  return o != null ? o : Date.now();
+}
+
+function getAppDate() {
+  return new Date(getAppNowMs());
+}
+
+/** Value for input[type=datetime-local] in local timezone. */
+function formatDateForDatetimeLocal(d) {
+  const y = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const h = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  return y + '-' + mo + '-' + day + 'T' + h + ':' + mi;
+}
+
 function escapeHtmlBannerText(s) {
   return String(s)
     .replace(/&/g, '&amp;')
@@ -1975,12 +2052,26 @@ function renderNavBar(currentPage) {
   const gitBranchIcon =
     '<svg class="nav-dev-banner-branch-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>';
   const devDataRefreshHint = '<a href="config.html#cloud-sync" class="content-link nav-dev-banner-link">Cloud data not synced. Manually refresh in settings.</a>';
-  const devBannerBody = branchLabel
+  const devBannerLeftInner = branchLabel
     ? `<div class="nav-dev-banner-line">Dev Build</div><div class="nav-dev-banner-branch-row">${gitBranchIcon}<span class="nav-dev-banner-branch-name">${escapeHtmlBannerText(branchLabel)}</span></div><div class="nav-dev-banner-line nav-dev-banner-line--hint">${devDataRefreshHint}</div>`
     : `<div class="nav-dev-banner-line">Dev Build</div><div class="nav-dev-banner-line nav-dev-banner-line--hint">${devDataRefreshHint}</div>`;
+  const devClockBlock =
+    '<div class="nav-dev-banner-clock" role="group" aria-label="Override app time (development only)">' +
+    '<label for="nav-dev-banner-dev-clock-input" class="nav-dev-banner-clock-label">App time</label>' +
+    '<input type="datetime-local" id="nav-dev-banner-dev-clock-input" class="nav-dev-banner-dev-clock-input" autocomplete="off" />' +
+    '<button type="button" class="nav-dev-banner-dev-clock-btn" id="nav-dev-banner-dev-clock-apply">Apply</button>' +
+    '<button type="button" class="nav-dev-banner-dev-clock-btn" id="nav-dev-banner-dev-clock-reset">Real time</button>' +
+    '</div>';
+  const devBannerBody =
+    '<div class="nav-dev-banner-inner">' +
+    '<div class="nav-dev-banner-left">' +
+    devBannerLeftInner +
+    '</div>' +
+    devClockBlock +
+    '</div>';
   const devAria = branchLabel
-    ? `Development build, branch ${escapeHtmlBannerAttr(branchLabel)}`
-    : 'Development build';
+    ? `Development build, branch ${escapeHtmlBannerAttr(branchLabel)}; optional app time override`
+    : 'Development build; optional app time override';
   const devBanner = isDevBuildContext()
     ? `<div class="nav-dev-banner" role="status" aria-label="${devAria}">${devBannerBody}</div>`
     : '';
@@ -2024,7 +2115,7 @@ function shouldShowGoToBedSoonWakeNav(nowMins, wakeMins, sleepMins) {
 function getRemainingWakeDisplayFromBasis(basis) {
   if (!basis || basis.totalWakeMins <= 0) return null;
   const { avgSleepStart, avgSleepEnd, totalWakeMins } = basis;
-  const now = new Date();
+  const now = getAppDate();
   const nowMins = now.getHours() * 60 + now.getMinutes();
   if (shouldShowGoToBedSoonWakeNav(nowMins, avgSleepEnd, avgSleepStart)) {
     const phase = getRemainingWakePhase(0, totalWakeMins);
