@@ -10,7 +10,7 @@
   let boundClickHandler = null;
 
   function getAppYear() {
-    return typeof YEAR === 'number' ? YEAR : new Date().getFullYear();
+    return typeof YEAR === 'number' ? YEAR : getAppDate().getFullYear();
   }
 
   function formatMdFromDate(d) {
@@ -448,7 +448,7 @@
   function renderQuickActions(days, onReload) {
     const mount = document.getElementById('dashboard-quick-actions-buttons');
     if (!mount) return;
-    const now = new Date();
+    const now = getAppDate();
     const averages = getAveragesFromDays(days);
     const phase = inferPhase(now, averages);
     const napActive = isNapActive(days, now);
@@ -470,7 +470,7 @@
     if (!ensureCloudForPersist()) return;
     const days = getDays();
     const averages = getAveragesFromDays(days);
-    const now = new Date();
+    const now = getAppDate();
     if (qa === 'wake') {
       e.preventDefault();
       handleWakeUp(days, averages, onReload, now);
