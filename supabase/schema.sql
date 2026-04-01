@@ -10,6 +10,7 @@ create table if not exists public.sleep_days (
   nap_start text,
   nap_end text,
   waso integer not null default 0 check (waso >= 0),
+  labels text[] not null default '{}',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -25,6 +26,7 @@ create table if not exists public.sleep_day_drafts (
   nap_start text,
   nap_end text,
   waso integer not null default 0 check (waso >= 0),
+  labels text[] not null default '{}',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -100,6 +102,13 @@ begin
     waso = case
       when v_patch ? 'waso' then greatest(0, coalesce((v_patch->>'waso')::integer, 0))
       else waso
+    end,
+    labels = case
+      when v_patch ? 'labels' then coalesce(
+        (select array_agg(value) from jsonb_array_elements_text(v_patch->'labels') as value),
+        '{}'::text[]
+      )
+      else labels
     end
   where d.date_md = p_date_md
   returning * into v_draft;
@@ -119,7 +128,8 @@ begin
       alarm,
       nap_start,
       nap_end,
-      waso
+      waso,
+      labels
     )
     values (
       v_draft.date_md,
@@ -130,7 +140,8 @@ begin
       coalesce(v_draft.alarm, '{}'::text[]),
       v_draft.nap_start,
       v_draft.nap_end,
-      coalesce(v_draft.waso, 0)
+      coalesce(v_draft.waso, 0),
+      coalesce(v_draft.labels, '{}'::text[])
     )
     on conflict on constraint sleep_days_date_md_key do update set
       bed = excluded.bed,
@@ -140,7 +151,8 @@ begin
       alarm = excluded.alarm,
       nap_start = excluded.nap_start,
       nap_end = excluded.nap_end,
-      waso = excluded.waso;
+      waso = excluded.waso,
+      labels = excluded.labels;
 
     delete from public.sleep_day_drafts where sleep_day_drafts.date_md = p_date_md;
   end if;

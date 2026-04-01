@@ -344,6 +344,31 @@ function escapeHtmlText(s) {
     .replace(/>/g, '&gt;');
 }
 
+function sleepDayUserLabelsMarkup(day) {
+  const normalized =
+    typeof normalizeSleepDayLabels === 'function'
+      ? normalizeSleepDayLabels(day && day.labels)
+      : Array.isArray(day && day.labels)
+        ? day.labels
+        : [];
+  if (!normalized.length) return '';
+  const defs = typeof SLEEP_DAY_LABEL_OPTIONS !== 'undefined' ? SLEEP_DAY_LABEL_OPTIONS : [];
+  function titleFor(emoji) {
+    for (let i = 0; i < defs.length; i++) {
+      if (defs[i].emoji === emoji) return defs[i].title;
+    }
+    return '';
+  }
+  const chips = normalized
+    .map(function (emoji) {
+      const tit = titleFor(emoji);
+      const aria = escapeHtmlAttr(tit || emoji);
+      return `<span class="sleep-day-user-label" role="img" aria-label="${aria}" title="${aria}">${emoji}</span>`;
+    })
+    .join('');
+  return `<div class="sleep-day-user-labels" aria-label="Night notes">${chips}</div>`;
+}
+
 function deviationWarningMarkup(w) {
   if (typeof w === 'string') {
     return `<button type="button" class="deviation-flag-chip deviation-flag-chip--insufficient" aria-expanded="false" aria-label="${escapeHtmlAttr(w)}"><span class="deviation-flag-chip-icon" aria-hidden="true">⋯</span><span class="deviation-flag-chip-text">${escapeHtmlText(w)}</span></button>`;
@@ -443,6 +468,11 @@ function renderDay(day, days, dayIndex, options) {
   const deviationWarnings = deviations.length > 0
     ? `<div class="deviation-warnings deviation-warnings--chips">${deviations.map(deviationWarningMarkup).join('')}</div>`
     : '';
+  const userLabelsBlock = sleepDayUserLabelsMarkup(day);
+  const dayFlagsRow =
+    deviationWarnings || userLabelsBlock
+      ? `<div class="day-flags-row">${deviationWarnings}${userLabelsBlock}</div>`
+      : '';
   
   // Convert times to timeline positions
   const sleepStartPos = timeToTimelinePosition(sleepStart);
@@ -503,7 +533,7 @@ function renderDay(day, days, dayIndex, options) {
   
   html += `</div></div>
       </div>
-      ${deviationWarnings}
+      ${dayFlagsRow}
     </div>`;
   return html;
 }
@@ -1100,6 +1130,10 @@ function renderQuickAddDrawer(recentAverages, recentDays, layout = 'drawer') {
                       </div>
                     </div>
                   </div>
+                  <div class="quick-add-adv-row quick-add-labels-row quick-add-log-pair">
+                    <span class="quick-add-label quick-add-label--emoji-line" id="quick-add-labels-legend"><span class="quick-add-log-emoji" aria-hidden="true">🏷️</span><span class="quick-add-label-text" data-i18n="log.nightLabels">Night notes</span></span>
+                    <div class="quick-add-label-chips" id="quick-add-label-chips" role="group" aria-labelledby="quick-add-labels-legend" data-i18n-aria-label="log.nightLabelsAria" aria-label="Optional emoji labels for this night"></div>
+                  </div>
                 </div>`;
   const advancedSection =
     layout === 'drawer'
@@ -1583,8 +1617,8 @@ function toggleDailyDetails(show) {
 
 // Toggle deviation warnings/flags visibility
 function toggleFlags(show) {
-  document.querySelectorAll('.deviation-warnings').forEach(warnings => {
-    warnings.classList.toggle('hidden', !show);
+  document.querySelectorAll('.day-flags-row').forEach(row => {
+    row.classList.toggle('hidden', !show);
   });
 }
 

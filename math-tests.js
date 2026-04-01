@@ -57,6 +57,12 @@ function runTests() {
   expectEqual(u.modMinutes1440(-1), 1439, 'modMinutes1440 negative input');
   expectEqual(u.modMinutes1440(1445), 5, 'modMinutes1440 overflow input');
 
+  expectEqual(
+    JSON.stringify(u.normalizeSleepDayLabels(['🍺', '👶', 'nope'])),
+    JSON.stringify(['👶', '🍺']),
+    'normalizeSleepDayLabels filters and orders'
+  );
+
   // Sleep totals + nap handling
   const napCrossingMidnightDay = {
     sleepStart: '23:30',

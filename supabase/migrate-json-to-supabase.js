@@ -21,7 +21,8 @@ function mapDayToRow(day) {
     alarm: Array.isArray(day.alarm) ? day.alarm : [],
     nap_start: day.nap && day.nap.start ? day.nap.start : null,
     nap_end: day.nap && day.nap.end ? day.nap.end : null,
-    waso: Number.isFinite(day.WASO) ? day.WASO : 0
+    waso: Number.isFinite(day.WASO) ? day.WASO : 0,
+    labels: Array.isArray(day.labels) ? day.labels : []
   };
 }
 
