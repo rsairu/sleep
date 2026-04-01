@@ -4280,6 +4280,59 @@ svg {
   white-space: nowrap;
 }
 
+/* About page — app intro + mascot */
+.about-app__heading.section-title {
+  margin-top: 1.25rem;
+}
+
+.about-app__layout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.about-app__layout--mascot-right {
+  flex-direction: row-reverse;
+}
+
+.about-app__mascot {
+  max-width: 200px;
+  width: 100%;
+  height: auto;
+  flex-shrink: 0;
+}
+
+.about-app__copy {
+  flex: 1 1 min(100%, 28rem);
+  min-width: 0;
+}
+
+.about-app__copy .section-intro:last-child {
+  margin-bottom: 0;
+}
+
+.about-app__tagline {
+  margin-top: 0.75rem;
+  font-weight: 600;
+}
+
+@media (max-width: 520px) {
+  .about-app__layout,
+  .about-app__layout.about-app__layout--mascot-right {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .about-app__copy {
+    width: 100%;
+  }
+
+  .about-app__mascot {
+    max-width: 180px;
+  }
+}
+
 /* About page — getting started list */
 .about-intro {
   margin-bottom: 1rem;
