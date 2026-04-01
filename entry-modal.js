@@ -176,6 +176,7 @@
     if (napE) napE.value = '';
     const waso = document.getElementById('quick-add-waso');
     if (waso) waso.value = '0';
+    syncQuickAddLabelToggles([]);
     setQuickAddStatus('', false);
   }
 
@@ -195,12 +196,75 @@
     if (napE) napE.value = '';
     const waso = document.getElementById('quick-add-waso');
     if (waso) waso.value = '';
+    syncQuickAddLabelToggles([]);
     setQuickAddStatus('', false);
   }
 
   function closeQuickAddDrawer() {
     setDrawerExpanded(false);
     resetQuickAddFormToDefaults();
+  }
+
+  function escapeLabelAttr(s) {
+    return String(s || '')
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;');
+  }
+
+  function ensureQuickAddLabelChipsRendered() {
+    const host = document.getElementById('quick-add-label-chips');
+    if (!host || typeof SLEEP_DAY_LABEL_OPTIONS === 'undefined') return;
+    if (host.getAttribute('data-chips-rendered') === '1') return;
+    host.setAttribute('data-chips-rendered', '1');
+    host.innerHTML = SLEEP_DAY_LABEL_OPTIONS.map(function (opt) {
+      const tit = escapeLabelAttr(opt.title);
+      return (
+        '<button type="button" class="sleep-day-label-toggle" data-emoji="' +
+        opt.emoji +
+        '" aria-pressed="false" aria-label="' +
+        tit +
+        '" title="' +
+        tit +
+        '"><span class="sleep-day-label-toggle__emoji" aria-hidden="true">' +
+        opt.emoji +
+        '</span></button>'
+      );
+    }).join('');
+  }
+
+  function syncQuickAddLabelToggles(labels) {
+    const host = document.getElementById('quick-add-label-chips');
+    if (!host) return;
+    const set = {};
+    for (let i = 0; i < labels.length; i++) set[labels[i]] = true;
+    const btns = host.querySelectorAll('.sleep-day-label-toggle');
+    for (let j = 0; j < btns.length; j++) {
+      const btn = btns[j];
+      const e = btn.getAttribute('data-emoji');
+      const on = Boolean(e && set[e]);
+      btn.classList.toggle('is-pressed', on);
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    }
+  }
+
+  function labelsFromRecord(record) {
+    if (typeof normalizeSleepDayLabels === 'function') {
+      return normalizeSleepDayLabels(record && record.labels);
+    }
+    return Array.isArray(record && record.labels) ? record.labels : [];
+  }
+
+  function collectQuickAddLabelsFromDom() {
+    const host = document.getElementById('quick-add-label-chips');
+    if (!host) return [];
+    const out = [];
+    const pressed = host.querySelectorAll('.sleep-day-label-toggle.is-pressed');
+    for (let i = 0; i < pressed.length; i++) {
+      const e = pressed[i].getAttribute('data-emoji');
+      if (e) out.push(e);
+    }
+    return typeof normalizeSleepDayLabels === 'function' ? normalizeSleepDayLabels(out) : out;
   }
 
   function wireQuickAddDrawerSliders() {
@@ -210,6 +274,7 @@
     const dateInput = document.getElementById('quick-add-date');
     if (dateInput) dateInput.value = quickAddPresetDateInputValue();
     initQuickAddDynamicTimeLists();
+    ensureQuickAddLabelChipsRendered();
 
     const waso = document.getElementById('quick-add-waso');
     if (waso && (waso.value === '' || waso.value === null)) waso.value = '0';
@@ -262,6 +327,8 @@
       if (napS) napS.value = '';
       if (napE) napE.value = '';
       if (waso) waso.value = '0';
+      ensureQuickAddLabelChipsRendered();
+      syncQuickAddLabelToggles([]);
       return;
     }
 
@@ -273,6 +340,8 @@
     if (napS) napS.value = toTimeInputValue(record.nap && record.nap.start);
     if (napE) napE.value = toTimeInputValue(record.nap && record.nap.end);
     if (waso) waso.value = String(Number.isFinite(record.WASO) ? Math.max(0, Math.floor(record.WASO)) : 0);
+    ensureQuickAddLabelChipsRendered();
+    syncQuickAddLabelToggles(labelsFromRecord(record));
   }
 
   function loadQuickAddFormForDate(dateMd) {
@@ -355,9 +424,22 @@
     if (napStart && napEnd) partial.nap = { start: napStart, end: napEnd };
     if (wasoTrim !== '') partial.WASO = Math.floor(Number(wasoTrim));
 
-    if (Object.keys(partial).length === 0) {
+    const labelsSelected = collectQuickAddLabelsFromDom();
+    partial.labels = labelsSelected;
+
+    const hasOther =
+      Boolean(bed) ||
+      Boolean(sleepStart) ||
+      Boolean(sleepEnd) ||
+      bathroom.length > 0 ||
+      alarm.length > 0 ||
+      Boolean(napStart && napEnd) ||
+      wasoTrim !== '';
+    if (!hasOther && labelsSelected.length === 0) {
       setQuickAddStatus(
-        typeof t === 'function' ? t('log.errorNeedField', 'Pick a date and fill at least one field to save.') : 'Pick a date and fill at least one field to save.',
+        typeof t === 'function'
+          ? t('log.errorNeedField', 'Pick a date and add at least one field or night note to save.')
+          : 'Pick a date and add at least one field or night note to save.',
         true
       );
       return;
@@ -434,6 +516,14 @@
       if (rm && form.contains(rm)) {
         e.preventDefault();
         onQuickAddRemoveTimeRow(rm);
+        return;
+      }
+
+      const labelBtn = t.closest && t.closest('.sleep-day-label-toggle');
+      if (labelBtn && form.contains(labelBtn)) {
+        e.preventDefault();
+        const nowOn = labelBtn.classList.toggle('is-pressed');
+        labelBtn.setAttribute('aria-pressed', nowOn ? 'true' : 'false');
         return;
       }
 

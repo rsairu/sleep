@@ -102,7 +102,9 @@
       "napEndLaterAria": "Nap end one minute later",
       "napEndEarlierAria": "Nap end one minute earlier",
       "errorPickDate": "Pick a valid date.",
-      "errorNeedField": "Pick a date and fill at least one field to save."
+      "errorNeedField": "Pick a date and add at least one field or night note to save.",
+      "nightLabels": "Night notes",
+      "nightLabelsAria": "Optional emoji labels for this night"
     }
   },
   "ja": {
@@ -208,7 +210,9 @@
       "napEndLaterAria": "仮眠の終了を1分遅く",
       "napEndEarlierAria": "仮眠の終了を1分早く",
       "errorPickDate": "有効な日付を選んでください。",
-      "errorNeedField": "日付を選び、保存する項目を1つ以上入力してください。"
+      "errorNeedField": "日付を選び、項目または夜のメモ（絵文字）を1つ以上指定して保存してください。",
+      "nightLabels": "夜のメモ",
+      "nightLabelsAria": "この夜の任意の絵文字ラベル"
     }
   }
 }

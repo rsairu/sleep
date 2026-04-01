@@ -19,6 +19,31 @@ const HOLIDAYS_BY_YEAR = {
 };
 if (typeof window !== 'undefined') window.HOLIDAYS_BY_YEAR = HOLIDAYS_BY_YEAR;
 
+/** Fixed emoji keys for optional per-night labels (log + daily display). Order is canonical storage order. */
+const SLEEP_DAY_LABEL_OPTIONS = [
+  { emoji: '👶', title: 'Kids' },
+  { emoji: '🍺', title: 'Alcohol' },
+  { emoji: '✈️', title: 'Travel' },
+  { emoji: '😰', title: 'Stress' },
+  { emoji: '💼', title: 'Work' },
+  { emoji: '☕', title: 'Caffeine' },
+  { emoji: '🍝', title: 'Late meal / heavy dinner' },
+  { emoji: '🤒', title: 'Illness' }
+];
+if (typeof window !== 'undefined') window.SLEEP_DAY_LABEL_OPTIONS = SLEEP_DAY_LABEL_OPTIONS;
+
+const SLEEP_DAY_LABEL_EMOJI_SET = new Set(SLEEP_DAY_LABEL_OPTIONS.map(function (o) { return o.emoji; }));
+
+function normalizeSleepDayLabels(value) {
+  const raw = Array.isArray(value) ? value : [];
+  const picked = new Set();
+  for (let i = 0; i < raw.length; i++) {
+    const e = raw[i];
+    if (e != null && SLEEP_DAY_LABEL_EMOJI_SET.has(String(e))) picked.add(String(e));
+  }
+  return SLEEP_DAY_LABEL_OPTIONS.map(function (o) { return o.emoji; }).filter(function (e) { return picked.has(e); });
+}
+
 const SUPABASE_URL_STORAGE_KEY = 'restore_supabase_url';
 const SUPABASE_ANON_KEY_STORAGE_KEY = 'restore_supabase_anon_key';
 const RESTORE_LAST_DATA_SOURCE_KEY = 'restore_last_data_source';
@@ -288,7 +313,8 @@ function mapSupabaseRowToDay(row) {
     nap: row.nap_start
       ? { start: row.nap_start, end: row.nap_end != null && row.nap_end !== '' ? row.nap_end : null }
       : null,
-    WASO: Number.isFinite(row.waso) ? row.waso : 0
+    WASO: Number.isFinite(row.waso) ? row.waso : 0,
+    labels: normalizeSleepDayLabels(row.labels)
   };
 }
 
@@ -347,7 +373,8 @@ function emptySleepDayForDate(dateMd) {
     bathroom: [],
     alarm: [],
     nap: null,
-    WASO: 0
+    WASO: 0,
+    labels: []
   };
 }
 
@@ -358,7 +385,7 @@ function emptySleepDayForDate(dateMd) {
 function mergePartialSleepDayForUpsert(existing, dateMd, partial) {
   const base = existing ? JSON.parse(JSON.stringify(existing)) : emptySleepDayForDate(dateMd);
   base.date = dateMd;
-  const fields = ['bed', 'sleepStart', 'sleepEnd', 'bathroom', 'alarm', 'nap', 'WASO'];
+  const fields = ['bed', 'sleepStart', 'sleepEnd', 'bathroom', 'alarm', 'nap', 'WASO', 'labels'];
   for (let i = 0; i < fields.length; i++) {
     const k = fields[i];
     if (k in partial) base[k] = partial[k];
@@ -378,7 +405,8 @@ function mapDayToSupabaseRow(day) {
     alarm: alarm,
     nap_start: day.nap && day.nap.start != null && day.nap.start !== '' ? normalizeTimeStringForSupabase(day.nap.start) : null,
     nap_end: day.nap && day.nap.end != null && day.nap.end !== '' ? normalizeTimeStringForSupabase(day.nap.end) : null,
-    waso: Number.isFinite(day.WASO) ? day.WASO : 0
+    waso: Number.isFinite(day.WASO) ? day.WASO : 0,
+    labels: normalizeSleepDayLabels(day.labels)
   };
 }
 
@@ -405,6 +433,9 @@ function mapPartialDayToDraftPatch(partial) {
   }
   if ('WASO' in partial) {
     patch.waso = Number.isFinite(partial.WASO) ? Math.max(0, Math.floor(partial.WASO)) : 0;
+  }
+  if ('labels' in partial) {
+    patch.labels = normalizeSleepDayLabels(partial.labels);
   }
   return patch;
 }
@@ -443,7 +474,7 @@ function fetchStaticSleepData() {
 }
 
 function fetchSupabaseSleepData(config) {
-  const url = config.url.replace(/\/+$/, '') + '/rest/v1/sleep_days?select=date_md,bed,sleep_start,sleep_end,bathroom,alarm,nap_start,nap_end,waso';
+  const url = config.url.replace(/\/+$/, '') + '/rest/v1/sleep_days?select=date_md,bed,sleep_start,sleep_end,bathroom,alarm,nap_start,nap_end,waso,labels';
   return fetch(url, {
     headers: {
       apikey: config.anonKey,
@@ -564,7 +595,7 @@ function getSleepDayByDate(dateMd) {
 function getSleepDraftByDate(dateMd) {
   const config = getSupabaseConfig();
   if (!config.enabled || !dateMd) return Promise.resolve(null);
-  const select = 'date_md,bed,sleep_start,sleep_end,bathroom,alarm,nap_start,nap_end,waso';
+  const select = 'date_md,bed,sleep_start,sleep_end,bathroom,alarm,nap_start,nap_end,waso,labels';
   const qDate = encodeURIComponent(dateMd);
   const url = config.url.replace(/\/+$/, '') + '/rest/v1/sleep_day_drafts?select=' + select + '&date_md=eq.' + qDate + '&limit=1';
   return fetch(url, {
