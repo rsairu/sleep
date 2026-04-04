@@ -5,7 +5,7 @@ permissions:
 
 on:
   schedule:
-    # Daily 20:00 UTC — 5 AM JPT
+    # Daily 05:00 AM JPT
     - cron: "00 20 * * *"
   workflow_dispatch:
 
@@ -29,27 +29,21 @@ jobs:
             exit 1
           fi
 
-      - name: Install PostgreSQL client
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client
-
+      # Match Supabase server major version (e.g. 17.x). Ubuntu’s default postgresql-client is older and aborts on mismatch.
       - name: Dump prod (public schema only)
         run: |
-          pg_dump \
-            --dbname="$PROD_DATABASE_URL" \
-            --schema=public \
-            --no-owner \
-            --no-acl \
-            --format=custom \
-            --file=prod_public.dump
+          docker run --rm \
+            -e PROD_DATABASE_URL \
+            -v "${GITHUB_WORKSPACE}:/work" \
+            -w /work \
+            postgres:17 \
+            bash -lc 'pg_dump --dbname="$PROD_DATABASE_URL" --schema=public --no-owner --no-acl --format=custom --file=/work/prod_public.dump'
 
       - name: Restore into dev
         run: |
-          pg_restore \
-            --dbname="$DEV_DATABASE_URL" \
-            --clean \
-            --if-exists \
-            --no-owner \
-            --no-acl \
-            prod_public.dump
+          docker run --rm \
+            -e DEV_DATABASE_URL \
+            -v "${GITHUB_WORKSPACE}:/work" \
+            -w /work \
+            postgres:17 \
+            bash -lc 'pg_restore --dbname="$DEV_DATABASE_URL" --clean --if-exists --no-owner --no-acl /work/prod_public.dump'
