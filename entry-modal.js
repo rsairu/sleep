@@ -3,6 +3,8 @@
   let quickAddOptions = {};
   let quickAddHostBound = false;
   let quickAddDateLoadSeq = 0;
+  /** Last loaded main times per dateMd for QA flags (bed / sleep / wake) after save. */
+  let quickAddInitialSnapshot = null;
 
   function formatMonthDayFromDate(date) {
     return (date.getMonth() + 1) + '/' + date.getDate();
@@ -30,12 +32,13 @@
     return formatMonthDayFromDate(d);
   }
 
-  /** Calendar date for the night row: tomorrow in pre-sleep phase, else today. */
+  /** Calendar date for the night row: tomorrow in pre-sleep or dynamic sleep phase, else today. */
   function getQuickAddDefaultNightDate() {
     const wrapper = document.querySelector('.nav-wrapper');
     const presleep = wrapper && wrapper.classList.contains('nav-wrapper--phase-presleep');
+    const inSleepPhase = wrapper && wrapper.classList.contains('nav-wrapper--phase-sleep');
     const d = getAppDate();
-    if (presleep) d.setDate(d.getDate() + 1);
+    if (presleep || inSleepPhase) d.setDate(d.getDate() + 1);
     return d;
   }
 
@@ -310,6 +313,18 @@
     syncQuickAddTimeListRemoveButtons(list);
   }
 
+  function wallClockFromRecordField(value) {
+    if (value == null || value === '') return null;
+    const m = timeToMinutes(value);
+    return Number.isFinite(m) ? formatTime(m) : null;
+  }
+
+  function wallClockFromTimeInput(el) {
+    if (!el || !el.value) return null;
+    const m = timeToMinutes(el.value);
+    return Number.isFinite(m) ? formatTime(m) : null;
+  }
+
   function applyRecordToQuickAddForm(dateMd, record) {
     const dateInput = document.getElementById('quick-add-date');
     if (dateInput && dateMd) dateInput.value = monthDayToDateInput(dateMd);
@@ -329,6 +344,14 @@
       if (waso) waso.value = '0';
       ensureQuickAddLabelChipsRendered();
       syncQuickAddLabelToggles([]);
+      if (dateMd) {
+        quickAddInitialSnapshot = {
+          dateMd: dateMd,
+          bed: wallClockFromTimeInput(bedEl),
+          sleepStart: wallClockFromTimeInput(sleepEl),
+          sleepEnd: wallClockFromTimeInput(wakeEl)
+        };
+      }
       return;
     }
 
@@ -342,6 +365,14 @@
     if (waso) waso.value = String(Number.isFinite(record.WASO) ? Math.max(0, Math.floor(record.WASO)) : 0);
     ensureQuickAddLabelChipsRendered();
     syncQuickAddLabelToggles(labelsFromRecord(record));
+    if (dateMd) {
+      quickAddInitialSnapshot = {
+        dateMd: dateMd,
+        bed: wallClockFromRecordField(record.bed),
+        sleepStart: wallClockFromRecordField(record.sleepStart),
+        sleepEnd: wallClockFromRecordField(record.sleepEnd)
+      };
+    }
   }
 
   function loadQuickAddFormForDate(dateMd) {
@@ -451,6 +482,16 @@
 
     saveDraftAndMaybePromote(dateMd, partial)
       .then(function () {
+        const snap = quickAddInitialSnapshot;
+        if (
+          snap &&
+          snap.dateMd === dateMd &&
+          typeof markNightQaSleepFlag === 'function'
+        ) {
+          if (bed && bed !== snap.bed) markNightQaSleepFlag(dateMd, 'bed');
+          if (sleepStart && sleepStart !== snap.sleepStart) markNightQaSleepFlag(dateMd, 'sleep');
+          if (sleepEnd && sleepEnd !== snap.sleepEnd) markNightQaSleepFlag(dateMd, 'wake');
+        }
         setQuickAddStatus('Saved.', false);
         const drawerEl = document.getElementById('quick-add-drawer');
         const isLogPage = drawerEl && drawerEl.classList.contains('quick-add-drawer--page');

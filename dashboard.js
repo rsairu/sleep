@@ -480,7 +480,7 @@ function renderDashboardFromData(sleepData) {
         avgSleepEnd: recentAverages.avgSleepEnd,
         totalWakeMins: baseWakeWindowMins
       };
-      updateRemainingWakeNav(getRemainingWakeDisplayFromBasis(basis));
+      updateRemainingWakeNav(getRemainingWakeDisplayFromBasis(basis, dashboardCurrentDays));
     });
   }
 

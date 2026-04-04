@@ -62,8 +62,8 @@
     </ul>
 
     <h2 class="section-title" id="remaining-wake-time">Remaining Wake Time</h2>
-    <p class="section-intro">Shows how much time is left in your day before your recommended sleep time. Phases are based on the <strong>percent of wake time remaining</strong>. This is meant to gently guide your pace, not rush you. You can adjust thresholds below or in <a class="content-link" href="config.html#remaining-wake">Settings</a>.</p>
-    <p class="section-intro">The day is divided into three simple phases:</p>
+    <p class="section-intro">Shows how much time is left in your day before your recommended sleep time. <strong>Open</strong>, <strong>Winding down</strong>, and <strong>Pre-sleep</strong> follow your <strong>percent of wake time remaining</strong> until average fell-asleep—meant to gently guide your pace, not rush you. You can adjust those boundaries below or in <a class="content-link" href="config.html#remaining-wake">Settings</a>. A fourth phase, <strong>Sleep</strong>, is <strong>dynamic</strong>: it appears when you have logged bed or fell-asleep for the night and have not yet logged wake; it is not controlled by the sliders.</p>
+    <p class="section-intro">The percentage-based phases feel like this:</p>
     <ul class="about-phase-list">
       <li class="about-phase-item">
         <span class="about-phase-icon" aria-hidden="true">☀️</span>
@@ -83,7 +83,14 @@
         <span class="about-phase-icon" aria-hidden="true">🛏️</span>
         <div class="about-phase-body">
           <span class="about-phase-name">Pre-sleep</span>
-          <span class="about-phase-range">Being preparing for rest. Avoid meals and stimulating activity.</span>
+          <span class="about-phase-range">Begin preparing for rest. Avoid meals and stimulating activity.</span>
+        </div>
+      </li>
+      <li class="about-phase-item">
+        <span class="about-phase-icon" aria-hidden="true">🌙</span>
+        <div class="about-phase-body">
+          <span class="about-phase-name">Sleep</span>
+          <span class="about-phase-range">You have logged bed or fell-asleep; wake is not logged yet. The header shows this phase in the evening sleep window or overnight until you log get-up—not from your wake-time percentages.</span>
         </div>
       </li>
     </ul>
