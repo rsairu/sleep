@@ -1,0 +1,55 @@
+name: Sync Supabase dev from prod
+
+permissions:
+  contents: read
+
+on:
+  schedule:
+    # Daily 20:00 UTC — 5 AM JPT
+    - cron: "00 20 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: supabase-prod-to-dev-sync
+  cancel-in-progress: false
+
+jobs:
+  sync-public-schema:
+    runs-on: ubuntu-latest
+    env:
+      # Use each project’s Direct connection string (port 5432), not the transaction pooler (6543).
+      # Pooler URLs often break pg_dump/pg_restore. Add ?sslmode=require if your client needs it.
+      PROD_DATABASE_URL: ${{ secrets.SUPABASE_PROD_DATABASE_URL }}
+      DEV_DATABASE_URL: ${{ secrets.SUPABASE_DEV_DATABASE_URL }}
+    steps:
+      - name: Verify secrets
+        run: |
+          if [ -z "$PROD_DATABASE_URL" ] || [ -z "$DEV_DATABASE_URL" ]; then
+            echo "::error::Set repository secrets SUPABASE_PROD_DATABASE_URL and SUPABASE_DEV_DATABASE_URL."
+            exit 1
+          fi
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Dump prod (public schema only)
+        run: |
+          pg_dump \
+            --dbname="$PROD_DATABASE_URL" \
+            --schema=public \
+            --no-owner \
+            --no-acl \
+            --format=custom \
+            --file=prod_public.dump
+
+      - name: Restore into dev
+        run: |
+          pg_restore \
+            --dbname="$DEV_DATABASE_URL" \
+            --clean \
+            --if-exists \
+            --no-owner \
+            --no-acl \
+            prod_public.dump
