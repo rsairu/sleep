@@ -17,6 +17,11 @@ jobs:
   sync-public-schema:
     runs-on: ubuntu-latest
     steps:
+      - name: Install PostgreSQL client and dig
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client dnsutils
+
       - name: Resolve IPv4 and set connection URLs
         env:
           PROD_DATABASE_URL: ${{ secrets.SUPABASE_PROD_DATABASE_URL }}
@@ -28,8 +33,65 @@ jobs:
           fi
           python3 << 'PY'
           import os
+          import re
           import socket
+          import subprocess
           from urllib.parse import parse_qsl, quote, urlencode, urlparse
+
+          _IPV4 = re.compile(r"^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$")
+
+          def _pick_ipv4_from_getaddrinfo(host: str, port: int) -> str | None:
+              for family in (socket.AF_INET, 0):
+                  try:
+                      infos = socket.getaddrinfo(
+                          host, port, family, socket.SOCK_STREAM
+                      )
+                  except socket.gaierror:
+                      continue
+                  for info in infos:
+                      if info[0] == socket.AF_INET:
+                          return info[4][0]
+              return None
+
+          def _ipv4_via_getent(host: str) -> str | None:
+              r = subprocess.run(
+                  ["getent", "ahostsv4", host],
+                  capture_output=True,
+                  text=True,
+                  check=False,
+              )
+              for line in r.stdout.splitlines():
+                  parts = line.split()
+                  if len(parts) >= 2 and parts[1] == "STREAM" and _IPV4.match(parts[0]):
+                      return parts[0]
+              return None
+
+          def _ipv4_via_dig(host: str) -> str | None:
+              for resolver in ("8.8.8.8", "1.1.1.1"):
+                  r = subprocess.run(
+                      ["dig", "+short", "A", host, f"@{resolver}"],
+                      capture_output=True,
+                      text=True,
+                      check=False,
+                  )
+                  for line in r.stdout.splitlines():
+                      line = line.strip()
+                      if line and not line.startswith(";") and _IPV4.match(line):
+                          return line
+              return None
+
+          def resolve_ipv4(host: str, port: int) -> str:
+              ip = _pick_ipv4_from_getaddrinfo(host, port)
+              if not ip:
+                  ip = _ipv4_via_getent(host)
+              if not ip:
+                  ip = _ipv4_via_dig(host)
+              if not ip:
+                  raise SystemExit(
+                      f"Could not resolve an IPv4 address for host {host!r} "
+                      "(tried libc DNS, getent, dig @8.8.8.8 / @1.1.1.1)."
+                  )
+              return ip
 
           def force_ipv4(url: str) -> str:
               p = urlparse(url.strip())
@@ -42,8 +104,7 @@ jobs:
                   raise SystemExit("URL has no hostname")
               port = p.port or 5432
               dbname = (p.path or "/postgres").lstrip("/") or "postgres"
-              infos = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)
-              hostaddr = infos[0][4][0]
+              hostaddr = resolve_ipv4(host, port)
               q = dict(parse_qsl(p.query, keep_blank_values=True))
               q["host"] = host
               q["hostaddr"] = hostaddr
@@ -65,11 +126,6 @@ jobs:
                   f.write(f"{name}<<PGSYNC_EOF\n{val}\nPGSYNC_EOF\n")
           print("Resolved IPv4 hostaddr for prod and dev (connection strings not printed).")
           PY
-
-      - name: Install PostgreSQL client
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client
 
       - name: Dump prod (public schema only)
         run: |
