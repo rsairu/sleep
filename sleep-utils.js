@@ -1169,7 +1169,8 @@ function evaluatePolynomial(coefficients, x) {
 // Project repo (used in nav bar)
 const GITHUB_REPO_URL = 'https://github.com/rsairu/sleep/';
 const DEV_VERCEL_PROJECT_URL = 'https://vercel.com/rsairu-5429s-projects/sleep';
-const DEV_SUPABASE_DASHBOARD_URL = 'https://supabase.com/dashboard/project/lsaguxfovamihwnicpkk';
+const SUPABASE_PROJECT_REF_PROD = 'lsaguxfovamihwnicpkk';
+const SUPABASE_PROJECT_REF_DEV = 'pjpzxkyflmzzbfdkujan';
 const DEV_BANNER_OVERRIDE_KEY = 'sleep-app-force-dev-banner';
 const DEV_CLOCK_OVERRIDE_MS_KEY = 'sleep-app-dev-clock-override-ms';
 
@@ -2066,36 +2067,97 @@ function initRemainingWakeThresholdsConfig() {
   }
 }
 
-// Binds dev-banner datetime override (dev build only). Apply / Real time reload the page.
+// Binds dev-banner wall clock mode (real vs simulated) and optional datetime apply (dev build only).
 function initDevClockControl() {
   if (typeof window === 'undefined' || !isDevBuildContext()) return;
   if (window.__devClockControlBound) return;
   window.__devClockControlBound = true;
 
+  function setModeUi(realTimeActive) {
+    const realBtn = document.getElementById('nav-dev-banner-clock-mode-real');
+    const simBtn = document.getElementById('nav-dev-banner-clock-mode-sim');
+    const panel = document.getElementById('nav-dev-banner-clock-sim-panel');
+    if (!realBtn || !simBtn || !panel) return;
+    realBtn.classList.toggle('nav-dev-banner-clock-mode-btn--active', realTimeActive);
+    simBtn.classList.toggle('nav-dev-banner-clock-mode-btn--active', !realTimeActive);
+    realBtn.setAttribute('aria-pressed', realTimeActive ? 'true' : 'false');
+    simBtn.setAttribute('aria-pressed', realTimeActive ? 'false' : 'true');
+    panel.hidden = realTimeActive;
+  }
+
+  function persistDevClockFromInput(inputEl) {
+    const v = inputEl.value;
+    if (!v) return;
+    const t = new Date(v);
+    if (Number.isNaN(t.getTime())) return;
+    try {
+      localStorage.setItem(DEV_CLOCK_OVERRIDE_MS_KEY, String(t.getTime()));
+    } catch (_) {}
+    window.location.reload();
+  }
+
   function bindWhenReady() {
     const input = document.getElementById('nav-dev-banner-dev-clock-input');
-    const applyBtn = document.getElementById('nav-dev-banner-dev-clock-apply');
-    const resetBtn = document.getElementById('nav-dev-banner-dev-clock-reset');
-    if (!input || !applyBtn || !resetBtn) return;
+    const realBtn = document.getElementById('nav-dev-banner-clock-mode-real');
+    const simBtn = document.getElementById('nav-dev-banner-clock-mode-sim');
+    if (!input || !realBtn || !simBtn) return;
 
     input.value = formatDateForDatetimeLocal(getAppDate());
+    setModeUi(readDevClockOverrideMs() == null);
 
-    applyBtn.addEventListener('click', function () {
-      const v = input.value;
-      if (!v) return;
-      const t = new Date(v);
-      if (Number.isNaN(t.getTime())) return;
-      try {
-        localStorage.setItem(DEV_CLOCK_OVERRIDE_MS_KEY, String(t.getTime()));
-      } catch (_) {}
-      window.location.reload();
+    let devClockUiReady = false;
+    requestAnimationFrame(function () {
+      devClockUiReady = true;
     });
 
-    resetBtn.addEventListener('click', function () {
-      try {
-        localStorage.removeItem(DEV_CLOCK_OVERRIDE_MS_KEY);
-      } catch (_) {}
-      window.location.reload();
+    input.addEventListener('input', function () {
+      if (!devClockUiReady) return;
+      setModeUi(false);
+    });
+
+    input.addEventListener('change', function () {
+      if (!devClockUiReady) return;
+      setModeUi(false);
+      persistDevClockFromInput(input);
+    });
+
+    realBtn.addEventListener('click', function () {
+      if (readDevClockOverrideMs() != null) {
+        try {
+          localStorage.removeItem(DEV_CLOCK_OVERRIDE_MS_KEY);
+        } catch (_) {}
+        window.location.reload();
+        return;
+      }
+      setModeUi(true);
+    });
+
+    simBtn.addEventListener('click', function () {
+      setModeUi(false);
+      input.value = formatDateForDatetimeLocal(getAppDate());
+    });
+  }
+
+  requestAnimationFrame(bindWhenReady);
+}
+
+function initDevBannerCloudRefresh() {
+  if (typeof window === 'undefined' || !isDevBuildContext()) return;
+  if (window.__devBannerCloudRefreshBound) return;
+  window.__devBannerCloudRefreshBound = true;
+
+  function bindWhenReady() {
+    const btn = document.getElementById('nav-dev-banner-cloud-refresh-btn');
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      const cfg = getSupabaseConfig();
+      if (!cfg.enabled) return;
+      btn.disabled = true;
+      loadSleepData({ forceRefresh: true })
+        .catch(function () {})
+        .finally(function () {
+          btn.disabled = false;
+        });
     });
   }
 
@@ -2126,6 +2188,7 @@ function initDayNightTheme() {
   if (pillWrap) pillWrap.addEventListener('click', handleDayNightClick);
   initNavMenu();
   initDevClockControl();
+  initDevBannerCloudRefresh();
   setInterval(function () {
     applyDayNightTheme();
     updateDayNightIcon();
@@ -2273,6 +2336,23 @@ function escapeHtmlBannerAttr(s) {
   return escapeHtmlBannerText(s).replace(/"/g, '&quot;');
 }
 
+function resolveSupabaseDashboardUrl() {
+  const url = (getSupabaseConfig().url || '').toLowerCase();
+  if (url.includes(SUPABASE_PROJECT_REF_PROD)) {
+    return 'https://supabase.com/dashboard/project/' + SUPABASE_PROJECT_REF_PROD;
+  }
+  if (url.includes(SUPABASE_PROJECT_REF_DEV)) {
+    return 'https://supabase.com/dashboard/project/' + SUPABASE_PROJECT_REF_DEV;
+  }
+  return 'https://supabase.com/dashboard/project/' + SUPABASE_PROJECT_REF_DEV;
+}
+
+function getDevBannerSupabaseDbClass() {
+  const url = (getSupabaseConfig().url || '').toLowerCase();
+  if (url.includes(SUPABASE_PROJECT_REF_PROD)) return 'nav-dev-banner--db-prod';
+  return 'nav-dev-banner--db-dev';
+}
+
 function getDevGitBranchLabel() {
   if (typeof window === 'undefined') return '';
   const b = window.__DEV_GIT_BRANCH__;
@@ -2326,57 +2406,111 @@ function renderNavBar(currentPage) {
   const headerRow = `<div class="nav-header nav-header--remaining-wake">${appName}${remainingWakeSlot}${navRight}</div>`;
   const tabsRow = `<div class="nav-tabs-row"><div class="nav-tabs">${navItems}</div></div>`;
   const branchLabel = getDevGitBranchLabel();
+  const supabaseDashboardUrl = resolveSupabaseDashboardUrl();
+  const devBannerDbClass = getDevBannerSupabaseDbClass();
+  const clockOverrideActive = readDevClockOverrideMs() != null;
+  const cloudRefreshDisabled = !getSupabaseConfig().enabled;
   // Feather-style git-branch (MIT); stroke scales with banner font size.
   const gitBranchIcon =
     '<svg class="nav-dev-banner-branch-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>';
-  const devDataRefreshHint = '<a href="config.html#cloud-sync" class="content-link nav-dev-banner-link">Cloud data not synced. Manually refresh in settings.</a>';
   const githubBannerIcon =
     '<svg class="nav-dev-banner-deploy-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>';
   const vercelDeployIcon =
     '<svg class="nav-dev-banner-deploy-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 1.125 22.5 20.25H1.5L12 1.125z"/></svg>';
   const supabaseDeployIcon =
     '<svg class="nav-dev-banner-deploy-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M21.362 9.354H12V.396l9.362 8.958zM12 12.396H3.638L12 21.362v-8.966zM12 0v9.362H0V12h12v12h2.638V12H24V9.362H12V0z"/></svg>';
-  const devBannerIconRow =
-    '<div class="nav-dev-banner-deploy-row">' +
+  const refreshIconSvg =
+    '<svg class="nav-dev-banner-refresh-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>';
+  const githubBannerLink =
     '<a href="' +
     escapeHtmlBannerAttr(GITHUB_REPO_URL) +
     '" class="nav-dev-banner-deploy-link" target="_blank" rel="noopener noreferrer" title="GitHub repository" aria-label="Open GitHub repository">' +
     githubBannerIcon +
-    '</a>' +
+    '</a>';
+  const supabaseDashboardLink =
     '<a href="' +
-    escapeHtmlBannerAttr(DEV_VERCEL_PROJECT_URL) +
-    '" class="nav-dev-banner-deploy-link" target="_blank" rel="noopener noreferrer" title="Vercel project" aria-label="Open Vercel project">' +
-    vercelDeployIcon +
-    '</a>' +
-    '<a href="' +
-    escapeHtmlBannerAttr(DEV_SUPABASE_DASHBOARD_URL) +
+    escapeHtmlBannerAttr(supabaseDashboardUrl) +
     '" class="nav-dev-banner-deploy-link" target="_blank" rel="noopener noreferrer" title="Supabase dashboard" aria-label="Open Supabase dashboard">' +
     supabaseDeployIcon +
-    '</a>' +
+    '</a>';
+  const vercelIconLink =
+    '<a href="' +
+    escapeHtmlBannerAttr(DEV_VERCEL_PROJECT_URL) +
+    '" class="nav-dev-banner-deploy-link nav-dev-banner-vercel-link" target="_blank" rel="noopener noreferrer" title="Vercel project" aria-label="Open Vercel project">' +
+    vercelDeployIcon +
+    '<span class="nav-dev-banner-vercel-label">Vercel project</span></a>';
+  const branchMeta = branchLabel
+    ? '<span class="nav-dev-banner-branch-meta">' +
+      gitBranchIcon +
+      '<span class="nav-dev-banner-branch-name">' +
+      escapeHtmlBannerText(branchLabel) +
+      '</span></span>'
+    : '';
+  const devBannerBranchRow = '<div class="nav-dev-banner-branch-row">' + githubBannerLink + branchMeta + '</div>';
+  const cloudRefreshDisabledAttr = cloudRefreshDisabled ? ' disabled' : '';
+  const devBannerCloudRow =
+    '<div class="nav-dev-banner-cloud-row">' +
+    supabaseDashboardLink +
+    '<span class="nav-dev-banner-cloud-hint">Cloud data not synced in dev</span>' +
+    '<button type="button" class="nav-dev-banner-cloud-refresh" id="nav-dev-banner-cloud-refresh-btn"' +
+    cloudRefreshDisabledAttr +
+    ' title="Refresh cloud data" aria-label="Refresh cloud data">' +
+    refreshIconSvg +
+    '<span class="nav-dev-banner-cloud-refresh-label">Refresh</span>' +
+    '</button>' +
     '</div>';
-  const devBannerLeftInner = branchLabel
-    ? `<div class="nav-dev-banner-line">Dev Build</div><div class="nav-dev-banner-branch-row">${gitBranchIcon}<span class="nav-dev-banner-branch-name">${escapeHtmlBannerText(branchLabel)}</span></div><div class="nav-dev-banner-line nav-dev-banner-line--hint">${devDataRefreshHint}</div>`
-    : `<div class="nav-dev-banner-line">Dev Build</div><div class="nav-dev-banner-line nav-dev-banner-line--hint">${devDataRefreshHint}</div>`;
+  const devBannerVercelRow = '<div class="nav-dev-banner-vercel-row">' + vercelIconLink + '</div>';
+  const devBannerLeftInner = devBannerBranchRow + devBannerCloudRow + devBannerVercelRow;
+  const devBannerProdWarning =
+    devBannerDbClass === 'nav-dev-banner--db-prod'
+      ? '<p class="nav-dev-banner-prod-warning">⚠️ You are using PROD data!</p>'
+      : '';
+  const devTitleRow =
+    '<div class="nav-dev-banner-title-row">' +
+    '<div class="nav-dev-banner-line nav-dev-banner-title">DEV BUILD</div>' +
+    '<hr class="nav-dev-banner-title-rule" aria-hidden="true" />' +
+    devBannerProdWarning +
+    '</div>';
+  const clockRealActive = !clockOverrideActive;
+  const clockRealClass = clockRealActive ? ' nav-dev-banner-clock-mode-btn--active' : '';
+  const clockSimClass = clockOverrideActive ? ' nav-dev-banner-clock-mode-btn--active' : '';
   const devClockBlock =
-    '<div class="nav-dev-banner-clock" role="group" aria-label="Override app time (development only)">' +
-    '<label for="nav-dev-banner-dev-clock-input" class="nav-dev-banner-clock-label">App time</label>' +
+    '<div class="nav-dev-banner-clock" role="group" aria-label="App time (wall clock): real time or simulated override for app logic (development only)">' +
+    '<span class="nav-dev-banner-clock-heading">App time (wall clock)</span>' +
+    '<div class="nav-dev-banner-clock-mode" role="group" aria-label="App time source">' +
+    '<button type="button" class="nav-dev-banner-clock-mode-btn' +
+    clockRealClass +
+    '" id="nav-dev-banner-clock-mode-real" aria-pressed="' +
+    (clockRealActive ? 'true' : 'false') +
+    '">Real time</button>' +
+    '<button type="button" class="nav-dev-banner-clock-mode-btn' +
+    clockSimClass +
+    '" id="nav-dev-banner-clock-mode-sim" aria-pressed="' +
+    (clockOverrideActive ? 'true' : 'false') +
+    '">Simulated</button>' +
+    '</div>' +
+    '<div class="nav-dev-banner-clock-sim-panel" id="nav-dev-banner-clock-sim-panel"' +
+    (clockOverrideActive ? '' : ' hidden') +
+    '>' +
     '<input type="datetime-local" id="nav-dev-banner-dev-clock-input" class="nav-dev-banner-dev-clock-input" autocomplete="off" />' +
-    '<button type="button" class="nav-dev-banner-dev-clock-btn" id="nav-dev-banner-dev-clock-apply">Apply</button>' +
-    '<button type="button" class="nav-dev-banner-dev-clock-btn" id="nav-dev-banner-dev-clock-reset">Real time</button>' +
+    '</div>' +
     '</div>';
-  const devBannerRight = '<div class="nav-dev-banner-right">' + devBannerIconRow + devClockBlock + '</div>';
-  const devBannerBody =
-    '<div class="nav-dev-banner-inner">' +
+  const devBannerRight = '<div class="nav-dev-banner-right">' + devClockBlock + '</div>';
+  const devBannerMainRow =
+    '<div class="nav-dev-banner-main-row">' +
     '<div class="nav-dev-banner-left">' +
     devBannerLeftInner +
     '</div>' +
     devBannerRight +
     '</div>';
+  const devBannerBody = '<div class="nav-dev-banner-inner">' + devTitleRow + devBannerMainRow + '</div>';
+  const prodAria =
+    devBannerDbClass === 'nav-dev-banner--db-prod' ? ' Using production Supabase data.' : '';
   const devAria = branchLabel
-    ? `Development build, branch ${escapeHtmlBannerAttr(branchLabel)}; optional app time override`
-    : 'Development build; optional app time override';
+    ? `Development build, branch ${escapeHtmlBannerAttr(branchLabel)}; wall clock real or simulated.${prodAria}`
+    : `Development build; wall clock real or simulated.${prodAria}`;
   const devBanner = isDevBuildContext()
-    ? `<div class="nav-dev-banner" role="status" aria-label="${devAria}">${devBannerBody}</div>`
+    ? `<div class="nav-dev-banner ${devBannerDbClass}" role="status" aria-label="${devAria}">${devBannerBody}</div>`
     : '';
   return `<div class="nav-wrapper nav-wrapper--remaining-wake">${devBanner}${headerRow}${tabsRow}</div>`;
 }
