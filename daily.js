@@ -920,36 +920,6 @@ const WAKE_PROJECTION_BAND_MINUTES = 15;
 const TONIGHT_ADJUST_SCOPE_PAD_MINUTES = 180;
 const TONIGHT_ADJUST_MIN_GAP_MINUTES = 1;
 
-/** Returns { phase, icon, timeLabel, percentRemaining } for remaining wake time (used by dashboard nav). */
-function getRemainingWakeDisplay(recentAverages) {
-  const sleepTarget = recentAverages.avgSleepStart;
-  const wakeTarget = recentAverages.avgSleepEnd;
-  const totalWakeMins = durationMinutes(wakeTarget, sleepTarget);
-  const now = getAppDate();
-  const nowMins = now.getHours() * 60 + now.getMinutes();
-  if (wakeTarget < sleepTarget && (nowMins > sleepTarget || nowMins < wakeTarget)) {
-    const phase = getRemainingWakePhase(0, totalWakeMins);
-    const icon = getRemainingWakeIcon(phase);
-    return {
-      phase,
-      icon,
-      timeLabel: 'go to bed soon',
-      timeLabelSoft: true,
-      percentRemaining: 0
-    };
-  }
-  const remainingMins = sleepTarget >= nowMins
-    ? sleepTarget - nowMins
-    : 1440 - nowMins + sleepTarget;
-  const phase = getRemainingWakePhase(remainingMins, totalWakeMins);
-  const icon = getRemainingWakeIcon(phase);
-  const timeLabel = formatDuration(Math.round(remainingMins));
-  const percentRemaining = totalWakeMins > 0
-    ? Math.min(100, Math.max(0, (remainingMins / totalWakeMins) * 100))
-    : 100;
-  return { phase, icon, timeLabel, percentRemaining };
-}
-
 function normalizeClockMinutesNearReference(clockMinutes, referenceMinutes) {
   let value = modMinutes1440(clockMinutes);
   while (value - referenceMinutes > 720) value -= 1440;

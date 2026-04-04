@@ -55,14 +55,15 @@
       },
       "remainingWake": {
         "title": "Remaining wake time",
-        "intro": "Set when the app transitions between Active, Winding Down, and Pre-Sleep modes. Percentages represent your share of wake time remaining; the sample times shown are based on your 7-day average.",
+        "intro": "Set when the app transitions between Active, Winding Down, and Pre-Sleep modes. A fourth header phase (Sleep, moon) appears automatically when you log bed or fell-asleep before wake—it is not controlled here. Percentages are your share of wake time remaining for the first three; sample times use your 7-day average.",
         "link": "More about remaining wake times",
         "defaultsButton": "Use default values",
         "defaultsAria": "Reset remaining wake thresholds to defaults: {open}% and {winding}%",
         "phase": {
           "open": "Active",
           "winding": "Winding",
-          "presleep": "Pre-sleep"
+          "presleep": "Pre-sleep",
+          "sleepHint": "A fourth header phase (moon) appears automatically when you log bed or fell-asleep before wake. It is not controlled by these sliders."
         },
         "openBoundaryAria": "Active / Winding boundary (percent remaining)",
         "windingBoundaryAria": "Winding / Pre-sleep boundary (percent remaining)",
@@ -163,14 +164,15 @@
       },
       "remainingWake": {
         "title": "残り覚醒時間",
-        "intro": "活動中・リラックスタイム・就寝前 の切り替えタイミングを設定します。割合は残り覚醒時間の比率で、表示される時刻は直近7日平均に基づきます。",
+        "intro": "活動中・リラックスタイム・就寝前の切り替えを設定します。4つ目のヘッダー段階（睡眠・月）は、起床前にベッドまたは入眠を記録すると自動で表示され、ここでは調整しません。割合は最初の3段階の残り覚醒時間で、時刻の目安は直近7日平均です。",
         "link": "残り覚醒時間について詳しく",
         "defaultsButton": "デフォルト値に戻す",
         "defaultsAria": "残り覚醒時間のしきい値をデフォルトに戻す: {open}% と {winding}%",
         "phase": {
           "open": "活動中",
           "winding": "リラックスタイム",
-          "presleep": "就寝前"
+          "presleep": "就寝前",
+          "sleepHint": "4つ目のヘッダー段階（月）は、起床前にベッドまたは入眠を記録すると自動で表示されます。スライダーでは調整しません。"
         },
         "openBoundaryAria": "活動中 / リラックスタイム の境界（残り割合）",
         "windingBoundaryAria": "リラックスタイム / 就寝前 の境界（残り割合）",

@@ -1,7 +1,6 @@
 // Time-aware dashboard quick actions (wake / nap / sleep) using recent averages; persists via upsertSleepDay.
 (function () {
   const NAP_STORAGE_KEY = 'restore_quick_nap_v1';
-  const QA_SLEEP_LOGGED_KEY = 'restore_qa_sleep_logged_v1';
   const WAKE_PROXIMITY_MINS = 105;
   const SLEEP_WINDOW_BEFORE = 120;
   const SLEEP_WINDOW_AFTER = 240;
@@ -82,80 +81,17 @@
    * Wake-day key for the night being entered from the sleep bar (evening → next calendar wake-day).
    * Early morning before typical wake stays on today's wake-day.
    */
-  function recordDateMdForSleep(now, avgWakeMins) {
-    const nowM = nowClockMinutes(now);
-    const w = mod1440(avgWakeMins);
-    if (nowM <= w + 120) {
-      return formatMdFromDate(now);
-    }
-    const t = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-    return formatMdFromDate(t);
-  }
-
   function recordDateMdForWake(now) {
     return formatMdFromDate(now);
   }
 
-  function readQaSleepFlags() {
-    try {
-      const raw = localStorage.getItem(QA_SLEEP_LOGGED_KEY);
-      if (!raw) return {};
-      const o = JSON.parse(raw);
-      return o && typeof o === 'object' ? o : {};
-    } catch (_e) {
-      return {};
-    }
-  }
-
-  function writeQaSleepFlags(map) {
-    try {
-      localStorage.setItem(QA_SLEEP_LOGGED_KEY, JSON.stringify(map));
-    } catch (_e) { /* ignore */ }
-  }
-
-  function markQaSleepFlag(nightMd, kind) {
-    const map = readQaSleepFlags();
-    if (!map[nightMd]) map[nightMd] = {};
-    map[nightMd][kind] = true;
-    writeQaSleepFlags(map);
-  }
-
   function hasQaBedAndSleepFlags(nightMd) {
-    const e = readQaSleepFlags()[nightMd];
+    const e = readNightQaSleepFlagMap()[nightMd];
     return Boolean(e && e.bed && e.sleep);
   }
 
-  /** True if a wall-clock time (no calendar in data) plausibly falls within the last `hoursBack` hours. */
-  function isWallClockWithinRecentHours(now, timeStr, hoursBack) {
-    const m = timeToMinutes(timeStr);
-    if (!Number.isFinite(m)) return false;
-    const hh = Math.floor(mod1440(m) / 60);
-    const mi = mod1440(m) % 60;
-    const y = now.getFullYear();
-    const mo = now.getMonth();
-    const d = now.getDate();
-    const candidates = [
-      new Date(y, mo, d, hh, mi, 0, 0),
-      new Date(y, mo, d - 1, hh, mi, 0, 0),
-      new Date(y, mo, d + 1, hh, mi, 0, 0)
-    ];
-    const lo = now.getTime() - hoursBack * 3600000;
-    const hi = now.getTime() + 45 * 60000;
-    for (var i = 0; i < candidates.length; i++) {
-      const t = candidates[i].getTime();
-      if (t >= lo && t <= hi) return true;
-    }
-    return false;
-  }
-
   function pickDayForNightMd(nightMd, liveDays) {
-    let d = findDayByMd(liveDays, nightMd);
-    if (d) return d;
-    const c = typeof readSleepDataLocalCache === 'function' ? readSleepDataLocalCache() : null;
-    if (c && c.data && Array.isArray(c.data.days)) {
-      d = findDayByMd(c.data.days, nightMd);
-    }
-    return d || null;
+    return pickDayForNightMdNav(nightMd, liveDays);
   }
 
   /**
@@ -166,13 +102,14 @@
     if (hasQaBedAndSleepFlags(nightMd)) return true;
     const day = pickDayForNightMd(nightMd, liveDays);
     if (!day) return false;
-    const stub = newStubDay(nightMd, liveDays, averages);
+    const stub = buildStubDayForNightMd(nightMd, liveDays, averages);
+    if (!stub) return false;
     const bedDiff = String(day.bed || '') !== String(stub.bed || '');
     const sleepDiff = String(day.sleepStart || '') !== String(stub.sleepStart || '');
     if (!bedDiff || !sleepDiff) return false;
     return (
-      isWallClockWithinRecentHours(now, day.bed, 12) &&
-      isWallClockWithinRecentHours(now, day.sleepStart, 12)
+      isWallClockWithinRecentHoursNav(now, day.bed, 12) &&
+      isWallClockWithinRecentHoursNav(now, day.sleepStart, 12)
     );
   }
 
@@ -196,8 +133,7 @@
   }
 
   function findDayByMd(days, md) {
-    if (!days || !days.length) return null;
-    return days.find(function (d) { return d.date === md; }) || null;
+    return findDayByDateMd(days, md);
   }
 
   function cloneDayBase(d) {
@@ -216,6 +152,8 @@
   }
 
   function newStubDay(dateMd, days, averages) {
+    const stub = buildStubDayForNightMd(dateMd, days, averages);
+    if (stub) return stub;
     const template = days && days.length ? days[0] : null;
     const ss = template
       ? template.sleepStart
@@ -281,6 +219,7 @@
         if (typeof showAppToast === 'function') {
           showAppToast(err && err.message ? err.message : 'Save failed');
         }
+        return Promise.reject(err);
       });
   }
 
@@ -297,7 +236,10 @@
 
   function handleWakeUp(days, averages, onReload, now) {
     const md = recordDateMdForWake(now);
-    return persistPartial(md, { sleepEnd: formatTimeFromDate(now) }, onReload);
+    return persistPartial(md, { sleepEnd: formatTimeFromDate(now) }, onReload).then(function () {
+      markNightQaSleepFlag(md, 'wake');
+      return null;
+    });
   }
 
   function handleAlarmNow(days, averages, onReload, now) {
@@ -315,26 +257,26 @@
 
   /** Bed time only — does not change sleepStart or sleepEnd. */
   function handleBedNow(days, averages, onReload, now) {
-    const md = recordDateMdForSleep(now, averages.avgSleepEnd);
+    const md = recordDateMdForSleepPeriod(now, averages.avgSleepEnd);
     const bedClock = formatTimeFromDate(now);
     return persistPartial(md, { bed: bedClock }, onReload).then(function () {
-      markQaSleepFlag(md, 'bed');
+      markNightQaSleepFlag(md, 'bed');
       return null;
     });
   }
 
   /** Fell-asleep time only — does not change bed. */
   function handleSleepAt(days, averages, onReload, now, offsetMin) {
-    const md = recordDateMdForSleep(now, averages.avgSleepEnd);
+    const md = recordDateMdForSleepPeriod(now, averages.avgSleepEnd);
     const startClock = offsetMin === 0 ? formatTimeFromDate(now) : addWallMinutes(now, offsetMin);
     return persistPartial(md, { sleepStart: startClock }, onReload).then(function () {
-      markQaSleepFlag(md, 'sleep');
+      markNightQaSleepFlag(md, 'sleep');
       return null;
     });
   }
 
   function handleBathroomTripNow(days, averages, onReload, now) {
-    const md = recordDateMdForSleep(now, averages.avgSleepEnd);
+    const md = recordDateMdForSleepPeriod(now, averages.avgSleepEnd);
     const t = formatTimeFromDate(now);
     return getEditableDayByMd(md, days).then(function (day) {
       const existingBathroom = day && Array.isArray(day.bathroom) ? day.bathroom : [];
@@ -453,7 +395,7 @@
     const phase = inferPhase(now, averages);
     const napActive = isNapActive(days, now);
     const showAlarm = averages.avgFirstAlarmToWake != null;
-    const nightMd = recordDateMdForSleep(now, averages.avgSleepEnd);
+    const nightMd = recordDateMdForSleepPeriod(now, averages.avgSleepEnd);
     const bedSleepLogged =
       phase === 'sleep' && bedAndSleepCompleteForSleepPeriod(nightMd, days, averages, now);
     mount.innerHTML = renderButtons(phase, showAlarm, napActive, bedSleepLogged);

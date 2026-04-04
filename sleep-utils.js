@@ -47,6 +47,8 @@ function normalizeSleepDayLabels(value) {
 const SUPABASE_URL_STORAGE_KEY = 'restore_supabase_url';
 const SUPABASE_ANON_KEY_STORAGE_KEY = 'restore_supabase_anon_key';
 const RESTORE_LAST_DATA_SOURCE_KEY = 'restore_last_data_source';
+/** When `'1'`, read sleep data from `sleep-data.json` even if Supabase is configured (testing). */
+const RESTORE_FORCE_LOCAL_SLEEP_DATA_KEY = 'restore_force_local_sleep_data';
 const SLEEP_DATA_LOCAL_CACHE_KEY = 'restore_sleep_data_cache_v1';
 const SLEEP_DATA_CACHE_TTL_MS = 5 * 60 * 1000;
 
@@ -55,9 +57,25 @@ let sleepDataCacheExpiresAt = 0;
 let sleepDataCacheKey = '';
 let sleepDataPendingPromise = null;
 
+function isSleepDataForcedLocal() {
+  return safeReadStorage(RESTORE_FORCE_LOCAL_SLEEP_DATA_KEY) === '1';
+}
+
+function setSleepDataForcedLocal(on) {
+  safeWriteStorage(RESTORE_FORCE_LOCAL_SLEEP_DATA_KEY, on ? '1' : '');
+  clearSleepDataCache();
+  if (typeof window !== 'undefined') window.__RESTORE_DATA_SOURCE__ = '';
+  updateDataSourceBadge();
+}
+
 function getSleepDataCacheKey(config) {
   if (!config || !config.enabled) return 'local';
+  if (isSleepDataForcedLocal()) return 'local:forced';
   return 'cloud:' + String(config.url || '').replace(/\/+$/, '') + '|' + String(config.anonKey || '');
+}
+
+function loadSleepDataUsesSupabase(config) {
+  return Boolean(config && config.enabled && !isSleepDataForcedLocal());
 }
 
 function cloneSleepData(data) {
@@ -252,15 +270,18 @@ function setSupabaseConfig(url, anonKey) {
 function clearSupabaseConfig() {
   safeWriteStorage(SUPABASE_URL_STORAGE_KEY, '');
   safeWriteStorage(SUPABASE_ANON_KEY_STORAGE_KEY, '');
+  safeWriteStorage(RESTORE_FORCE_LOCAL_SLEEP_DATA_KEY, '');
   clearSleepDataCache();
 }
 
 function getDataSourceState() {
+  const config = getSupabaseConfig();
+  if (config.enabled && isSleepDataForcedLocal()) return 'local';
   const explicit = typeof window !== 'undefined' ? window.__RESTORE_DATA_SOURCE__ : '';
   if (explicit === 'cloud' || explicit === 'local') return explicit;
   const stored = safeReadStorage(RESTORE_LAST_DATA_SOURCE_KEY);
   if (stored === 'cloud' || stored === 'local') return stored;
-  return getSupabaseConfig().enabled ? 'cloud' : 'local';
+  return config.enabled ? 'cloud' : 'local';
 }
 
 function getDataSourceBadgeModel(source) {
@@ -503,7 +524,7 @@ function loadSleepData(options) {
     sleepDataCacheKey === cacheKey &&
     (manualRefreshOnly || now < sleepDataCacheExpiresAt)
   ) {
-    updateDataSourceBadge(config.enabled ? 'cloud' : 'local');
+    updateDataSourceBadge(loadSleepDataUsesSupabase(config) ? 'cloud' : 'local');
     return Promise.resolve(cloneSleepData(sleepDataCacheValue));
   }
 
@@ -521,13 +542,13 @@ function loadSleepData(options) {
       sleepDataCacheValue = storedCache.data;
       sleepDataCacheKey = cacheKey;
       sleepDataCacheExpiresAt = storedCache.fetchedAt + SLEEP_DATA_CACHE_TTL_MS;
-      updateDataSourceBadge(config.enabled ? 'cloud' : 'local');
+      updateDataSourceBadge(loadSleepDataUsesSupabase(config) ? 'cloud' : 'local');
       return Promise.resolve(cloneSleepData(storedCache.data));
     }
   }
 
   sleepDataCacheKey = cacheKey;
-  const request = (config.enabled
+  const request = (loadSleepDataUsesSupabase(config)
     ? fetchSupabaseSleepData(config)
         .then(function (data) {
           updateDataSourceBadge('cloud');
@@ -685,6 +706,18 @@ function initSupabaseConfigForm() {
   mount.innerHTML =
     '<div class="supabase-config-card">' +
       '<p class="section-intro">Connect Restore to Supabase for cloud sync. If blank, the app uses local <code>sleep-data.json</code> as read-only fallback.</p>' +
+      '<div class="config-data-source-toggle-wrap" id="config-data-source-toggle-wrap" hidden>' +
+      '<p class="section-intro config-data-source-toggle-label" id="config-data-source-toggle-label">Data load source</p>' +
+      '<div class="config-data-source-toggle" role="group" aria-labelledby="config-data-source-toggle-label">' +
+      '<button type="button" class="config-data-source-toggle-btn" id="data-source-pick-local" aria-pressed="false">' +
+      '<span class="config-data-source-toggle-emoji" aria-hidden="true">💾</span> Local' +
+      '</button>' +
+      '<button type="button" class="config-data-source-toggle-btn" id="data-source-pick-cloud" aria-pressed="false">' +
+      '<span class="config-data-source-toggle-emoji" aria-hidden="true">☁️</span> Cloud' +
+      '</button>' +
+      '</div>' +
+      '<p class="section-intro config-data-source-toggle-hint">Local uses <code>sleep-data.json</code> only; cloud uses Supabase. Reload other tabs or use Fetch latest after switching.</p>' +
+      '</div>' +
       '<label class="supabase-config-label" for="supabase-url-input">Supabase URL</label>' +
       '<input class="supabase-config-input" id="supabase-url-input" type="url" placeholder="https://YOUR-PROJECT.supabase.co" value="' + escapeHtmlBannerAttr(cfg.url) + '">' +
       '<label class="supabase-config-label" for="supabase-anon-input">Supabase anon key</label>' +
@@ -705,7 +738,37 @@ function initSupabaseConfigForm() {
   const testBtn = document.getElementById('supabase-test-btn');
   const refreshBtn = document.getElementById('supabase-refresh-btn');
   const clearBtn = document.getElementById('supabase-clear-btn');
+  const toggleWrap = document.getElementById('config-data-source-toggle-wrap');
+  const pickLocalBtn = document.getElementById('data-source-pick-local');
+  const pickCloudBtn = document.getElementById('data-source-pick-cloud');
   if (!statusEl || !urlEl || !keyEl || !saveBtn || !testBtn || !refreshBtn || !clearBtn) return;
+
+  function syncDataSourceToggleUI() {
+    if (!toggleWrap || !pickLocalBtn || !pickCloudBtn) return;
+    const enabled = getSupabaseConfig().enabled;
+    toggleWrap.hidden = !enabled;
+    if (!enabled) return;
+    const forced = isSleepDataForcedLocal();
+    pickLocalBtn.setAttribute('aria-pressed', forced ? 'true' : 'false');
+    pickCloudBtn.setAttribute('aria-pressed', forced ? 'false' : 'true');
+  }
+
+  syncDataSourceToggleUI();
+
+  if (pickLocalBtn && pickCloudBtn) {
+    pickLocalBtn.addEventListener('click', function () {
+      if (!getSupabaseConfig().enabled) return;
+      setSleepDataForcedLocal(true);
+      syncDataSourceToggleUI();
+      setStatus('Loading from local sleep-data.json. Reload other open tabs or refetch here.', false);
+    });
+    pickCloudBtn.addEventListener('click', function () {
+      if (!getSupabaseConfig().enabled) return;
+      setSleepDataForcedLocal(false);
+      syncDataSourceToggleUI();
+      setStatus('Loading from Supabase on next fetch or page reload.', false);
+    });
+  }
 
   function setStatus(text, isError) {
     statusEl.textContent = text;
@@ -720,6 +783,7 @@ function initSupabaseConfigForm() {
       return;
     }
     setSupabaseConfig(url, anonKey);
+    syncDataSourceToggleUI();
     setStatus('Saved. Reload any page to use cloud data.', false);
   });
 
@@ -780,6 +844,7 @@ function initSupabaseConfigForm() {
     clearSupabaseConfig();
     urlEl.value = '';
     keyEl.value = '';
+    syncDataSourceToggleUI();
     setStatus('Cleared. App will fall back to sleep-data.json.', false);
   });
 }
@@ -1103,6 +1168,8 @@ function evaluatePolynomial(coefficients, x) {
 
 // Project repo (used in nav bar)
 const GITHUB_REPO_URL = 'https://github.com/rsairu/sleep/';
+const DEV_VERCEL_PROJECT_URL = 'https://vercel.com/rsairu-5429s-projects/sleep';
+const DEV_SUPABASE_DASHBOARD_URL = 'https://supabase.com/dashboard/project/lsaguxfovamihwnicpkk';
 const DEV_BANNER_OVERRIDE_KEY = 'sleep-app-force-dev-banner';
 const DEV_CLOCK_OVERRIDE_MS_KEY = 'sleep-app-dev-clock-override-ms';
 
@@ -1526,6 +1593,181 @@ function clearTonightProjectionAdjustment() {
   } catch (_) {}
 }
 
+/** Same key as quick-actions / entry-modal night QA flags (bed, sleep, wake). */
+const RESTORE_QA_SLEEP_LOGGED_KEY = 'restore_qa_sleep_logged_v1';
+
+function readNightQaSleepFlagMap() {
+  try {
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(RESTORE_QA_SLEEP_LOGGED_KEY) : null;
+    if (!raw) return {};
+    const o = JSON.parse(raw);
+    return o && typeof o === 'object' ? o : {};
+  } catch (_e) {
+    return {};
+  }
+}
+
+function markNightQaSleepFlag(nightMd, kind) {
+  if (!nightMd || !kind) return;
+  try {
+    const map = readNightQaSleepFlagMap();
+    if (!map[nightMd]) map[nightMd] = {};
+    map[nightMd][kind] = true;
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(RESTORE_QA_SLEEP_LOGGED_KEY, JSON.stringify(map));
+    }
+  } catch (_e) { /* ignore */ }
+}
+
+function formatMonthDayFromDateForNav(d) {
+  return d.getMonth() + 1 + '/' + d.getDate();
+}
+
+/**
+ * Wake-day key for the night row (evening → next calendar wake-day; early morning stays today).
+ * Matches quick-actions recordDateMdForSleep.
+ */
+function recordDateMdForSleepPeriod(now, avgWakeMins) {
+  const nowM = now.getHours() * 60 + now.getMinutes();
+  const w = modMinutes1440(avgWakeMins);
+  if (nowM <= w + 120) {
+    return formatMonthDayFromDateForNav(now);
+  }
+  const t = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  return formatMonthDayFromDateForNav(t);
+}
+
+function remainWakeCircDistMinutes(a, b) {
+  const x = modMinutes1440(a);
+  const y = modMinutes1440(b);
+  const d = Math.abs(x - y);
+  return Math.min(d, 1440 - d);
+}
+
+function remainWakeOffsetFromSleepAvg(nowM, sleepAvgM) {
+  const s = modMinutes1440(sleepAvgM);
+  const n = modMinutes1440(nowM);
+  let o = n - s;
+  if (o < -720) o += 1440;
+  if (o > 720) o -= 1440;
+  return o;
+}
+
+/** Same window as dashboard quick-actions inferPhase === 'sleep' (not wake, not mid). */
+function inferNavSleepWindowPhase(now, avgSleepStart, avgSleepEnd) {
+  const WAKE_PROXIMITY_MINS = 105;
+  const SLEEP_WINDOW_BEFORE = 120;
+  const SLEEP_WINDOW_AFTER = 240;
+  const nowM = now.getHours() * 60 + now.getMinutes();
+  const wakeM = avgSleepEnd;
+  const sleepM = avgSleepStart;
+  if (remainWakeCircDistMinutes(nowM, wakeM) <= WAKE_PROXIMITY_MINS) {
+    return false;
+  }
+  const off = remainWakeOffsetFromSleepAvg(nowM, sleepM);
+  return off >= -SLEEP_WINDOW_BEFORE && off <= SLEEP_WINDOW_AFTER;
+}
+
+function findDayByDateMd(days, md) {
+  if (!days || !days.length) return null;
+  for (let i = 0; i < days.length; i++) {
+    if (days[i].date === md) return days[i];
+  }
+  return null;
+}
+
+function pickDayForNightMdNav(nightMd, liveDays) {
+  let d = findDayByDateMd(liveDays, nightMd);
+  if (d) return d;
+  const c = readSleepDataLocalCache();
+  if (c && c.data && Array.isArray(c.data.days)) {
+    d = findDayByDateMd(c.data.days, nightMd);
+  }
+  return d || null;
+}
+
+/** True if wall-clock time plausibly falls within the last `hoursBack` hours (matches quick-actions). */
+function isWallClockWithinRecentHoursNav(now, timeStr, hoursBack) {
+  const m = timeToMinutes(timeStr);
+  if (!Number.isFinite(m)) return false;
+  const hh = Math.floor(modMinutes1440(m) / 60);
+  const mi = modMinutes1440(m) % 60;
+  const y = now.getFullYear();
+  const mo = now.getMonth();
+  const d = now.getDate();
+  const candidates = [
+    new Date(y, mo, d, hh, mi, 0, 0),
+    new Date(y, mo, d - 1, hh, mi, 0, 0),
+    new Date(y, mo, d + 1, hh, mi, 0, 0)
+  ];
+  const lo = now.getTime() - hoursBack * 3600000;
+  const hi = now.getTime() + 45 * 60000;
+  for (let i = 0; i < candidates.length; i++) {
+    const t = candidates[i].getTime();
+    if (t >= lo && t <= hi) return true;
+  }
+  return false;
+}
+
+/**
+ * Stub row for a night md; uses 7-day basis + days[0] template, or averagesFallback when no logged days.
+ */
+function buildStubDayForNightMd(dateMd, days, averagesFallback) {
+  const template = days && days.length ? days[0] : null;
+  const basis = computeRecentSevenDayWakeBasis(days);
+  const avgS = basis ? basis.avgSleepStart : (averagesFallback ? averagesFallback.avgSleepStart : NaN);
+  const avgE = basis ? basis.avgSleepEnd : (averagesFallback ? averagesFallback.avgSleepEnd : NaN);
+  if (!Number.isFinite(avgS) || !Number.isFinite(avgE)) return null;
+  const ss = template ? template.sleepStart : formatTime(modMinutes1440(avgS));
+  const bed = template ? template.bed : formatTime(modMinutes1440(avgS - 25));
+  const se = template ? template.sleepEnd : formatTime(modMinutes1440(avgE));
+  return {
+    date: dateMd,
+    bed: bed,
+    sleepStart: ss,
+    sleepEnd: se,
+    bathroom: [],
+    alarm: [],
+    nap: null,
+    WASO: 0
+  };
+}
+
+function isNightWakeLogged(nightMd) {
+  const e = readNightQaSleepFlagMap()[nightMd];
+  return Boolean(e && e.wake);
+}
+
+/** Bed or fell-asleep logged (QA flags or row differs from stub + recent wall clock). */
+function isNightBedOrSleepLogged(nightMd, liveDays, now, averagesFallback) {
+  const qa = readNightQaSleepFlagMap()[nightMd];
+  if (qa && (qa.bed || qa.sleep)) return true;
+  const day = pickDayForNightMdNav(nightMd, liveDays);
+  if (!day) return false;
+  const stub = buildStubDayForNightMd(nightMd, liveDays, averagesFallback);
+  if (!stub) return false;
+  const bedDiff = String(day.bed || '') !== String(stub.bed || '');
+  const sleepDiff = String(day.sleepStart || '') !== String(stub.sleepStart || '');
+  const bedOk = bedDiff && isWallClockWithinRecentHoursNav(now, day.bed, 12);
+  const sleepOk = sleepDiff && isWallClockWithinRecentHoursNav(now, day.sleepStart, 12);
+  return Boolean(bedOk || sleepOk);
+}
+
+/**
+ * Dynamic "sleep" nav phase: in bed or asleep logged, wake not logged, and clock in overnight limbo or sleep window.
+ */
+function shouldShowDynamicSleepNavPhase(days, basis, now, nightMd) {
+  if (!basis || !days || !days.length || !nightMd) return false;
+  if (isNightWakeLogged(nightMd)) return false;
+  const averagesFallback =
+    typeof QUICK_ADD_FALLBACK_AVERAGES !== 'undefined' ? QUICK_ADD_FALLBACK_AVERAGES : null;
+  if (!isNightBedOrSleepLogged(nightMd, days, now, averagesFallback)) return false;
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  const inLimbo = shouldShowGoToBedSoonWakeNav(nowMins, basis.avgSleepEnd, basis.avgSleepStart);
+  const inSleepWin = inferNavSleepWindowPhase(now, basis.avgSleepStart, basis.avgSleepEnd);
+  return inLimbo || inSleepWin;
+}
+
 /** Last 7 days in `days`: average get-up, average fell-asleep, and wake-window length (minutes between them). */
 function computeRecentSevenDayWakeBasis(days) {
   if (!days || days.length === 0) return null;
@@ -1662,6 +1904,10 @@ function getRemainingWakeThresholdsControlHTML(ariaLabelledBy) {
   const windingBoundaryAria = t('config.remainingWake.windingBoundaryAria', 'Winding / Pre-sleep boundary (percent remaining)');
   const wakeLabel = t('config.remainingWake.wakeLabel', 'Wake');
   const sleepLabel = t('config.remainingWake.sleepLabel', 'Sleep');
+  const phaseSleepHint = t(
+    'config.remainingWake.phase.sleepHint',
+    'A fourth header phase (moon) appears automatically when you log bed or fell-asleep before wake. It is not controlled by these sliders.'
+  );
   return (
     '<p class="config-remaining-wake-default-row">' +
       '<button type="button" class="config-rw-defaults-button" id="config-rw-use-defaults">' + defaultsLabel + ' <span class="config-rw-default-values"></span></button>' +
@@ -1674,6 +1920,7 @@ function getRemainingWakeThresholdsControlHTML(ariaLabelledBy) {
     '<span class="config-remaining-wake-icon-seg" id="config-rw-icon-winding"><span class="config-rw-icon-emoji">🌇</span><span class="config-rw-icon-label">' + phaseWinding + '</span></span>' +
     '<span class="config-remaining-wake-icon-seg" id="config-rw-icon-presleep"><span class="config-rw-icon-emoji">🛏️</span><span class="config-rw-icon-label">' + phasePresleep + '</span></span>' +
     '</div>' +
+    '<p class="config-remaining-wake-sleep-note">' + phaseSleepHint + '</p>' +
     '<div class="config-remaining-wake-bar-wrap">' +
     '<div class="config-remaining-wake-bar">' +
     '<div class="config-remaining-wake-seg config-remaining-wake-seg--open" id="config-rw-seg-open"></div>' +
@@ -2083,6 +2330,30 @@ function renderNavBar(currentPage) {
   const gitBranchIcon =
     '<svg class="nav-dev-banner-branch-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>';
   const devDataRefreshHint = '<a href="config.html#cloud-sync" class="content-link nav-dev-banner-link">Cloud data not synced. Manually refresh in settings.</a>';
+  const githubBannerIcon =
+    '<svg class="nav-dev-banner-deploy-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>';
+  const vercelDeployIcon =
+    '<svg class="nav-dev-banner-deploy-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 1.125 22.5 20.25H1.5L12 1.125z"/></svg>';
+  const supabaseDeployIcon =
+    '<svg class="nav-dev-banner-deploy-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M21.362 9.354H12V.396l9.362 8.958zM12 12.396H3.638L12 21.362v-8.966zM12 0v9.362H0V12h12v12h2.638V12H24V9.362H12V0z"/></svg>';
+  const devBannerIconRow =
+    '<div class="nav-dev-banner-deploy-row">' +
+    '<a href="' +
+    escapeHtmlBannerAttr(GITHUB_REPO_URL) +
+    '" class="nav-dev-banner-deploy-link" target="_blank" rel="noopener noreferrer" title="GitHub repository" aria-label="Open GitHub repository">' +
+    githubBannerIcon +
+    '</a>' +
+    '<a href="' +
+    escapeHtmlBannerAttr(DEV_VERCEL_PROJECT_URL) +
+    '" class="nav-dev-banner-deploy-link" target="_blank" rel="noopener noreferrer" title="Vercel project" aria-label="Open Vercel project">' +
+    vercelDeployIcon +
+    '</a>' +
+    '<a href="' +
+    escapeHtmlBannerAttr(DEV_SUPABASE_DASHBOARD_URL) +
+    '" class="nav-dev-banner-deploy-link" target="_blank" rel="noopener noreferrer" title="Supabase dashboard" aria-label="Open Supabase dashboard">' +
+    supabaseDeployIcon +
+    '</a>' +
+    '</div>';
   const devBannerLeftInner = branchLabel
     ? `<div class="nav-dev-banner-line">Dev Build</div><div class="nav-dev-banner-branch-row">${gitBranchIcon}<span class="nav-dev-banner-branch-name">${escapeHtmlBannerText(branchLabel)}</span></div><div class="nav-dev-banner-line nav-dev-banner-line--hint">${devDataRefreshHint}</div>`
     : `<div class="nav-dev-banner-line">Dev Build</div><div class="nav-dev-banner-line nav-dev-banner-line--hint">${devDataRefreshHint}</div>`;
@@ -2093,12 +2364,13 @@ function renderNavBar(currentPage) {
     '<button type="button" class="nav-dev-banner-dev-clock-btn" id="nav-dev-banner-dev-clock-apply">Apply</button>' +
     '<button type="button" class="nav-dev-banner-dev-clock-btn" id="nav-dev-banner-dev-clock-reset">Real time</button>' +
     '</div>';
+  const devBannerRight = '<div class="nav-dev-banner-right">' + devBannerIconRow + devClockBlock + '</div>';
   const devBannerBody =
     '<div class="nav-dev-banner-inner">' +
     '<div class="nav-dev-banner-left">' +
     devBannerLeftInner +
     '</div>' +
-    devClockBlock +
+    devBannerRight +
     '</div>';
   const devAria = branchLabel
     ? `Development build, branch ${escapeHtmlBannerAttr(branchLabel)}; optional app time override`
@@ -2125,6 +2397,7 @@ function getRemainingWakeIcon(phase) {
     case 'open': return '☀️';
     case 'winding': return '🌇';
     case 'presleep': return '🛏️';
+    case 'sleep': return '🌙';
     default: return '☀️';
   }
 }
@@ -2142,22 +2415,36 @@ function shouldShowGoToBedSoonWakeNav(nowMins, wakeMins, sleepMins) {
   return nowMins > sleepMins || nowMins < wakeMins;
 }
 
-/** Build remaining-wake display from a computed wake basis. */
-function getRemainingWakeDisplayFromBasis(basis) {
+/** Build remaining-wake display from a computed wake basis. Pass `days` for dynamic sleep phase and wake flags. */
+function getRemainingWakeDisplayFromBasis(basis, days) {
   if (!basis || basis.totalWakeMins <= 0) return null;
   const { avgSleepStart, avgSleepEnd, totalWakeMins } = basis;
   const now = getAppDate();
   const nowMins = now.getHours() * 60 + now.getMinutes();
-  if (shouldShowGoToBedSoonWakeNav(nowMins, avgSleepEnd, avgSleepStart)) {
-    const phase = getRemainingWakePhase(0, totalWakeMins);
-    const icon = getRemainingWakeIcon(phase);
+  const nightMd = recordDateMdForSleepPeriod(now, avgSleepEnd);
+
+  if (days && days.length && shouldShowDynamicSleepNavPhase(days, basis, now, nightMd)) {
     return {
-      phase,
-      icon,
-      timeLabel: 'go to bed soon',
+      phase: 'sleep',
+      icon: getRemainingWakeIcon('sleep'),
+      timeLabel: 'sweet dreams',
       timeLabelSoft: true,
-      percentRemaining: 0
+      percentRemaining: null
     };
+  }
+
+  if (shouldShowGoToBedSoonWakeNav(nowMins, avgSleepEnd, avgSleepStart)) {
+    if (!(days && days.length && isNightWakeLogged(nightMd))) {
+      const phase = getRemainingWakePhase(0, totalWakeMins);
+      const icon = getRemainingWakeIcon(phase);
+      return {
+        phase,
+        icon,
+        timeLabel: 'go to bed soon',
+        timeLabelSoft: true,
+        percentRemaining: 0
+      };
+    }
   }
   const remainingMins = avgSleepStart >= nowMins ? avgSleepStart - nowMins : 1440 - nowMins + avgSleepStart;
   const phase = getRemainingWakePhase(remainingMins, totalWakeMins);
@@ -2174,7 +2461,7 @@ function getRemainingWakeDisplayFromBasis(basis) {
 function getRemainingWakeDisplayFromDays(days) {
   if (!days || days.length === 0) return null;
   const basis = getEffectiveRemainingWakeBasis(days);
-  return getRemainingWakeDisplayFromBasis(basis);
+  return getRemainingWakeDisplayFromBasis(basis, days);
 }
 
 /** Injects remaining wake into nav and sets phase class on wrapper. */
@@ -2195,12 +2482,25 @@ function updateRemainingWakeNav(display) {
     const timeClass =
       'nav-remaining-wake-time' +
       (display.timeLabelSoft ? ' nav-remaining-wake-time--soft' : '');
-    const ariaLabel = display.timeLabelSoft ? 'Go to bed soon' : 'Remaining wake time';
+    let ariaLabel = 'Remaining wake time';
+    if (display.phase === 'sleep') {
+      ariaLabel = 'Sweet dreams';
+    } else if (display.timeLabelSoft && display.phase === 'presleep') {
+      ariaLabel = 'Go to bed soon';
+    } else if (display.timeLabelSoft) {
+      ariaLabel = display.timeLabel || 'Go to bed soon';
+    }
+    const ariaEsc = escapeHtmlBannerAttr(ariaLabel);
     slot.innerHTML =
-      `<a href="about.html#remaining-wake-time" class="nav-remaining-wake-link" title="${ariaLabel}" aria-label="${ariaLabel}"><span class="nav-remaining-wake-main"><span class="nav-remaining-wake-icon" aria-hidden="true">${display.icon}</span><span class="${timeClass}">${display.timeLabel}</span></span>${progressBar}</a>`;
+      `<a href="about.html#remaining-wake-time" class="nav-remaining-wake-link" title="${ariaEsc}" aria-label="${ariaEsc}"><span class="nav-remaining-wake-main"><span class="nav-remaining-wake-icon" aria-hidden="true">${display.icon}</span><span class="${timeClass}">${display.timeLabel}</span></span>${progressBar}</a>`;
   }
   if (wrapper) {
-    wrapper.classList.remove('nav-wrapper--phase-open', 'nav-wrapper--phase-winding', 'nav-wrapper--phase-presleep');
+    wrapper.classList.remove(
+      'nav-wrapper--phase-open',
+      'nav-wrapper--phase-winding',
+      'nav-wrapper--phase-presleep',
+      'nav-wrapper--phase-sleep'
+    );
     wrapper.classList.add('nav-wrapper--phase-' + display.phase);
   }
 }
@@ -2218,10 +2518,12 @@ function initRemainingWakeNav(options) {
   }
   loadSleepData()
     .then(data => {
-      updateRemainingWakeNav(getRemainingWakeDisplayFromBasis(getEffectiveRemainingWakeBasis(data.days)));
+      const days = Array.isArray(data.days) ? data.days : [];
+      const basis = getEffectiveRemainingWakeBasis(days);
+      updateRemainingWakeNav(getRemainingWakeDisplayFromBasis(basis, days));
       if (runInterval && typeof window !== 'undefined') {
         window[timerKey] = setInterval(function () {
-          updateRemainingWakeNav(getRemainingWakeDisplayFromBasis(getEffectiveRemainingWakeBasis(data.days)));
+          updateRemainingWakeNav(getRemainingWakeDisplayFromBasis(basis, days));
         }, 60000);
       }
     })
