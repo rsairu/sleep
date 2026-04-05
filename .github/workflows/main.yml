@@ -5,8 +5,8 @@ permissions:
 
 on:
   schedule:
-    # Daily 05:00 AM JPT
-    - cron: "00 20 * * *"
+    # Daily 09:00 AM JPT
+    - cron: "00 00 * * *"
   workflow_dispatch:
 
 concurrency:
