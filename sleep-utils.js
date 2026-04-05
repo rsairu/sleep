@@ -2442,7 +2442,7 @@ function renderNavBar(currentPage) {
   const vercelProjectLink =
     '<a href="' +
     escapeHtmlBannerAttr(DEV_VERCEL_PROJECT_URL) +
-    '" class="nav-dev-banner-deploy-link nav-dev-banner-vercel-link nav-dev-banner-vercel-project-link" target="_blank" rel="noopener noreferrer" title="Vercel project dashboard" aria-label="Open Vercel project dashboard">' +
+    '" class="nav-dev-banner-deploy-link nav-dev-banner-vercel-link" target="_blank" rel="noopener noreferrer" title="Vercel project dashboard" aria-label="Open Vercel project dashboard">' +
     '<span class="nav-dev-banner-vercel-host">Project</span></a>';
   const vercelIconLink = vercelAppLink + vercelLabelsSep + vercelProjectLink;
   const branchMeta = branchLabel

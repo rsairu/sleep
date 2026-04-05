@@ -533,10 +533,6 @@ body{
   white-space: pre;
 }
 
-.nav-dev-banner-vercel-project-link.nav-dev-banner-deploy-link {
-  text-decoration: none;
-}
-
 .nav-dev-banner-clock-label {
   font-weight: 600;
   font-size: 0.7rem;
