@@ -498,10 +498,16 @@ body{
 
 .nav-dev-banner-vercel-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-start;
   align-self: flex-start;
+  gap: 0.35em 0.5em;
+  max-width: 100%;
+  min-width: 0;
+  text-align: left;
   text-transform: none;
+  font-weight: 400;
 }
 
 .nav-dev-banner-vercel-link.nav-dev-banner-deploy-link {
@@ -509,12 +515,26 @@ body{
   gap: 0.35em;
 }
 
-.nav-dev-banner-vercel-label {
+.nav-dev-banner-vercel-host {
   font-weight: 600;
   font-size: 0.7rem;
   letter-spacing: 0.02em;
   text-transform: none;
   line-height: 1.2;
+}
+
+.nav-dev-banner-vercel-sep {
+  flex-shrink: 0;
+  font-weight: 600;
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  color: rgba(255, 255, 255, 0.65);
+  white-space: pre;
+}
+
+.nav-dev-banner-vercel-project-link.nav-dev-banner-deploy-link {
+  text-decoration: none;
 }
 
 .nav-dev-banner-clock-label {
@@ -975,24 +995,6 @@ body{
 .nav-daynight-icon {
   width: 18px;
   height: 18px;
-}
-
-.nav-github-link {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text);
-  opacity: 0.7;
-  transition: opacity 0.2s;
-}
-
-.nav-github-link:hover {
-  opacity: 1;
-}
-
-.nav-github-icon {
-  width: 22px;
-  height: 22px;
 }
 
 .nav-tab {
