@@ -1168,6 +1168,7 @@ function evaluatePolynomial(coefficients, x) {
 
 // Project repo (used in nav bar)
 const GITHUB_REPO_URL = 'https://github.com/rsairu/sleep/';
+const DEV_VERCEL_APP_URL = 'https://sleep-mu.vercel.app';
 const DEV_VERCEL_PROJECT_URL = 'https://vercel.com/rsairu-5429s-projects/sleep';
 const SUPABASE_PROJECT_REF_PROD = 'lsaguxfovamihwnicpkk';
 const SUPABASE_PROJECT_REF_DEV = 'pjpzxkyflmzzbfdkujan';
@@ -2386,7 +2387,6 @@ function renderNavBar(currentPage) {
   const menuTrigger = `<button type="button" class="nav-menu-trigger" id="nav-menu-trigger" aria-label="${t('nav.menu.options', 'Options')}" aria-expanded="false" aria-haspopup="true">${hamburgerIcon}</button>`;
   const configIcon = `<svg class="nav-menu-item-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97 0-.33-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.31-.61-.22l-2.49 1c-.52-.39-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.09-.49 0-.61.22l-2 3.46c-.13.22-.08.49.12.64L4.57 11c-.04.34-.07.67-.07 1 0 .33.03.65.07.97l-2.11 1.66c-.19.15-.25.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1.01c.52.4 1.06.74 1.69.99l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.26 1.17-.59 1.69-.99l2.49 1.01c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.66z"/></svg>`;
   const aboutIcon = `<svg class="nav-menu-item-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>`;
-  const githubIcon = `<svg class="nav-menu-item-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>`;
   // Theme toggle: animated sun/moon from toggles.dev by Alfie Jones (https://toggles.dev). clipPathIdSuffix avoids duplicate IDs when nav + config both have the toggle.
   const themeToggleHTML = getThemeToggleHTML(nightActive, 'nav-menu-theme-toggle', 'nav');
   const menuItems = (
@@ -2394,7 +2394,6 @@ function renderNavBar(currentPage) {
       '<a href="about.html" class="nav-menu-item" role="menuitem"><span class="nav-menu-item-icon-wrap">' + aboutIcon + '</span><span>' + t('nav.menu.about', 'About') + '</span></a>' +
       '<a href="config.html" class="nav-menu-item" role="menuitem"><span class="nav-menu-item-icon-wrap">' + configIcon + '</span><span>' + t('nav.menu.settings', 'Settings') + '</span></a>' +
       '<div class="nav-menu-item nav-menu-theme-row" role="none"><span class="nav-menu-item-icon-wrap">' + themeToggleHTML + '</span><span>' + t('nav.menu.theme', 'Theme') + '</span></div>' +
-      '<a href="' + GITHUB_REPO_URL + '" class="nav-menu-item" role="menuitem" target="_blank" rel="noopener noreferrer"><span class="nav-menu-item-icon-wrap">' + githubIcon + '</span><span>GitHub</span></a>' +
     '</div>'
   );
   const dataSourceBadge = renderDataSourceBadge(getDataSourceState());
@@ -2433,12 +2432,19 @@ function renderNavBar(currentPage) {
     '" class="nav-dev-banner-deploy-link" target="_blank" rel="noopener noreferrer" title="Supabase dashboard" aria-label="Open Supabase dashboard">' +
     supabaseDeployIcon +
     '</a>';
-  const vercelIconLink =
+  const vercelAppLink =
+    '<a href="' +
+    escapeHtmlBannerAttr(DEV_VERCEL_APP_URL) +
+    '" class="nav-dev-banner-deploy-link nav-dev-banner-vercel-link" target="_blank" rel="noopener noreferrer" title="Open production deployment (sleep-mu.vercel.app)" aria-label="Open production deployment at sleep-mu.vercel.app">' +
+    vercelDeployIcon +
+    '<span class="nav-dev-banner-vercel-host">Production</span></a>';
+  const vercelLabelsSep = '<span class="nav-dev-banner-vercel-sep" aria-hidden="true">   |   </span>';
+  const vercelProjectLink =
     '<a href="' +
     escapeHtmlBannerAttr(DEV_VERCEL_PROJECT_URL) +
-    '" class="nav-dev-banner-deploy-link nav-dev-banner-vercel-link" target="_blank" rel="noopener noreferrer" title="Vercel project" aria-label="Open Vercel project">' +
-    vercelDeployIcon +
-    '<span class="nav-dev-banner-vercel-label">Vercel project</span></a>';
+    '" class="nav-dev-banner-deploy-link nav-dev-banner-vercel-link" target="_blank" rel="noopener noreferrer" title="Vercel project dashboard" aria-label="Open Vercel project dashboard">' +
+    '<span class="nav-dev-banner-vercel-host">Project</span></a>';
+  const vercelIconLink = vercelAppLink + vercelLabelsSep + vercelProjectLink;
   const branchMeta = branchLabel
     ? '<span class="nav-dev-banner-branch-meta">' +
       gitBranchIcon +
