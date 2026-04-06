@@ -47,3 +47,18 @@ jobs:
             -w /work \
             postgres:17 \
             bash -lc 'pg_restore --dbname="$DEV_DATABASE_URL" --clean --if-exists --no-owner --no-acl /work/prod_public.dump'
+      - name: Re-apply grants
+        run: |
+          docker run --rm \
+            -e DEV_DATABASE_URL \
+            -v "${GITHUB_WORKSPACE}:/work" \
+            -w /work \
+            postgres:17 \
+            bash -lc '
+              psql "$DEV_DATABASE_URL" <<SQL
+                grant usage on schema public to anon, authenticated;
+                grant select, insert, update, delete on all tables in schema public to anon, authenticated;
+                grant usage, select on all sequences in schema public to anon, authenticated;
+                grant execute on function public.promote_draft_if_complete(text, jsonb) to anon, authenticated;
+              SQL
+            '
