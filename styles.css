@@ -462,13 +462,37 @@ body{
   font: inherit;
   font-size: 0.65rem;
   letter-spacing: 0.03em;
-  text-transform: uppercase;
-  padding: 5px 10px;
+  text-transform: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+  min-width: 0;
+  min-height: 0;
+  padding: 4px 10px;
   border: none;
   margin: 0;
   background: rgba(255, 255, 255, 0.12);
   color: #ffffff;
   cursor: pointer;
+  line-height: 1.2;
+}
+
+.nav-dev-banner-clock-mode-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.nav-dev-banner-clock-mode-icon {
+  width: 1.2rem;
+  height: 1.2rem;
+  flex-shrink: 0;
+}
+
+.nav-dev-banner-clock-sim-ghost {
+  opacity: 0.38;
 }
 
 .nav-dev-banner-clock-mode-btn + .nav-dev-banner-clock-mode-btn {
@@ -489,11 +513,72 @@ body{
 
 .nav-dev-banner-clock-sim-panel {
   display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+}
+
+.nav-dev-banner-clock-wall-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px 10px;
+  width: 100%;
+}
+
+.nav-dev-banner-clock-wall-row .nav-dev-banner-dev-clock-input {
+  flex: 1 1 12rem;
+  min-width: 0;
+  width: 100%;
+}
+
+.nav-dev-banner-clock-step-toolbar {
+  display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 6px 8px;
+  gap: 4px;
   width: 100%;
+}
+
+.nav-dev-banner-clock-step-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 1.35rem;
+  min-height: 1.35rem;
+  padding: 0;
+  margin: 0;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  cursor: pointer;
+  line-height: 0;
+  flex-shrink: 0;
+}
+
+.nav-dev-banner-clock-step-btn:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.nav-dev-banner-clock-step-btn:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+  z-index: 1;
+  position: relative;
+}
+
+.nav-dev-banner-clock-step-icon {
+  width: 0.9rem;
+  height: 0.9rem;
+  flex-shrink: 0;
 }
 
 .nav-dev-banner-vercel-row {
@@ -533,31 +618,34 @@ body{
   white-space: pre;
 }
 
-.nav-dev-banner-clock-label {
-  font-weight: 600;
-  font-size: 0.7rem;
-  letter-spacing: 0.02em;
-  margin: 0;
-  white-space: nowrap;
-}
-
 .nav-dev-banner-dev-clock-input {
   font: inherit;
   font-size: 0.8rem;
   letter-spacing: normal;
   text-transform: none;
-  padding: 4px 6px;
+  padding: 3px 6px;
   border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.55);
   background: rgba(255, 255, 255, 0.95);
   color: #1a1a1a;
   min-width: 0;
   max-width: 100%;
+  cursor: pointer;
 }
 
 .nav-dev-banner-dev-clock-input:focus {
   outline: 2px solid #ffffff;
   outline-offset: 2px;
+}
+
+/* Chromium/WebKit/Safari: extra gap between date fields and time fields in the control (native picker chrome is not styleable). */
+.nav-dev-banner-dev-clock-input::-webkit-datetime-edit-fields-wrapper {
+  padding: 1px 2px;
+}
+
+.nav-dev-banner-dev-clock-input::-webkit-datetime-edit-hour-field {
+  padding-left: 0.55em;
+  margin-left: 0.2em;
 }
 
 .nav-dev-banner-dev-clock-btn {
@@ -613,7 +701,11 @@ body{
   }
 
   .nav-dev-banner-clock-sim-panel {
-    justify-content: center;
+    align-items: center;
+  }
+
+  .nav-dev-banner-clock-wall-row {
+    justify-content: flex-start;
   }
 }
 
