@@ -2270,15 +2270,21 @@ function initDevClockControl() {
     panel.hidden = realTimeActive;
   }
 
-  function persistDevClockFromInput(inputEl) {
-    const v = inputEl.value;
-    if (!v) return;
-    const t = new Date(v);
+  function persistDevClockMs(ms) {
+    const t = new Date(ms);
     if (Number.isNaN(t.getTime())) return;
     try {
       localStorage.setItem(DEV_CLOCK_OVERRIDE_MS_KEY, String(t.getTime()));
     } catch (_) {}
     window.location.reload();
+  }
+
+  function persistDevClockFromInput(inputEl) {
+    const v = inputEl.value;
+    if (!v) return;
+    const t = new Date(v);
+    if (Number.isNaN(t.getTime())) return;
+    persistDevClockMs(t.getTime());
   }
 
   function bindWhenReady() {
@@ -2306,6 +2312,20 @@ function initDevClockControl() {
       persistDevClockFromInput(input);
     });
 
+    function openDevClockNativePicker() {
+      try {
+        if (typeof input.showPicker === 'function') {
+          input.showPicker();
+          return;
+        }
+      } catch (_) {}
+      input.focus();
+    }
+
+    input.addEventListener('click', function () {
+      openDevClockNativePicker();
+    });
+
     realBtn.addEventListener('click', function () {
       if (readDevClockOverrideMs() != null) {
         try {
@@ -2321,6 +2341,25 @@ function initDevClockControl() {
       setModeUi(false);
       input.value = formatDateForDatetimeLocal(getAppDate());
     });
+
+    const stepSpec = [
+      { id: 'nav-dev-banner-clock-step-prev-day', apply: function (d) { d.setDate(d.getDate() - 1); } },
+      { id: 'nav-dev-banner-clock-step-minus-hour', apply: function (d) { d.setHours(d.getHours() - 1); } },
+      { id: 'nav-dev-banner-clock-step-minus-min', apply: function (d) { d.setMinutes(d.getMinutes() - 1); } },
+      { id: 'nav-dev-banner-clock-step-plus-min', apply: function (d) { d.setMinutes(d.getMinutes() + 1); } },
+      { id: 'nav-dev-banner-clock-step-plus-hour', apply: function (d) { d.setHours(d.getHours() + 1); } },
+      { id: 'nav-dev-banner-clock-step-next-day', apply: function (d) { d.setDate(d.getDate() + 1); } }
+    ];
+    for (let i = 0; i < stepSpec.length; i++) {
+      const spec = stepSpec[i];
+      const btn = document.getElementById(spec.id);
+      if (!btn) continue;
+      btn.addEventListener('click', function () {
+        const d = getAppDate();
+        spec.apply(d);
+        persistDevClockMs(d.getTime());
+      });
+    }
   }
 
   requestAnimationFrame(bindWhenReady);
@@ -2546,6 +2585,11 @@ function getDevGitBranchLabel() {
   return t || '';
 }
 
+function isDevGitBranchMaster() {
+  const label = getDevGitBranchLabel();
+  return label !== '' && label.toLowerCase() === 'master';
+}
+
 // Render navigation bar
 function renderNavBar(currentPage) {
   applyDayNightTheme();
@@ -2591,6 +2635,10 @@ function renderNavBar(currentPage) {
   const branchLabel = getDevGitBranchLabel();
   const supabaseDashboardUrl = resolveSupabaseDashboardUrl();
   const devBannerDbClass = getDevBannerSupabaseDbClass();
+  const devBannerOnMaster = isDevGitBranchMaster();
+  const useAlertBannerBg =
+    devBannerDbClass === 'nav-dev-banner--db-prod' || devBannerOnMaster;
+  const devBannerBgClass = useAlertBannerBg ? 'nav-dev-banner--db-prod' : 'nav-dev-banner--db-dev';
   const clockOverrideActive = readDevClockOverrideMs() != null;
   const cloudRefreshDisabled = !getSupabaseConfig().enabled;
   // Feather-style git-branch (MIT); stroke scales with banner font size.
@@ -2604,6 +2652,29 @@ function renderNavBar(currentPage) {
     '<svg class="nav-dev-banner-deploy-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M21.362 9.354H12V.396l9.362 8.958zM12 12.396H3.638L12 21.362v-8.966zM12 0v9.362H0V12h12v12h2.638V12H24V9.362H12V0z"/></svg>';
   const refreshIconSvg =
     '<svg class="nav-dev-banner-refresh-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>';
+  const devClockGlobeIcon =
+    '<svg class="nav-dev-banner-clock-mode-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<circle cx="12" cy="12" r="10"/>' +
+    '<line x1="2" y1="12" x2="22" y2="12"/>' +
+    '<path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>' +
+    '</svg>';
+  const devClockSimIcon =
+    '<svg class="nav-dev-banner-clock-mode-icon nav-dev-banner-clock-mode-icon--sim" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<g class="nav-dev-banner-clock-sim-ghost"><circle cx="8" cy="7" r="3.5"/><path d="M4 21v-2a4 4 0 0 1 4-4h0a4 4 0 0 1 4 4v2"/></g>' +
+    '<g><circle cx="15" cy="9" r="3.5"/><path d="M11 21v-2a4 4 0 0 1 4-4h0a4 4 0 0 1 4 4v2"/></g>' +
+    '</svg>';
+  const devClockStepIconPrevDay =
+    '<svg class="nav-dev-banner-clock-step-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="4" x2="5" y2="20"/><polyline points="20 18 14 12 20 6"/><polyline points="14 18 8 12 14 6"/></svg>';
+  const devClockStepIconMinusHour =
+    '<svg class="nav-dev-banner-clock-step-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="18 18 12 12 18 6"/><polyline points="12 18 6 12 12 6"/></svg>';
+  const devClockStepIconMinusMin =
+    '<svg class="nav-dev-banner-clock-step-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="14 18 8 12 14 6"/></svg>';
+  const devClockStepIconPlusMin =
+    '<svg class="nav-dev-banner-clock-step-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="10 18 16 12 10 6"/></svg>';
+  const devClockStepIconPlusHour =
+    '<svg class="nav-dev-banner-clock-step-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 18 12 12 6 6"/><polyline points="12 18 18 12 12 6"/></svg>';
+  const devClockStepIconNextDay =
+    '<svg class="nav-dev-banner-clock-step-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="4 18 10 12 4 6"/><polyline points="10 18 16 12 10 6"/><line x1="19" y1="4" x2="19" y2="20"/></svg>';
   const githubBannerLink =
     '<a href="' +
     escapeHtmlBannerAttr(GITHUB_REPO_URL) +
@@ -2651,38 +2722,70 @@ function renderNavBar(currentPage) {
     '</div>';
   const devBannerVercelRow = '<div class="nav-dev-banner-vercel-row">' + vercelIconLink + '</div>';
   const devBannerLeftInner = devBannerBranchRow + devBannerCloudRow + devBannerVercelRow;
-  const devBannerProdWarning =
-    devBannerDbClass === 'nav-dev-banner--db-prod'
-      ? '<p class="nav-dev-banner-prod-warning">⚠️ You are using PROD data!</p>'
-      : '';
+  let devBannerWarnings = '';
+  if (devBannerDbClass === 'nav-dev-banner--db-prod') {
+    devBannerWarnings += '<p class="nav-dev-banner-prod-warning">⚠️ You are using PROD data!</p>';
+  }
+  if (devBannerOnMaster) {
+    devBannerWarnings +=
+      '<p class="nav-dev-banner-prod-warning">⚠️ You are on the master branch — use a feature branch for development and testing.</p>';
+  }
   const devTitleRow =
     '<div class="nav-dev-banner-title-row">' +
     '<div class="nav-dev-banner-line nav-dev-banner-title">DEV BUILD</div>' +
     '<hr class="nav-dev-banner-title-rule" aria-hidden="true" />' +
-    devBannerProdWarning +
+    devBannerWarnings +
     '</div>';
   const clockRealActive = !clockOverrideActive;
   const clockRealClass = clockRealActive ? ' nav-dev-banner-clock-mode-btn--active' : '';
   const clockSimClass = clockOverrideActive ? ' nav-dev-banner-clock-mode-btn--active' : '';
   const devClockBlock =
-    '<div class="nav-dev-banner-clock" role="group" aria-label="App time (wall clock): real time or simulated override for app logic (development only)">' +
-    '<span class="nav-dev-banner-clock-heading">App time (wall clock)</span>' +
+    '<div class="nav-dev-banner-clock" role="group" aria-label="App time controls: real time or simulated override for app logic (development only)">' +
+    '<span class="nav-dev-banner-clock-heading">App time controls</span>' +
     '<div class="nav-dev-banner-clock-mode" role="group" aria-label="App time source">' +
     '<button type="button" class="nav-dev-banner-clock-mode-btn' +
     clockRealClass +
-    '" id="nav-dev-banner-clock-mode-real" aria-pressed="' +
+    '" id="nav-dev-banner-clock-mode-real" title="Use real time" aria-label="Use real time" aria-pressed="' +
     (clockRealActive ? 'true' : 'false') +
-    '">Real time</button>' +
+    '">' +
+    devClockGlobeIcon +
+    '<span class="nav-dev-banner-clock-mode-label">Real time</span>' +
+    '</button>' +
     '<button type="button" class="nav-dev-banner-clock-mode-btn' +
     clockSimClass +
-    '" id="nav-dev-banner-clock-mode-sim" aria-pressed="' +
+    '" id="nav-dev-banner-clock-mode-sim" title="Use simulated time" aria-label="Use simulated time" aria-pressed="' +
     (clockOverrideActive ? 'true' : 'false') +
-    '">Simulated</button>' +
+    '">' +
+    '<span class="nav-dev-banner-clock-mode-label">Simulated</span>' +
+    devClockSimIcon +
+    '</button>' +
     '</div>' +
     '<div class="nav-dev-banner-clock-sim-panel" id="nav-dev-banner-clock-sim-panel"' +
     (clockOverrideActive ? '' : ' hidden') +
     '>' +
+    '<div class="nav-dev-banner-clock-wall-row">' +
     '<input type="datetime-local" id="nav-dev-banner-dev-clock-input" class="nav-dev-banner-dev-clock-input" autocomplete="off" />' +
+    '</div>' +
+    '<div class="nav-dev-banner-clock-step-toolbar" role="toolbar" aria-label="Adjust simulated time">' +
+    '<button type="button" class="nav-dev-banner-clock-step-btn" id="nav-dev-banner-clock-step-prev-day" title="Previous day" aria-label="Previous day">' +
+    devClockStepIconPrevDay +
+    '</button>' +
+    '<button type="button" class="nav-dev-banner-clock-step-btn" id="nav-dev-banner-clock-step-minus-hour" title="Back one hour" aria-label="Back one hour">' +
+    devClockStepIconMinusHour +
+    '</button>' +
+    '<button type="button" class="nav-dev-banner-clock-step-btn" id="nav-dev-banner-clock-step-minus-min" title="Back one minute" aria-label="Back one minute">' +
+    devClockStepIconMinusMin +
+    '</button>' +
+    '<button type="button" class="nav-dev-banner-clock-step-btn" id="nav-dev-banner-clock-step-plus-min" title="Forward one minute" aria-label="Forward one minute">' +
+    devClockStepIconPlusMin +
+    '</button>' +
+    '<button type="button" class="nav-dev-banner-clock-step-btn" id="nav-dev-banner-clock-step-plus-hour" title="Forward one hour" aria-label="Forward one hour">' +
+    devClockStepIconPlusHour +
+    '</button>' +
+    '<button type="button" class="nav-dev-banner-clock-step-btn" id="nav-dev-banner-clock-step-next-day" title="Next day" aria-label="Next day">' +
+    devClockStepIconNextDay +
+    '</button>' +
+    '</div>' +
     '</div>' +
     '</div>';
   const devBannerRight = '<div class="nav-dev-banner-right">' + devClockBlock + '</div>';
@@ -2694,13 +2797,15 @@ function renderNavBar(currentPage) {
     devBannerRight +
     '</div>';
   const devBannerBody = '<div class="nav-dev-banner-inner">' + devTitleRow + devBannerMainRow + '</div>';
-  const prodAria =
+  const prodSupabaseAria =
     devBannerDbClass === 'nav-dev-banner--db-prod' ? ' Using production Supabase data.' : '';
+  const masterBranchAria = devBannerOnMaster ? ' Current git branch is master.' : '';
+  const devBannerAlertAria = prodSupabaseAria + masterBranchAria;
   const devAria = branchLabel
-    ? `Development build, branch ${escapeHtmlBannerAttr(branchLabel)}; wall clock real or simulated.${prodAria}`
-    : `Development build; wall clock real or simulated.${prodAria}`;
+    ? `Development build, branch ${escapeHtmlBannerAttr(branchLabel)}; App time controls: real or simulated.${devBannerAlertAria}`
+    : `Development build; App time controls: real or simulated.${devBannerAlertAria}`;
   const devBanner = isDevBuildContext()
-    ? `<div class="nav-dev-banner ${devBannerDbClass}" role="status" aria-label="${devAria}">${devBannerBody}</div>`
+    ? `<div class="nav-dev-banner ${devBannerBgClass}" role="status" aria-label="${devAria}">${devBannerBody}</div>`
     : '';
   return `<div class="nav-wrapper nav-wrapper--remaining-wake">${devBanner}${headerRow}${tabsRow}</div>`;
 }
