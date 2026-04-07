@@ -1615,6 +1615,9 @@ function markNightQaSleepFlag(nightMd, kind) {
     const map = readNightQaSleepFlagMap();
     if (!map[nightMd]) map[nightMd] = {};
     map[nightMd][kind] = true;
+    if (kind === 'wake') {
+      map[nightMd].wakeAtMs = getAppNowMs();
+    }
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem(RESTORE_QA_SLEEP_LOGGED_KEY, JSON.stringify(map));
     }
@@ -1628,6 +1631,8 @@ function formatMonthDayFromDateForNav(d) {
 /**
  * Wake-day key for the night row (evening → next calendar wake-day; early morning stays today).
  * Matches quick-actions recordDateMdForSleep.
+ * Wake-day invariant: row `date` is the wake that completes the night.
+ * Example: bed at 10 PM previous day or 1 AM same day both belong to the wake-day row.
  */
 function recordDateMdForSleepPeriod(now, avgWakeMins) {
   const nowM = now.getHours() * 60 + now.getMinutes();
@@ -1637,6 +1642,61 @@ function recordDateMdForSleepPeriod(now, avgWakeMins) {
   }
   const t = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
   return formatMonthDayFromDateForNav(t);
+}
+
+/**
+ * True when this wake-day row has user bed/sleep data but wake (sleepEnd) is still the stub default
+ * and no QA wake flag — i.e. the night is not finalized. Used for wake quick-action date resolution.
+ */
+function nightRowAwaitingWake(nightMd, liveDays, averagesFallback) {
+  if (!nightMd) return false;
+  if (isNightWakeLogged(nightMd)) return false;
+  const qa = readNightQaSleepFlagMap()[nightMd];
+  if (qa && qa.wake) return false;
+  const day = pickDayForNightMdNav(nightMd, liveDays || []);
+  const stub = buildStubDayForNightMd(nightMd, liveDays || [], averagesFallback);
+  let hasUserBedSleep = Boolean(qa && (qa.bed || qa.sleep));
+  if (day && stub) {
+    const bedDiff = String(day.bed || '') !== String(stub.bed || '');
+    const sleepDiff = String(day.sleepStart || '') !== String(stub.sleepStart || '');
+    if (bedDiff || sleepDiff) hasUserBedSleep = true;
+  } else if (day && !stub) {
+    if ((day.bed && String(day.bed).trim() !== '') || (day.sleepStart && String(day.sleepStart).trim() !== '')) {
+      hasUserBedSleep = true;
+    }
+  }
+  if (!hasUserBedSleep) return false;
+  if (!day || !stub) return true;
+  const wakeDiff = String(day.sleepEnd || '') !== String(stub.sleepEnd || '');
+  return !wakeDiff;
+}
+
+/**
+ * Wake-day key for persisting sleepEnd / morning alarm: same basis as recordDateMdForSleepPeriod, but if the
+ * clock has moved to the next calendar morning while yesterday's wake-day row is still awaiting wake,
+ * finalize that row (simulated time / late logging). Otherwise bed and wake would land on different rows.
+ */
+function resolveRecordDateMdForWake(now, avgWakeMins, liveDays) {
+  const primary = recordDateMdForSleepPeriod(now, avgWakeMins);
+  const averagesFallback =
+    typeof QUICK_ADD_FALLBACK_AVERAGES !== 'undefined' ? QUICK_ADD_FALLBACK_AVERAGES : null;
+  const nowM = now.getHours() * 60 + now.getMinutes();
+  const w = modMinutes1440(avgWakeMins);
+  const inEarlyMorningBand = nowM <= w + 120;
+  if (!inEarlyMorningBand) {
+    return primary;
+  }
+  const y = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  const priorCalMd = formatMonthDayFromDateForNav(y);
+  const priorOpen = nightRowAwaitingWake(priorCalMd, liveDays, averagesFallback);
+  if (!priorOpen) {
+    return primary;
+  }
+  const primaryOpen = nightRowAwaitingWake(primary, liveDays, averagesFallback);
+  if (!primaryOpen) {
+    return priorCalMd;
+  }
+  return primary;
 }
 
 function remainWakeCircDistMinutes(a, b) {
@@ -1655,19 +1715,33 @@ function remainWakeOffsetFromSleepAvg(nowM, sleepAvgM) {
   return o;
 }
 
-/** Same window as dashboard quick-actions inferPhase === 'sleep' (not wake, not mid). */
-function inferNavSleepWindowPhase(now, avgSleepStart, avgSleepEnd) {
-  const WAKE_PROXIMITY_MINS = 105;
-  const SLEEP_WINDOW_BEFORE = 120;
-  const SLEEP_WINDOW_AFTER = 240;
+const PHASE_WAKE_PROXIMITY_MINS = 105;
+const PHASE_SLEEP_WINDOW_BEFORE = 120;
+const PHASE_SLEEP_WINDOW_AFTER = 240;
+
+/** Shared time-aware phase logic for remaining wake and dashboard quick actions. */
+function inferSharedSleepContextPhase(now, avgSleepStart, avgSleepEnd) {
   const nowM = now.getHours() * 60 + now.getMinutes();
   const wakeM = avgSleepEnd;
   const sleepM = avgSleepStart;
-  if (remainWakeCircDistMinutes(nowM, wakeM) <= WAKE_PROXIMITY_MINS) {
-    return false;
+  if (remainWakeCircDistMinutes(nowM, wakeM) <= PHASE_WAKE_PROXIMITY_MINS) {
+    return 'wake';
   }
   const off = remainWakeOffsetFromSleepAvg(nowM, sleepM);
-  return off >= -SLEEP_WINDOW_BEFORE && off <= SLEEP_WINDOW_AFTER;
+  if (off >= -PHASE_SLEEP_WINDOW_BEFORE && off <= PHASE_SLEEP_WINDOW_AFTER) {
+    return 'sleep';
+  }
+  return 'mid';
+}
+
+function isWithinWakeProximity(now, avgSleepEnd) {
+  const nowM = now.getHours() * 60 + now.getMinutes();
+  return remainWakeCircDistMinutes(nowM, avgSleepEnd) <= PHASE_WAKE_PROXIMITY_MINS;
+}
+
+/** Same window as dashboard quick-actions inferPhase === 'sleep' (not wake, not mid). */
+function inferNavSleepWindowPhase(now, avgSleepStart, avgSleepEnd) {
+  return inferSharedSleepContextPhase(now, avgSleepStart, avgSleepEnd) === 'sleep';
 }
 
 function findDayByDateMd(days, md) {
@@ -1806,6 +1880,116 @@ function applyTonightProjectionAdjustmentToBasis(basis, adjustment) {
 function getEffectiveRemainingWakeBasis(days) {
   const base = computeRecentSevenDayWakeBasis(days);
   return applyTonightProjectionAdjustmentToBasis(base, getTonightProjectionAdjustment());
+}
+
+function getFallbackWakeBasis() {
+  const fallback = typeof QUICK_ADD_FALLBACK_AVERAGES !== 'undefined'
+    ? QUICK_ADD_FALLBACK_AVERAGES
+    : { avgSleepStart: 22 * 60 + 30, avgSleepEnd: 7 * 60 };
+  return {
+    avgSleepStart: fallback.avgSleepStart,
+    avgSleepEnd: fallback.avgSleepEnd,
+    totalWakeMins: durationMinutes(fallback.avgSleepEnd, fallback.avgSleepStart)
+  };
+}
+
+function getWakeDayCandidateMds(now) {
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  return [
+    formatMonthDayFromDateForNav(today),
+    formatMonthDayFromDateForNav(yesterday),
+    formatMonthDayFromDateForNav(tomorrow)
+  ];
+}
+
+function isWakeEventRecentForMd(md, liveDays, now, hoursBack, averagesFallback) {
+  if (!md) return false;
+  const qa = readNightQaSleepFlagMap()[md];
+  if (qa && Number.isFinite(qa.wakeAtMs)) {
+    const nowMs = now.getTime();
+    const lo = nowMs - hoursBack * 3600000;
+    const hi = nowMs + 45 * 60000;
+    if (qa.wakeAtMs >= lo && qa.wakeAtMs <= hi) return true;
+  }
+  const day = pickDayForNightMdNav(md, liveDays);
+  if (!day) return false;
+  const stub = buildStubDayForNightMd(md, liveDays, averagesFallback);
+  if (!stub) return false;
+  const wakeDiff = String(day.sleepEnd || '') !== String(stub.sleepEnd || '');
+  const wakeLogged = Boolean((qa && qa.wake) || wakeDiff);
+  if (!wakeLogged) return false;
+  return isWallClockWithinRecentHoursNav(now, day.sleepEnd, hoursBack);
+}
+
+function isRecentWakeInHours(liveDays, now, hoursBack, averagesFallback) {
+  if (!now || !Number.isFinite(hoursBack) || hoursBack <= 0) return false;
+  const mdCandidates = getWakeDayCandidateMds(now);
+  for (let i = 0; i < mdCandidates.length; i++) {
+    if (isWakeEventRecentForMd(mdCandidates[i], liveDays, now, hoursBack, averagesFallback)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+const IMPLICIT_POST_WAKE_QUIET_MINUTES = 180;
+
+/**
+ * True when wall clock is within `quietMinutes` after average wake on a typical wake-before-sleep schedule.
+ * Skips when avg wake is not before avg sleep on the clock (avoids odd shift edge cases).
+ */
+function isImplicitPostWakeQuietWindow(now, avgWakeMins, avgSleepStartMins, quietMinutes) {
+  if (!now || !Number.isFinite(avgWakeMins) || !Number.isFinite(avgSleepStartMins) || !Number.isFinite(quietMinutes)) {
+    return false;
+  }
+  const w = modMinutes1440(avgWakeMins);
+  const s = modMinutes1440(avgSleepStartMins);
+  if (w >= s) return false;
+  const n = modMinutes1440(now.getHours() * 60 + now.getMinutes());
+  if (n < w) return false;
+  return n - w <= quietMinutes;
+}
+
+/**
+ * Shared dashboard/app time context for nav-canonical UI decisions with explicit override signals.
+ */
+function getSharedAppTimeContext(days) {
+  const liveDays = Array.isArray(days) ? days : [];
+  const now = getAppDate();
+  const basis = getEffectiveRemainingWakeBasis(liveDays) || getFallbackWakeBasis();
+  if (!basis || !Number.isFinite(basis.avgSleepStart) || !Number.isFinite(basis.avgSleepEnd)) {
+    return null;
+  }
+  const nightMd = recordDateMdForSleepPeriod(now, basis.avgSleepEnd);
+  const navDisplay = getRemainingWakeDisplayFromBasis(basis, liveDays);
+  const averagesFallback = typeof QUICK_ADD_FALLBACK_AVERAGES !== 'undefined' ? QUICK_ADD_FALLBACK_AVERAGES : null;
+  const isDynamicSleepPhase =
+    Boolean(liveDays.length && shouldShowDynamicSleepNavPhase(liveDays, basis, now, nightMd));
+  const wakeProximity = isWithinWakeProximity(now, basis.avgSleepEnd);
+  const wakeInLast3Hours = isRecentWakeInHours(
+    liveDays,
+    now,
+    3,
+    averagesFallback
+  );
+  const implicitPostWakeQuiet = isImplicitPostWakeQuietWindow(
+    now,
+    basis.avgSleepEnd,
+    basis.avgSleepStart,
+    IMPLICIT_POST_WAKE_QUIET_MINUTES
+  );
+  return {
+    now,
+    basis,
+    nightMd,
+    navDisplay,
+    isDynamicSleepPhase,
+    wakeProximity,
+    wakeInLast3Hours,
+    implicitPostWakeQuiet
+  };
 }
 
 /** Wall-clock minute (0–1439) when only `percentWakeRemaining` of the average wake window remains before average sleep. */

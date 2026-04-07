@@ -136,6 +136,25 @@ function runTests() {
   expectEqual(low, 1420, 'projection lower bound wraps to previous day');
   expectEqual(high, 40, 'projection upper bound wraps forward');
 
+  // Wake record date: finish prior wake-day row when clock rolls to next calendar morning
+  const avgWake = 7 * 60;
+  const wakeDays = [
+    { date: '4/8', bed: '23:00', sleepStart: '23:30', sleepEnd: '07:00' },
+    { date: '4/7', bed: '22:10', sleepStart: '23:05', sleepEnd: '07:00' }
+  ];
+  const apr8Morning = new Date(2026, 3, 8, 8, 0, 0, 0);
+  expectEqual(
+    u.resolveRecordDateMdForWake(apr8Morning, avgWake, wakeDays),
+    '4/7',
+    'resolveRecordDateMdForWake prefers prior day open night in early-morning band'
+  );
+  const apr8Afternoon = new Date(2026, 3, 8, 14, 0, 0, 0);
+  expectEqual(
+    u.resolveRecordDateMdForWake(apr8Afternoon, avgWake, wakeDays),
+    '4/9',
+    'resolveRecordDateMdForWake uses sleep-period key outside early-morning band'
+  );
+
   // Dataset invariants on current data (guardrails for regressions)
   const dataPath = path.join(__dirname, 'sleep-data.json');
   if (fs.existsSync(dataPath)) {

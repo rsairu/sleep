@@ -1,9 +1,6 @@
 // Time-aware dashboard quick actions (wake / nap / sleep) using recent averages; persists via upsertSleepDay.
 (function () {
   const NAP_STORAGE_KEY = 'restore_quick_nap_v1';
-  const WAKE_PROXIMITY_MINS = 105;
-  const SLEEP_WINDOW_BEFORE = 120;
-  const SLEEP_WINDOW_AFTER = 240;
 
   let quickActionsIntervalId = null;
   let boundClickHandler = null;
@@ -29,27 +26,6 @@
     return formatTime(nowClockMinutes(x));
   }
 
-  function mod1440(m) {
-    return ((Math.round(m) % 1440) + 1440) % 1440;
-  }
-
-  function circDistMinutes(a, b) {
-    const x = mod1440(a);
-    const y = mod1440(b);
-    const d = Math.abs(x - y);
-    return Math.min(d, 1440 - d);
-  }
-
-  /** Minutes from average sleep-start clock, on overnight axis (handles post-midnight). */
-  function offsetFromSleepAvg(nowM, sleepAvgM) {
-    const s = mod1440(sleepAvgM);
-    const n = mod1440(nowM);
-    let o = n - s;
-    if (o < -720) o += 1440;
-    if (o > 720) o -= 1440;
-    return o;
-  }
-
   function getAveragesFromDays(days) {
     const recent = days && days.length ? days.slice(0, Math.min(7, days.length)) : [];
     if (recent.length === 0) {
@@ -64,25 +40,24 @@
    * @returns {'wake'|'sleep'|'mid'}
    */
   function inferPhase(now, averages) {
-    const nowM = nowClockMinutes(now);
-    const wakeM = averages.avgSleepEnd;
-    const sleepM = averages.avgSleepStart;
-    if (circDistMinutes(nowM, wakeM) <= WAKE_PROXIMITY_MINS) {
-      return 'wake';
-    }
-    const off = offsetFromSleepAvg(nowM, sleepM);
-    if (off >= -SLEEP_WINDOW_BEFORE && off <= SLEEP_WINDOW_AFTER) {
-      return 'sleep';
+    if (typeof inferSharedSleepContextPhase === 'function') {
+      return inferSharedSleepContextPhase(now, averages.avgSleepStart, averages.avgSleepEnd);
     }
     return 'mid';
   }
 
-  /**
-   * Wake-day key for the night being entered from the sleep bar (evening → next calendar wake-day).
-   * Early morning before typical wake stays on today's wake-day.
-   */
-  function recordDateMdForWake(now) {
-    return formatMdFromDate(now);
+  function getQuickActionsPhaseFromSharedContext(sharedContext, now, averages) {
+    if (sharedContext && sharedContext.navDisplay) {
+      if (sharedContext.navDisplay.phase === 'sleep') return 'sleep';
+      if (sharedContext.wakeInLast3Hours) return 'wake';
+      if (sharedContext.wakeProximity) return 'wake';
+      const b = sharedContext.basis;
+      if (b && Number.isFinite(b.avgSleepStart) && Number.isFinite(b.avgSleepEnd)) {
+        return inferPhase(now, { avgSleepStart: b.avgSleepStart, avgSleepEnd: b.avgSleepEnd });
+      }
+      return 'mid';
+    }
+    return inferPhase(now, averages);
   }
 
   function hasQaBedAndSleepFlags(nightMd) {
@@ -90,8 +65,46 @@
     return Boolean(e && e.bed && e.sleep);
   }
 
+  function hasQaBedFlag(nightMd) {
+    const e = readNightQaSleepFlagMap()[nightMd];
+    return Boolean(e && e.bed);
+  }
+
+  function hasQaSleepFlag(nightMd) {
+    const e = readNightQaSleepFlagMap()[nightMd];
+    return Boolean(e && e.sleep);
+  }
+
   function pickDayForNightMd(nightMd, liveDays) {
     return pickDayForNightMdNav(nightMd, liveDays);
+  }
+
+  /**
+   * Bed already recorded for this sleep-period row (flags or non-stub value within recent hours).
+   */
+  function bedLoggedForSleepPeriod(nightMd, liveDays, averages, now) {
+    if (hasQaBedFlag(nightMd)) return true;
+    const day = pickDayForNightMd(nightMd, liveDays);
+    if (!day) return false;
+    const stub = buildStubDayForNightMd(nightMd, liveDays, averages);
+    if (!stub) return false;
+    const bedDiff = String(day.bed || '') !== String(stub.bed || '');
+    if (!bedDiff) return false;
+    return isWallClockWithinRecentHoursNav(now, day.bed, 12);
+  }
+
+  /**
+   * Fell-asleep already recorded for this sleep-period row (flags or non-stub value within recent hours).
+   */
+  function sleepLoggedForSleepPeriod(nightMd, liveDays, averages, now) {
+    if (hasQaSleepFlag(nightMd)) return true;
+    const day = pickDayForNightMd(nightMd, liveDays);
+    if (!day) return false;
+    const stub = buildStubDayForNightMd(nightMd, liveDays, averages);
+    if (!stub) return false;
+    const sleepDiff = String(day.sleepStart || '') !== String(stub.sleepStart || '');
+    if (!sleepDiff) return false;
+    return isWallClockWithinRecentHoursNav(now, day.sleepStart, 12);
   }
 
   /**
@@ -157,13 +170,13 @@
     const template = days && days.length ? days[0] : null;
     const ss = template
       ? template.sleepStart
-      : formatTime(mod1440(averages.avgSleepStart));
+      : formatTime(modMinutes1440(averages.avgSleepStart));
     const bed = template
       ? template.bed
-      : formatTime(mod1440(averages.avgSleepStart - 25));
+      : formatTime(modMinutes1440(averages.avgSleepStart - 25));
     const se = template
       ? template.sleepEnd
-      : formatTime(mod1440(averages.avgSleepEnd));
+      : formatTime(modMinutes1440(averages.avgSleepEnd));
     return {
       date: dateMd,
       bed: bed,
@@ -235,7 +248,10 @@
   }
 
   function handleWakeUp(days, averages, onReload, now) {
-    const md = recordDateMdForWake(now);
+    const md =
+      typeof resolveRecordDateMdForWake === 'function'
+        ? resolveRecordDateMdForWake(now, averages.avgSleepEnd, days)
+        : recordDateMdForSleepPeriod(now, averages.avgSleepEnd);
     return persistPartial(md, { sleepEnd: formatTimeFromDate(now) }, onReload).then(function () {
       markNightQaSleepFlag(md, 'wake');
       return null;
@@ -243,7 +259,10 @@
   }
 
   function handleAlarmNow(days, averages, onReload, now) {
-    const md = recordDateMdForWake(now);
+    const md =
+      typeof resolveRecordDateMdForWake === 'function'
+        ? resolveRecordDateMdForWake(now, averages.avgSleepEnd, days)
+        : recordDateMdForSleepPeriod(now, averages.avgSleepEnd);
     const alarmNow = formatTimeFromDate(now);
     return getEditableDayByMd(md, days).then(function (day) {
       const existingAlarm = day && Array.isArray(day.alarm) ? day.alarm : [];
@@ -349,56 +368,101 @@
     });
   }
 
-  function renderButtons(phase, showAlarm, napActive, bedSleepLoggedForNight) {
-    const parts = [];
-    if (phase === 'wake') {
-      parts.push(
-        '<button type="button" class="dashboard-quick-action-btn about-theme-option" data-qa="wake"><span aria-hidden="true">🌅</span> Wake up</button>'
-      );
-      if (showAlarm) {
-        parts.push(
-          '<button type="button" class="dashboard-quick-action-btn about-theme-option" data-qa="alarm"><span aria-hidden="true">⏰</span> Log alarm</button>'
-        );
-      }
-    } else if (phase === 'sleep') {
-      parts.push(
-        '<button type="button" class="dashboard-quick-action-btn about-theme-option" data-qa="bed-now"><span aria-hidden="true">🛏️</span> Get in bed</button>',
-        '<button type="button" class="dashboard-quick-action-btn about-theme-option" data-qa="sleep-0"><span aria-hidden="true">🌙</span> Go to sleep</button>'
-      );
-      if (bedSleepLoggedForNight) {
-        parts.push(
-          '<button type="button" class="dashboard-quick-action-btn about-theme-option" data-qa="bathroom-trip"><span aria-hidden="true">🧻</span> Bathroom break</button>'
-        );
-      } else {
-        parts.push(
-          '<button type="button" class="dashboard-quick-action-btn about-theme-option" data-qa="sleep-10"><span aria-hidden="true">🌙</span> Sleep in 10 min</button>'
-        );
-      }
-    } else {
-      parts.push(
-        '<button type="button" class="dashboard-quick-action-btn about-theme-option" data-qa="nap-start"><span aria-hidden="true">😴</span> Start a nap</button>'
-      );
-      if (napActive) {
-        parts.push(
-          '<button type="button" class="dashboard-quick-action-btn about-theme-option" data-qa="nap-end"><span aria-hidden="true">💤</span> End your nap</button>'
-        );
-      }
-    }
-    return parts.join('');
+  function quickActionButton(def) {
+    return '<button type="button" class="dashboard-quick-action-btn about-theme-option" data-qa="' +
+      def.qa +
+      '"><span aria-hidden="true">' +
+      def.emoji +
+      '</span> ' +
+      def.label +
+      '</button>';
+  }
+
+  const QUICK_ACTIONS_BY_PHASE = {
+    wake: [
+      { qa: 'wake', emoji: '🌅', label: 'Wake up' },
+      { qa: 'alarm', emoji: '⏰', label: 'Log alarm', when: function (ctx) { return ctx.showAlarm; } }
+    ],
+    sleep: [
+      { qa: 'bed-now', emoji: '🛏️', label: 'Get in bed', when: function (ctx) { return !ctx.bedLoggedForNight; } },
+      { qa: 'sleep-0', emoji: '🌙', label: 'Go to sleep', when: function (ctx) { return !ctx.sleepLoggedForNight; } },
+      { qa: 'bathroom-trip', emoji: '🧻', label: 'Bathroom break', when: function (ctx) { return ctx.bedSleepLoggedForNight; } },
+      { qa: 'sleep-10', emoji: '🌙', label: 'Sleep in 10 min', when: function (ctx) { return !ctx.bedSleepLoggedForNight && !ctx.sleepLoggedForNight; } }
+    ],
+    mid: [
+      {
+        qa: 'nap-start',
+        emoji: '😴',
+        label: 'Start a nap',
+        when: function (ctx) {
+          return (
+            ctx.napStartAllowed &&
+            !ctx.wakeInLast3Hours &&
+            !ctx.implicitPostWakeQuiet
+          );
+        }
+      },
+      { qa: 'nap-end', emoji: '💤', label: 'End your nap', when: function (ctx) { return ctx.napActive; } }
+    ]
+  };
+
+  function renderButtons(phase, context) {
+    const defs = QUICK_ACTIONS_BY_PHASE[phase] || QUICK_ACTIONS_BY_PHASE.mid;
+    return defs
+      .filter(function (def) {
+        return typeof def.when !== 'function' || def.when(context);
+      })
+      .map(quickActionButton)
+      .join('');
   }
 
   function renderQuickActions(days, onReload) {
     const mount = document.getElementById('dashboard-quick-actions-buttons');
     if (!mount) return;
-    const now = getAppDate();
     const averages = getAveragesFromDays(days);
-    const phase = inferPhase(now, averages);
+    const sharedContext =
+      typeof getSharedAppTimeContext === 'function' ? getSharedAppTimeContext(days) : null;
+    const now = sharedContext && sharedContext.now ? sharedContext.now : getAppDate();
+    const phase = getQuickActionsPhaseFromSharedContext(sharedContext, now, averages);
     const napActive = isNapActive(days, now);
     const showAlarm = averages.avgFirstAlarmToWake != null;
-    const nightMd = recordDateMdForSleepPeriod(now, averages.avgSleepEnd);
+    const nightMd = sharedContext && sharedContext.nightMd
+      ? sharedContext.nightMd
+      : recordDateMdForSleepPeriod(
+        now,
+        sharedContext && sharedContext.basis ? sharedContext.basis.avgSleepEnd : averages.avgSleepEnd
+      );
+    const nightAverages = sharedContext && sharedContext.basis
+      ? {
+        avgSleepStart: sharedContext.basis.avgSleepStart,
+        avgSleepEnd: sharedContext.basis.avgSleepEnd
+      }
+      : averages;
+    const bedLogged =
+      phase === 'sleep' && bedLoggedForSleepPeriod(nightMd, days, nightAverages, now);
+    const sleepLogged =
+      phase === 'sleep' && sleepLoggedForSleepPeriod(nightMd, days, nightAverages, now);
     const bedSleepLogged =
-      phase === 'sleep' && bedAndSleepCompleteForSleepPeriod(nightMd, days, averages, now);
-    mount.innerHTML = renderButtons(phase, showAlarm, napActive, bedSleepLogged);
+      phase === 'sleep' && bedAndSleepCompleteForSleepPeriod(nightMd, days, nightAverages, now);
+    let napStartAllowed = false;
+    if (sharedContext && sharedContext.navDisplay) {
+      const pr = sharedContext.navDisplay.percentRemaining;
+      if (typeof pr === 'number' && typeof getRemainingWakeThresholds === 'function') {
+        const { openMin } = getRemainingWakeThresholds();
+        napStartAllowed = pr >= openMin;
+      }
+    }
+    const buttonContext = {
+      showAlarm: showAlarm,
+      napActive: napActive,
+      napStartAllowed: napStartAllowed,
+      wakeInLast3Hours: Boolean(sharedContext && sharedContext.wakeInLast3Hours),
+      implicitPostWakeQuiet: Boolean(sharedContext && sharedContext.implicitPostWakeQuiet),
+      bedLoggedForNight: bedLogged,
+      sleepLoggedForNight: sleepLogged,
+      bedSleepLoggedForNight: bedSleepLogged
+    };
+    mount.innerHTML = renderButtons(phase, buttonContext);
 
   }
 
