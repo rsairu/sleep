@@ -47,7 +47,7 @@ function normalizeSleepDayLabels(value) {
 const SUPABASE_URL_STORAGE_KEY = 'restore_supabase_url';
 const SUPABASE_ANON_KEY_STORAGE_KEY = 'restore_supabase_anon_key';
 const RESTORE_LAST_DATA_SOURCE_KEY = 'restore_last_data_source';
-/** When `'1'`, read sleep data from `sleep-data.json` even if Supabase is configured (testing). */
+/** When `'1'`, read sleep data from `data/sleep-data.json` even if Supabase is configured (testing). */
 const RESTORE_FORCE_LOCAL_SLEEP_DATA_KEY = 'restore_force_local_sleep_data';
 const SLEEP_DATA_LOCAL_CACHE_KEY = 'restore_sleep_data_cache_v1';
 const SLEEP_DATA_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -491,7 +491,7 @@ function sortDaysNewestFirst(days) {
 }
 
 function fetchStaticSleepData() {
-  return fetch('sleep-data.json').then(r => r.json());
+  return fetch('data/sleep-data.json').then(r => r.json());
 }
 
 function fetchSupabaseSleepData(config) {
@@ -555,7 +555,7 @@ function loadSleepData(options) {
           return data;
         })
         .catch(function (error) {
-          console.warn('Supabase load failed; falling back to sleep-data.json.', error);
+          console.warn('Supabase load failed; falling back to data/sleep-data.json.', error);
           updateDataSourceBadge('local');
           return fetchStaticSleepData();
         })
@@ -705,7 +705,7 @@ function initSupabaseConfigForm() {
   const cfg = getSupabaseConfig();
   mount.innerHTML =
     '<div class="supabase-config-card">' +
-      '<p class="section-intro">Connect Restore to Supabase for cloud sync. If blank, the app uses local <code>sleep-data.json</code> as read-only fallback.</p>' +
+      '<p class="section-intro">Connect Restore to Supabase for cloud sync. If blank, the app uses local <code>data/sleep-data.json</code> as read-only fallback.</p>' +
       '<div class="config-data-source-toggle-wrap" id="config-data-source-toggle-wrap" hidden>' +
       '<p class="section-intro config-data-source-toggle-label" id="config-data-source-toggle-label">Data load source</p>' +
       '<div class="config-data-source-toggle" role="group" aria-labelledby="config-data-source-toggle-label">' +
@@ -716,7 +716,7 @@ function initSupabaseConfigForm() {
       '<span class="config-data-source-toggle-emoji" aria-hidden="true">☁️</span> Cloud' +
       '</button>' +
       '</div>' +
-      '<p class="section-intro config-data-source-toggle-hint">Local uses <code>sleep-data.json</code> only; cloud uses Supabase. Reload other tabs or use Fetch latest after switching.</p>' +
+      '<p class="section-intro config-data-source-toggle-hint">Local uses <code>data/sleep-data.json</code> only; cloud uses Supabase. Reload other tabs or use Fetch latest after switching.</p>' +
       '</div>' +
       '<label class="supabase-config-label" for="supabase-url-input">Supabase URL</label>' +
       '<input class="supabase-config-input" id="supabase-url-input" type="url" placeholder="https://YOUR-PROJECT.supabase.co" value="' + escapeHtmlBannerAttr(cfg.url) + '">' +
@@ -760,7 +760,7 @@ function initSupabaseConfigForm() {
       if (!getSupabaseConfig().enabled) return;
       setSleepDataForcedLocal(true);
       syncDataSourceToggleUI();
-      setStatus('Loading from local sleep-data.json. Reload other open tabs or refetch here.', false);
+      setStatus('Loading from local data/sleep-data.json. Reload other open tabs or refetch here.', false);
     });
     pickCloudBtn.addEventListener('click', function () {
       if (!getSupabaseConfig().enabled) return;
@@ -845,7 +845,7 @@ function initSupabaseConfigForm() {
     urlEl.value = '';
     keyEl.value = '';
     syncDataSourceToggleUI();
-    setStatus('Cleared. App will fall back to sleep-data.json.', false);
+    setStatus('Cleared. App will fall back to data/sleep-data.json.', false);
   });
 }
 
