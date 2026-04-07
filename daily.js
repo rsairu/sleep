@@ -370,16 +370,25 @@ function sleepDayUserLabelsMarkup(day) {
 }
 
 function deviationWarningMarkup(w) {
+  function slotify(buttonHtml) {
+    return `<span class="deviation-flag-chip-slot">${buttonHtml}</span>`;
+  }
   if (typeof w === 'string') {
-    return `<button type="button" class="deviation-flag-chip deviation-flag-chip--insufficient" aria-expanded="false" aria-label="${escapeHtmlAttr(w)}"><span class="deviation-flag-chip-icon" aria-hidden="true">⋯</span><span class="deviation-flag-chip-text">${escapeHtmlText(w)}</span></button>`;
+    return slotify(
+      `<button type="button" class="deviation-flag-chip deviation-flag-chip--insufficient" aria-expanded="false" aria-label="${escapeHtmlAttr(w)}"><span class="deviation-flag-chip-icon" aria-hidden="true">⋯</span><span class="deviation-flag-chip-text">${escapeHtmlText(w)}</span></button>`
+    );
   }
   const label = w.plainSummary || '';
   const aria = escapeHtmlAttr(label);
   if (w.severity === 'insufficient') {
-    return `<button type="button" class="deviation-flag-chip deviation-flag-chip--insufficient" aria-expanded="false" aria-label="${aria}"><span class="deviation-flag-chip-icon" aria-hidden="true">⋯</span><span class="deviation-flag-chip-text">${w.bodyHtml}</span></button>`;
+    return slotify(
+      `<button type="button" class="deviation-flag-chip deviation-flag-chip--insufficient" aria-expanded="false" aria-label="${aria}"><span class="deviation-flag-chip-icon" aria-hidden="true">⋯</span><span class="deviation-flag-chip-text">${w.bodyHtml}</span></button>`
+    );
   }
   const sevClass = `deviation-flag-chip--${w.severity}`;
-  return `<button type="button" class="deviation-flag-chip ${sevClass}" aria-expanded="false" aria-label="${aria}"><span class="deviation-flag-chip-icon" aria-hidden="true">${w.emoji}</span><span class="deviation-flag-chip-text">${w.bodyHtml}</span></button>`;
+  return slotify(
+    `<button type="button" class="deviation-flag-chip ${sevClass}" aria-expanded="false" aria-label="${aria}"><span class="deviation-flag-chip-icon" aria-hidden="true">${w.emoji}</span><span class="deviation-flag-chip-text">${w.bodyHtml}</span></button>`
+  );
 }
 
 // Flag emojis for calendar tooltip (timing uses blended % thresholds; 🧩 when WASO ≥ 1)
@@ -469,10 +478,7 @@ function renderDay(day, days, dayIndex, options) {
     ? `<div class="deviation-warnings deviation-warnings--chips">${deviations.map(deviationWarningMarkup).join('')}</div>`
     : '';
   const userLabelsBlock = sleepDayUserLabelsMarkup(day);
-  const dayFlagsRow =
-    deviationWarnings || userLabelsBlock
-      ? `<div class="day-flags-row">${deviationWarnings}${userLabelsBlock}</div>`
-      : '';
+  const dayFlagsRow = `<div class="day-flags-row"><div class="day-flags-content">${deviationWarnings}${userLabelsBlock}</div></div>`;
   
   // Convert times to timeline positions
   const sleepStartPos = timeToTimelinePosition(sleepStart);
@@ -484,18 +490,38 @@ function renderDay(day, days, dayIndex, options) {
   const tickLabels = [21, 0, 4, 8, 12, 16, 21];
   const barClass = 'bar' + (showTicks ? ' show-ticks' : '');
   
+  const alarmToWakeDisplay =
+    firstAlarmToWake !== null
+      ? firstAlarmToWake < 0
+        ? '-' + formatDuration(-firstAlarmToWake)
+        : formatDuration(firstAlarmToWake)
+      : formatDuration(0);
+  const alarmToWakeWarning =
+    firstAlarmToWake !== null && firstAlarmToWake > ALARM_TO_WAKE_WARNING_THRESHOLD ? 'stat-warning' : '';
+  const alarmToWakeRow = `<div class="stat-row stat-row--nowrap"><span class="stat-label">${highlightKeyword('alarm to wake:', ['alarm', 'wake'])}</span><span class="stat-value ${alarmToWakeWarning}">${alarmToWakeDisplay}</span></div>`;
+
   let html = `
     <div class="day ${dayClasses.join(' ')}">
       <div class="day-content">
-        <div class="day-date">${day.date} ${dayOfWeek}${isHolidayDay ? ' 🏝️' : ''}</div>
-        <div class="day-stats">
-          <div class="stat-row"><span class="stat-label">${highlightKeyword('asleep:', 'asleep')}</span><span class="stat-value">${day.sleepStart}</span></div>
-          <div class="stat-row"><span class="stat-label">${highlightKeyword('duration:', 'duration')}</span><span class="stat-value">${formatDuration(sleepDuration)}</span></div>
-          <div class="stat-row"><span class="stat-label">uninterrupted:</span><span class="stat-value">${formatDuration(longestUninterrupted)}</span></div>
-          ${firstAlarmToWake !== null ? `<div class="stat-row"><span class="stat-label">${highlightKeyword('alarm to wake:', ['alarm', 'wake'])}</span><span class="stat-value ${firstAlarmToWake > ALARM_TO_WAKE_WARNING_THRESHOLD ? 'stat-warning' : ''}">${firstAlarmToWake < 0 ? '-' + formatDuration(-firstAlarmToWake) : formatDuration(firstAlarmToWake)}</span></div>` : ''}
+        <div class="day-row day-row--data">
+          <div class="day-date">${day.date} ${dayOfWeek}${isHolidayDay ? ' 🏝️' : ''}</div>
+          ${dayFlagsRow}
+          <div class="day-metrics">
+            <div class="day-metrics-phases day-stats">
+              <div class="stat-row"><span class="stat-label">${highlightKeyword('bed:', 'bed')}</span><span class="stat-value">${day.bed}</span></div>
+              <div class="stat-row"><span class="stat-label">${highlightKeyword('asleep:', 'asleep')}</span><span class="stat-value">${day.sleepStart}</span></div>
+              <div class="stat-row"><span class="stat-label">${highlightKeyword('wake:', 'wake')}</span><span class="stat-value">${day.sleepEnd}</span></div>
+            </div>
+            <div class="day-metrics-calcs day-stats">
+              ${alarmToWakeRow}
+              <div class="stat-row"><span class="stat-label">${highlightKeyword('duration:', 'duration')}</span><span class="stat-value">${formatDuration(sleepDuration)}</span></div>
+              <div class="stat-row"><span class="stat-label">uninterrupted:</span><span class="stat-value">${formatDuration(longestUninterrupted)}</span></div>
+            </div>
+          </div>
         </div>
-        <div class="day-bar-container">
-          <div class="${barClass}">
+        <div class="day-row day-row--viz">
+          <div class="day-bar-container">
+            <div class="${barClass}">
             <!-- Faded overlay for previous day section (21:00-00:00) -->
             <div class="previous-day-overlay"></div>
             <div class="span sleep" style="--start:${sleepStartPos}; --end:${sleepEndPos}" data-tooltip="duration: ${formatDuration(sleepDuration)}">${sleepFragmentationOverlayHtml(day)}</div>
@@ -532,8 +558,8 @@ function renderDay(day, days, dayIndex, options) {
   html += `<div class="event up" style="--m:${upPos}" data-tooltip="${day.sleepEnd} get up"></div>`;
   
   html += `</div></div>
+        </div>
       </div>
-      ${dayFlagsRow}
     </div>`;
   return html;
 }
@@ -1587,8 +1613,8 @@ function toggleDailyDetails(show) {
 
 // Toggle deviation warnings/flags visibility
 function toggleFlags(show) {
-  document.querySelectorAll('.day-flags-row').forEach(row => {
-    row.classList.toggle('hidden', !show);
+  document.querySelectorAll('.day-flags-content').forEach(el => {
+    el.classList.toggle('hidden', !show);
   });
 }
 

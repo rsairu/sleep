@@ -2198,24 +2198,30 @@ body{
   border-left: none;
 }
 
-/* On narrow screens, stack date+stats above the bar so the timeline has room */
+/* Narrow screens: data row wraps; flags use full width between date and metrics */
 @media (max-width: 700px) {
-  .dashboard-past-nights .day-content {
+  .day-row--data .day-flags-row{
+    flex-basis: 100%;
+    margin-left: 0;
+    justify-content: flex-start;
+  }
+  .day-row--data .day-metrics{
+    margin-left: 0;
+  }
+}
+
+/* Dashboard recent nights: extra metric flexibility */
+@media (max-width: 700px) {
+  .dashboard-past-nights .day-row--data {
     flex-wrap: wrap;
   }
   .dashboard-past-nights .day-date {
     width: auto;
     min-width: 0;
   }
-  .dashboard-past-nights .day-content .day-stats {
-    width: auto;
-    min-width: 0;
-    flex: 1;
-  }
-  .dashboard-past-nights .day-bar-container {
-    flex-basis: 100%;
-    width: 100%;
-    order: 10;
+  .dashboard-past-nights .day-metrics {
+    flex: 1 1 auto;
+    min-width: min(100%, 280px);
   }
 }
 
@@ -2400,28 +2406,65 @@ body{
 
 .day-content{
   display: flex;
-  align-items: center;
-  gap: var(--space-3);
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
   margin-bottom: 0;
+}
+
+.day-row--data{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-3);
+  overflow: visible;
+}
+
+.day-row--viz{
+  width: 100%;
+  min-width: 0;
+  overflow: visible;
+}
+
+.day-row--viz .day-bar-container{
+  width: 100%;
+  max-width: 100%;
+}
+
+.day-metrics{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-4);
+  flex: 1;
+  min-width: 0;
+}
+
+/* Two metric columns: compact labels; phases + calcs align within each column */
+.day-metrics-phases.day-stats,
+.day-metrics-calcs.day-stats{
+  flex: 1 1 140px;
+  min-width: 0;
+  max-width: 220px;
+}
+
+.day-metrics .stat-label{
+  width: 4.75rem;
+  min-width: 4.75rem;
 }
 
 .day-date{
   font-weight: 700;
-  width: 60px;
+  width: auto;
   min-width: 60px;
   flex-shrink: 0;
-}
-
-/* Stats column: fixed width so labels/values align across all days; graph starts at same place */
-.day-content .day-stats{
-  width: 220px;
-  min-width: 220px;
-  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .day-bar-container{
   flex: 1;
   min-width: 0;
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -2473,19 +2516,37 @@ body{
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
+  overflow: visible;
+}
+
+/* Fixed footprint so expanded chip overlays neighbors (FAB-style) */
+.deviation-flag-chip-slot{
+  position: relative;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  vertical-align: middle;
 }
 
 .deviation-flag-chip{
   -webkit-appearance: none;
   appearance: none;
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
   display: inline-flex;
   flex-direction: row;
   align-items: center;
+  justify-content: flex-start;
   margin: 0;
-  padding: 4px 6px 4px 5px;
-  min-height: 34px;
+  padding: 0;
+  width: 40px;
+  height: 40px;
+  min-height: 0;
   border: none;
-  border-radius: 10px;
+  border-radius: 50%;
   cursor: pointer;
   font-size: 11px;
   font-family: inherit;
@@ -2493,7 +2554,8 @@ body{
   color: rgba(255, 255, 255, 0.96);
   touch-action: manipulation;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
-  transition: box-shadow 0.15s ease, transform 0.12s ease;
+  transition: box-shadow 0.15s ease, width 0.2s ease, border-radius 0.2s ease, padding 0.2s ease;
+  overflow: hidden;
   vertical-align: middle;
 }
 
@@ -2503,12 +2565,33 @@ body{
 }
 
 .deviation-flag-chip:active{
-  transform: scale(0.98);
+  transform: translateY(-50%) scale(0.98);
 }
 
 .deviation-flag-chip:focus-visible{
   outline: 2px solid var(--color-hover-blue);
   outline-offset: 2px;
+  z-index: 26;
+  width: auto;
+  max-width: min(320px, 92vw);
+  min-width: 40px;
+  height: auto;
+  min-height: 40px;
+  border-radius: 999px;
+  padding: 4px 10px 4px 2px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  overflow: visible;
+}
+
+.deviation-flag-chip:focus-visible .deviation-flag-chip-icon{
+  width: auto;
+  min-width: 36px;
+}
+
+.deviation-flag-chip:focus-visible .deviation-flag-chip-text{
+  max-width: min(280px, 85vw);
+  opacity: 1;
+  padding-left: 6px;
 }
 
 .deviation-flag-chip-icon{
@@ -2516,7 +2599,9 @@ body{
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 2rem;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
   font-size: 1.15rem;
   line-height: 1;
 }
@@ -2535,27 +2620,52 @@ body{
 }
 
 .deviation-flag-chip.is-expanded{
-  z-index: 8;
+  z-index: 30;
+  width: auto;
+  max-width: min(320px, 92vw);
+  min-width: 40px;
+  height: auto;
+  min-height: 40px;
+  border-radius: 999px;
+  padding: 4px 10px 4px 2px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  overflow: visible;
 }
 
-/* Keep nowrap while max-width animates — avoids a 1→2 line flash that shifts layout */
+.deviation-flag-chip.is-expanded .deviation-flag-chip-icon{
+  width: auto;
+  min-width: 36px;
+}
+
 .deviation-flag-chip.is-expanded .deviation-flag-chip-text{
-  max-width: min(320px, 92vw);
+  max-width: min(280px, 85vw);
   opacity: 1;
-  padding-left: 8px;
+  padding-left: 6px;
 }
 
 @media (hover: hover) and (pointer: fine){
   .deviation-flag-chip:hover{
-    z-index: 8;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+    z-index: 25;
+    width: auto;
+    max-width: min(320px, 92vw);
+    min-width: 40px;
+    height: auto;
+    min-height: 40px;
+    border-radius: 999px;
+    padding: 4px 10px 4px 2px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+    overflow: visible;
   }
 
-  .deviation-flag-chip:hover .deviation-flag-chip-text,
-  .deviation-flag-chip:focus-visible .deviation-flag-chip-text{
-    max-width: min(320px, 92vw);
+  .deviation-flag-chip:hover .deviation-flag-chip-icon{
+    width: auto;
+    min-width: 36px;
+  }
+
+  .deviation-flag-chip:hover .deviation-flag-chip-text{
+    max-width: min(280px, 85vw);
     opacity: 1;
-    padding-left: 8px;
+    padding-left: 6px;
   }
 }
 
@@ -2602,14 +2712,30 @@ body{
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+  overflow: visible;
+}
+
+.day-row--data .day-flags-row{
+  margin-top: 0;
+  margin-bottom: 0;
+  margin-left: 0;
+  align-self: center;
+  flex: 0 1 auto;
+  min-width: 120px;
+  box-sizing: border-box;
+}
+
+.day-row--data .day-metrics{
+  margin-left: auto;
 }
 
 .day-flags-row .deviation-warnings{
   margin-top: 0;
   margin-bottom: 0;
+  overflow: visible;
 }
 
-.day-flags-row.hidden{
+.day-flags-content.hidden{
   display: none;
 }
 
@@ -2624,12 +2750,15 @@ body{
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 1.75rem;
-  min-height: 1.75rem;
-  padding: 2px 4px;
+  box-sizing: border-box;
+  width: 2rem;
+  height: 2rem;
+  min-width: 2rem;
+  min-height: 2rem;
+  padding: 0;
   font-size: 1.1rem;
   line-height: 1;
-  border-radius: 6px;
+  border-radius: 50%;
   background: var(--surface-elevated, rgba(128, 128, 128, 0.12));
   border: 1px solid var(--border-subtle, rgba(128, 128, 128, 0.25));
 }
@@ -2687,6 +2816,16 @@ body{
 .stat-row{
   display: flex;
   gap: 8px;
+}
+
+.stat-row--nowrap{
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.stat-row--nowrap .stat-label,
+.stat-row--nowrap .stat-value{
+  white-space: nowrap;
 }
 
 .stat-label{
