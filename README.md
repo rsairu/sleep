@@ -9,10 +9,8 @@ Restore is a lightweight sleep tracking web app for logging and visualizing slee
 - Add nights directly in the app from the Dashboard via the `+ Night` button.
 - Configure Supabase in `Settings` (`config.html`) under **Cloud sync**.
 - The top nav now shows a source badge (`☁️ Cloud` or `💾 Local`) so you can see at a glance where data is coming from.
-- If Supabase is not configured (or unreachable), pages read from local `sleep-data.json` as fallback.
-- One-time import from JSON to Supabase:
-  - Create table with `supabase/schema.sql`
-  - Run `npm run migrate-supabase` with `SUPABASE_URL` and `SUPABASE_ANON_KEY` env vars set.
+- If Supabase is not configured (or unreachable), pages read from local `data/sleep-data.json` as fallback.
+- One-time import from JSON to Supabase: create the table with `supabase/schema.sql`, then load rows with your own tool or the Supabase dashboard (no npm script in this repo).
 
 ## Git hooks (optional)
 
@@ -32,9 +30,14 @@ That uses `hooks/post-checkout` and `hooks/post-merge`, which invoke `scripts/st
 
 ## npm scripts
 
-- `npm run migrate-supabase` — one-time import from `sleep-data.json` to Supabase (requires `SUPABASE_URL` and `SUPABASE_ANON_KEY`; see **Cloud Sync** above).
 - `npm run test:math` — deterministic math and dataset invariant checks (`math-tests.js`).
-- `npm run report:duration-flags` — one-off report on duration and calendar flag thresholds vs `sleep-data.json` (`scripts/report-duration-flag-impact.js`).
+
+## Data on disk
+
+- `data/sleep-data.json` — local JSON fallback (`{ days: [...] }`). **Gitignored**; create it locally or copy from backup.
+- `data/backup/` — optional CSV or other exports for disaster restore (e.g. periodic dumps). **Gitignored.**
+
+The repo commits `data/.gitkeep` so the `data/` folder exists in fresh clones.
 
 ---
 
@@ -43,11 +46,11 @@ That uses `hooks/post-checkout` and `hooks/post-merge`, which invoke `scripts/st
 | Layer | Tech |
 |--------|------|
 | **Frontend** | Vanilla HTML5, CSS3, JavaScript (no frameworks) |
-| **Data** | Supabase REST (if configured) with `sleep-data.json` fallback |
+| **Data** | Supabase REST (if configured) with `data/sleep-data.json` fallback |
 | **Charts** | SVG drawn in JS (no chart library) |
 | **Styling** | Single `styles.css` with CSS variables (dark theme) |
 
-- **Data source:** Supabase table `sleep_days` when configured; otherwise `sleep-data.json` (object with a `days` array of daily records). Holiday calendar is in `sleep-utils.js` as `HOLIDAYS_BY_YEAR` (year → month → list of holiday days).
+- **Data source:** Supabase table `sleep_days` when configured; otherwise `data/sleep-data.json` (object with a `days` array of daily records). Holiday calendar is in `sleep-utils.js` as `HOLIDAYS_BY_YEAR` (year → month → list of holiday days).
 - **Shared logic:** `sleep-utils.js` holds time math, date helpers, and `renderNavBar()`. `daily.js` holds dashboard/timeline/heatmap logic and is the main "core" script. Page-specific scripts: `dashboard.js`, `entry-modal.js` (dashboard night entry), `quality.js`, `graph.js`, `stats.js`.
 
 ---
@@ -127,14 +130,14 @@ Time is normalized as **minutes from midnight** (0–1440) everywhere, with expl
 | `dashboard.html`, `quality.html`, `daily.html`, `graph.html`, `stats.html` | Main app pages (see **Pages & Responsibilities**) |
 | `config.html` | Settings (themes, Supabase cloud sync) |
 | `about.html` | About / project meta |
-| `sleep-data.json` | Local fallback dataset (`{ days: [...] }`) and migration source |
+| `data/sleep-data.json` | Local fallback dataset (`{ days: [...] }`); gitignored |
+| `data/backup/` | Manual restore exports (e.g. CSV); gitignored |
+| `data/.gitkeep` | Keeps `data/` in version control without committing datasets |
 | `assets/` | Favicons and `icon_512.png` (nav bar icon) |
 | `supabase/schema.sql` | SQL schema for the Supabase `sleep_days` table |
-| `supabase/migrate-json-to-supabase.js` | One-time import from local JSON to Supabase |
 | `hooks/post-checkout`, `hooks/post-merge` | Run `scripts/stamp-dev-branch.js` after checkout/merge when `core.hooksPath` is `hooks` |
 | `dev-git-branch.js` | Generated current git branch for UI (gitignored); see **Git hooks** |
 | `scripts/stamp-dev-branch.js` | Writes `dev-git-branch.js` |
-| `scripts/report-duration-flag-impact.js` | One-off duration / calendar-flag report vs `sleep-data.json` |
 | `sleep-utils.js` | Time/date helpers, `calculateTotalSleep()`, `renderNavBar()`, Supabase helpers, `HOLIDAYS_BY_YEAR` |
 | `daily.js` | Timeline rendering, week grouping, dashboard content, deviation logic, heatmap |
 | `dashboard.js` | Fetches data and calls `renderDashboardContent()` |
@@ -144,7 +147,7 @@ Time is normalized as **minutes from midnight** (0–1440) everywhere, with expl
 | `stats.js` | Monthly aggregation and stat rendering |
 | `math-tests.js` | Math and dataset invariant harness (see **Math Regression Checks**) |
 | `styles.css` | Global styles and CSS variables |
-| `package.json` | npm scripts: `migrate-supabase`, `test:math`, `report:duration-flags` |
+| `package.json` | npm script: `test:math` |
 
 ---
 
@@ -159,5 +162,5 @@ Use the deterministic math harness to validate rollover/conversion logic after c
   - nap-crossing calculations
   - averaging normalization around midnight
   - remaining-wake basis conversions
-  - dataset invariants against `sleep-data.json`
+  - dataset invariants against `data/sleep-data.json`
 

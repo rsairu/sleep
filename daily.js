@@ -11,7 +11,7 @@ const ABS_DURATION_SLIGHT_LT_MIN = 360; // < 6h → slight
 const ABS_DURATION_MODERATE_LT_MIN = 300; // < 5h → moderate
 const ABS_DURATION_SEVERE_LT_MIN = 240; // < 4h → severe
 const DATA_FILES = {
-  sleep: 'sleep-data.json'
+  sleep: 'data/sleep-data.json'
 };
 
 // Time constants

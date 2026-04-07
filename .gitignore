@@ -3,7 +3,6 @@
 Thumbs.db
 
 # Editor
-.vscode/settings.json
 *.log
 
 # Dependencies (if you add any later)
@@ -11,3 +10,7 @@ node_modules/
 
 # Generated local dev metadata (see README: Git hooks)
 dev-git-branch.js
+
+# Local datasets and manual restore exports (see README: Data on disk)
+data/sleep-data.json
+data/backup/

@@ -156,7 +156,7 @@ function runTests() {
   );
 
   // Dataset invariants on current data (guardrails for regressions)
-  const dataPath = path.join(__dirname, 'sleep-data.json');
+  const dataPath = path.join(__dirname, 'data', 'sleep-data.json');
   if (fs.existsSync(dataPath)) {
     const days = JSON.parse(fs.readFileSync(dataPath, 'utf8')).days || [];
     days.forEach((d, idx) => {
