@@ -1,0 +1,13 @@
+---
+description: Points to the canonical spec for dashboard quick actions, phase logic, and remaining-wake alignment.
+globs:
+  - "**/quick-actions.js"
+  - "**/sleep-utils.js"
+alwaysApply: false
+---
+
+# Quick actions and time context
+
+Phase resolution, action visibility, save-row keys, and related constants are documented in **`docs/quick-actions.md`**.
+
+When changing `getQuickActionsPhaseFromSharedContext`, `getSharedAppTimeContext`, `inferSharedSleepContextPhase`, `shouldShowDynamicSleepNavPhase`, or `QUICK_ACTIONS_BY_PHASE`, update that doc and the **Phase and row constants** table if any numbers or order of checks change.
