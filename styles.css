@@ -80,6 +80,23 @@
   --panel-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   --panel-padding: 14px 16px 18px;
   --panel-padding-lg: 20px;
+
+  /* Aliases: menus, selects, focus (follow --panel-border-color / --panel / --color-bed) */
+  --border: var(--panel-border-color);
+  --border-color: var(--panel-border-color);
+  --card-bg: var(--panel);
+  --accent: var(--color-bed);
+
+  /* Dividers (stats, tables; not the same as panel outline) */
+  --divider: rgba(255, 255, 255, 0.1);
+  --divider-strong: rgba(255, 255, 255, 0.15);
+
+  --tooltip-fg: #ffffff;
+
+  --font-mono: "Courier New", monospace;
+  --radius-control-sm: 8px;
+  --radius-control-md: 10px;
+  --radius-control-lg: 12px;
 }
 
 /* Day mode (after sunrise, before sunset) */
@@ -133,13 +150,18 @@
 
   --panel-border-color: rgba(15, 23, 42, 0.1);
   --panel-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+
+  --divider: rgba(15, 23, 42, 0.12);
+  --divider-strong: rgba(15, 23, 42, 0.2);
+
+  --tooltip-fg: #ffffff;
 }
 
 body{
   background: var(--bg);
   color: var(--text);
   font-family: system-ui, sans-serif;
-  padding: 20px;
+  padding: var(--space-5);
   transition: background-color 0.35s ease, color 0.35s ease;
 }
 
@@ -879,7 +901,7 @@ body{
   height: 40px;
   padding: 0;
   border: none;
-  border-radius: 10px;
+  border-radius: var(--radius-control-md);
   background: transparent;
   color: var(--text);
   cursor: pointer;
@@ -905,7 +927,7 @@ body{
   padding: 6px 0;
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-control-lg);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
   z-index: 100;
   display: flex;
@@ -922,30 +944,60 @@ body{
   display: flex;
 }
 
-.nav-menu-item {
+/* Nav menu rows + settings/theme rows + option buttons (config, about, quick-add) */
+.nav-menu-item,
+.nav-menu-theme-row,
+.about-theme-row,
+.about-theme-option {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 16px;
-  color: var(--text) !important;
-  text-decoration: none;
+  gap: var(--space-3);
+  padding: 10px var(--space-4);
+  box-sizing: border-box;
   font-size: 0.9375rem;
   font-weight: 500;
-  border: none;
   background: transparent;
-  cursor: pointer;
-  transition: background 0.2s;
+  color: var(--text) !important;
   text-align: left;
+  transition: background 0.2s;
+}
+
+.nav-menu-item:hover,
+.nav-menu-theme-row:hover,
+.about-theme-row:hover,
+.about-theme-option:hover {
+  background: var(--hover-bg);
+  color: var(--text) !important;
+}
+
+.nav-menu-item {
+  text-decoration: none;
+  border: none;
   width: 100%;
-  box-sizing: border-box;
+  cursor: pointer;
   font-family: inherit;
 }
 
-.nav-menu-item:hover {
-  background: var(--hover-bg);
+.nav-menu-theme-row {
+  cursor: pointer;
 }
 
-.nav-menu-item-icon-wrap {
+.about-theme-row {
+  border: none;
+  width: 100%;
+  font: inherit;
+  cursor: pointer;
+}
+
+.about-theme-option {
+  border: none;
+  width: 100%;
+  font: inherit;
+  cursor: pointer;
+}
+
+.nav-menu-item-icon-wrap,
+.about-theme-option-icon {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -956,92 +1008,36 @@ body{
 }
 
 .nav-menu-item-icon-wrap svg,
-.nav-menu-item .nav-menu-item-icon {
+.nav-menu-item .nav-menu-item-icon,
+.about-theme-option-icon svg {
   width: 22px;
   height: 22px;
   fill: currentColor;
 }
 
-/* Theme row in nav menu: icon left (like other items) + "Theme" label (toggles.dev classic by Alfie Jones) */
-.nav-menu-theme-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 16px;
-  color: var(--text) !important;
-  cursor: pointer;
-  background: transparent;
-}
-.nav-menu-theme-row:hover {
-  background: var(--hover-bg);
-}
-.nav-menu-theme-row .nav-menu-item-icon-wrap {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  flex-shrink: 0;
-}
-.nav-menu-theme-row .theme-toggle {
+.nav-menu-theme-row .theme-toggle,
+.about-theme-row .theme-toggle {
   width: 22px;
   height: 22px;
   padding: 0;
   color: var(--text);
   background: transparent;
   border: none;
+  cursor: pointer;
 }
-.nav-menu-theme-row .theme-toggle:hover {
+
+.nav-menu-theme-row .theme-toggle:hover,
+.about-theme-row .theme-toggle:hover {
   background: transparent;
 }
-.nav-menu-theme-row .theme-toggle svg {
+
+.nav-menu-theme-row .theme-toggle svg,
+.about-theme-row .theme-toggle svg {
   width: 100%;
   height: 100%;
 }
 
-/* Classic theme toggle animation – toggles.dev by Alfie Jones (https://toggles.dev) */
-.theme-toggle.theme-toggle--reversed .theme-toggle__classic { transform: scale(-1, 1); }
-.theme-toggle { --theme-toggle__classic--duration: 500ms; }
-.theme-toggle__classic path {
-  transition-timing-function: cubic-bezier(0, 0, 0.15, 1.25);
-  transform-origin: center;
-  transition-duration: calc(var(--theme-toggle__classic--duration) * 0.8);
-}
-.theme-toggle__classic g path {
-  transition-property: opacity, transform;
-  transition-delay: calc(var(--theme-toggle__classic--duration) * 0.2);
-}
-.theme-toggle__classic :first-child path { transition-property: transform, d; }
-.theme-toggle input[type=checkbox]:checked ~ .theme-toggle__classic g path,
-.theme-toggle--toggled:not(label).theme-toggle .theme-toggle__classic g path {
-  transform: scale(0.5) rotate(45deg);
-  opacity: 0;
-  transition-delay: 0s;
-}
-.theme-toggle input[type=checkbox]:checked ~ .theme-toggle__classic :first-child path,
-.theme-toggle--toggled:not(label).theme-toggle .theme-toggle__classic :first-child path {
-  d: path("M-12 5h30a1 1 0 0 0 9 13v24h-39Z");
-  transition-delay: calc(var(--theme-toggle__classic--duration) * 0.2);
-}
-@supports not (d: path("")) {
-  .theme-toggle input[type=checkbox]:checked ~ .theme-toggle__classic :first-child path,
-  .theme-toggle--toggled:not(label).theme-toggle .theme-toggle__classic :first-child path {
-    transform: translate3d(-12px, 10px, 0);
-  }
-}
-.theme-toggle { border: none; background: transparent; cursor: pointer; }
-.theme-toggle input[type=checkbox] { display: none; }
-.theme-toggle .theme-toggle-sr {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border-width: 0;
-}
+/* Theme row in nav menu: icon left + "Theme" label (toggles.dev classic in theme-toggle.css) */
 
 /* Theme toggle: light | dark (pill with two options) */
 .nav-daynight-toggle {
@@ -1089,7 +1085,7 @@ body{
   padding: 8px 16px;
   background: transparent;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-control-sm);
   color: var(--text);
   text-decoration: none;
   font-size: 14px;
@@ -2568,10 +2564,7 @@ body{
   transform: translateY(-50%) scale(0.98);
 }
 
-.deviation-flag-chip:focus-visible{
-  outline: 2px solid var(--color-hover-blue);
-  outline-offset: 2px;
-  z-index: 26;
+.deviation-flag-chip:is(:focus-visible, .is-expanded) {
   width: auto;
   max-width: min(320px, 92vw);
   min-width: 40px;
@@ -2583,12 +2576,22 @@ body{
   overflow: visible;
 }
 
-.deviation-flag-chip:focus-visible .deviation-flag-chip-icon{
+.deviation-flag-chip:focus-visible {
+  outline: 2px solid var(--color-hover-blue);
+  outline-offset: 2px;
+  z-index: 26;
+}
+
+.deviation-flag-chip.is-expanded {
+  z-index: 30;
+}
+
+.deviation-flag-chip:is(:focus-visible, .is-expanded) .deviation-flag-chip-icon {
   width: auto;
   min-width: 36px;
 }
 
-.deviation-flag-chip:focus-visible .deviation-flag-chip-text{
+.deviation-flag-chip:is(:focus-visible, .is-expanded) .deviation-flag-chip-text {
   max-width: min(280px, 85vw);
   opacity: 1;
   padding-left: 6px;
@@ -2617,30 +2620,6 @@ body{
   padding: 0;
   text-align: left;
   font-variant-numeric: tabular-nums;
-}
-
-.deviation-flag-chip.is-expanded{
-  z-index: 30;
-  width: auto;
-  max-width: min(320px, 92vw);
-  min-width: 40px;
-  height: auto;
-  min-height: 40px;
-  border-radius: 999px;
-  padding: 4px 10px 4px 2px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
-  overflow: visible;
-}
-
-.deviation-flag-chip.is-expanded .deviation-flag-chip-icon{
-  width: auto;
-  min-width: 36px;
-}
-
-.deviation-flag-chip.is-expanded .deviation-flag-chip-text{
-  max-width: min(280px, 85vw);
-  opacity: 1;
-  padding-left: 6px;
 }
 
 @media (hover: hover) and (pointer: fine){
@@ -2837,7 +2816,7 @@ body{
 
 .stat-value{
   font-variant-numeric: tabular-nums;
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-mono);
   min-width: 60px;
   display: inline-block;
   text-align: left;
@@ -3035,7 +3014,7 @@ body{
   transform: translateX(-50%);
   padding: 4px 8px;
   background: var(--tooltip-bg);
-  color: white;
+  color: var(--tooltip-fg);
   font-size: 11px;
   white-space: nowrap;
   border-radius: 4px;
@@ -3578,7 +3557,7 @@ svg {
 
 .day-panel-value {
   font-variant-numeric: tabular-nums;
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-mono);
   text-align: right;
   flex: 1;
 }
@@ -3645,7 +3624,7 @@ svg {
   justify-content: space-between;
   align-items: center;
   margin-bottom: var(--space-5);
-  border-bottom: 2px solid rgba(255, 255, 255, 0.15);
+  border-bottom: 2px solid var(--divider-strong);
   padding-bottom: var(--space-4);
   flex-wrap: wrap;
   gap: var(--space-3);
@@ -3661,8 +3640,8 @@ svg {
 .month-comparison-select {
   padding: 6px 12px;
   background: var(--bar);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
+  border: 1px solid var(--divider);
+  border-radius: var(--radius-control-sm);
   color: var(--text);
   font-size: 13px;
   cursor: pointer;
@@ -3681,7 +3660,7 @@ svg {
 
 .stats-table hr {
   border: none;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid var(--divider);
   margin: 12px 0;
   width: 100%;
 }
@@ -3692,7 +3671,7 @@ svg {
   gap: 8px;
   margin-bottom: 4px;
   padding-bottom: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--divider);
 }
 
 .comparison-label {
@@ -3717,7 +3696,7 @@ svg {
   text-align: left;
   flex: 0 0 auto;
   font-variant-numeric: tabular-nums;
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-mono);
 }
 
 /* Ultimates styling */
@@ -3742,7 +3721,7 @@ svg {
 
 .ultimate-time {
   font-variant-numeric: tabular-nums;
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-mono);
 }
 
 /* Comparison display */
@@ -3750,7 +3729,7 @@ svg {
   margin-left: 16px;
   opacity: 0.7;
   font-variant-numeric: tabular-nums;
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
 }
 
@@ -3759,7 +3738,7 @@ svg {
   font-weight: 600;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-mono);
 }
 
 .stat-diff.green {
@@ -4307,98 +4286,12 @@ svg {
   margin-bottom: 1.5rem;
 }
 
-.about-theme-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 16px;
-  color: var(--text) !important;
-  cursor: pointer;
-  background: transparent;
-  border: none;
-  width: 100%;
-  box-sizing: border-box;
-  font: inherit;
-  font-size: 0.9375rem;
-  font-weight: 500;
-  text-align: left;
-  transition: background 0.2s;
-}
-
-.about-theme-row:hover {
-  background: var(--hover-bg);
-}
-
-.about-theme-row .about-theme-option-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  flex-shrink: 0;
-}
-
-.about-theme-row .theme-toggle {
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  color: var(--text);
-  background: transparent;
-  border: none;
-  cursor: pointer;
-}
-
-.about-theme-row .theme-toggle:hover {
-  background: transparent;
-}
-
-.about-theme-row .theme-toggle svg {
-  width: 100%;
-  height: 100%;
-}
-
-.about-theme-option {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 16px;
-  width: 100%;
-  box-sizing: border-box;
-  border: none;
-  background: transparent;
-  color: var(--text) !important;
-  font: inherit;
-  font-size: 0.9375rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.2s;
-  text-align: left;
-}
-
-.about-theme-option:hover {
-  background: var(--hover-bg);
-  color: var(--text) !important;
-}
+/* .about-theme-row / .about-theme-option / icons: shared with nav menu (see .nav-menu-item group above) */
 
 .about-theme-option.active {
   background: var(--hover-bg);
   color: var(--text) !important;
   font-weight: 600;
-}
-
-.about-theme-option-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  flex-shrink: 0;
-}
-
-.about-theme-option-icon svg {
-  width: 22px;
-  height: 22px;
-  fill: currentColor;
 }
 
 .clock-format-icon-text {
@@ -4516,7 +4409,7 @@ svg {
   max-width: 320px;
   padding: 10px 12px;
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: var(--radius-control-sm);
   background: var(--card-bg);
   color: var(--text);
   font: inherit;
