@@ -1634,6 +1634,7 @@ function formatMonthDayFromDateForNav(d) {
  * Matches quick-actions recordDateMdForSleep.
  * Wake-day invariant: row `date` is the wake that completes the night.
  * Example: bed at 10 PM previous day or 1 AM same day both belong to the wake-day row.
+ * +120 early-morning band: docs/quick-actions.md § Phase and row constants.
  */
 function recordDateMdForSleepPeriod(now, avgWakeMins) {
   const nowM = now.getHours() * 60 + now.getMinutes();
@@ -1676,6 +1677,7 @@ function nightRowAwaitingWake(nightMd, liveDays, averagesFallback) {
  * Wake-day key for persisting sleepEnd / morning alarm: same basis as recordDateMdForSleepPeriod, but if the
  * clock has moved to the next calendar morning while yesterday's wake-day row is still awaiting wake,
  * finalize that row (simulated time / late logging). Otherwise bed and wake would land on different rows.
+ * Early-morning band (+120): docs/quick-actions.md § Phase and row constants.
  */
 function resolveRecordDateMdForWake(now, avgWakeMins, liveDays) {
   const primary = recordDateMdForSleepPeriod(now, avgWakeMins);
@@ -1716,6 +1718,7 @@ function remainWakeOffsetFromSleepAvg(nowM, sleepAvgM) {
   return o;
 }
 
+// Phase / quiet-window constants — documented in docs/quick-actions.md § Phase and row constants.
 const PHASE_WAKE_PROXIMITY_MINS = 105;
 const PHASE_SLEEP_WINDOW_BEFORE = 120;
 const PHASE_SLEEP_WINDOW_AFTER = 240;
@@ -1935,6 +1938,7 @@ function isRecentWakeInHours(liveDays, now, hoursBack, averagesFallback) {
   return false;
 }
 
+// Documented in docs/quick-actions.md § Phase and row constants.
 const IMPLICIT_POST_WAKE_QUIET_MINUTES = 180;
 
 /**

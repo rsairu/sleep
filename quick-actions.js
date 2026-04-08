@@ -1,4 +1,4 @@
-// Time-aware dashboard quick actions (wake / nap / sleep) using recent averages; persists via upsertSleepDay.
+// Spec: docs/quick-actions.md — time-aware dashboard quick actions (wake / nap / sleep); persists via upsertSleepDay.
 (function () {
   const NAP_STORAGE_KEY = 'restore_quick_nap_v1';
 
@@ -48,7 +48,7 @@
 
   function getQuickActionsPhaseFromSharedContext(sharedContext, now, averages) {
     if (sharedContext && sharedContext.navDisplay) {
-      if (sharedContext.navDisplay.phase === 'sleep') return 'sleep';
+      if (sharedContext.isDynamicSleepPhase) return 'sleep';
       if (sharedContext.wakeInLast3Hours) return 'wake';
       if (sharedContext.wakeProximity) return 'wake';
       const b = sharedContext.basis;
