@@ -61,6 +61,76 @@
       </li>
     </ul>
 
+    <h2 class="section-title" id="quick-actions">Quick actions</h2>
+    <p class="section-intro">The <strong>Dashboard</strong> suggests shortcuts to log wake, bed, sleep, bathroom, alarms, and naps. Which buttons appear depends on the <em>phase</em> (below), your recent data, and the clock. Tapping an action usually saves to your log; if <strong>cloud sync</strong> is off, you may see a prompt to enable it in Settings—except nap start/end, which can still be recorded locally until sync is on.</p>
+    <p class="section-intro">The list refreshes about every <strong>60 seconds</strong> while the Dashboard is open.</p>
+
+    <h3 class="section-title about-quick-actions-subheading">Which phase runs (order matters)</h3>
+    <p class="section-intro">Quick actions use the same shared time context as the header. Rules are evaluated in this order:</p>
+    <ol class="about-quick-actions-phase-list">
+      <li>If the header is in dynamic <strong>Sleep</strong> (see <a class="content-link" href="#remaining-wake-time">Remaining Wake Time</a>)—bed or fell-asleep logged for the night row, wake not finalized, and the clock is in overnight &ldquo;limbo&rdquo; (after average fell-asleep or before average get-up on a typical schedule) <em>or</em> inside the evening sleep window (within 120 minutes before through 240 minutes after your average fell-asleep)—quick actions use the <strong>sleep</strong> set.</li>
+      <li>Else if a <strong>wake</strong> was logged in the last <strong>3 hours</strong> (get-up time or quick-action wake flag, on a nearby calendar night row)—use <strong>wake</strong>.</li>
+      <li>Else if the clock is within <strong>105 minutes</strong> (circular) of your average get-up time—use <strong>wake</strong>.</li>
+      <li>Else use <strong>wake</strong>, <strong>sleep</strong>, or <strong>mid</strong> from the same clock windows as the header averages: near get-up → wake; within 120 min before to 240 min after average fell-asleep → sleep; otherwise → mid.</li>
+      <li>If that header context is unavailable, the app falls back to the same windows using your recent-seven-day averages from the Dashboard slice.</li>
+    </ol>
+
+    <h3 class="section-title about-quick-actions-subheading">When each action appears</h3>
+    <div class="about-quick-actions-table-wrap">
+      <table class="about-quick-actions-table">
+        <thead>
+          <tr>
+            <th scope="col">Action</th>
+            <th scope="col">Phase</th>
+            <th scope="col">Shown when</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Wake up</td>
+            <td>wake</td>
+            <td>Always when the wake phase is active.</td>
+          </tr>
+          <tr>
+            <td>Log alarm</td>
+            <td>wake</td>
+            <td>Only if your recent nights include alarm data used for averages (first-alarm-to-wake is defined).</td>
+          </tr>
+          <tr>
+            <td>Get in bed</td>
+            <td>sleep</td>
+            <td>Bed is not already considered logged for this night (quick-action flag or a non-default bed time within the last 12 hours).</td>
+          </tr>
+          <tr>
+            <td>Go to sleep</td>
+            <td>sleep</td>
+            <td>Fell-asleep is not already considered logged for this night.</td>
+          </tr>
+          <tr>
+            <td>Sleep in 10 min</td>
+            <td>sleep</td>
+            <td>Neither &ldquo;both bed and fell-asleep complete&rdquo; nor fell-asleep alone is already logged as above—i.e. you can still log an upcoming sleep time.</td>
+          </tr>
+          <tr>
+            <td>Bathroom break</td>
+            <td>sleep</td>
+            <td>Both bed and fell-asleep are considered logged for this night (flags or matching non-stub times within the last 12 hours).</td>
+          </tr>
+          <tr>
+            <td>Start a nap</td>
+            <td>mid</td>
+            <td>Your remaining-wake percentage is at or above the <strong>Open</strong> threshold (see <a class="content-link" href="#about-remaining-wake-thresholds">Adjust thresholds</a>), and you are not in the post-wake 3-hour window or the 180-minute quiet window right after average get-up.</td>
+          </tr>
+          <tr>
+            <td>End your nap</td>
+            <td>mid</td>
+            <td>Today has a nap with a start but no end, or a nap was started locally today before cloud save.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="section-intro about-quick-actions-footnote"><strong>Night row for saves:</strong> Bed, sleep, bathroom, and morning actions target the sleep-period row keyed by <em>wake day</em> (evening and late-night edits belong to the morning you will wake into). Wake time and alarm use the same rules, including early-morning correction when yesterday&rsquo;s row is still waiting for get-up.</p>
+
     <h2 class="section-title" id="remaining-wake-time">Remaining Wake Time</h2>
     <p class="section-intro">Shows how much time is left in your day before your recommended sleep time. <strong>Open</strong>, <strong>Winding down</strong>, and <strong>Pre-sleep</strong> follow your <strong>percent of wake time remaining</strong> until average fell-asleep—meant to gently guide your pace, not rush you. You can adjust those boundaries below or in <a class="content-link" href="config.html#remaining-wake">Settings</a>. A fourth phase, <strong>Sleep</strong>, is <strong>dynamic</strong>: it appears when you have logged bed or fell-asleep for the night and have not yet logged wake; it is not controlled by the sliders.</p>
     <p class="section-intro">The percentage-based phases feel like this:</p>
@@ -108,7 +178,7 @@
     <p class="section-intro">On the <strong>history calendar</strong>, the cell color is the worst of those severities among asleep, duration, and WASO.</p>
 
     <h2 class="section-title" id="night-labels">Night notes (emoji labels)</h2>
-    <p class="section-intro">From the <strong>Log</strong> screen you can tag a night with optional emoji &ldquo;notes&rdquo; (kids, alcohol, travel, stress, work, caffeine, late meal, illness). They are saved with that night&rsquo;s row, show next to <a class="content-link" href="#daily-flags">daily flags</a> on the timeline and dashboard, and do not change scores or charts.</p>
+    <p class="section-intro">From the <strong>Log</strong> screen you can tag a night with optional emoji &ldquo;notes&rdquo; (kids, pet, alcohol, travel, stress, work, caffeine, late meal, illness). They are saved with that night&rsquo;s row, show next to <a class="content-link" href="#daily-flags">daily flags</a> on the timeline and dashboard, and do not change scores or charts.</p>
   </div>
 
   <script src="dev-git-branch.js"></script>

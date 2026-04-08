@@ -22,12 +22,13 @@ if (typeof window !== 'undefined') window.HOLIDAYS_BY_YEAR = HOLIDAYS_BY_YEAR;
 /** Fixed emoji keys for optional per-night labels (log + daily display). Order is canonical storage order. */
 const SLEEP_DAY_LABEL_OPTIONS = [
   { emoji: '👶', title: 'Kids' },
+  { emoji: '🐶', title: 'Pet' },
   { emoji: '🍺', title: 'Alcohol' },
   { emoji: '✈️', title: 'Travel' },
   { emoji: '😰', title: 'Stress' },
   { emoji: '💼', title: 'Work' },
   { emoji: '☕', title: 'Caffeine' },
-  { emoji: '🍝', title: 'Late meal / heavy dinner' },
+  { emoji: '🍝', title: 'Late/heavy meal' },
   { emoji: '🤒', title: 'Illness' }
 ];
 if (typeof window !== 'undefined') window.SLEEP_DAY_LABEL_OPTIONS = SLEEP_DAY_LABEL_OPTIONS;
