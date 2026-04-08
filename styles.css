@@ -4971,59 +4971,94 @@ svg {
   font-size: 0.9em;
 }
 
-.about-quick-actions-subheading.section-title {
-  margin-top: 1.25rem;
-  margin-bottom: 0.4rem;
-  font-size: 1.1rem;
+/* About — Quick actions (theme-colored keywords match chart / event colors) */
+.about-quick-actions-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
 }
 
-.about-quick-actions-phase-list {
-  margin: 0.5rem 0 0.75rem;
-  padding-left: 1.35rem;
+.about-quick-actions-title-sparkle {
+  font-size: 1.15em;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.about-qa-word {
+  font-weight: 600;
+}
+
+.about-qa-word--sleep {
+  color: var(--color-sleep);
+}
+
+.about-qa-word--bed {
+  color: var(--color-bed);
+}
+
+.about-qa-word--bath {
+  color: var(--color-bath);
+}
+
+.about-qa-word--wake {
+  color: var(--color-up);
+}
+
+.about-qa-word--nap {
+  color: var(--color-nap);
+}
+
+.about-qa-word--clock {
+  color: var(--tick-label);
+  font-weight: 600;
+}
+
+.about-qa-word--session {
+  color: var(--color-sleep);
+}
+
+.about-qa-flow-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.35rem 0 0.85rem;
+}
+
+.about-qa-flow-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--grid);
   color: var(--text);
   font-size: 0.9375rem;
-  line-height: 1.5;
+  line-height: 1.45;
 }
 
-.about-quick-actions-phase-list li {
-  margin-bottom: 0.5rem;
+.about-qa-flow-item:last-child {
+  border-bottom: none;
 }
 
-.about-quick-actions-table-wrap {
-  overflow-x: auto;
-  margin: 0.75rem 0 0.5rem;
-  -webkit-overflow-scrolling: touch;
-}
-
-.about-quick-actions-table {
-  width: 100%;
-  min-width: 280px;
-  border-collapse: collapse;
-  font-size: 0.875rem;
+.about-qa-flow-icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
   line-height: 1.4;
+}
+
+.about-qa-flow-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.about-qa-flow-label {
+  font-weight: 600;
   color: var(--text);
 }
 
-.about-quick-actions-table th,
-.about-quick-actions-table td {
-  border: 1px solid var(--border, rgba(128, 128, 128, 0.35));
-  padding: 0.5rem 0.65rem;
-  text-align: left;
-  vertical-align: top;
-}
-
-.about-quick-actions-table th {
-  font-weight: 600;
-  background: var(--panel-bg, rgba(128, 128, 128, 0.08));
-}
-
-.about-quick-actions-table tbody tr:nth-child(even) {
-  background: var(--zebra-row, rgba(128, 128, 128, 0.04));
-}
-
-.about-quick-actions-footnote {
-  font-size: 0.875rem;
-  opacity: 0.92;
+.about-qa-flow-desc {
+  opacity: 0.9;
+  font-size: 0.92em;
 }
 
 /* Cloud sync settings */
@@ -5178,12 +5213,22 @@ svg {
 }
 
 .dashboard-quick-actions-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
   margin: 0 0 10px 0;
   font-size: 0.75rem;
   font-style: italic;
   font-weight: 500;
   opacity: 0.62;
   letter-spacing: 0.02em;
+}
+
+.dashboard-quick-actions-label-sparkle {
+  font-size: 1.05em;
+  line-height: 1;
+  flex-shrink: 0;
+  opacity: 0.95;
 }
 
 .dashboard-quick-actions-info-link {

@@ -1223,7 +1223,7 @@ function renderQuickActionsSection() {
     <div class="dashboard-quick-actions quick-add-drawer" aria-label="Quick actions">
       <div class="dashboard-quick-actions-inner">
         <div class="dashboard-quick-actions-label-row">
-          <p class="dashboard-quick-actions-label">Quick actions</p>
+          <p class="dashboard-quick-actions-label"><span class="dashboard-quick-actions-label-sparkle" aria-hidden="true">✨</span> Quick actions</p>
           <a class="dashboard-quick-actions-info-link content-link" href="about.html#quick-actions" aria-label="About quick actions"><span class="dashboard-quick-actions-info-letter" aria-hidden="true">i</span></a>
         </div>
         <div class="dashboard-quick-actions-row" id="dashboard-quick-actions-buttons" role="group" aria-label="Suggested actions"></div>
