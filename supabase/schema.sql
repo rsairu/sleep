@@ -118,6 +118,18 @@ begin
     coalesce(nullif(trim(v_draft.sleep_start), ''), '') <> '' and
     coalesce(nullif(trim(v_draft.sleep_end), ''), '') <> '';
 
+  -- Nap quick actions patch only nap_* on the draft; full promotion still requires bed/sleep/wake on the draft.
+  -- If this date already exists in sleep_days, copy nap fields from the draft so the main log shows the nap.
+  if (v_patch ? 'nap_start' or v_patch ? 'nap_end') and exists (
+    select 1 from public.sleep_days s where s.date_md = p_date_md
+  ) then
+    update public.sleep_days s
+    set
+      nap_start = v_draft.nap_start,
+      nap_end = v_draft.nap_end
+    where s.date_md = p_date_md;
+  end if;
+
   if v_complete then
     insert into public.sleep_days (
       date_md,
