@@ -1079,6 +1079,18 @@ function calculateFirstAlarmToWake(day) {
   return calculateAlarmToWakeDelta(day);
 }
 
+/**
+ * Natural wake: no alarms, or exactly one alarm with wake strictly before it (negative alarm-to-wake delta).
+ * Multiple alarm times imply snooze / backup alarms → not natural.
+ */
+function isNaturalWakeDay(day) {
+  const alarms = day && day.alarm;
+  if (!alarms || alarms.length === 0) return true;
+  if (alarms.length !== 1) return false;
+  const delta = calculateAlarmToWakeDelta(day);
+  return delta !== null && delta < 0;
+}
+
 // Calculate delay from bed time to falling asleep
 function calculateSleepDelay(day) {
   const bedTime = timeToMinutes(day.bed);

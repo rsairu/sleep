@@ -2742,6 +2742,13 @@ body{
   border: 1px solid var(--border-subtle, rgba(128, 128, 128, 0.25));
 }
 
+/* Natural wake: inline after wake time; title = native tooltip on hover */
+.stat-natural-wake-emoji{
+  cursor: help;
+  color: var(--color-up);
+  white-space: nowrap;
+}
+
 .quick-add-labels-row .quick-add-label-chips{
   display: flex;
   flex-wrap: wrap;
