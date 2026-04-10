@@ -429,6 +429,79 @@ body{
   text-transform: none;
 }
 
+.nav-dev-banner--collapsed .nav-dev-banner-inner {
+  gap: 0;
+}
+
+.nav-dev-banner-title-strip {
+  width: 100%;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.nav-dev-banner-drawer-handle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 8px 2px;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: grab;
+  border-radius: 6px;
+  box-sizing: border-box;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: transform 0.12s ease-out;
+}
+
+.nav-dev-banner-drawer-handle:active {
+  cursor: grabbing;
+  transition: none;
+}
+
+.nav-dev-banner-drawer-handle:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.95);
+  outline-offset: 2px;
+}
+
+.nav-dev-banner-drawer-handle-bar {
+  display: block;
+  width: 44px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.nav-dev-banner-drawer {
+  max-height: 900px;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.nav-dev-banner--dragging .nav-dev-banner-drawer {
+  transition: none;
+}
+
+.nav-dev-banner--measure .nav-dev-banner-drawer {
+  transition: none !important;
+}
+
+.nav-dev-banner--collapsed .nav-dev-banner-drawer {
+  max-height: 0;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-dev-banner-drawer {
+    transition: none;
+  }
+}
+
 .nav-dev-banner-main-row {
   display: flex;
   flex-direction: row;
@@ -1180,6 +1253,58 @@ body{
   width: 30px;
   height: 2px;
   flex-shrink: 0;
+}
+
+/* Graph show/hide: same emojis as log (bed / sleep / wake / alarm) + daily natural wake */
+.graph-sh-legend-icon {
+  font-size: 1.15rem;
+  line-height: 1;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Wake-type column: match chart markers (alarm dot vs larger natural-wake disc) */
+.graph-sh-legend-wake-type-sample {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+}
+
+.graph-sh-legend-wake-type-sample--alarm::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-up);
+}
+
+.graph-sh-legend-natural-bullseye {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  box-sizing: border-box;
+  border: 2px solid var(--color-up);
+  background: var(--panel);
+  position: relative;
+}
+
+.graph-sh-legend-natural-bullseye::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-up);
 }
 
 .show-hide-title{
@@ -2742,6 +2867,13 @@ body{
   border: 1px solid var(--border-subtle, rgba(128, 128, 128, 0.25));
 }
 
+/* Natural wake: inline after wake time; title = native tooltip on hover */
+.stat-natural-wake-emoji{
+  cursor: help;
+  color: var(--color-up);
+  white-space: nowrap;
+}
+
 .quick-add-labels-row .quick-add-label-chips{
   display: flex;
   flex-wrap: wrap;
@@ -3375,8 +3507,8 @@ svg {
 
 .data-point {
   fill: var(--color-bed);
-  stroke: var(--bg);
-  stroke-width: 2;
+  stroke: none;
+  stroke-width: 0;
   cursor: pointer;
   transition: r 0.2s;
 }
@@ -3391,6 +3523,44 @@ svg {
 
 .data-point.getup {
   fill: var(--color-up);
+}
+
+.getup-break-mask {
+  fill: var(--panel);
+  stroke: none;
+  pointer-events: none;
+}
+
+/* Fill-only bullseye (no stroke): core + theme gap + ring */
+.getup-natural-ring-outer {
+  fill: var(--color-up);
+  stroke: none;
+  pointer-events: none;
+  transition: r 0.2s;
+}
+
+.getup-natural-ring-inner {
+  fill: var(--panel);
+  stroke: none;
+  pointer-events: none;
+  transition: r 0.2s;
+}
+
+.getup-natural-core {
+  transition: r 0.2s, fill 0.2s;
+}
+
+.getup-natural-wake-group:hover .getup-natural-core {
+  r: 4;
+  fill: var(--color-hover-blue);
+}
+
+.getup-natural-wake-group:hover .getup-natural-ring-outer {
+  r: 8.25;
+}
+
+.getup-natural-wake-group:hover .getup-natural-ring-inner {
+  r: 6.25;
 }
 
 /* Graph legend (different from timeline legend) */
@@ -3475,7 +3645,7 @@ svg {
 }
 
 .data-point:hover {
-  r: 5;
+  r: 4;
   fill: var(--color-hover-blue);
 }
 

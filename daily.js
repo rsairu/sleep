@@ -479,6 +479,10 @@ function renderDay(day, days, dayIndex, options) {
     : '';
   const userLabelsBlock = sleepDayUserLabelsMarkup(day);
   const dayFlagsRow = `<div class="day-flags-row"><div class="day-flags-content">${deviationWarnings}${userLabelsBlock}</div></div>`;
+  const naturalWakeSuffix =
+    typeof isNaturalWakeDay === 'function' && isNaturalWakeDay(day)
+      ? ' (<span class="stat-natural-wake-emoji" role="img" aria-label="Natural wake" title="Natural wake">🌄</span>)'
+      : '';
   
   // Convert times to timeline positions
   const sleepStartPos = timeToTimelinePosition(sleepStart);
@@ -510,7 +514,7 @@ function renderDay(day, days, dayIndex, options) {
             <div class="day-metrics-phases day-stats">
               <div class="stat-row"><span class="stat-label">${highlightKeyword('bed:', 'bed')}</span><span class="stat-value">${day.bed}</span></div>
               <div class="stat-row"><span class="stat-label">${highlightKeyword('asleep:', 'asleep')}</span><span class="stat-value">${day.sleepStart}</span></div>
-              <div class="stat-row"><span class="stat-label">${highlightKeyword('wake:', 'wake')}</span><span class="stat-value">${day.sleepEnd}</span></div>
+              <div class="stat-row"><span class="stat-label">${highlightKeyword('wake:', 'wake')}</span><span class="stat-value">${day.sleepEnd}${naturalWakeSuffix}</span></div>
             </div>
             <div class="day-metrics-calcs day-stats">
               ${alarmToWakeRow}

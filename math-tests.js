@@ -95,6 +95,13 @@ function runTests() {
   };
   expectEqual(u.calculateLongestUninterrupted(interruptionsDay), 180, 'longest uninterrupted span');
 
+  expectEqual(u.isNaturalWakeDay({ alarm: [], sleepEnd: '07:00' }), true, 'isNaturalWakeDay no alarms');
+  expectEqual(u.isNaturalWakeDay(normalAlarmDay), false, 'isNaturalWakeDay after single alarm');
+  expectEqual(u.isNaturalWakeDay(negativeSignedAlarmDay), true, 'isNaturalWakeDay before single alarm');
+  expectEqual(u.isNaturalWakeDay({ alarm: ['07:00'], sleepEnd: '07:00' }), false, 'isNaturalWakeDay wake at alarm (delta 0)');
+  expectEqual(u.isNaturalWakeDay(interruptionsDay), false, 'isNaturalWakeDay multi-alarm');
+  expectEqual(u.isNaturalWakeDay(eveningAlarmRollDay), true, 'isNaturalWakeDay single alarm negative delta overnight');
+
   // Averaging normalization around midnight
   const normalizedAvg = Math.round(
     (u.normalizeTimeForAveraging(u.timeToMinutes('23:50')) +

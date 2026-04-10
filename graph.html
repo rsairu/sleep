@@ -47,17 +47,17 @@
             </label>
             <label class="time-toggle graph-sh-toggle-label">
               <input type="checkbox" id="show-bedtime-line" checked>
-              <div class="legend-line bedtime"></div>
+              <span class="graph-sh-legend-icon" aria-hidden="true">🛏️</span>
               <span>bed time</span>
             </label>
             <label class="time-toggle graph-sh-toggle-label">
               <input type="checkbox" id="show-sleep-start-line" checked>
-              <div class="legend-line sleep-start"></div>
+              <span class="graph-sh-legend-icon" aria-hidden="true">🌙</span>
               <span>fell asleep</span>
             </label>
             <label class="time-toggle graph-sh-toggle-label">
               <input type="checkbox" id="show-getup-line" checked>
-              <div class="legend-line getup"></div>
+              <span class="graph-sh-legend-icon" aria-hidden="true">🌅</span>
               <span>get up</span>
             </label>
           </div>
@@ -81,6 +81,19 @@
               <input type="checkbox" id="show-getup-regression" checked>
               <div class="legend-line getup-regression"></div>
               <span>trend</span>
+            </label>
+          </div>
+          <div class="graph-show-hide-col graph-show-hide-col--wake-type" role="group" aria-label="Get up wake type markers">
+            <div class="show-hide-title">Wake type</div>
+            <label class="time-toggle graph-sh-toggle-label">
+              <input type="checkbox" id="show-alarm-wake-markers" checked>
+              <span class="graph-sh-legend-wake-type-sample graph-sh-legend-wake-type-sample--alarm" aria-hidden="true"></span>
+              <span>alarm wake</span>
+            </label>
+            <label class="time-toggle graph-sh-toggle-label">
+              <input type="checkbox" id="show-natural-wake-markers" checked>
+              <span class="graph-sh-legend-wake-type-sample" aria-hidden="true"><span class="graph-sh-legend-natural-bullseye"></span></span>
+              <span>natural wake</span>
             </label>
           </div>
         </div>

@@ -67,7 +67,8 @@ function buildPoints(days) {
       sleepDurationMinutes: sleepDuration,
       mainSleepMinutes: mainSleep,
       napMinutes: napDuration,
-      fragmentation: normalizeFragmentationLevel(day)
+      fragmentation: normalizeFragmentationLevel(day),
+      naturalWake: isNaturalWakeDay(day)
     };
   });
 }
@@ -187,6 +188,22 @@ function render7DayTimeGraph(container, points, seriesKeys) {
     g.appendChild(pathEl);
   });
 
+  // Match graph page behavior: break get-up line behind natural wake bullseye markers.
+  if (keys.includes('getUpMinutes')) {
+    const breakMasksG = ns('g');
+    breakMasksG.setAttribute('class', 'getup-line-break-masks');
+    points.forEach((point) => {
+      if (!point.naturalWake) return;
+      const mask = ns('circle');
+      mask.setAttribute('cx', String(xScale(point.date)));
+      mask.setAttribute('cy', String(yScale(point.getUpMinutes)));
+      mask.setAttribute('r', '7.5');
+      mask.setAttribute('class', 'getup-break-mask');
+      breakMasksG.appendChild(mask);
+    });
+    g.appendChild(breakMasksG);
+  }
+
   const deg = regressionDegree(points.length);
   const regPath = (coeffs, key) => {
     let d = '';
@@ -208,11 +225,47 @@ function render7DayTimeGraph(container, points, seriesKeys) {
 
   points.forEach(p => {
     keys.forEach((key) => {
+      const x = xScale(p.date);
+      const y = yScale(p[key]);
+
+      if (key === 'getUpMinutes' && p.naturalWake) {
+        const ng = ns('g');
+        ng.setAttribute('class', 'getup-natural-wake-group');
+
+        const ringOuter = ns('circle');
+        ringOuter.setAttribute('cx', String(x));
+        ringOuter.setAttribute('cy', String(y));
+        ringOuter.setAttribute('r', '7.5');
+        ringOuter.setAttribute('class', 'getup-natural-ring-outer getup-marker--natural');
+
+        const ringInner = ns('circle');
+        ringInner.setAttribute('cx', String(x));
+        ringInner.setAttribute('cy', String(y));
+        ringInner.setAttribute('r', '5.5');
+        ringInner.setAttribute('class', 'getup-natural-ring-inner getup-marker--natural');
+
+        const core = ns('circle');
+        core.setAttribute('cx', String(x));
+        core.setAttribute('cy', String(y));
+        core.setAttribute('r', '3');
+        core.setAttribute('class', 'data-point getup getup-point getup-marker--natural getup-natural-core');
+
+        ng.appendChild(ringOuter);
+        ng.appendChild(ringInner);
+        ng.appendChild(core);
+        g.appendChild(ng);
+        return;
+      }
+
       const circle = ns('circle');
-      circle.setAttribute('cx', xScale(p.date));
-      circle.setAttribute('cy', yScale(p[key]));
+      circle.setAttribute('cx', x);
+      circle.setAttribute('cy', y);
       circle.setAttribute('r', 3);
-      circle.setAttribute('class', timeSeriesLineClass(key).point);
+      if (key === 'getUpMinutes') {
+        circle.setAttribute('class', 'data-point getup getup-point getup-marker--alarm');
+      } else {
+        circle.setAttribute('class', timeSeriesLineClass(key).point);
+      }
       g.appendChild(circle);
     });
   });

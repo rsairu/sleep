@@ -17,6 +17,16 @@ function filterPointsByGraphRange(allPoints, rangeKey) {
   return allPoints.filter((p) => p.date >= startDate && p.date <= endDate);
 }
 
+function graphAlarmWakeMarkersOn() {
+  const el = document.getElementById('show-alarm-wake-markers');
+  return !el || el.checked;
+}
+
+function graphNaturalWakeMarkersOn() {
+  const el = document.getElementById('show-natural-wake-markers');
+  return !el || el.checked;
+}
+
 function graphOuterWidth() {
   const el = document.getElementById('graph-container');
   const w = el && el.clientWidth;
@@ -103,7 +113,8 @@ loadSleepData()
         wakeDelayMinutes: calculateWakeDelay(day),
         sleepDelayMinutes: calculateSleepDelay(day),
         firstAlarm: day.alarm && day.alarm.length > 0 ? day.alarm[0] : null,
-        fragmentation: normalizeFragmentationLevel(day)
+        fragmentation: normalizeFragmentationLevel(day),
+        naturalWake: isNaturalWakeDay(day)
       };
     });
 
@@ -436,6 +447,25 @@ function renderGraphPageCharts() {
     pathGetUp.setAttribute('id', 'getup-line');
     g.appendChild(pathGetUp);
 
+    const showNaturalWakeStyle = graphNaturalWakeMarkersOn();
+    const breakMasksG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    breakMasksG.setAttribute('class', 'getup-line-break-masks');
+    breakMasksG.setAttribute('id', 'getup-line-break-masks');
+    if (showNaturalWakeStyle) {
+      points.forEach((point) => {
+        if (!point.naturalWake) return;
+        const x = xScale(point.date);
+        const y = yScale(point.getUpMinutes);
+        const mask = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        mask.setAttribute('cx', String(x));
+        mask.setAttribute('cy', String(y));
+        mask.setAttribute('r', '7.5');
+        mask.setAttribute('class', 'getup-break-mask');
+        breakMasksG.appendChild(mask);
+      });
+    }
+    g.appendChild(breakMasksG);
+
     // Calculate polynomial regression for get up times (quadratic, degree 2)
     const getUpXValues = points.map((point, index) => index);
     const getUpYValues = points.map(point => point.getUpMinutes);
@@ -533,7 +563,7 @@ function renderGraphPageCharts() {
       const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       circle.setAttribute('cx', x);
       circle.setAttribute('cy', y);
-      circle.setAttribute('r', 4);
+      circle.setAttribute('r', 3);
       circle.setAttribute('class', 'data-point bedtime bedtime-point');
       circle.setAttribute('data-date', point.dateString);
       circle.setAttribute('data-time', point.bedTimeString);
@@ -549,7 +579,7 @@ function renderGraphPageCharts() {
       const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       circle.setAttribute('cx', x);
       circle.setAttribute('cy', y);
-      circle.setAttribute('r', 4);
+      circle.setAttribute('r', 3);
       circle.setAttribute('class', 'data-point sleep-start sleep-start-point');
       circle.setAttribute('data-date', point.dateString);
       circle.setAttribute('data-time', point.sleepStartString);
@@ -557,21 +587,60 @@ function renderGraphPageCharts() {
       g.appendChild(circle);
     });
 
-    // Draw get up data points
-    points.forEach(point => {
+    const showAlarmWakeMarkers = graphAlarmWakeMarkersOn();
+    const getupMarkersG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    getupMarkersG.setAttribute('id', 'getup-markers-group');
+    points.forEach((point) => {
       const x = xScale(point.date);
       const y = yScale(point.getUpMinutes);
-      
-      const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      circle.setAttribute('cx', x);
-      circle.setAttribute('cy', y);
-      circle.setAttribute('r', 4);
-      circle.setAttribute('class', 'data-point getup getup-point');
-      circle.setAttribute('data-date', point.dateString);
-      circle.setAttribute('data-time', point.getUpString);
-      
-      g.appendChild(circle);
+      const xStr = String(x);
+      const yStr = String(y);
+
+      if (point.naturalWake && showNaturalWakeStyle) {
+        const ng = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        ng.setAttribute('class', 'getup-natural-wake-group');
+        const ringOuter = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        ringOuter.setAttribute('cx', xStr);
+        ringOuter.setAttribute('cy', yStr);
+        ringOuter.setAttribute('r', '7.5');
+        ringOuter.setAttribute('class', 'getup-natural-ring-outer getup-marker--natural');
+        const ringInner = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        ringInner.setAttribute('cx', xStr);
+        ringInner.setAttribute('cy', yStr);
+        ringInner.setAttribute('r', '5.5');
+        ringInner.setAttribute('class', 'getup-natural-ring-inner getup-marker--natural');
+        const core = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        core.setAttribute('cx', xStr);
+        core.setAttribute('cy', yStr);
+        core.setAttribute('r', '3');
+        core.setAttribute('class', 'data-point getup getup-point getup-marker--natural getup-natural-core');
+        core.setAttribute('data-date', point.dateString);
+        core.setAttribute('data-time', point.getUpString);
+        ng.appendChild(ringOuter);
+        ng.appendChild(ringInner);
+        ng.appendChild(core);
+        getupMarkersG.appendChild(ng);
+      } else if (point.naturalWake && !showNaturalWakeStyle && showAlarmWakeMarkers) {
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', xStr);
+        circle.setAttribute('cy', yStr);
+        circle.setAttribute('r', '3');
+        circle.setAttribute('class', 'data-point getup getup-point getup-marker--alarm');
+        circle.setAttribute('data-date', point.dateString);
+        circle.setAttribute('data-time', point.getUpString);
+        getupMarkersG.appendChild(circle);
+      } else if (!point.naturalWake && showAlarmWakeMarkers) {
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', xStr);
+        circle.setAttribute('cy', yStr);
+        circle.setAttribute('r', '3');
+        circle.setAttribute('class', 'data-point getup getup-point getup-marker--alarm');
+        circle.setAttribute('data-date', point.dateString);
+        circle.setAttribute('data-time', point.getUpString);
+        getupMarkersG.appendChild(circle);
+      }
     });
+    g.appendChild(getupMarkersG);
     
     // Create invisible hover areas for each day (after points so they're on top for interaction)
     // Calculate non-overlapping hover areas by using midpoints between days
@@ -704,12 +773,23 @@ function renderGraphPageCharts() {
 
     function toggleGetUpLine(show) {
       const line = document.getElementById('getup-line');
-      const points = document.querySelectorAll('.getup-point');
+      const masks = document.getElementById('getup-line-break-masks');
+      const markerGroup = document.getElementById('getup-markers-group');
+      const alarmWakeCh = document.getElementById('show-alarm-wake-markers');
+      const naturalWakeCh = document.getElementById('show-natural-wake-markers');
       if (line) {
         line.style.display = show ? 'block' : 'none';
       }
-      points.forEach(point => {
-        point.style.display = show ? 'block' : 'none';
+      if (masks) {
+        masks.style.display = show ? 'block' : 'none';
+      }
+      if (markerGroup) {
+        markerGroup.style.display = show ? 'block' : 'none';
+      }
+      [alarmWakeCh, naturalWakeCh].forEach((el) => {
+        if (!el) return;
+        el.disabled = !show;
+        el.setAttribute('aria-disabled', show ? 'false' : 'true');
       });
     }
 
@@ -765,6 +845,10 @@ function renderGraphPageCharts() {
       setupCheckbox('show-bedtime-line', toggleBedtimeLine);
       setupCheckbox('show-sleep-start-line', toggleSleepStartLine);
       setupCheckbox('show-getup-line', toggleGetUpLine);
+      ['show-alarm-wake-markers', 'show-natural-wake-markers'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', () => renderGraphPageCharts());
+      });
       setupCheckbox('show-getup-regression', toggleGetUpRegression);
       setupCheckbox('show-sleep-start-regression', toggleSleepStartRegression);
       setupCheckbox('show-bedtime-regression', toggleBedtimeRegression);
