@@ -220,10 +220,10 @@
     return false;
   }
 
-  function persistPartial(dateMd, partial, onReload) {
+  function persistPartial(dateMd, partial, onReload, successToastMessage) {
     return saveDraftAndMaybePromote(dateMd, partial)
       .then(function () {
-        if (typeof showAppToast === 'function') showAppToast('recorded');
+        if (typeof showAppToast === 'function') showAppToast(successToastMessage);
         if (typeof onReload === 'function') return onReload();
         return null;
       })
@@ -252,7 +252,7 @@
       typeof resolveRecordDateMdForWake === 'function'
         ? resolveRecordDateMdForWake(now, averages.avgSleepEnd, days)
         : recordDateMdForSleepPeriod(now, averages.avgSleepEnd);
-    return persistPartial(md, { sleepEnd: formatTimeFromDate(now) }, onReload).then(function () {
+    return persistPartial(md, { sleepEnd: formatTimeFromDate(now) }, onReload, '🌅 Woke up').then(function () {
       markNightQaSleepFlag(md, 'wake');
       return null;
     });
@@ -269,7 +269,8 @@
       return persistPartial(
         md,
         { alarm: mergeUniqueTimeStrings(existingAlarm, alarmNow) },
-        onReload
+        onReload,
+        '⏰ Alarm logged'
       );
     });
   }
@@ -278,7 +279,7 @@
   function handleBedNow(days, averages, onReload, now) {
     const md = recordDateMdForSleepPeriod(now, averages.avgSleepEnd);
     const bedClock = formatTimeFromDate(now);
-    return persistPartial(md, { bed: bedClock }, onReload).then(function () {
+    return persistPartial(md, { bed: bedClock }, onReload, '🛌 Got in bed').then(function () {
       markNightQaSleepFlag(md, 'bed');
       return null;
     });
@@ -288,7 +289,9 @@
   function handleSleepAt(days, averages, onReload, now, offsetMin) {
     const md = recordDateMdForSleepPeriod(now, averages.avgSleepEnd);
     const startClock = offsetMin === 0 ? formatTimeFromDate(now) : addWallMinutes(now, offsetMin);
-    return persistPartial(md, { sleepStart: startClock }, onReload).then(function () {
+    const sleepToast =
+      offsetMin === 10 ? '🌙 Going to sleep in 10 min' : '🌙 Going to sleep';
+    return persistPartial(md, { sleepStart: startClock }, onReload, sleepToast).then(function () {
       markNightQaSleepFlag(md, 'sleep');
       return null;
     });
@@ -302,7 +305,8 @@
       return persistPartial(
         md,
         { bathroom: mergeUniqueTimeStrings(existingBathroom, t) },
-        onReload
+        onReload,
+        '🧻 Went to bathroom'
       );
     });
   }
@@ -316,33 +320,37 @@
     );
   }
 
-  function isNapActive(days, now) {
-    const md = formatMdFromDate(now);
-    const day = findDayByMd(days, md);
+  /** Calendar-day row (e.g. afternoon 4/10 → "4/10"); same localStorage key for offline nap. */
+  function napCalendarMd(now) {
+    return formatMdFromDate(now);
+  }
+
+  function napActiveFromLoadedDaysAndSession(days, calendarMd) {
+    const day = findDayByMd(days, calendarMd);
     if (napOpenOnDay(day)) return true;
     const s = readNapSession();
-    return Boolean(s && s.dateMd === md);
+    return Boolean(s && s.dateMd === calendarMd);
   }
 
   function handleNapStart(days, averages, onReload, now) {
-    const md = formatMdFromDate(now);
+    const md = napCalendarMd(now);
     const startStr = formatTimeFromDate(now);
     if (!isSupabaseEnabled()) {
       writeNapSession({ dateMd: md, start: startStr });
-      if (typeof showAppToast === 'function') showAppToast('recorded');
+      if (typeof showAppToast === 'function') showAppToast('😴 Nap started');
       return Promise.resolve();
     }
     writeNapSession(null);
-    return persistPartial(md, { nap: { start: startStr, end: null } }, onReload);
+    return persistPartial(md, { nap: { start: startStr, end: null } }, onReload, '😴 Nap started');
   }
 
   function handleNapEnd(days, averages, onReload, now) {
-    const md = formatMdFromDate(now);
+    const md = napCalendarMd(now);
     const endStr = formatTimeFromDate(now);
     const session = readNapSession();
     if (!isSupabaseEnabled()) {
       writeNapSession(null);
-      if (typeof showAppToast === 'function') showAppToast('recorded');
+      if (typeof showAppToast === 'function') showAppToast('💤 Nap ended');
       return Promise.resolve();
     }
     return getEditableDayByMd(md, days).then(function (day) {
@@ -363,7 +371,8 @@
       return persistPartial(
         targetMd,
         { nap: { start: startStr, end: endStr } },
-        onReload
+        onReload,
+        '💤 Nap ended'
       );
     });
   }
@@ -380,10 +389,12 @@
 
   const QUICK_ACTIONS_BY_PHASE = {
     wake: [
+      { qa: 'nap-end', emoji: '💤', label: 'End your nap', when: function (ctx) { return ctx.napActive; } },
       { qa: 'wake', emoji: '🌅', label: 'Wake up' },
       { qa: 'alarm', emoji: '⏰', label: 'Log alarm', when: function (ctx) { return ctx.showAlarm; } }
     ],
     sleep: [
+      { qa: 'nap-end', emoji: '💤', label: 'End your nap', when: function (ctx) { return ctx.napActive; } },
       { qa: 'bed-now', emoji: '🛏️', label: 'Get in bed', when: function (ctx) { return !ctx.bedLoggedForNight; } },
       { qa: 'sleep-0', emoji: '🌙', label: 'Go to sleep', when: function (ctx) { return !ctx.sleepLoggedForNight; } },
       { qa: 'bathroom-trip', emoji: '🧻', label: 'Bathroom break', when: function (ctx) { return ctx.bedSleepLoggedForNight; } },
@@ -396,6 +407,7 @@
         label: 'Start a nap',
         when: function (ctx) {
           return (
+            !ctx.napActive &&
             ctx.napStartAllowed &&
             !ctx.wakeInLast3Hours &&
             !ctx.implicitPostWakeQuiet
@@ -424,7 +436,8 @@
       typeof getSharedAppTimeContext === 'function' ? getSharedAppTimeContext(days) : null;
     const now = sharedContext && sharedContext.now ? sharedContext.now : getAppDate();
     const phase = getQuickActionsPhaseFromSharedContext(sharedContext, now, averages);
-    const napActive = isNapActive(days, now);
+    const calendarNapMd = napCalendarMd(now);
+    const napActiveSync = napActiveFromLoadedDaysAndSession(days, calendarNapMd);
     const showAlarm = averages.avgFirstAlarmToWake != null;
     const nightMd = sharedContext && sharedContext.nightMd
       ? sharedContext.nightMd
@@ -452,18 +465,32 @@
         napStartAllowed = pr >= openMin;
       }
     }
-    const buttonContext = {
-      showAlarm: showAlarm,
-      napActive: napActive,
-      napStartAllowed: napStartAllowed,
-      wakeInLast3Hours: Boolean(sharedContext && sharedContext.wakeInLast3Hours),
-      implicitPostWakeQuiet: Boolean(sharedContext && sharedContext.implicitPostWakeQuiet),
-      bedLoggedForNight: bedLogged,
-      sleepLoggedForNight: sleepLogged,
-      bedSleepLoggedForNight: bedSleepLogged
-    };
-    mount.innerHTML = renderButtons(phase, buttonContext);
+    function paintQuickActionButtons(napActive) {
+      const buttonContext = {
+        showAlarm: showAlarm,
+        napActive: napActive,
+        napStartAllowed: napStartAllowed,
+        wakeInLast3Hours: Boolean(sharedContext && sharedContext.wakeInLast3Hours),
+        implicitPostWakeQuiet: Boolean(sharedContext && sharedContext.implicitPostWakeQuiet),
+        bedLoggedForNight: bedLogged,
+        sleepLoggedForNight: sleepLogged,
+        bedSleepLoggedForNight: bedSleepLogged
+      };
+      mount.innerHTML = renderButtons(phase, buttonContext);
+    }
 
+    if (!isSupabaseEnabled()) {
+      paintQuickActionButtons(napActiveSync);
+      return;
+    }
+    getSleepDraftByDate(calendarNapMd)
+      .then(function (draft) {
+        const fromDraft = napOpenOnDay(draft);
+        paintQuickActionButtons(napActiveSync || fromDraft);
+      })
+      .catch(function () {
+        paintQuickActionButtons(napActiveSync);
+      });
   }
 
   function onQuickActionClick(e, getDays, onReload) {

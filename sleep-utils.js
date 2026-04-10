@@ -2383,6 +2383,9 @@ function initDevBannerCloudRefresh() {
       if (!cfg.enabled) return;
       btn.disabled = true;
       loadSleepData({ forceRefresh: true })
+        .then(function () {
+          window.location.reload();
+        })
         .catch(function () {})
         .finally(function () {
           btn.disabled = false;
@@ -2720,7 +2723,7 @@ function renderNavBar(currentPage) {
     '<span class="nav-dev-banner-cloud-hint">Cloud data not synced in dev</span>' +
     '<button type="button" class="nav-dev-banner-cloud-refresh" id="nav-dev-banner-cloud-refresh-btn"' +
     cloudRefreshDisabledAttr +
-    ' title="Refresh cloud data" aria-label="Refresh cloud data">' +
+    ' title="Refresh cloud data and reload page" aria-label="Refresh cloud data and reload page">' +
     refreshIconSvg +
     '<span class="nav-dev-banner-cloud-refresh-label">Refresh</span>' +
     '</button>' +

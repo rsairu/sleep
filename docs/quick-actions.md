@@ -99,8 +99,10 @@ Once phase is **`wake`**, **`sleep`**, or **`mid`**, each button has its own pre
 | Go to sleep   | sleep | Fell-asleep not already logged (same 12 h / stub / QA rules) |
 | Sleep in 10 min | sleep | Neither fell-asleep logged nor **both** bed and fell-asleep complete for the row |
 | Bathroom break | sleep | Both bed and fell-asleep recorded for the row (flags or stub-diff + 12 h) |
-| Start a nap   | mid   | `navDisplay.percentRemaining >= openMin` (remaining-wake thresholds), and **not** `wakeInLast3Hours`, and **not** implicit post-wake quiet window |
-| End your nap  | mid   | Today’s row has nap started but not ended, or local nap session for today before cloud save |
+| Start a nap   | mid   | `navDisplay.percentRemaining >= openMin` (remaining-wake thresholds), **not** `wakeInLast3Hours`, **not** implicit post-wake quiet window, and **not** `napActive` |
+| End your nap  | mid, wake, sleep | Calendar-day row for “today” (`date` = month/day of app now, e.g. afternoon 4/10 → `4/10`) has an open nap on loaded cloud data **or** in `sleep_day_drafts` for that `date_md`, or matching offline nap session. Shown in wake/sleep too whenever `napActive` so a phase change does not hide it. |
+
+**Nap vs cloud drafts:** Quick saves use `promote_draft_if_complete`. Until bed, sleep start, and wake are all present on the draft, promotion does **not** copy the whole row into `sleep_days`, but nap patches still update the draft. The dashboard list is built from `sleep_days` only, so quick actions also consult `sleep_day_drafts` for the calendar `date_md` when deciding `napActive`. When a `sleep_days` row **already exists** for that `date_md`, the RPC copies `nap_start` / `nap_end` from the draft into `sleep_days` on each nap patch (see `supabase/schema.sql` and `supabase/migrations/20260410180000_sync_nap_from_draft_to_sleep_days.sql` — apply the migration on your Supabase project).
 
 **Implicit post-wake quiet:** `implicitPostWakeQuiet` — wall clock within **180** minutes after average get-up on a typical schedule (`isImplicitPostWakeQuietWindow`). Suppresses **Start a nap** even in **`mid`** phase.
 
@@ -112,6 +114,7 @@ Each action persists to the **sleep-period row keyed by wake day** (`date` on th
 - **Late-night / evening** actions belong to **tomorrow’s** wake-day row when clock is past the early-morning band (see constants: `recordDateMdForSleepPeriod`).
 - **Wake** and **alarm** use **`resolveRecordDateMdForWake`** when available: same primary key as above, but if the calendar morning advanced while **yesterday’s** wake-day row is still awaiting get-up, the correction targets that prior row so wake and bed/sleep do not split across rows.
 - **Bed**, **fell-asleep**, and **bathroom** use **`recordDateMdForSleepPeriod`** only (no early-morning correction).
+- **Nap start / end** use the **calendar day** of app `now` (same `date` as “today’s” row, e.g. a 4/10 afternoon nap → `4/10`), not the evening forward shift used for tonight’s bed row.
 
 ---
 
