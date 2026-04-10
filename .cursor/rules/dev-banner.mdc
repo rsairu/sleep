@@ -1,0 +1,14 @@
+---
+description: Points to the canonical spec for dev banner visibility, controls, and fixed-layout behavior.
+globs:
+  - "**/sleep-utils.js"
+  - "**/styles.css"
+  - "**/scripts/stamp-dev-branch.js"
+alwaysApply: false
+---
+
+# Dev banner and app-time controls
+
+Dev-banner visibility, warnings, drawer behavior, app-time simulation, and fixed-layout reserve logic are documented in **`docs/dev-banner.md`**.
+
+When changing `isDevBuildContext`, `readDevClockOverrideMs`, `getAppNowMs`, `renderNavBar`, `initDevClockControl`, `initDevBannerCloudRefresh`, `initDevBannerDrawer`, `measureDevBannerExpandedHeightPx`, or `syncDevBannerFixedLayout`, update that doc and the **Keys and constants** table if any key names, precedence, or thresholds change.

@@ -1185,8 +1185,11 @@ const DEV_VERCEL_APP_URL = 'https://sleep-mu.vercel.app';
 const DEV_VERCEL_PROJECT_URL = 'https://vercel.com/rsairu-5429s-projects/sleep';
 const SUPABASE_PROJECT_REF_PROD = 'lsaguxfovamihwnicpkk';
 const SUPABASE_PROJECT_REF_DEV = 'pjpzxkyflmzzbfdkujan';
+// Dev banner + app-time simulation spec: docs/dev-banner.md
 const DEV_BANNER_OVERRIDE_KEY = 'sleep-app-force-dev-banner';
 const DEV_CLOCK_OVERRIDE_MS_KEY = 'sleep-app-dev-clock-override-ms';
+const DEV_BANNER_DRAWER_COLLAPSED_KEY = 'sleep-app-dev-banner-drawer-collapsed';
+const DEV_BANNER_EXPANDED_RESERVE_KEY = 'sleep-app-dev-banner-expanded-reserve-px';
 
 // Day/night mode: sunrise and sunset in local time (hours 0-23, minutes 0-59)
 const SUNRISE_MINUTES = 6 * 60;
@@ -2408,7 +2411,186 @@ function initDevBannerCloudRefresh() {
   requestAnimationFrame(bindWhenReady);
 }
 
-// Reserves vertical space under the fixed dev banner so the nav header is not overlapped.
+function initDevBannerDrawer() {
+  if (typeof window === 'undefined' || !isDevBuildContext()) return;
+  if (window.__devBannerDrawerBound) return;
+  window.__devBannerDrawerBound = true;
+
+  function bindWhenReady() {
+    const banner = document.querySelector('.nav-dev-banner');
+    const handle = document.getElementById('nav-dev-banner-drawer-handle');
+    const drawer = document.getElementById('nav-dev-banner-drawer');
+    if (!banner || !handle) return;
+
+    let postToggleLayoutTimer = null;
+
+    function setUi(collapsed) {
+      banner.classList.toggle('nav-dev-banner--collapsed', collapsed);
+      banner.dataset.devBannerDrawerToggledAt = String(Date.now());
+      handle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      handle.setAttribute(
+        'aria-label',
+        collapsed ? 'Expand dev banner (drag down or tap)' : 'Collapse dev banner (drag up or tap)'
+      );
+      try {
+        if (collapsed) localStorage.setItem(DEV_BANNER_DRAWER_COLLAPSED_KEY, '1');
+        else localStorage.removeItem(DEV_BANNER_DRAWER_COLLAPSED_KEY);
+      } catch (_) {}
+      requestAnimationFrame(function () {
+        syncDevBannerFixedLayout();
+      });
+      if (postToggleLayoutTimer != null) {
+        clearTimeout(postToggleLayoutTimer);
+        postToggleLayoutTimer = null;
+      }
+      postToggleLayoutTimer = window.setTimeout(function () {
+        postToggleLayoutTimer = null;
+        delete banner.dataset.devBannerDrawerToggledAt;
+        syncDevBannerFixedLayout();
+      }, 360);
+    }
+
+    let ptrDown = false;
+    let y0 = 0;
+    let maxAbsDy = 0;
+    let suppressClick = false;
+    const dragThresholdPx = 10;
+    const swipeThresholdPx = 40;
+    const handleDragVisualMaxPx = 14;
+    let startCollapsed = false;
+    let dragStarted = false;
+    let dragDrawerFullPx = 0;
+    let dragDrawerStartPx = 0;
+
+    function resetHandleVisual() {
+      handle.style.transform = '';
+    }
+
+    handle.addEventListener('pointerdown', function (e) {
+      if (e.button !== 0 && e.button !== undefined) return;
+      ptrDown = true;
+      y0 = e.clientY;
+      maxAbsDy = 0;
+      dragStarted = false;
+      startCollapsed = banner.classList.contains('nav-dev-banner--collapsed');
+      dragDrawerFullPx = drawer ? Math.ceil(drawer.scrollHeight) : 0;
+      dragDrawerStartPx = startCollapsed ? 0 : dragDrawerFullPx;
+      resetHandleVisual();
+      try {
+        handle.setPointerCapture(e.pointerId);
+      } catch (_) {}
+    });
+
+    handle.addEventListener('pointermove', function (e) {
+      if (!ptrDown) return;
+      const dy = e.clientY - y0;
+      maxAbsDy = Math.max(maxAbsDy, Math.abs(dy));
+      const vis = Math.max(-handleDragVisualMaxPx, Math.min(handleDragVisualMaxPx, dy * 0.35));
+      handle.style.transform = vis ? 'translateY(' + vis + 'px)' : '';
+      if (!drawer) return;
+      if (maxAbsDy <= dragThresholdPx) return;
+      if (!dragStarted) {
+        dragStarted = true;
+        banner.classList.add('nav-dev-banner--dragging');
+      }
+      const targetPx = Math.max(0, Math.min(dragDrawerFullPx, dragDrawerStartPx + dy));
+      banner.classList.remove('nav-dev-banner--collapsed');
+      drawer.style.maxHeight = `${targetPx}px`;
+    });
+
+    function endPointer(e) {
+      if (!ptrDown) return;
+      ptrDown = false;
+      resetHandleVisual();
+      try {
+        handle.releasePointerCapture(e.pointerId);
+      } catch (_) {}
+      const dy = e.clientY - y0;
+      if (dragStarted) {
+        banner.classList.remove('nav-dev-banner--dragging');
+        if (drawer) drawer.style.maxHeight = '';
+      }
+      if (maxAbsDy > dragThresholdPx) {
+        suppressClick = true;
+        if (dy < -swipeThresholdPx) setUi(true);
+        else if (dy > swipeThresholdPx) setUi(false);
+        else setUi(startCollapsed ? false : true);
+      }
+    }
+
+    handle.addEventListener('pointerup', endPointer);
+    handle.addEventListener('pointercancel', function (e) {
+      ptrDown = false;
+      resetHandleVisual();
+      try {
+        handle.releasePointerCapture(e.pointerId);
+      } catch (_) {}
+    });
+
+    handle.addEventListener('click', function (e) {
+      if (suppressClick) {
+        e.preventDefault();
+        e.stopPropagation();
+        suppressClick = false;
+        return;
+      }
+      e.preventDefault();
+      setUi(!banner.classList.contains('nav-dev-banner--collapsed'));
+    });
+  }
+
+  requestAnimationFrame(bindWhenReady);
+}
+
+/** Full expanded height; when collapsed, briefly expands with transitions off for an accurate read. */
+function measureDevBannerExpandedHeightPx(banner) {
+  banner.dataset.devBannerLayoutMeasure = '1';
+  let h = 0;
+  const drawerEl = banner.querySelector('.nav-dev-banner-drawer');
+  const prevDrawerTransition = drawerEl ? drawerEl.style.transition : '';
+  try {
+    if (drawerEl) drawerEl.style.transition = 'none';
+    const wasCollapsed = banner.classList.contains('nav-dev-banner--collapsed');
+    const prevVis = banner.style.visibility;
+    if (wasCollapsed) banner.classList.add('nav-dev-banner--measure');
+    banner.style.visibility = 'hidden';
+    if (wasCollapsed) banner.classList.remove('nav-dev-banner--collapsed');
+    void banner.offsetHeight;
+    h = Math.ceil(banner.getBoundingClientRect().height);
+    if (wasCollapsed) banner.classList.add('nav-dev-banner--collapsed');
+    banner.style.visibility = prevVis || '';
+    if (wasCollapsed) banner.classList.remove('nav-dev-banner--measure');
+  } finally {
+    if (drawerEl) drawerEl.style.transition = prevDrawerTransition;
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        delete banner.dataset.devBannerLayoutMeasure;
+      });
+    });
+  }
+  return h;
+}
+
+function readDevBannerExpandedReservePx() {
+  try {
+    const raw = localStorage.getItem(DEV_BANNER_EXPANDED_RESERVE_KEY);
+    if (raw == null || raw === '') return null;
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n <= 0) return null;
+    return Math.ceil(n);
+  } catch (_) {
+    return null;
+  }
+}
+
+function persistDevBannerExpandedReservePx(px) {
+  try {
+    localStorage.setItem(DEV_BANNER_EXPANDED_RESERVE_KEY, String(Math.ceil(px)));
+  } catch (_) {}
+}
+
+// Reserves vertical space for the dev banner at its expanded height so main content is not covered
+// when the drawer is open; when collapsed, the same reserve keeps a consistent top parking area.
 // syncDevBannerFixedLayout is bound to resize once per window (see initDayNightTheme).
 function syncDevBannerFixedLayout() {
   const wrap = document.querySelector('.nav-wrapper');
@@ -2419,8 +2601,24 @@ function syncDevBannerFixedLayout() {
     return;
   }
   const mb = parseFloat(getComputedStyle(banner).marginBottom) || 0;
-  const h = banner.getBoundingClientRect().height;
-  wrap.style.paddingTop = `${Math.ceil(h + mb)}px`;
+  let reservePx;
+  if (banner.classList.contains('nav-dev-banner--collapsed')) {
+    const cachedDataset = parseInt(banner.dataset.devBannerReservePx, 10);
+    const cachedStorage = readDevBannerExpandedReservePx();
+    if (Number.isFinite(cachedDataset) && cachedDataset > 0) reservePx = cachedDataset;
+    else if (cachedStorage != null) reservePx = cachedStorage;
+    else reservePx = measureDevBannerExpandedHeightPx(banner);
+  } else {
+    const live = Math.ceil(banner.getBoundingClientRect().height);
+    const stored = parseInt(banner.dataset.devBannerReservePx, 10);
+    const toggledAt = parseInt(banner.dataset.devBannerDrawerToggledAt, 10);
+    const inDrawerAnimWindow = Number.isFinite(toggledAt) && Date.now() - toggledAt < 380;
+    reservePx =
+      inDrawerAnimWindow && Number.isFinite(stored) && stored > live ? stored : live;
+  }
+  banner.dataset.devBannerReservePx = String(reservePx);
+  persistDevBannerExpandedReservePx(reservePx);
+  wrap.style.paddingTop = `${reservePx + mb}px`;
 }
 
 // Initializes day/night theme, click handler, and timer to re-check (when in auto mode)
@@ -2433,6 +2631,7 @@ function initDayNightTheme() {
   initNavMenu();
   initDevClockControl();
   initDevBannerCloudRefresh();
+  initDevBannerDrawer();
   setInterval(function () {
     applyDayNightTheme();
     updateDayNightIcon();
@@ -2533,6 +2732,15 @@ function isDevBuildContext() {
   if (buildId && prodBuildId && buildId !== prodBuildId) return true;
 
   return false;
+}
+
+function readDevBannerDrawerCollapsed() {
+  if (!isDevBuildContext()) return false;
+  try {
+    return localStorage.getItem(DEV_BANNER_DRAWER_COLLAPSED_KEY) === '1';
+  } catch (_) {
+    return false;
+  }
 }
 
 /** Epoch ms from localStorage when dev build + valid key; else null. Ignored outside dev context. */
@@ -2750,9 +2958,14 @@ function renderNavBar(currentPage) {
     devBannerWarnings +=
       '<p class="nav-dev-banner-prod-warning">⚠️ You are on the master branch — use a feature branch for development and testing.</p>';
   }
-  const devTitleRow =
+  const devDrawerCollapsed = readDevBannerDrawerCollapsed();
+  const devBannerCollapsedClass = devDrawerCollapsed ? ' nav-dev-banner--collapsed' : '';
+  const devToggleAriaExpanded = devDrawerCollapsed ? 'false' : 'true';
+  const devToggleAriaLabel = devDrawerCollapsed
+    ? 'Expand dev banner (drag down or tap)'
+    : 'Collapse dev banner (drag up or tap)';
+  const devTitleExtras =
     '<div class="nav-dev-banner-title-row">' +
-    '<div class="nav-dev-banner-line nav-dev-banner-title">DEV BUILD</div>' +
     '<hr class="nav-dev-banner-title-rule" aria-hidden="true" />' +
     devBannerWarnings +
     '</div>';
@@ -2816,7 +3029,28 @@ function renderNavBar(currentPage) {
     '</div>' +
     devBannerRight +
     '</div>';
-  const devBannerBody = '<div class="nav-dev-banner-inner">' + devTitleRow + devBannerMainRow + '</div>';
+  const devTitleStrip =
+    '<div class="nav-dev-banner-title-strip">' +
+    '<span class="nav-dev-banner-line nav-dev-banner-title">DEV BUILD</span>' +
+    '</div>';
+  const devDrawerPanel =
+    '<div class="nav-dev-banner-drawer" id="nav-dev-banner-drawer" role="region" aria-label="Development build details">' +
+    devTitleExtras +
+    devBannerMainRow +
+    '</div>';
+  const devDrawerHandle =
+    '<button type="button" class="nav-dev-banner-drawer-handle" id="nav-dev-banner-drawer-handle"' +
+    ' aria-expanded="' +
+    devToggleAriaExpanded +
+    '"' +
+    ' aria-controls="nav-dev-banner-drawer"' +
+    ' aria-label="' +
+    escapeHtmlBannerAttr(devToggleAriaLabel) +
+    '">' +
+    '<span class="nav-dev-banner-drawer-handle-bar" aria-hidden="true"></span>' +
+    '</button>';
+  const devBannerBody =
+    '<div class="nav-dev-banner-inner">' + devTitleStrip + devDrawerPanel + devDrawerHandle + '</div>';
   const prodSupabaseAria =
     devBannerDbClass === 'nav-dev-banner--db-prod' ? ' Using production Supabase data.' : '';
   const masterBranchAria = devBannerOnMaster ? ' Current git branch is master.' : '';
@@ -2825,7 +3059,7 @@ function renderNavBar(currentPage) {
     ? `Development build, branch ${escapeHtmlBannerAttr(branchLabel)}; App time controls: real or simulated.${devBannerAlertAria}`
     : `Development build; App time controls: real or simulated.${devBannerAlertAria}`;
   const devBanner = isDevBuildContext()
-    ? `<div class="nav-dev-banner ${devBannerBgClass}" role="status" aria-label="${devAria}">${devBannerBody}</div>`
+    ? `<div class="nav-dev-banner ${devBannerBgClass}${devBannerCollapsedClass}" role="status" aria-label="${devAria}">${devBannerBody}</div>`
     : '';
   return `<div class="nav-wrapper nav-wrapper--remaining-wake">${devBanner}${headerRow}${tabsRow}</div>`;
 }
