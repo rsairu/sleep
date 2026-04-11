@@ -16,7 +16,8 @@
         "options": "Options",
         "about": "About",
         "settings": "Settings",
-        "theme": "Theme"
+        "theme": "Theme",
+        "dataSource": "Data source"
       }
     },
     "config": {
@@ -73,7 +74,7 @@
         "rightThumbAria": "Winding down until {percent}% wake time remains, around {time} with your 7-day averages"
       },
       "cloudSync": {
-        "title": "Cloud sync"
+        "title": "Data source"
       }
     },
     "log": {
@@ -125,7 +126,8 @@
         "options": "オプション",
         "about": "このアプリについて",
         "settings": "設定",
-        "theme": "テーマ"
+        "theme": "テーマ",
+        "dataSource": "データソース"
       }
     },
     "config": {
@@ -182,7 +184,7 @@
         "rightThumbAria": "残り覚醒時間が {percent}% になるまでリラックスタイム（目安 {time}、直近7日平均ベース）"
       },
       "cloudSync": {
-        "title": "クラウド同期"
+        "title": "データソース"
       }
     },
     "log": {

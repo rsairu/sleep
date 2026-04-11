@@ -830,45 +830,10 @@ body{
   justify-self: center;
 }
 
-.nav-data-source-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  padding: 0;
-  border: 1px solid transparent;
-  line-height: 1;
-  text-decoration: none;
-}
-
-.nav-data-source-badge-icon {
-  font-size: 0.9rem;
-}
-
-.nav-data-source-badge--cloud {
-  background: rgba(52, 211, 153, 0.12);
-  border-color: rgba(52, 211, 153, 0.42);
-  color: #6ee7b7;
-}
-
-.nav-data-source-badge--local {
-  background: rgba(148, 163, 184, 0.14);
-  border-color: rgba(148, 163, 184, 0.45);
-  color: #cbd5e1;
-}
-
-[data-theme="day"] .nav-data-source-badge--cloud {
-  background: rgba(5, 150, 105, 0.12);
-  border-color: rgba(5, 150, 105, 0.35);
-  color: #065f46;
-}
-
-[data-theme="day"] .nav-data-source-badge--local {
-  background: rgba(71, 85, 105, 0.1);
-  border-color: rgba(71, 85, 105, 0.28);
-  color: #334155;
+.nav-menu-item.nav-menu-item--data-source {
+  border-top: 1px solid var(--border);
+  margin-top: 2px;
+  padding-top: 12px;
 }
 
 .nav-header--remaining-wake .nav-right {

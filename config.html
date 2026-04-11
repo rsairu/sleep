@@ -85,7 +85,7 @@
     </p>
     <div id="remaining-wake-mount"></div>
 
-    <h2 class="section-title" id="cloud-sync" data-i18n="config.cloudSync.title">Cloud sync</h2>
+    <h2 class="section-title" id="cloud-sync" data-i18n="config.cloudSync.title">Data source</h2>
     <div id="supabase-config-mount"></div>
   </div>
 
@@ -106,6 +106,18 @@
       initRemainingWakeNav();
       initRemainingWakeThresholdsConfig();
       initSupabaseConfigForm();
+      // Hash scroll runs before late-mounted sections (e.g. remaining wake); re-apply after layout.
+      if (window.location.hash.length > 1) {
+        const id = decodeURIComponent(window.location.hash.slice(1));
+        const scrollTarget = document.getElementById(id);
+        if (scrollTarget) {
+          requestAnimationFrame(function () {
+            requestAnimationFrame(function () {
+              scrollTarget.scrollIntoView({ block: 'start', behavior: 'auto' });
+            });
+          });
+        }
+      }
     })();
   </script>
 </body>

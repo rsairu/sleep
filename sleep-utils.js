@@ -285,42 +285,35 @@ function getDataSourceState() {
   return config.enabled ? 'cloud' : 'local';
 }
 
-function getDataSourceBadgeModel(source) {
+const DATA_SOURCE_MENU_ICON_CLOUD =
+  '<svg class="nav-menu-item-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/></svg>';
+const DATA_SOURCE_MENU_ICON_LOCAL =
+  '<svg class="nav-menu-item-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>';
+
+function getDataSourceUIModel(source) {
   if (source === 'cloud') {
     return {
-      icon: '☁️',
-      className: 'nav-data-source-badge--cloud',
-      title: 'Data source: Supabase cloud'
+      title: 'Data source: Supabase cloud',
+      iconSvg: DATA_SOURCE_MENU_ICON_CLOUD
     };
   }
   return {
-    icon: '💾',
-    className: 'nav-data-source-badge--local',
-    title: 'Data source: local JSON fallback'
+    title: 'Data source: local JSON fallback',
+    iconSvg: DATA_SOURCE_MENU_ICON_LOCAL
   };
-}
-
-function renderDataSourceBadge(source) {
-  const model = getDataSourceBadgeModel(source);
-  return (
-    '<a href="config.html#cloud-sync" class="nav-data-source-badge ' + model.className + '" id="nav-data-source-badge" title="' + escapeHtmlBannerAttr(model.title) + '" aria-label="' + escapeHtmlBannerAttr(model.title) + '">' +
-      '<span class="nav-data-source-badge-icon" aria-hidden="true">' + model.icon + '</span>' +
-    '</a>'
-  );
 }
 
 function updateDataSourceBadge(source) {
   const resolved = source === 'cloud' || source === 'local' ? source : getDataSourceState();
   if (typeof window !== 'undefined') window.__RESTORE_DATA_SOURCE__ = resolved;
   safeWriteStorage(RESTORE_LAST_DATA_SOURCE_KEY, resolved);
-  const el = document.getElementById('nav-data-source-badge');
-  if (!el) return;
-  const model = getDataSourceBadgeModel(resolved);
-  el.classList.remove('nav-data-source-badge--cloud', 'nav-data-source-badge--local');
-  el.classList.add(model.className);
-  el.title = model.title;
-  el.setAttribute('aria-label', model.title);
-  el.innerHTML = '<span class="nav-data-source-badge-icon" aria-hidden="true">' + model.icon + '</span>';
+  const link = document.getElementById('nav-menu-data-source');
+  const iconWrap = document.getElementById('nav-menu-data-source-icon');
+  if (!link || !iconWrap) return;
+  const model = getDataSourceUIModel(resolved);
+  link.title = model.title;
+  link.setAttribute('aria-label', model.title);
+  iconWrap.innerHTML = model.iconSvg;
 }
 
 function mapSupabaseRowToDay(row) {
@@ -710,11 +703,11 @@ function initSupabaseConfigForm() {
       '<div class="config-data-source-toggle-wrap" id="config-data-source-toggle-wrap" hidden>' +
       '<p class="section-intro config-data-source-toggle-label" id="config-data-source-toggle-label">Data load source</p>' +
       '<div class="config-data-source-toggle" role="group" aria-labelledby="config-data-source-toggle-label">' +
-      '<button type="button" class="config-data-source-toggle-btn" id="data-source-pick-local" aria-pressed="false">' +
-      '<span class="config-data-source-toggle-emoji" aria-hidden="true">💾</span> Local' +
-      '</button>' +
       '<button type="button" class="config-data-source-toggle-btn" id="data-source-pick-cloud" aria-pressed="false">' +
       '<span class="config-data-source-toggle-emoji" aria-hidden="true">☁️</span> Cloud' +
+      '</button>' +
+      '<button type="button" class="config-data-source-toggle-btn" id="data-source-pick-local" aria-pressed="false">' +
+      '<span class="config-data-source-toggle-emoji" aria-hidden="true">💾</span> Local' +
       '</button>' +
       '</div>' +
       '<p class="section-intro config-data-source-toggle-hint">Local uses <code>data/sleep-data.json</code> only; cloud uses Supabase. Reload other tabs or use Fetch latest after switching.</p>' +
@@ -2845,15 +2838,26 @@ function renderNavBar(currentPage) {
   const aboutIcon = `<svg class="nav-menu-item-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>`;
   // Theme toggle: animated sun/moon from toggles.dev by Alfie Jones (https://toggles.dev). clipPathIdSuffix avoids duplicate IDs when nav + config both have the toggle.
   const themeToggleHTML = getThemeToggleHTML(nightActive, 'nav-menu-theme-toggle', 'nav');
+  const dataSourceModel = getDataSourceUIModel(getDataSourceState());
+  const dataSourceMenuRow =
+    '<a href="config.html#cloud-sync" class="nav-menu-item nav-menu-item--data-source" id="nav-menu-data-source" role="menuitem" title="' +
+    escapeHtmlBannerAttr(dataSourceModel.title) +
+    '" aria-label="' +
+    escapeHtmlBannerAttr(dataSourceModel.title) +
+    '"><span class="nav-menu-item-icon-wrap" id="nav-menu-data-source-icon">' +
+    dataSourceModel.iconSvg +
+    '</span><span data-i18n="nav.menu.dataSource">' +
+    t('nav.menu.dataSource', 'Data source') +
+    '</span></a>';
   const menuItems = (
     '<div class="nav-menu-dropdown" id="nav-menu-dropdown" role="menu" hidden>' +
       '<a href="about.html" class="nav-menu-item" role="menuitem"><span class="nav-menu-item-icon-wrap">' + aboutIcon + '</span><span>' + t('nav.menu.about', 'About') + '</span></a>' +
       '<a href="config.html" class="nav-menu-item" role="menuitem"><span class="nav-menu-item-icon-wrap">' + configIcon + '</span><span>' + t('nav.menu.settings', 'Settings') + '</span></a>' +
       '<div class="nav-menu-item nav-menu-theme-row" role="none"><span class="nav-menu-item-icon-wrap">' + themeToggleHTML + '</span><span>' + t('nav.menu.theme', 'Theme') + '</span></div>' +
+      dataSourceMenuRow +
     '</div>'
   );
-  const dataSourceBadge = renderDataSourceBadge(getDataSourceState());
-  const navRight = `<div class="nav-right nav-menu-wrap">${dataSourceBadge}${menuTrigger}${menuItems}</div>`;
+  const navRight = `<div class="nav-right nav-menu-wrap">${menuTrigger}${menuItems}</div>`;
 
   const appIcon = '<img src="assets/icon_512.png" alt="" class="nav-app-icon" width="36" height="36">';
   const appName = `<a href="dashboard.html" class="nav-app-block" title="${t('nav.tabs.dashboard', 'Dashboard')}"><span class="nav-app-icon-wrap">${appIcon}</span><span class="nav-app-text"><span class="nav-app-name">Restore</span><span class="nav-app-subtitle">${t('nav.app.subtitle', 'Sleep Tracker')}</span></span></a>`;
