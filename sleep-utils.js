@@ -1192,6 +1192,8 @@ const THEME_OVERRIDE_KEY = 'sleep-app-theme-override';
 const REMAINING_WAKE_THRESHOLDS_KEY = 'sleep-app-remaining-wake-thresholds';
 const REMAINING_WAKE_PHASE_HEADS_UP_KEY = 'sleep-app-remaining-wake-phase-heads-up-mins';
 const REMAINING_WAKE_PHASE_HEADS_UP_ALLOWED = [0, 15, 30, 45, 60];
+/** Slider index 0 = 1 h (left) … index 4 = off (right). Matches allowed minutes. */
+const REMAINING_WAKE_PHASE_HEADS_UP_STOPS_DESC = [60, 45, 30, 15, 0];
 const DEFAULT_REMAINING_WAKE_PHASE_HEADS_UP_MINS = 30;
 const CLOCK_FORMAT_KEY = 'sleep-app-clock-format';
 const QUALITY_PALETTE_KEY = 'sleep-app-quality-palette';
@@ -1268,6 +1270,38 @@ function setRemainingWakePhaseHeadsUpMinutes(mins) {
   try {
     localStorage.setItem(REMAINING_WAKE_PHASE_HEADS_UP_KEY, String(n));
   } catch (_) {}
+}
+
+function remainingWakePhaseHeadsUpMinutesToSliderIndex(mins) {
+  const i = REMAINING_WAKE_PHASE_HEADS_UP_STOPS_DESC.indexOf(mins);
+  if (i >= 0) return i;
+  const j = REMAINING_WAKE_PHASE_HEADS_UP_STOPS_DESC.indexOf(DEFAULT_REMAINING_WAKE_PHASE_HEADS_UP_MINS);
+  return j >= 0 ? j : 2;
+}
+
+function remainingWakePhaseHeadsUpSliderIndexToMinutes(idx) {
+  const i = parseInt(idx, 10);
+  if (i < 0 || i >= REMAINING_WAKE_PHASE_HEADS_UP_STOPS_DESC.length) {
+    return DEFAULT_REMAINING_WAKE_PHASE_HEADS_UP_MINS;
+  }
+  return REMAINING_WAKE_PHASE_HEADS_UP_STOPS_DESC[i];
+}
+
+function getRemainingWakePhaseHeadsUpStopAriaLabel(mins) {
+  switch (mins) {
+    case 60:
+      return t('config.remainingWake.headsUpStop60', '1 hour before');
+    case 45:
+      return t('config.remainingWake.headsUpStop45', '45 minutes before');
+    case 30:
+      return t('config.remainingWake.headsUpStop30', '30 minutes before');
+    case 15:
+      return t('config.remainingWake.headsUpStop15', '15 minutes before');
+    case 0:
+      return t('config.remainingWake.headsUpStop0', 'Off');
+    default:
+      return t('config.remainingWake.headsUpStop0', 'Off');
+  }
 }
 
 // Returns 'day' if current local time is between sunrise and sunset, else 'night'
@@ -2128,27 +2162,29 @@ function getRemainingWakeThresholdsControlHTML(ariaLabelledBy) {
     'config.remainingWake.phase.sleepHint',
     'A fourth header phase (moon) appears automatically when you log bed or fell-asleep before wake. It is not controlled by these sliders.'
   );
-  const headsUpTitle = t(
-    'config.remainingWake.headsUpTitle',
-    'Phase change heads-up in header'
-  );
+  const headsUpTitle = t('config.remainingWake.headsUpTitle', 'Phase change heads-up');
   const headsUpIntro = t(
     'config.remainingWake.headsUpIntro',
-    'Shows a small note next to remaining wake time when the next phase (Active → Winding or Winding → Pre-sleep) is within the time you choose. Uses the same averages as the header clock—not a reminder, just a preview.'
+    'Shows a small note when the next phase (☀️Active → 🌇Winding → 🛏️Pre-sleep) is approaching.'
   );
-  const headsUpHint = t(
-    'config.remainingWake.headsUpHint',
-    'Choose how far ahead to show the note, or turn it off.'
+  const headsUpSliderLeft = t(
+    'config.remainingWake.headsUpSliderLeft',
+    'Earlier heads-up'
   );
-  const headsUpSelectAria = t(
-    'config.remainingWake.headsUpSelectAria',
-    'Minutes before the next phase to show the header heads-up'
+  const headsUpSliderRight = t('config.remainingWake.headsUpSliderRight', 'No heads-up');
+  const headsUpTick60 = t('config.remainingWake.headsUpTick60', '60 min');
+  const headsUpTick45 = t('config.remainingWake.headsUpTick45', '45 min');
+  const headsUpTick30 = t('config.remainingWake.headsUpTick30', '30 min');
+  const headsUpTick15 = t('config.remainingWake.headsUpTick15', '15 min');
+  const headsUpTickOff = t('config.remainingWake.headsUpTickOff', 'Off');
+  const headsUpDefaultButton = t(
+    'config.remainingWake.headsUpDefaultButton',
+    'Use default value (30m before)'
   );
-  const opt0 = t('config.remainingWake.headsUpOption0', 'Off');
-  const opt15 = t('config.remainingWake.headsUpOption15', '15 minutes');
-  const opt30 = t('config.remainingWake.headsUpOption30', '30 minutes');
-  const opt45 = t('config.remainingWake.headsUpOption45', '45 minutes');
-  const opt60 = t('config.remainingWake.headsUpOption60', '1 hour');
+  const headsUpDefaultAria = t(
+    'config.remainingWake.headsUpDefaultAria',
+    'Reset phase change heads-up to default: 30 minutes before'
+  );
   const z = escapeHtmlBannerText;
   return (
     '<p class="config-remaining-wake-default-row">' +
@@ -2187,34 +2223,53 @@ function getRemainingWakeThresholdsControlHTML(ariaLabelledBy) {
     '</div>' +
     '</div>' +
     '<div class="config-rw-heads-up">' +
-    '<label class="config-rw-heads-up-title" for="config-rw-phase-heads-up">' +
+    '<label class="config-rw-heads-up-title" id="config-rw-phase-heads-up-title" for="config-rw-phase-heads-up">' +
     z(headsUpTitle) +
     '</label>' +
     '<p class="section-intro config-rw-heads-up-intro">' +
     z(headsUpIntro) +
     '</p>' +
-    '<select id="config-rw-phase-heads-up" class="config-rw-heads-up-select" aria-label="' +
-    escapeHtmlBannerAttr(headsUpSelectAria) +
-    '" aria-describedby="config-rw-phase-heads-up-hint">' +
-    '<option value="0">' +
-    z(opt0) +
-    '</option>' +
-    '<option value="15">' +
-    z(opt15) +
-    '</option>' +
-    '<option value="30">' +
-    z(opt30) +
-    '</option>' +
-    '<option value="45">' +
-    z(opt45) +
-    '</option>' +
-    '<option value="60">' +
-    z(opt60) +
-    '</option>' +
-    '</select>' +
-    '<p class="config-rw-heads-up-hint" id="config-rw-phase-heads-up-hint">' +
-    z(headsUpHint) +
+    '<p class="config-rw-heads-up-default-row">' +
+    '<button type="button" class="config-rw-defaults-button" id="config-rw-heads-up-use-default" aria-label="' +
+    escapeHtmlBannerAttr(headsUpDefaultAria) +
+    '">' +
+    z(headsUpDefaultButton) +
+    '</button>' +
     '</p>' +
+    '<div class="config-rw-heads-up-slider-wrap">' +
+    '<div class="config-rw-heads-up-slider-endpoints" aria-hidden="true">' +
+    '<span class="config-rw-heads-up-slider-end config-rw-heads-up-slider-end--left">' +
+    z(headsUpSliderLeft) +
+    '</span>' +
+    '<span class="config-rw-heads-up-slider-end config-rw-heads-up-slider-end--right">' +
+    z(headsUpSliderRight) +
+    '</span>' +
+    '</div>' +
+    '<div class="config-rw-heads-up-slider-padded">' +
+    '<div class="config-rw-heads-up-slider-track-outer">' +
+    '<div class="config-rw-heads-up-slider-track-bg" aria-hidden="true"></div>' +
+    '<input type="range" id="config-rw-phase-heads-up" class="config-rw-heads-up-range" min="0" max="4" step="1" value="2" ' +
+    'aria-labelledby="config-rw-phase-heads-up-title" />' +
+    '</div>' +
+    '<div class="config-rw-heads-up-slider-tick-labels" aria-hidden="true">' +
+    '<span class="config-rw-heads-up-slider-tick-label">' +
+    z(headsUpTick60) +
+    '</span>' +
+    '<span class="config-rw-heads-up-slider-tick-label">' +
+    z(headsUpTick45) +
+    '</span>' +
+    '<span class="config-rw-heads-up-slider-tick-label">' +
+    z(headsUpTick30) +
+    '</span>' +
+    '<span class="config-rw-heads-up-slider-tick-label">' +
+    z(headsUpTick15) +
+    '</span>' +
+    '<span class="config-rw-heads-up-slider-tick-label">' +
+    z(headsUpTickOff) +
+    '</span>' +
+    '</div>' +
+    '</div>' +
+    '</div>' +
     '</div>'
   );
 }
@@ -2337,15 +2392,42 @@ function initRemainingWakeThresholdsConfig() {
     });
   }
 
-  const headsUpSelect = document.getElementById('config-rw-phase-heads-up');
-  if (headsUpSelect) {
-    headsUpSelect.value = String(getRemainingWakePhaseHeadsUpMinutes());
-    headsUpSelect.addEventListener('change', function () {
-      setRemainingWakePhaseHeadsUpMinutes(parseInt(headsUpSelect.value, 10));
+  const headsUpRange = document.getElementById('config-rw-phase-heads-up');
+  if (headsUpRange) {
+    function syncHeadsUpRangeFromStorage() {
+      const mins = getRemainingWakePhaseHeadsUpMinutes();
+      headsUpRange.value = String(remainingWakePhaseHeadsUpMinutesToSliderIndex(mins));
+      headsUpRange.setAttribute(
+        'aria-valuetext',
+        getRemainingWakePhaseHeadsUpStopAriaLabel(mins)
+      );
+    }
+    function onHeadsUpRangeInput() {
+      const idx = parseInt(headsUpRange.value, 10) || 0;
+      const mins = remainingWakePhaseHeadsUpSliderIndexToMinutes(idx);
+      setRemainingWakePhaseHeadsUpMinutes(mins);
+      headsUpRange.setAttribute(
+        'aria-valuetext',
+        getRemainingWakePhaseHeadsUpStopAriaLabel(mins)
+      );
       if (typeof initRemainingWakeNav === 'function') {
         initRemainingWakeNav();
       }
-    });
+    }
+    syncHeadsUpRangeFromStorage();
+    headsUpRange.addEventListener('input', onHeadsUpRangeInput);
+    headsUpRange.addEventListener('change', onHeadsUpRangeInput);
+
+    const headsUpDefaultBtn = document.getElementById('config-rw-heads-up-use-default');
+    if (headsUpDefaultBtn) {
+      headsUpDefaultBtn.addEventListener('click', function () {
+        setRemainingWakePhaseHeadsUpMinutes(DEFAULT_REMAINING_WAKE_PHASE_HEADS_UP_MINS);
+        syncHeadsUpRangeFromStorage();
+        if (typeof initRemainingWakeNav === 'function') {
+          initRemainingWakeNav();
+        }
+      });
+    }
   }
 }
 
@@ -3311,10 +3393,9 @@ function updateRemainingWakeNav(display) {
             ).replace('{minutes}', String(hu.minutes));
       ariaLabel = ariaLabel + '. ' + ariaExtra;
     }
-    const minuteUnit = t('config.remainingWake.headsUpMinuteUnit', ' M');
     const headsUpHtml =
       hu && hu.minutes > 0
-        ? `<span class="nav-remaining-wake-phase-heads-up" aria-hidden="true">${hu.icon}\u00A0${hu.minutes}${escapeHtmlBannerText(minuteUnit)}</span>`
+        ? `<span class="nav-remaining-wake-phase-heads-up" aria-hidden="true">${hu.icon} in ${hu.minutes}m</span>`
         : '';
     const ariaEsc = escapeHtmlBannerAttr(ariaLabel);
     slot.innerHTML =

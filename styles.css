@@ -4595,9 +4595,7 @@ svg {
 }
 
 .config-rw-heads-up {
-  margin-top: 1.75rem;
-  padding-top: 1.25rem;
-  border-top: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
+  margin-top: 1.25rem;
 }
 
 .config-rw-heads-up-title {
@@ -4614,27 +4612,194 @@ svg {
   line-height: 1.45;
 }
 
-.config-rw-heads-up-select {
-  display: block;
-  width: 100%;
-  max-width: 20rem;
-  margin: 0 0 0.5rem;
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--panel-border-color);
-  border-radius: 10px;
-  background: var(--panel);
-  color: var(--text);
-  font: inherit;
-  font-size: 0.9375rem;
-  cursor: pointer;
+.config-rw-heads-up-default-row {
+  margin: 0 0 0.75rem;
 }
 
-.config-rw-heads-up-hint {
-  margin: 0;
-  font-size: 0.82rem;
+.config-rw-heads-up-slider-wrap {
+  width: 100%;
+  max-width: min(50%, 22rem);
+  margin: 0 0 0.65rem;
+}
+
+.config-rw-heads-up-slider-endpoints {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+  font-size: 0.78rem;
   line-height: 1.35;
-  opacity: 0.88;
-  color: var(--color-text-muted, inherit);
+  color: color-mix(in srgb, var(--text) 78%, transparent);
+}
+
+.config-rw-heads-up-slider-end {
+  flex: 1;
+  min-width: 0;
+}
+
+.config-rw-heads-up-slider-end--left {
+  text-align: left;
+}
+
+.config-rw-heads-up-slider-end--right {
+  text-align: right;
+}
+
+.config-rw-heads-up-slider-padded {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0 11px;
+}
+
+.config-rw-heads-up-slider-track-outer {
+  position: relative;
+  width: 100%;
+  height: 28px;
+}
+
+.config-rw-heads-up-slider-track-bg {
+  --rw-hu-tick: color-mix(in srgb, var(--text) 38%, transparent);
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 8px;
+  margin-top: -4px;
+  border-radius: 4px;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 14%, transparent);
+  background-image:
+    linear-gradient(
+      to right,
+      var(--rw-hu-tick) 0,
+      var(--rw-hu-tick) 2px,
+      transparent 2px,
+      transparent calc(25% - 1px),
+      var(--rw-hu-tick) calc(25% - 1px),
+      var(--rw-hu-tick) calc(25% + 1px),
+      transparent calc(25% + 1px),
+      transparent calc(50% - 1px),
+      var(--rw-hu-tick) calc(50% - 1px),
+      var(--rw-hu-tick) calc(50% + 1px),
+      transparent calc(50% + 1px),
+      transparent calc(75% - 1px),
+      var(--rw-hu-tick) calc(75% - 1px),
+      var(--rw-hu-tick) calc(75% + 1px),
+      transparent calc(75% + 1px),
+      transparent calc(100% - 2px),
+      var(--rw-hu-tick) calc(100% - 2px),
+      var(--rw-hu-tick) 100%
+    ),
+    linear-gradient(
+      to right,
+      color-mix(in srgb, var(--text) 22%, transparent),
+      color-mix(in srgb, var(--text) 6%, transparent)
+    );
+}
+
+[data-theme="day"] .config-rw-heads-up-slider-track-bg {
+  --rw-hu-tick: color-mix(in srgb, var(--text) 32%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 12%, transparent);
+  background-image:
+    linear-gradient(
+      to right,
+      var(--rw-hu-tick) 0,
+      var(--rw-hu-tick) 2px,
+      transparent 2px,
+      transparent calc(25% - 1px),
+      var(--rw-hu-tick) calc(25% - 1px),
+      var(--rw-hu-tick) calc(25% + 1px),
+      transparent calc(25% + 1px),
+      transparent calc(50% - 1px),
+      var(--rw-hu-tick) calc(50% - 1px),
+      var(--rw-hu-tick) calc(50% + 1px),
+      transparent calc(50% + 1px),
+      transparent calc(75% - 1px),
+      var(--rw-hu-tick) calc(75% - 1px),
+      var(--rw-hu-tick) calc(75% + 1px),
+      transparent calc(75% + 1px),
+      transparent calc(100% - 2px),
+      var(--rw-hu-tick) calc(100% - 2px),
+      var(--rw-hu-tick) 100%
+    ),
+    linear-gradient(
+      to right,
+      color-mix(in srgb, var(--text) 18%, transparent),
+      color-mix(in srgb, var(--text) 5%, transparent)
+    );
+}
+
+.config-rw-heads-up-slider-tick-labels {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.15rem;
+  margin-top: 0.2rem;
+  font-size: 0.7rem;
+  line-height: 1.25;
+  color: color-mix(in srgb, var(--text) 75%, transparent);
+}
+
+.config-rw-heads-up-slider-tick-label {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+
+.config-rw-heads-up-slider-tick-label:first-child {
+  text-align: left;
+}
+
+.config-rw-heads-up-slider-tick-label:nth-child(2),
+.config-rw-heads-up-slider-tick-label:nth-child(3),
+.config-rw-heads-up-slider-tick-label:nth-child(4) {
+  text-align: center;
+}
+
+.config-rw-heads-up-slider-tick-label:last-child {
+  text-align: right;
+}
+
+.config-rw-heads-up-range {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 28px;
+  margin: 0;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  z-index: 1;
+}
+
+.config-rw-heads-up-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--text);
+  border: 2px solid var(--bg);
+  cursor: grab;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.config-rw-heads-up-range::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--text);
+  border: 2px solid var(--bg);
+  cursor: grab;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.config-rw-heads-up-range::-webkit-slider-runnable-track,
+.config-rw-heads-up-range::-moz-range-track {
+  background: transparent;
+  border: none;
 }
 
 .config-remaining-wake .section-intro {
@@ -4993,6 +5158,17 @@ svg {
   line-height: 1.45;
 }
 
+/* About page — major section breaks */
+.about-section-rule {
+  margin: 2rem 0 0;
+  border: none;
+  border-top: 1px solid color-mix(in srgb, var(--text) 14%, transparent);
+}
+
+.about-section-rule + .section-title {
+  margin-top: 0.85rem;
+}
+
 /* About page — Remaining Wake Time section */
 .section-title {
   margin-top: 2.5rem;
@@ -5115,14 +5291,9 @@ svg {
   align-items: flex-start;
   gap: 10px;
   padding: 10px 0;
-  border-bottom: 1px solid var(--grid);
   color: var(--text);
   font-size: 0.9375rem;
   line-height: 1.45;
-}
-
-.about-qa-flow-item:last-child {
-  border-bottom: none;
 }
 
 .about-qa-flow-icon {
