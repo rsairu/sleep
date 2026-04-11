@@ -71,7 +71,19 @@
         "wakeLabel": "Wake",
         "sleepLabel": "Sleep",
         "leftThumbAria": "Active until {percent}% wake time remains, around {time} with your 7-day averages",
-        "rightThumbAria": "Winding down until {percent}% wake time remains, around {time} with your 7-day averages"
+        "rightThumbAria": "Winding down until {percent}% wake time remains, around {time} with your 7-day averages",
+        "headsUpTitle": "Phase change heads-up in header",
+        "headsUpIntro": "Shows a small note next to remaining wake time when the next phase (Active → Winding or Winding → Pre-sleep) is within the time you choose. Uses the same averages as the header clock—not a reminder, just a preview.",
+        "headsUpHint": "Choose how far ahead to show the note, or turn it off.",
+        "headsUpSelectAria": "Minutes before the next phase to show the header heads-up",
+        "headsUpOption0": "Off",
+        "headsUpOption15": "15 minutes",
+        "headsUpOption30": "30 minutes",
+        "headsUpOption45": "45 minutes",
+        "headsUpOption60": "1 hour",
+        "headsUpMinuteUnit": " M",
+        "headsUpAriaWinding": "Winding down in {minutes} minutes",
+        "headsUpAriaPresleep": "Pre-sleep in {minutes} minutes"
       },
       "cloudSync": {
         "title": "Data source"
@@ -181,7 +193,19 @@
         "wakeLabel": "起床",
         "sleepLabel": "就寝",
         "leftThumbAria": "残り覚醒時間が {percent}% になるまで活動中（目安 {time}、直近7日平均ベース）",
-        "rightThumbAria": "残り覚醒時間が {percent}% になるまでリラックスタイム（目安 {time}、直近7日平均ベース）"
+        "rightThumbAria": "残り覚醒時間が {percent}% になるまでリラックスタイム（目安 {time}、直近7日平均ベース）",
+        "headsUpTitle": "ヘッダーでの段階切り替えの事前表示",
+        "headsUpIntro": "次の段階（活動中→リラックスタイム、またはリラックスタイム→就寝前）までの時間が、選んだ範囲内に入ると、残り覚醒時間の横に小さく表示します。ヘッダー時計と同じ平均に基づきます。通知ではなく、切り替わり前の目安です。",
+        "headsUpHint": "表示を始めるまでの時間を選ぶか、オフにできます。",
+        "headsUpSelectAria": "次の段階まで何分前からヘッダーに事前表示するか",
+        "headsUpOption0": "オフ",
+        "headsUpOption15": "15分前",
+        "headsUpOption30": "30分前",
+        "headsUpOption45": "45分前",
+        "headsUpOption60": "1時間前",
+        "headsUpMinuteUnit": " 分",
+        "headsUpAriaWinding": "あと{minutes}分でリラックスタイム",
+        "headsUpAriaPresleep": "あと{minutes}分で就寝前"
       },
       "cloudSync": {
         "title": "データソース"
