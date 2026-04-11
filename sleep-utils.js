@@ -1190,6 +1190,9 @@ const SUNSET_MINUTES = 18 * 60;
 
 const THEME_OVERRIDE_KEY = 'sleep-app-theme-override';
 const REMAINING_WAKE_THRESHOLDS_KEY = 'sleep-app-remaining-wake-thresholds';
+const REMAINING_WAKE_PHASE_HEADS_UP_KEY = 'sleep-app-remaining-wake-phase-heads-up-mins';
+const REMAINING_WAKE_PHASE_HEADS_UP_ALLOWED = [0, 15, 30, 45, 60];
+const DEFAULT_REMAINING_WAKE_PHASE_HEADS_UP_MINS = 30;
 const CLOCK_FORMAT_KEY = 'sleep-app-clock-format';
 const QUALITY_PALETTE_KEY = 'sleep-app-quality-palette';
 const TONIGHT_PROJECTION_ADJUSTMENT_KEY = 'sleep-app-tonight-projection-adjustment';
@@ -1246,6 +1249,24 @@ function setRemainingWakeThresholds(openMin, windingMin) {
   if (openMin <= windingMin) return;
   try {
     localStorage.setItem(REMAINING_WAKE_THRESHOLDS_KEY, JSON.stringify({ openMin, windingMin }));
+  } catch (_) {}
+}
+
+function getRemainingWakePhaseHeadsUpMinutes() {
+  try {
+    const raw = localStorage.getItem(REMAINING_WAKE_PHASE_HEADS_UP_KEY);
+    if (raw === null || raw === '') return DEFAULT_REMAINING_WAKE_PHASE_HEADS_UP_MINS;
+    const n = parseInt(raw, 10);
+    if (REMAINING_WAKE_PHASE_HEADS_UP_ALLOWED.indexOf(n) !== -1) return n;
+  } catch (_) {}
+  return DEFAULT_REMAINING_WAKE_PHASE_HEADS_UP_MINS;
+}
+
+function setRemainingWakePhaseHeadsUpMinutes(mins) {
+  const n = parseInt(mins, 10);
+  if (REMAINING_WAKE_PHASE_HEADS_UP_ALLOWED.indexOf(n) === -1) return;
+  try {
+    localStorage.setItem(REMAINING_WAKE_PHASE_HEADS_UP_KEY, String(n));
   } catch (_) {}
 }
 
@@ -2107,6 +2128,28 @@ function getRemainingWakeThresholdsControlHTML(ariaLabelledBy) {
     'config.remainingWake.phase.sleepHint',
     'A fourth header phase (moon) appears automatically when you log bed or fell-asleep before wake. It is not controlled by these sliders.'
   );
+  const headsUpTitle = t(
+    'config.remainingWake.headsUpTitle',
+    'Phase change heads-up in header'
+  );
+  const headsUpIntro = t(
+    'config.remainingWake.headsUpIntro',
+    'Shows a small note next to remaining wake time when the next phase (Active → Winding or Winding → Pre-sleep) is within the time you choose. Uses the same averages as the header clock—not a reminder, just a preview.'
+  );
+  const headsUpHint = t(
+    'config.remainingWake.headsUpHint',
+    'Choose how far ahead to show the note, or turn it off.'
+  );
+  const headsUpSelectAria = t(
+    'config.remainingWake.headsUpSelectAria',
+    'Minutes before the next phase to show the header heads-up'
+  );
+  const opt0 = t('config.remainingWake.headsUpOption0', 'Off');
+  const opt15 = t('config.remainingWake.headsUpOption15', '15 minutes');
+  const opt30 = t('config.remainingWake.headsUpOption30', '30 minutes');
+  const opt45 = t('config.remainingWake.headsUpOption45', '45 minutes');
+  const opt60 = t('config.remainingWake.headsUpOption60', '1 hour');
+  const z = escapeHtmlBannerText;
   return (
     '<p class="config-remaining-wake-default-row">' +
       '<button type="button" class="config-rw-defaults-button" id="config-rw-use-defaults">' + defaultsLabel + ' <span class="config-rw-default-values"></span></button>' +
@@ -2142,6 +2185,36 @@ function getRemainingWakeThresholdsControlHTML(ariaLabelledBy) {
     '<span class="config-rw-thumb-pct">10%</span><span class="config-rw-thumb-time" aria-hidden="true">—</span>' +
     '</span>' +
     '</div>' +
+    '</div>' +
+    '<div class="config-rw-heads-up">' +
+    '<label class="config-rw-heads-up-title" for="config-rw-phase-heads-up">' +
+    z(headsUpTitle) +
+    '</label>' +
+    '<p class="section-intro config-rw-heads-up-intro">' +
+    z(headsUpIntro) +
+    '</p>' +
+    '<select id="config-rw-phase-heads-up" class="config-rw-heads-up-select" aria-label="' +
+    escapeHtmlBannerAttr(headsUpSelectAria) +
+    '" aria-describedby="config-rw-phase-heads-up-hint">' +
+    '<option value="0">' +
+    z(opt0) +
+    '</option>' +
+    '<option value="15">' +
+    z(opt15) +
+    '</option>' +
+    '<option value="30">' +
+    z(opt30) +
+    '</option>' +
+    '<option value="45">' +
+    z(opt45) +
+    '</option>' +
+    '<option value="60">' +
+    z(opt60) +
+    '</option>' +
+    '</select>' +
+    '<p class="config-rw-heads-up-hint" id="config-rw-phase-heads-up-hint">' +
+    z(headsUpHint) +
+    '</p>' +
     '</div>'
   );
 }
@@ -2261,6 +2334,17 @@ function initRemainingWakeThresholdsConfig() {
       const pos1 = 100 - DEFAULT_REMAINING_WAKE_OPEN_MIN;
       const pos2 = 100 - DEFAULT_REMAINING_WAKE_WINDING_MIN;
       applyRemainingWakeThresholdsUI(pos1, pos2);
+    });
+  }
+
+  const headsUpSelect = document.getElementById('config-rw-phase-heads-up');
+  if (headsUpSelect) {
+    headsUpSelect.value = String(getRemainingWakePhaseHeadsUpMinutes());
+    headsUpSelect.addEventListener('change', function () {
+      setRemainingWakePhaseHeadsUpMinutes(parseInt(headsUpSelect.value, 10));
+      if (typeof initRemainingWakeNav === 'function') {
+        initRemainingWakeNav();
+      }
     });
   }
 }
@@ -3090,6 +3174,41 @@ function getRemainingWakeIcon(phase) {
 }
 
 /**
+ * Minutes until the next percent-threshold phase (open→winding or winding→pre-sleep), for nav heads-up.
+ * Returns { icon, minutes, nextPhase } or null.
+ */
+function computeRemainingWakePhaseHeadsUp(phase, remainingMins, totalWakeMins) {
+  const windowMins = getRemainingWakePhaseHeadsUpMinutes();
+  if (
+    windowMins <= 0 ||
+    !Number.isFinite(remainingMins) ||
+    !Number.isFinite(totalWakeMins) ||
+    totalWakeMins <= 0
+  ) {
+    return null;
+  }
+  const { openMin, windingMin } = getRemainingWakeThresholds();
+  let boundaryRem;
+  let nextPhase;
+  if (phase === 'open') {
+    boundaryRem = (totalWakeMins * openMin) / 100;
+    nextPhase = 'winding';
+  } else if (phase === 'winding') {
+    boundaryRem = (totalWakeMins * windingMin) / 100;
+    nextPhase = 'presleep';
+  } else {
+    return null;
+  }
+  const n = Math.max(0, Math.ceil(remainingMins - boundaryRem));
+  if (n <= 0 || n > windowMins) return null;
+  return {
+    icon: getRemainingWakeIcon(nextPhase),
+    minutes: n,
+    nextPhase
+  };
+}
+
+/**
  * After average sleep time (same evening) or before average wake (early morning), we are outside
  * the main wake window — avoid wrapping minutes-until-sleep to ~24h.
  * Skipped when wake and sleep order is atypical (wake >= sleep on the clock).
@@ -3140,7 +3259,8 @@ function getRemainingWakeDisplayFromBasis(basis, days) {
   const percentRemaining = totalWakeMins > 0
     ? Math.min(100, Math.max(0, (remainingMins / totalWakeMins) * 100))
     : 100;
-  return { phase, icon, timeLabel, percentRemaining };
+  const phaseHeadsUp = computeRemainingWakePhaseHeadsUp(phase, remainingMins, totalWakeMins);
+  return { phase, icon, timeLabel, percentRemaining, phaseHeadsUp };
 }
 
 /** Returns { phase, icon, timeLabel, percentRemaining } from raw days (used when daily.js not loaded).
@@ -3177,9 +3297,28 @@ function updateRemainingWakeNav(display) {
     } else if (display.timeLabelSoft) {
       ariaLabel = display.timeLabel || 'Go to bed soon';
     }
+    const hu = display.phaseHeadsUp;
+    if (hu && hu.minutes > 0) {
+      const ariaExtra =
+        hu.nextPhase === 'winding'
+          ? t(
+              'config.remainingWake.headsUpAriaWinding',
+              'Winding down in {minutes} minutes'
+            ).replace('{minutes}', String(hu.minutes))
+          : t(
+              'config.remainingWake.headsUpAriaPresleep',
+              'Pre-sleep in {minutes} minutes'
+            ).replace('{minutes}', String(hu.minutes));
+      ariaLabel = ariaLabel + '. ' + ariaExtra;
+    }
+    const minuteUnit = t('config.remainingWake.headsUpMinuteUnit', ' M');
+    const headsUpHtml =
+      hu && hu.minutes > 0
+        ? `<span class="nav-remaining-wake-phase-heads-up" aria-hidden="true">${hu.icon}\u00A0${hu.minutes}${escapeHtmlBannerText(minuteUnit)}</span>`
+        : '';
     const ariaEsc = escapeHtmlBannerAttr(ariaLabel);
     slot.innerHTML =
-      `<a href="about.html#remaining-wake-time" class="nav-remaining-wake-link" title="${ariaEsc}" aria-label="${ariaEsc}"><span class="nav-remaining-wake-main"><span class="nav-remaining-wake-icon" aria-hidden="true">${display.icon}</span><span class="${timeClass}">${display.timeLabel}</span></span>${progressBar}</a>`;
+      `<a href="about.html#remaining-wake-time" class="nav-remaining-wake-link" title="${ariaEsc}" aria-label="${ariaEsc}"><span class="nav-remaining-wake-main"><span class="nav-remaining-wake-icon" aria-hidden="true">${display.icon}</span><span class="${timeClass}">${display.timeLabel}</span>${headsUpHtml}</span>${progressBar}</a>`;
   }
   if (wrapper) {
     wrapper.classList.remove(
