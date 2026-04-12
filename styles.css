@@ -854,6 +854,22 @@ body{
   opacity: 0.9;
 }
 
+.nav-app-block--stacked {
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.nav-app-block--stacked .nav-app-name {
+  font-size: 0.9375rem;
+  line-height: 1.15;
+}
+
+.nav-app-block--stacked .nav-app-subtitle {
+  font-size: 0.6875rem;
+  line-height: 1.2;
+}
+
 .nav-app-icon-wrap {
   flex-shrink: 0;
   line-height: 0;
@@ -864,12 +880,6 @@ body{
   width: 36px;
   height: 36px;
   border-radius: 10px;
-}
-
-.nav-app-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
 }
 
 .nav-app-name {
@@ -5060,35 +5070,22 @@ svg {
   white-space: nowrap;
 }
 
-/* About page — app intro + mascot */
+/* About page — hero banner + app intro */
+.about-hero-banner {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  margin: 0.5rem 0 1rem;
+  box-sizing: border-box;
+  object-fit: contain;
+}
+
 .about-app__heading.section-title {
   margin-top: 1.25rem;
 }
 
-.about-app__layout {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 1rem;
-}
-
-.about-app__layout--mascot-right {
-  flex-direction: row-reverse;
-}
-
-.about-app__mascot {
-  max-width: 200px;
-  width: 100%;
-  height: auto;
-  flex-shrink: 0;
-}
-
-.about-app__copy {
-  flex: 1 1 min(100%, 28rem);
-  min-width: 0;
-}
-
-.about-app__copy .section-intro:last-child {
+.about-app > .section-intro:last-child {
   margin-bottom: 0;
 }
 
@@ -5097,19 +5094,40 @@ svg {
   font-weight: 600;
 }
 
+.about-daily-flags-visual {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.25rem;
+  margin-top: 1rem;
+}
+
+.about-daily-flags-visual__flag {
+  flex: 0 1 160px;
+  width: 100%;
+  max-width: min(100%, 200px);
+  height: auto;
+  box-sizing: border-box;
+  object-fit: contain;
+}
+
+.about-daily-flags-visual__copy {
+  flex: 1 1 min(100%, 28rem);
+  min-width: 0;
+}
+
+.about-daily-flags-visual__copy .section-intro:last-child {
+  margin-bottom: 0;
+}
+
 @media (max-width: 520px) {
-  .about-app__layout,
-  .about-app__layout.about-app__layout--mascot-right {
+  .about-daily-flags-visual {
     flex-direction: column;
     align-items: center;
   }
 
-  .about-app__copy {
+  .about-daily-flags-visual__copy {
     width: 100%;
-  }
-
-  .about-app__mascot {
-    max-width: 180px;
   }
 }
 
