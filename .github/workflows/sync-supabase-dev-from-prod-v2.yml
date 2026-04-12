@@ -5,7 +5,7 @@ permissions:
 
 on:
   schedule:
-    # Daily 09:00 AM JPT
+    # Daily 09:17 AM JST
     - cron: "17 00 * * *"
   workflow_dispatch:
 
@@ -62,3 +62,10 @@ jobs:
                 grant execute on function public.promote_draft_if_complete(text, jsonb) to anon, authenticated;
               SQL
             '
+      - name: Print timing context
+        run: |
+          echo "UTC: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "Local: $(date '+%Y-%m-%d %H:%M:%S %Z')"
+          echo "Event: ${{ github.event_name }}"
+          echo "SHA: ${{ github.sha }}"
+          echo "Ref: ${{ github.ref }}"
