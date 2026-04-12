@@ -1,0 +1,13 @@
+---
+description: Canonical spec for user preferences vs sleep data, Supabase user_settings sync, localStorage policy, and MVP user_id until auth.
+globs:
+  - "**/sleep-utils.js"
+  - "**/supabase/schema.sql"
+alwaysApply: false
+---
+
+# User data and cloud preferences
+
+User vs sleep storage, cloud gate, `user_settings` REST sync, one-time migration, and future auth are documented in **`docs/user-data-cloud.md`**.
+
+When changing `loadSleepDataUsesSupabase`, `ensureUserSettingsFromCloud`, `chainSleepDataWithUserSettingsHydrate`, `fetchUserSettings`, `upsertUserSettings`, `localUserSettingsToRow`, `userSettingsRowToLocalStorage`, `syncUserSettingsRowToCloud`, `refreshUiAfterUserSettingsHydrate`, `resetUserSettingsCloudHydration`, `RESTORE_CLOUD_USER_ID`, `USER_SETTINGS_CLOUD_MIGRATION_DONE_KEY`, or `user_settings` grants/columns in SQL, update that doc and the mapping / policy sections if behavior or keys change.
