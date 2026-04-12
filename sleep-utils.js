@@ -3262,7 +3262,7 @@ function renderNavBar(currentPage) {
   const navRight = `<div class="nav-right nav-menu-wrap">${menuTrigger}${menuItems}</div>`;
 
   const appIcon = '<img src="assets/icon_512.png" alt="" class="nav-app-icon" width="36" height="36">';
-  const appName = `<a href="dashboard.html" class="nav-app-block" title="${t('nav.tabs.dashboard', 'Dashboard')}"><span class="nav-app-icon-wrap">${appIcon}</span><span class="nav-app-text"><span class="nav-app-name">Restore</span><span class="nav-app-subtitle">${t('nav.app.subtitle', 'Sleep Tracker')}</span></span></a>`;
+  const appName = `<a href="dashboard.html" class="nav-app-block nav-app-block--stacked" title="${t('nav.tabs.dashboard', 'Dashboard')}"><span class="nav-app-name">Restore</span><span class="nav-app-icon-wrap">${appIcon}</span><span class="nav-app-subtitle">${t('nav.app.subtitle', 'Sleep Tracker')}</span></a>`;
   const remainingWakeSlot = `<div class="nav-remaining-wake" id="nav-remaining-wake"></div>`;
   const headerRow = `<div class="nav-header nav-header--remaining-wake">${appName}${remainingWakeSlot}${navRight}</div>`;
   const tabsRow = `<div class="nav-tabs-row"><div class="nav-tabs">${navItems}</div></div>`;
