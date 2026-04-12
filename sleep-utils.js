@@ -50,6 +50,10 @@ const SUPABASE_ANON_KEY_STORAGE_KEY = 'restore_supabase_anon_key';
 const RESTORE_LAST_DATA_SOURCE_KEY = 'restore_last_data_source';
 /** When `'1'`, read sleep data from `data/sleep-data.json` even if Supabase is configured (testing). */
 const RESTORE_FORCE_LOCAL_SLEEP_DATA_KEY = 'restore_force_local_sleep_data';
+/** MVP single-user row until per-user auth; must match seed in supabase/schema.sql */
+const RESTORE_CLOUD_USER_ID = '00000000-0000-0000-0000-000000000001';
+/** After one-time local→cloud push when cloud row was still seed defaults */
+const USER_SETTINGS_CLOUD_MIGRATION_DONE_KEY = 'restore_user_settings_cloud_migration_v1';
 const SLEEP_DATA_LOCAL_CACHE_KEY = 'restore_sleep_data_cache_v1';
 const SLEEP_DATA_CACHE_TTL_MS = 5 * 60 * 1000;
 
@@ -58,6 +62,9 @@ let sleepDataCacheExpiresAt = 0;
 let sleepDataCacheKey = '';
 let sleepDataPendingPromise = null;
 
+let userSettingsCloudHydrateSucceeded = false;
+let userSettingsCloudHydratePromise = null;
+
 function isSleepDataForcedLocal() {
   return safeReadStorage(RESTORE_FORCE_LOCAL_SLEEP_DATA_KEY) === '1';
 }
@@ -65,6 +72,7 @@ function isSleepDataForcedLocal() {
 function setSleepDataForcedLocal(on) {
   safeWriteStorage(RESTORE_FORCE_LOCAL_SLEEP_DATA_KEY, on ? '1' : '');
   clearSleepDataCache();
+  resetUserSettingsCloudHydration();
   if (typeof window !== 'undefined') window.__RESTORE_DATA_SOURCE__ = '';
   updateDataSourceBadge();
 }
@@ -167,6 +175,7 @@ function getLanguagePreference() {
 function setLanguagePreference(language) {
   const normalized = normalizeLanguage(language);
   safeWriteStorage(LANGUAGE_KEY, normalized);
+  syncUserSettingsRowToCloud();
   return normalized;
 }
 
@@ -266,6 +275,7 @@ function setSupabaseConfig(url, anonKey) {
   safeWriteStorage(SUPABASE_URL_STORAGE_KEY, (url || '').trim());
   safeWriteStorage(SUPABASE_ANON_KEY_STORAGE_KEY, (anonKey || '').trim());
   clearSleepDataCache();
+  resetUserSettingsCloudHydration();
 }
 
 function clearSupabaseConfig() {
@@ -273,6 +283,7 @@ function clearSupabaseConfig() {
   safeWriteStorage(SUPABASE_ANON_KEY_STORAGE_KEY, '');
   safeWriteStorage(RESTORE_FORCE_LOCAL_SLEEP_DATA_KEY, '');
   clearSleepDataCache();
+  resetUserSettingsCloudHydration();
 }
 
 function getDataSourceState() {
@@ -455,6 +466,219 @@ function mapPartialDayToDraftPatch(partial) {
   return patch;
 }
 
+function resetUserSettingsCloudHydration() {
+  userSettingsCloudHydrateSucceeded = false;
+  userSettingsCloudHydratePromise = null;
+}
+
+function isSeedDefaultUserSettingsRow(row) {
+  if (!row || typeof row !== 'object') return false;
+  const t = row.theme_override;
+  return (
+    row.language === 'en' &&
+    (t == null || t === '') &&
+    row.clock_format === '24h' &&
+    row.quality_palette === 'meadow' &&
+    Number(row.remaining_wake_open_min) === 35 &&
+    Number(row.remaining_wake_winding_min) === 15 &&
+    Number(row.remaining_wake_phase_heads_up_mins) === 30
+  );
+}
+
+function localUserSettingsToRow() {
+  const language = getLanguagePreference();
+  const themeOverride = getThemeOverride();
+  const theme_override = themeOverride === 'day' || themeOverride === 'night' ? themeOverride : null;
+  let clock_format = getClockFormatPreference();
+  if (clock_format !== '12h' && clock_format !== '24h') clock_format = '24h';
+  let quality_palette = getQualityPaletteId();
+  if (quality_palette !== 'meadow' && quality_palette !== 'harbor' && quality_palette !== 'auto') quality_palette = 'meadow';
+  let thresholds = getRemainingWakeThresholds();
+  let openMin = clampThresholdPercent(thresholds.openMin);
+  let windingMin = clampThresholdPercent(thresholds.windingMin);
+  if (openMin <= windingMin) {
+    openMin = DEFAULT_REMAINING_WAKE_OPEN_MIN;
+    windingMin = DEFAULT_REMAINING_WAKE_WINDING_MIN;
+  }
+  let remaining_wake_phase_heads_up_mins = getRemainingWakePhaseHeadsUpMinutes();
+  if (REMAINING_WAKE_PHASE_HEADS_UP_ALLOWED.indexOf(remaining_wake_phase_heads_up_mins) === -1) {
+    remaining_wake_phase_heads_up_mins = DEFAULT_REMAINING_WAKE_PHASE_HEADS_UP_MINS;
+  }
+  return {
+    user_id: RESTORE_CLOUD_USER_ID,
+    language: language === 'ja' ? 'ja' : 'en',
+    theme_override: theme_override,
+    clock_format: clock_format,
+    quality_palette: quality_palette,
+    remaining_wake_open_min: openMin,
+    remaining_wake_winding_min: windingMin,
+    remaining_wake_phase_heads_up_mins: remaining_wake_phase_heads_up_mins
+  };
+}
+
+function localUserSettingsDiffersFromSeedDefaults() {
+  return !isSeedDefaultUserSettingsRow(localUserSettingsToRow());
+}
+
+function userSettingsRowToLocalStorage(row) {
+  if (!row || typeof row !== 'object') return;
+  safeWriteStorage(LANGUAGE_KEY, row.language === 'ja' ? 'ja' : 'en');
+  try {
+    if (row.theme_override === 'day' || row.theme_override === 'night') {
+      localStorage.setItem(THEME_OVERRIDE_KEY, row.theme_override);
+    } else {
+      localStorage.removeItem(THEME_OVERRIDE_KEY);
+    }
+  } catch (_) {}
+  try {
+    if (row.clock_format === '12h' || row.clock_format === '24h') {
+      localStorage.setItem(CLOCK_FORMAT_KEY, row.clock_format);
+    }
+  } catch (_) {}
+  try {
+    if (row.quality_palette === 'meadow' || row.quality_palette === 'harbor' || row.quality_palette === 'auto') {
+      localStorage.setItem(QUALITY_PALETTE_KEY, row.quality_palette);
+    }
+  } catch (_) {}
+  let openMin = clampThresholdPercent(Number(row.remaining_wake_open_min));
+  let windingMin = clampThresholdPercent(Number(row.remaining_wake_winding_min));
+  if (openMin <= windingMin) {
+    openMin = DEFAULT_REMAINING_WAKE_OPEN_MIN;
+    windingMin = DEFAULT_REMAINING_WAKE_WINDING_MIN;
+  }
+  try {
+    localStorage.setItem(REMAINING_WAKE_THRESHOLDS_KEY, JSON.stringify({ openMin: openMin, windingMin: windingMin }));
+  } catch (_) {}
+  const heads = parseInt(row.remaining_wake_phase_heads_up_mins, 10);
+  if (REMAINING_WAKE_PHASE_HEADS_UP_ALLOWED.indexOf(heads) !== -1) {
+    try {
+      localStorage.setItem(REMAINING_WAKE_PHASE_HEADS_UP_KEY, String(heads));
+    } catch (_) {}
+  }
+}
+
+function fetchUserSettings(config) {
+  if (!config || !config.enabled) return Promise.resolve(null);
+  const uid = encodeURIComponent(RESTORE_CLOUD_USER_ID);
+  const url =
+    config.url.replace(/\/+$/, '') +
+    '/rest/v1/user_settings?select=user_id,language,theme_override,clock_format,quality_palette,remaining_wake_open_min,remaining_wake_winding_min,remaining_wake_phase_heads_up_mins&user_id=eq.' +
+    uid +
+    '&limit=1';
+  return fetch(url, { headers: getSupabaseAuthHeaders(config, false) })
+    .then(function (res) {
+      if (!res.ok) throw new Error('User settings read failed: ' + res.status);
+      return res.json();
+    })
+    .then(function (rows) {
+      if (!Array.isArray(rows) || rows.length === 0) return null;
+      return rows[0];
+    });
+}
+
+function upsertUserSettings(config, row) {
+  if (!config || !config.enabled) {
+    return Promise.reject(new Error('Supabase is not configured. Set URL and anon key in Settings.'));
+  }
+  const url = config.url.replace(/\/+$/, '') + '/rest/v1/user_settings?on_conflict=user_id';
+  return fetch(url, {
+    method: 'POST',
+    headers: Object.assign({}, getSupabaseAuthHeaders(config, true), {
+      Prefer: 'resolution=merge-duplicates,return=representation'
+    }),
+    body: JSON.stringify([row])
+  }).then(function (res) {
+    if (!res.ok) {
+      return parseSupabaseErrorPayload(res).then(function (msg) {
+        throw new Error('User settings upsert failed: ' + res.status + (msg ? ' — ' + msg : ''));
+      });
+    }
+    return res.json();
+  });
+}
+
+function ensureUserSettingsFromCloud(config) {
+  if (!config || !loadSleepDataUsesSupabase(config)) return Promise.resolve();
+  if (userSettingsCloudHydrateSucceeded) return Promise.resolve();
+  if (userSettingsCloudHydratePromise) return userSettingsCloudHydratePromise;
+  userSettingsCloudHydratePromise = fetchUserSettings(config)
+    .then(function (row) {
+      const migrationDone = safeReadStorage(USER_SETTINGS_CLOUD_MIGRATION_DONE_KEY) === '1';
+      if (!row) {
+        return upsertUserSettings(config, localUserSettingsToRow()).then(function () {
+          safeWriteStorage(USER_SETTINGS_CLOUD_MIGRATION_DONE_KEY, '1');
+        });
+      }
+      if (isSeedDefaultUserSettingsRow(row) && localUserSettingsDiffersFromSeedDefaults() && !migrationDone) {
+        return upsertUserSettings(config, localUserSettingsToRow()).then(function () {
+          safeWriteStorage(USER_SETTINGS_CLOUD_MIGRATION_DONE_KEY, '1');
+        });
+      }
+      userSettingsRowToLocalStorage(row);
+      safeWriteStorage(USER_SETTINGS_CLOUD_MIGRATION_DONE_KEY, '1');
+    })
+    .then(function () {
+      userSettingsCloudHydrateSucceeded = true;
+    })
+    .catch(function (err) {
+      console.warn('User settings cloud hydrate failed.', err);
+    })
+    .finally(function () {
+      userSettingsCloudHydratePromise = null;
+    });
+  return userSettingsCloudHydratePromise;
+}
+
+function refreshUiAfterUserSettingsHydrate() {
+  if (typeof document === 'undefined') return;
+  applyDayNightTheme();
+  updateDayNightIcon();
+  updateThemeSelectors();
+  updateClockFormatSelector();
+  updateQualityPaletteSelector();
+  const langSelect = document.getElementById('config-language-select');
+  if (langSelect) langSelect.value = getLanguagePreference();
+  const lang = getLanguagePreference();
+  if (document.documentElement) document.documentElement.setAttribute('lang', lang);
+  void initI18n(document);
+  const inputOpen = document.getElementById('config-open-min');
+  const inputWinding = document.getElementById('config-winding-min');
+  if (inputOpen && inputWinding) {
+    const th = getRemainingWakeThresholds();
+    applyRemainingWakeThresholdsUI(100 - th.openMin, 100 - th.windingMin);
+  }
+  const headsUpRange = document.getElementById('config-rw-phase-heads-up');
+  if (headsUpRange) {
+    const mins = getRemainingWakePhaseHeadsUpMinutes();
+    headsUpRange.value = String(remainingWakePhaseHeadsUpMinutesToSliderIndex(mins));
+    headsUpRange.setAttribute('aria-valuetext', getRemainingWakePhaseHeadsUpStopAriaLabel(mins));
+  }
+}
+
+function chainSleepDataWithUserSettingsHydrate(config, dataPromise) {
+  if (!loadSleepDataUsesSupabase(config)) return dataPromise;
+  return dataPromise.then(function (data) {
+    return ensureUserSettingsFromCloud(config).then(function () {
+      refreshUiAfterUserSettingsHydrate();
+      return data;
+    });
+  });
+}
+
+function syncUserSettingsRowToCloud() {
+  const config = getSupabaseConfig();
+  if (!loadSleepDataUsesSupabase(config)) return;
+  var row;
+  try {
+    row = localUserSettingsToRow();
+  } catch (_e) {
+    return;
+  }
+  void upsertUserSettings(config, row).catch(function (err) {
+    console.warn('User settings sync failed.', err);
+  });
+}
+
 function getSupabaseAuthHeaders(config, includeJson) {
   const headers = {
     apikey: config.anonKey,
@@ -519,11 +743,11 @@ function loadSleepData(options) {
     (manualRefreshOnly || now < sleepDataCacheExpiresAt)
   ) {
     updateDataSourceBadge(loadSleepDataUsesSupabase(config) ? 'cloud' : 'local');
-    return Promise.resolve(cloneSleepData(sleepDataCacheValue));
+    return chainSleepDataWithUserSettingsHydrate(config, Promise.resolve(cloneSleepData(sleepDataCacheValue)));
   }
 
   if (!forceRefresh && sleepDataPendingPromise && sleepDataCacheKey === cacheKey) {
-    return sleepDataPendingPromise.then(cloneSleepData);
+    return chainSleepDataWithUserSettingsHydrate(config, sleepDataPendingPromise.then(cloneSleepData));
   }
 
   if (!forceRefresh) {
@@ -537,7 +761,7 @@ function loadSleepData(options) {
       sleepDataCacheKey = cacheKey;
       sleepDataCacheExpiresAt = storedCache.fetchedAt + SLEEP_DATA_CACHE_TTL_MS;
       updateDataSourceBadge(loadSleepDataUsesSupabase(config) ? 'cloud' : 'local');
-      return Promise.resolve(cloneSleepData(storedCache.data));
+      return chainSleepDataWithUserSettingsHydrate(config, Promise.resolve(cloneSleepData(storedCache.data)));
     }
   }
 
@@ -561,7 +785,14 @@ function loadSleepData(options) {
     sleepDataCacheValue = data;
     sleepDataCacheExpiresAt = getAppNowMs() + SLEEP_DATA_CACHE_TTL_MS;
     writeSleepDataLocalCache(cacheKey, data);
-    return cloneSleepData(data);
+    const out = cloneSleepData(data);
+    if (loadSleepDataUsesSupabase(config)) {
+      return ensureUserSettingsFromCloud(config).then(function () {
+        refreshUiAfterUserSettingsHydrate();
+        return out;
+      });
+    }
+    return out;
   });
 
   sleepDataPendingPromise = request.finally(function () {
@@ -1203,11 +1434,11 @@ const TONIGHT_PROJECTION_ADJUSTMENT_KEY = 'sleep-app-tonight-projection-adjustme
 const QUALITY_PALETTES = {
   meadow: {
     label: 'Meadow',
-    colors: ['#2a9641', '#6da035', '#b0aa28', '#ca8a04', '#b45309', '#7f1d1d']
+    colors: ['#2a9641', '#6da035', '#b0aa28', '#ecbd61', '#b45309', '#7f1d1d']
   },
   harbor: {
     label: 'Harbor',
-    colors: ['#3db0a4', '#2f8f82', '#8fb88a', '#bdb14a', '#8f5f50', '#42202e']
+    colors: ['#3db0a4', '#2f8f82', '#8fb88a', '#ecbd61', '#8f5f50', '#42202e']
   }
 };
 
@@ -1252,6 +1483,7 @@ function setRemainingWakeThresholds(openMin, windingMin) {
   try {
     localStorage.setItem(REMAINING_WAKE_THRESHOLDS_KEY, JSON.stringify({ openMin, windingMin }));
   } catch (_) {}
+  syncUserSettingsRowToCloud();
 }
 
 function getRemainingWakePhaseHeadsUpMinutes() {
@@ -1270,6 +1502,7 @@ function setRemainingWakePhaseHeadsUpMinutes(mins) {
   try {
     localStorage.setItem(REMAINING_WAKE_PHASE_HEADS_UP_KEY, String(n));
   } catch (_) {}
+  syncUserSettingsRowToCloud();
 }
 
 function remainingWakePhaseHeadsUpMinutesToSliderIndex(mins) {
@@ -1327,6 +1560,7 @@ function setThemeOverride(theme) {
     if (theme === null) localStorage.removeItem(THEME_OVERRIDE_KEY);
     else localStorage.setItem(THEME_OVERRIDE_KEY, theme);
   } catch (_) {}
+  syncUserSettingsRowToCloud();
 }
 
 function getClockFormatPreference() {
@@ -1343,6 +1577,7 @@ function setClockFormatPreference(format) {
   try {
     localStorage.setItem(CLOCK_FORMAT_KEY, format);
   } catch (_) {}
+  syncUserSettingsRowToCloud();
 }
 
 function getQualityPaletteId() {
@@ -1358,6 +1593,7 @@ function setQualityPaletteId(id) {
   try {
     localStorage.setItem(QUALITY_PALETTE_KEY, id);
   } catch (_) {}
+  syncUserSettingsRowToCloud();
 }
 
 // Concrete palette used for CSS (stored 'auto' → meadow or harbor from effective theme).

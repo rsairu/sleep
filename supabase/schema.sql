@@ -31,6 +31,23 @@ create table if not exists public.sleep_day_drafts (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.user_settings (
+  user_id uuid primary key,
+  language text not null default 'en' check (language in ('en', 'ja')),
+  theme_override text check (theme_override in ('day', 'night')),
+  clock_format text not null default '24h' check (clock_format in ('12h', '24h')),
+  quality_palette text not null default 'meadow' check (quality_palette in ('meadow', 'harbor', 'auto')),
+  remaining_wake_open_min integer not null default 35 check (remaining_wake_open_min >= 0 and remaining_wake_open_min <= 100),
+  remaining_wake_winding_min integer not null default 15 check (remaining_wake_winding_min >= 0 and remaining_wake_winding_min <= 100),
+  remaining_wake_phase_heads_up_mins integer not null default 30 check (remaining_wake_phase_heads_up_mins in (0, 15, 30, 45, 60)),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  check (remaining_wake_open_min > remaining_wake_winding_min)
+);
+
+-- PostgREST: allow MVP anon sync (same pattern as other public tables; tighten with RLS when auth lands)
+grant select, insert, update on public.user_settings to anon, authenticated;
+
 create or replace function public.set_sleep_days_updated_at()
 returns trigger as $$
 begin
@@ -48,6 +65,41 @@ drop trigger if exists trg_sleep_day_drafts_updated_at on public.sleep_day_draft
 create trigger trg_sleep_day_drafts_updated_at
 before update on public.sleep_day_drafts
 for each row execute function public.set_sleep_days_updated_at();
+
+drop trigger if exists trg_user_settings_updated_at on public.user_settings;
+create trigger trg_user_settings_updated_at
+before update on public.user_settings
+for each row execute function public.set_sleep_days_updated_at();
+
+insert into public.user_settings (
+  user_id,
+  language,
+  theme_override,
+  clock_format,
+  quality_palette,
+  remaining_wake_open_min,
+  remaining_wake_winding_min,
+  remaining_wake_phase_heads_up_mins
+)
+values (
+  '00000000-0000-0000-0000-000000000001',
+  'en',
+  null,
+  '24h',
+  'meadow',
+  35,
+  15,
+  30
+)
+on conflict (user_id) do update
+set
+  language = excluded.language,
+  theme_override = excluded.theme_override,
+  clock_format = excluded.clock_format,
+  quality_palette = excluded.quality_palette,
+  remaining_wake_open_min = excluded.remaining_wake_open_min,
+  remaining_wake_winding_min = excluded.remaining_wake_winding_min,
+  remaining_wake_phase_heads_up_mins = excluded.remaining_wake_phase_heads_up_mins;
 
 create or replace function public.promote_draft_if_complete(
   p_date_md text,
