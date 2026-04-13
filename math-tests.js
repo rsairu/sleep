@@ -146,19 +146,19 @@ function runTests() {
   // Wake record date: finish prior wake-day row when clock rolls to next calendar morning
   const avgWake = 7 * 60;
   const wakeDays = [
-    { date: '4/8', bed: '23:00', sleepStart: '23:30', sleepEnd: '07:00' },
-    { date: '4/7', bed: '22:10', sleepStart: '23:05', sleepEnd: '07:00' }
+    { date: '2026-04-08', bed: '23:00', sleepStart: '23:30', sleepEnd: '07:00' },
+    { date: '2026-04-07', bed: '22:10', sleepStart: '23:05', sleepEnd: '07:00' }
   ];
   const apr8Morning = new Date(2026, 3, 8, 8, 0, 0, 0);
   expectEqual(
     u.resolveRecordDateMdForWake(apr8Morning, avgWake, wakeDays),
-    '4/7',
+    '2026-04-07',
     'resolveRecordDateMdForWake prefers prior day open night in early-morning band'
   );
   const apr8Afternoon = new Date(2026, 3, 8, 14, 0, 0, 0);
   expectEqual(
     u.resolveRecordDateMdForWake(apr8Afternoon, avgWake, wakeDays),
-    '4/9',
+    '2026-04-09',
     'resolveRecordDateMdForWake uses sleep-period key outside early-morning band'
   );
 

@@ -56,7 +56,7 @@ const RESTORE_FORCE_LOCAL_SLEEP_DATA_KEY = 'restore_force_local_sleep_data';
 const RESTORE_CLOUD_USER_ID = '00000000-0000-0000-0000-000000000001';
 /** After one-time local→cloud push when cloud row was still seed defaults */
 const USER_SETTINGS_CLOUD_MIGRATION_DONE_KEY = 'restore_user_settings_cloud_migration_v1';
-const SLEEP_DATA_LOCAL_CACHE_KEY = 'restore_sleep_data_cache_v1';
+const SLEEP_DATA_LOCAL_CACHE_KEY = 'restore_sleep_data_cache_v2';
 const SLEEP_DATA_CACHE_TTL_MS = 5 * 60 * 1000;
 
 let sleepDataCacheValue = null;
@@ -380,8 +380,10 @@ function updateDataSourceBadge(source) {
 
 function mapSupabaseRowToDay(row) {
   if (!row || !row.date_md) return null;
+  const canon =
+    normalizeSleepDateKey(row.date_md, LEGACY_SLEEP_DATE_FALLBACK_YEAR) || String(row.date_md).trim();
   return {
-    date: row.date_md,
+    date: canon,
     bed: row.bed,
     sleepStart: row.sleep_start,
     sleepEnd: row.sleep_end,
@@ -473,8 +475,11 @@ function mergePartialSleepDayForUpsert(existing, dateMd, partial) {
 function mapDayToSupabaseRow(day) {
   const bathroom = Array.isArray(day.bathroom) ? day.bathroom.map(normalizeTimeStringForSupabase) : [];
   const alarm = Array.isArray(day.alarm) ? day.alarm.map(normalizeTimeStringForSupabase) : [];
+  const dateMd =
+    normalizeSleepDateKey(day.date, LEGACY_SLEEP_DATE_FALLBACK_YEAR) ||
+    (day.date != null ? String(day.date).trim() : '');
   return {
-    date_md: day.date,
+    date_md: dateMd,
     bed: normalizeTimeStringForSupabase(day.bed),
     sleep_start: normalizeTimeStringForSupabase(day.sleepStart),
     sleep_end: normalizeTimeStringForSupabase(day.sleepEnd),
@@ -756,7 +761,11 @@ function parseSupabaseErrorPayload(res) {
 }
 
 function sortDaysNewestFirst(days) {
-  return days.slice().sort((a, b) => getDateFromString(b.date) - getDateFromString(a.date));
+  return days.slice().sort(function (a, b) {
+    const ka = normalizeSleepDateKey(a.date) || String(a.date || '');
+    const kb = normalizeSleepDateKey(b.date) || String(b.date || '');
+    return kb.localeCompare(ka);
+  });
 }
 
 function fetchStaticSleepData() {
@@ -1207,41 +1216,148 @@ function appendSvgSleepBarFragmentation(parentG, x, y, width, height, level) {
   parentG.appendChild(fo);
 }
 
-// Parse date string to month and day array
-function parseDateString(dateString) {
-  return dateString.split('/').map(Number);
+/** When a sleep key is legacy M/D (no year), assume this calendar year. */
+var LEGACY_SLEEP_DATE_FALLBACK_YEAR = 2026;
+
+function isIsoSleepDateString(s) {
+  return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s.trim());
 }
 
-// Get date object from date string
-function getDateFromString(dateString, year = 2026) {
-  const [month, day] = parseDateString(dateString);
-  return new Date(year, month - 1, day);
+function parseIsoLocalDate(iso) {
+  const m = String(iso)
+    .trim()
+    .match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  const y = parseInt(m[1], 10);
+  const mo = parseInt(m[2], 10);
+  const d = parseInt(m[3], 10);
+  const dt = new Date(y, mo - 1, d);
+  if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return null;
+  return dt;
+}
+
+function formatIsoDateFromLocalDate(d) {
+  const y = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return y + '-' + mo + '-' + day;
+}
+
+/**
+ * Canonical sleep row key YYYY-MM-DD. Accepts ISO, legacy M/D, or M/D/YYYY.
+ * @param {string} input
+ * @param {number} [fallbackYear] for M/D without year (defaults to LEGACY_SLEEP_DATE_FALLBACK_YEAR)
+ */
+function normalizeSleepDateKey(input, fallbackYear) {
+  if (input == null || input === '') return '';
+  const s = String(input).trim();
+  if (!s) return '';
+  if (isIsoSleepDateString(s)) {
+    const d = parseIsoLocalDate(s);
+    return d ? formatIsoDateFromLocalDate(d) : '';
+  }
+  const parts = s.split('/').map(function (p) {
+    return p.trim();
+  });
+  if (parts.length >= 2) {
+    const month = parseInt(parts[0], 10);
+    const day = parseInt(parts[1], 10);
+    const y =
+      parts.length >= 3 && parts[2] !== ''
+        ? parseInt(parts[2], 10)
+        : Number.isFinite(fallbackYear)
+          ? fallbackYear
+          : LEGACY_SLEEP_DATE_FALLBACK_YEAR;
+    if (!Number.isFinite(month) || !Number.isFinite(day) || !Number.isFinite(y)) return '';
+    if (month < 1 || month > 12 || day < 1 || day > 31) return '';
+    const d = new Date(y, month - 1, day);
+    if (d.getFullYear() !== y || d.getMonth() !== month - 1 || d.getDate() !== day) return '';
+    return formatIsoDateFromLocalDate(d);
+  }
+  return '';
+}
+
+/** Local midnight Date from sleep key (ISO or legacy M/D). */
+function parseSleepDateToLocalDate(dateString, fallbackYear) {
+  if (!dateString) return new Date(NaN);
+  const fy = Number.isFinite(fallbackYear) ? fallbackYear : LEGACY_SLEEP_DATE_FALLBACK_YEAR;
+  const iso = normalizeSleepDateKey(dateString, fy);
+  if (!iso) return new Date(NaN);
+  const d = parseIsoLocalDate(iso);
+  return d || new Date(NaN);
+}
+
+/** M/D display for UI tooltips and day headers (from ISO or legacy key). */
+function formatSleepDateMonthDay(isoOrLegacy) {
+  const d = parseSleepDateToLocalDate(isoOrLegacy);
+  if (Number.isNaN(d.getTime())) return String(isoOrLegacy || '');
+  return d.getMonth() + 1 + '/' + d.getDate();
+}
+
+/** Years present in sleep rows (newest first), for multi-year heatmaps. */
+function getSleepDataYearsPresentDescending(days) {
+  if (!days || !days.length) {
+    return typeof getAppDate === 'function' ? [getAppDate().getFullYear()] : [LEGACY_SLEEP_DATE_FALLBACK_YEAR];
+  }
+  const years = new Set();
+  for (let i = 0; i < days.length; i++) {
+    const dt = parseSleepDateToLocalDate(days[i].date);
+    if (!Number.isNaN(dt.getTime())) years.add(dt.getFullYear());
+  }
+  const arr = Array.from(years);
+  arr.sort(function (a, b) {
+    return b - a;
+  });
+  return arr.length
+    ? arr
+    : [typeof getAppDate === 'function' ? getAppDate().getFullYear() : LEGACY_SLEEP_DATE_FALLBACK_YEAR];
+}
+
+// Parse date string to [month, day] (1-based month). Supports ISO and legacy M/D.
+function parseDateString(dateString) {
+  const d = parseSleepDateToLocalDate(dateString);
+  if (Number.isNaN(d.getTime())) return [NaN, NaN];
+  return [d.getMonth() + 1, d.getDate()];
+}
+
+// Get Date from sleep key; legacy M/D uses fallbackYear when year is absent from string.
+function getDateFromString(dateString, fallbackYear) {
+  const fy = Number.isFinite(fallbackYear) ? fallbackYear : LEGACY_SLEEP_DATE_FALLBACK_YEAR;
+  return parseSleepDateToLocalDate(dateString, fy);
 }
 
 // Check if a date is a weekend (Saturday or Sunday)
-// Accepts either a Date object or dateString
-function isWeekend(dateOrString, year = 2026) {
+// Accepts either a Date object or sleep date string (ISO or legacy M/D).
+function isWeekend(dateOrString, fallbackYear) {
   let date;
   if (dateOrString instanceof Date) {
     date = dateOrString;
   } else {
-    date = getDateFromString(dateOrString, year);
+    date = getDateFromString(dateOrString, fallbackYear);
   }
   return date.getDay() % 6 === 0; // 0 = Sunday, 6 = Saturday
 }
 
 // Check if a date is a holiday
-// Accepts either a Date object or dateString. holidays is optional (defaults to HOLIDAYS_BY_YEAR).
-function isHoliday(dateOrString, holidays, year = 2026) {
+// Accepts either a Date object or sleep date string. holidays is optional (defaults to HOLIDAYS_BY_YEAR).
+function isHoliday(dateOrString, holidays, fallbackYear) {
   const h = holidays ?? HOLIDAYS_BY_YEAR;
-  let month, day;
+  let month;
+  let day;
+  let y;
   if (dateOrString instanceof Date) {
-    month = dateOrString.getMonth() + 1; // getMonth() returns 0-11
+    month = dateOrString.getMonth() + 1;
     day = dateOrString.getDate();
+    y = dateOrString.getFullYear();
   } else {
-    [month, day] = parseDateString(dateOrString);
+    const fy = Number.isFinite(fallbackYear) ? fallbackYear : LEGACY_SLEEP_DATE_FALLBACK_YEAR;
+    const d = parseSleepDateToLocalDate(dateOrString, fy);
+    if (Number.isNaN(d.getTime())) return false;
+    month = d.getMonth() + 1;
+    day = d.getDate();
+    y = d.getFullYear();
   }
-  const yearHolidays = h[year];
+  const yearHolidays = h[y];
   if (!yearHolidays) return false;
   return yearHolidays[month] && yearHolidays[month].includes(day);
 }
@@ -1955,7 +2071,22 @@ function readNightQaSleepFlagMap() {
     const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(RESTORE_QA_SLEEP_LOGGED_KEY) : null;
     if (!raw) return {};
     const o = JSON.parse(raw);
-    return o && typeof o === 'object' ? o : {};
+    if (!o || typeof o !== 'object') return {};
+    let changed = false;
+    const migrated = {};
+    Object.keys(o).forEach(function (k) {
+      const iso = normalizeSleepDateKey(k, LEGACY_SLEEP_DATE_FALLBACK_YEAR);
+      const nk = iso || k;
+      if (nk !== k) changed = true;
+      if (!migrated[nk]) migrated[nk] = {};
+      Object.assign(migrated[nk], o[k]);
+    });
+    if (changed && typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem(RESTORE_QA_SLEEP_LOGGED_KEY, JSON.stringify(migrated));
+      } catch (_e2) { /* ignore */ }
+    }
+    return migrated;
   } catch (_e) {
     return {};
   }
@@ -1977,7 +2108,7 @@ function markNightQaSleepFlag(nightMd, kind) {
 }
 
 function formatMonthDayFromDateForNav(d) {
-  return d.getMonth() + 1 + '/' + d.getDate();
+  return formatIsoDateFromLocalDate(d);
 }
 
 /**
@@ -3784,7 +3915,7 @@ function showDayPanel(point, clientX, clientY) {
   const mainSleep = formatDuration(point.mainSleepMinutes != null ? point.mainSleepMinutes : point.sleepDurationMinutes);
   const napText = (point.napMinutes != null && point.napMinutes > 0) ? ` (${mainSleep} + ${formatDuration(point.napMinutes)} nap)` : '';
   dayPanel.innerHTML = `
-    <div class="day-panel-header">${point.dateString}</div>
+    <div class="day-panel-header">${formatSleepDateMonthDay(point.dateString)}</div>
     <div class="day-panel-row">
       <span class="day-panel-label bedtime">bed:</span>
       <span class="day-panel-value">${point.bedTimeString}</span>

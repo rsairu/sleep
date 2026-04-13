@@ -3968,6 +3968,16 @@ svg {
   overflow: visible;
 }
 
+.calendar-heatmap-year-heading {
+  margin: 1.25rem 0 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.calendar-heatmap-year-block:first-child .calendar-heatmap-year-heading {
+  margin-top: 0;
+}
+
 /* Optional: panel/box when used outside dashboard (e.g. in a dedicated view) */
 .calendar-heatmap-container.in-panel {
   background: var(--panel);

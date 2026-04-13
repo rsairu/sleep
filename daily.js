@@ -1,5 +1,4 @@
 // Configuration constants
-const YEAR = 2026;
 const ALARM_TO_WAKE_WARNING_THRESHOLD = 60; // minutes
 /** Prior nights required before timing flags or heatmap colors apply. */
 const LOOKBACK_DAYS = 7;
@@ -469,7 +468,7 @@ function renderDay(day, days, dayIndex, options) {
   if (isHolidayDay) dayClasses.push('holiday');
   if (isWeekendDay) dayClasses.push('weekend');
   
-  const dayOfWeek = getDateFromString(day.date, YEAR).toLocaleDateString('en-US', { weekday: 'short' });
+  const dayOfWeek = getDateFromString(day.date).toLocaleDateString('en-US', { weekday: 'short' });
   
   // Check for deviations from recent averages
   const recentAverages = calculateRecentAverages(days, dayIndex);
@@ -508,7 +507,7 @@ function renderDay(day, days, dayIndex, options) {
     <div class="day ${dayClasses.join(' ')}">
       <div class="day-content">
         <div class="day-row day-row--data">
-          <div class="day-date">${day.date} ${dayOfWeek}${isHolidayDay ? ' 🏝️' : ''}</div>
+          <div class="day-date">${formatSleepDateMonthDay(day.date)} ${dayOfWeek}${isHolidayDay ? ' 🏝️' : ''}</div>
           ${dayFlagsRow}
           <div class="day-metrics">
             <div class="day-metrics-phases day-stats">
@@ -715,14 +714,16 @@ function formatDateShort(date) {
   return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
-// Get the latest date present in sleep data (as Date at midnight) for the given year
-function getLatestDataDate(days, year) {
+// Latest calendar date present in sleep data (local midnight).
+function getLatestDataDate(days) {
   if (!days || days.length === 0) return null;
-  let latest = getDateFromString(days[0].date, year);
-  for (let i = 1; i < days.length; i++) {
-    const d = getDateFromString(days[i].date, year);
-    if (d > latest) latest = d;
+  let latest = null;
+  for (let i = 0; i < days.length; i++) {
+    const d = getDateFromString(days[i].date);
+    if (Number.isNaN(d.getTime())) continue;
+    if (!latest || d > latest) latest = d;
   }
+  if (!latest) return null;
   latest.setHours(0, 0, 0, 0);
   return latest;
 }
@@ -757,11 +758,11 @@ function generateCalendarHeatmap(year, flagMap, latestDataDate) {
       if (date > cutoff) {
         flatDays.push(null);
       } else {
-        const dateStr = formatDateShort(date);
+        const dateStr = formatIsoDateFromLocalDate(date);
         const flagData = flagMap.get(dateStr) || { insufficient: false, qualitySeverity: 'none', types: [] };
         flatDays.push({
           date: date,
-          dateStr: dateStr,
+          dateStr: formatDateShort(date),
           day: day,
           insufficient: flagData.insufficient,
           qualitySeverity: flagData.qualitySeverity,
@@ -939,6 +940,29 @@ function renderCalendarHeatmapFullHistory(year, flagMap, latestDataDate) {
         <div class="calendar-month-grid">
           ${months.map((month) => renderMonthBlock(month, false)).join('')}
         </div>
+      </div>
+    </div>
+  `;
+}
+
+/** One or more calendar years (newest first); each year gets its own month grid when multiple. */
+function renderCalendarHeatmapFullHistoryMulti(years, flagMap, latestDataDate) {
+  const yList =
+    years && years.length ? years.slice() : [getAppDate().getFullYear()];
+  const sections = yList
+    .map(function (year) {
+      const months = generateCalendarHeatmap(year, flagMap, latestDataDate);
+      const yearHeading =
+        yList.length > 1 ? `<h3 class="calendar-heatmap-year-heading">${year}</h3>` : '';
+      const gridInner = months.map((m) => renderMonthBlock(m, false)).join('');
+      return `<div class="calendar-heatmap-year-block">${yearHeading}<div class="calendar-month-grid">${gridInner}</div></div>`;
+    })
+    .join('');
+  return `
+    <div class="calendar-heatmap-container calendar-heatmap-container--quality-page">
+      ${renderCalendarHeatmapHeader({ qualityPage: true })}
+      <div class="calendar-heatmap calendar-heatmap--multi-year">
+        ${sections}
       </div>
     </div>
   `;
@@ -1515,8 +1539,9 @@ function renderDashboardContent(days) {
   const recentDays = days.slice(0, Math.min(7, days.length));
   const recentAverages = calculateAverages(recentDays);
   const flagMap = buildFlagCountMap(days);
-  const latestDataDate = getLatestDataDate(days, YEAR);
-  const calendarBlockOnly = renderCalendarCurrentMonthOnlyBlock(YEAR, flagMap, latestDataDate);
+  const latestDataDate = getLatestDataDate(days);
+  const dashboardYear = getAppDate().getFullYear();
+  const calendarBlockOnly = renderCalendarCurrentMonthOnlyBlock(dashboardYear, flagMap, latestDataDate);
 
   const recentNightsCount = Math.min(3, days.length);
   const recentNightsHtml = recentNightsCount > 0
