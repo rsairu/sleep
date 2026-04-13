@@ -6,30 +6,21 @@
   /** Last loaded main times per dateMd for QA flags (bed / sleep / wake) after save. */
   let quickAddInitialSnapshot = null;
 
-  function formatMonthDayFromDate(date) {
-    return (date.getMonth() + 1) + '/' + date.getDate();
+  /** `YYYY-MM-DD` for `<input type="date">` from stored sleep key (ISO or legacy M/D). */
+  function sleepDateKeyToDateInputValue(key) {
+    if (!key || typeof key !== 'string') return '';
+    const iso = normalizeSleepDateKey(key, getAppDate().getFullYear());
+    return iso || '';
   }
 
-  function getAppYear() {
-    return typeof YEAR === 'number' ? YEAR : getAppDate().getFullYear();
-  }
-
-  function monthDayToDateInput(md) {
-    if (!md || typeof md !== 'string' || md.indexOf('/') === -1) return '';
-    const parts = md.split('/').map(Number);
-    if (!parts[0] || !parts[1]) return '';
-    const d = new Date(getAppYear(), parts[0] - 1, parts[1]);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return y + '-' + m + '-' + day;
-  }
-
-  function dateInputToMonthDay(value) {
-    if (!value) return '';
-    const d = new Date(value + 'T00:00:00');
+  function dateInputValueToSleepDateKey(value) {
+    if (!value || typeof value !== 'string') return '';
+    const t = value.trim();
+    const iso = normalizeSleepDateKey(t);
+    if (iso) return iso;
+    const d = new Date(t + 'T00:00:00');
     if (Number.isNaN(d.getTime())) return '';
-    return formatMonthDayFromDate(d);
+    return formatIsoDateFromLocalDate(d);
   }
 
   /** Calendar date for the night row: tomorrow in pre-sleep or dynamic sleep phase, else today. */
@@ -43,7 +34,7 @@
   }
 
   function quickAddPresetDateInputValue() {
-    return monthDayToDateInput(formatMonthDayFromDate(getQuickAddDefaultNightDate()));
+    return formatIsoDateFromLocalDate(getQuickAddDefaultNightDate());
   }
 
   function normalizeTime(value) {
@@ -327,7 +318,7 @@
 
   function applyRecordToQuickAddForm(dateMd, record) {
     const dateInput = document.getElementById('quick-add-date');
-    if (dateInput && dateMd) dateInput.value = monthDayToDateInput(dateMd);
+    if (dateInput && dateMd) dateInput.value = sleepDateKeyToDateInputValue(dateMd);
 
     const bedEl = document.getElementById('quick-add-bed');
     const sleepEl = document.getElementById('quick-add-sleep');
@@ -396,7 +387,7 @@
 
   function handleSubmit(event) {
     event.preventDefault();
-    const dateMd = dateInputToMonthDay(document.getElementById('quick-add-date').value);
+    const dateMd = dateInputValueToSleepDateKey(document.getElementById('quick-add-date').value);
 
     const bedEl = document.getElementById('quick-add-bed');
     const sleepEl = document.getElementById('quick-add-sleep');
@@ -592,7 +583,7 @@
     document.addEventListener('change', function (e) {
       const t = e.target;
       if (!t || t.id !== 'quick-add-date') return;
-      const dateMd = dateInputToMonthDay(t.value);
+      const dateMd = dateInputValueToSleepDateKey(t.value);
       if (!dateMd) return;
       loadQuickAddFormForDate(dateMd);
     });
@@ -611,7 +602,7 @@
     bindQuickAddHostOnce();
     wireQuickAddDrawerSliders();
     const dateInput = document.getElementById('quick-add-date');
-    const dateMd = dateInputToMonthDay(dateInput && dateInput.value);
+    const dateMd = dateInputValueToSleepDateKey(dateInput && dateInput.value);
     if (dateMd) loadQuickAddFormForDate(dateMd);
   }
 

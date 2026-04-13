@@ -5,14 +5,6 @@
   let quickActionsIntervalId = null;
   let boundClickHandler = null;
 
-  function getAppYear() {
-    return typeof YEAR === 'number' ? YEAR : getAppDate().getFullYear();
-  }
-
-  function formatMdFromDate(d) {
-    return d.getMonth() + 1 + '/' + d.getDate();
-  }
-
   function nowClockMinutes(d) {
     return d.getHours() * 60 + d.getMinutes();
   }
@@ -132,7 +124,14 @@
       if (!raw) return null;
       const o = JSON.parse(raw);
       if (!o || typeof o.dateMd !== 'string' || typeof o.start !== 'string') return null;
-      return o;
+      const iso = normalizeSleepDateKey(o.dateMd, LEGACY_SLEEP_DATE_FALLBACK_YEAR);
+      const session = { dateMd: iso || o.dateMd, start: o.start };
+      if (iso && iso !== o.dateMd) {
+        try {
+          localStorage.setItem(NAP_STORAGE_KEY, JSON.stringify(session));
+        } catch (_e2) { /* ignore */ }
+      }
+      return session;
     } catch (_e) {
       return null;
     }
@@ -320,9 +319,9 @@
     );
   }
 
-  /** Calendar-day row (e.g. afternoon 4/10 → "4/10"); same localStorage key for offline nap. */
+  /** Calendar wake-day row key (ISO); same localStorage field for offline nap. */
   function napCalendarMd(now) {
-    return formatMdFromDate(now);
+    return formatIsoDateFromLocalDate(now);
   }
 
   function napActiveFromLoadedDaysAndSession(days, calendarMd) {

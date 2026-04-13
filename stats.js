@@ -1,22 +1,20 @@
 // Sleep statistics calculations
 
-// Group days by month
+// Group days by calendar year-month (YYYY-MM), newest first.
 function groupDaysByMonth(days) {
   const months = new Map();
-  
-  days.forEach(day => {
-    const [month] = parseDateString(day.date);
-    
-    if (!months.has(month)) {
-      months.set(month, []);
-    }
-    months.get(month).push(day);
+
+  days.forEach((day) => {
+    const d = getDateFromString(day.date);
+    if (Number.isNaN(d.getTime())) return;
+    const yearMonth = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    if (!months.has(yearMonth)) months.set(yearMonth, []);
+    months.get(yearMonth).push(day);
   });
-  
-  // Convert to array and sort by month (descending - most recent first)
+
   return Array.from(months.entries())
-    .map(([month, days]) => ({ month, days }))
-    .sort((a, b) => b.month - a.month);
+    .map(([yearMonth, monthDays]) => ({ yearMonth, days: monthDays }))
+    .sort((a, b) => b.yearMonth.localeCompare(a.yearMonth));
 }
 
 // Calculate monthly averages
@@ -162,6 +160,14 @@ function getMonthName(monthNumber) {
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'];
   return monthNames[monthNumber - 1];
+}
+
+function formatYearMonthTitle(yearMonth) {
+  const parts = String(yearMonth).split('-');
+  if (parts.length < 2) return String(yearMonth);
+  const mi = parseInt(parts[1], 10);
+  if (!Number.isFinite(mi) || mi < 1 || mi > 12) return String(yearMonth);
+  return getMonthName(mi) + ' ' + parts[0];
 }
 
 // Format delta in human-readable format (e.g., "1 hour and 8 minutes earlier")
@@ -328,23 +334,23 @@ function renderStatRow(label, keyword, currentValue, comparisonData, lowerIsBett
 
 // Render monthly stats table
 function renderMonthlyStats(monthData, allMonthStats, monthIndex) {
-  const { month, averages } = monthData;
-  
+  const { yearMonth, averages } = monthData;
+
   if (!averages) {
     return '';
   }
-  
+
   // Get available months for comparison (exclude current month)
   const availableMonths = allMonthStats
-    .map((m, idx) => ({ month: m.month, name: getMonthName(m.month), index: idx }))
-    .filter(m => m.month !== month);
-  
-  const monthId = `month-${month}`;
-  
+    .map((m, idx) => ({ yearMonth: m.yearMonth, name: formatYearMonthTitle(m.yearMonth), index: idx }))
+    .filter((m) => m.yearMonth !== yearMonth);
+
+  const monthId = 'month-' + yearMonth;
+
   return `
-    <div class="month-stats" data-month="${month}">
+    <div class="month-stats" data-month="${yearMonth}">
       <div class="month-header">
-        <h2>${getMonthName(month)}</h2>
+        <h2>${formatYearMonthTitle(yearMonth)}</h2>
       </div>
       <div class="stats-table" id="${monthId}">
         <div class="comparison-control">
@@ -407,7 +413,7 @@ function updateComparison(monthIndex, comparisonIndex, allMonthStats) {
   
   const current = currentMonth.averages;
   const comparison = comparisonMonth.averages;
-  const monthId = `month-${currentMonth.month}`;
+  const monthId = 'month-' + currentMonth.yearMonth;
   const statsTable = document.getElementById(monthId);
   
   if (!statsTable) return;
@@ -497,8 +503,8 @@ Promise.all([
   .then(([data]) => {
     const months = groupDaysByMonth(data.days);
     
-    const monthStats = months.map(({ month, days }) => ({
-      month,
+    const monthStats = months.map(({ yearMonth, days }) => ({
+      yearMonth,
       averages: calculateMonthlyAverages(days)
     }));
     
@@ -521,8 +527,8 @@ Promise.all([
           updateComparison(monthIndex, comparisonIndex, monthStats);
         } else {
           // Remove comparison - reload the month stats
-          const month = monthStats[monthIndex].month;
-          const monthId = `month-${month}`;
+          const ym = monthStats[monthIndex].yearMonth;
+          const monthId = 'month-' + ym;
           const statsTable = document.getElementById(monthId);
           if (statsTable) {
             // Remove comparison elements

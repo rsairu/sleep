@@ -397,7 +397,7 @@ function render7DayDurationChart(container, points) {
     mainRect.addEventListener('mouseenter', () => {
       if (!tooltip) return;
       const napText = point.napMinutes > 0 ? ` (${formatDuration(point.mainSleepMinutes)} + ${formatDuration(point.napMinutes)} nap)` : '';
-      tooltip.textContent = `${point.dateString}: ${formatDuration(point.sleepDurationMinutes)}${napText}`;
+      tooltip.textContent = `${formatSleepDateMonthDay(point.dateString)}: ${formatDuration(point.sleepDurationMinutes)}${napText}`;
       tooltip.classList.add('visible');
     });
     mainRect.addEventListener('mousemove', (e) => {
@@ -435,7 +435,7 @@ function render7DayDurationChart(container, points) {
       napRect.style.cursor = 'pointer';
       napRect.addEventListener('mouseenter', () => {
         if (tooltip) {
-          tooltip.textContent = `${point.dateString}: ${formatDuration(point.sleepDurationMinutes)} (${formatDuration(point.mainSleepMinutes)} + ${formatDuration(point.napMinutes)} nap)`;
+          tooltip.textContent = `${formatSleepDateMonthDay(point.dateString)}: ${formatDuration(point.sleepDurationMinutes)} (${formatDuration(point.mainSleepMinutes)} + ${formatDuration(point.napMinutes)} nap)`;
           tooltip.classList.add('visible');
         }
       });

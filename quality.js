@@ -6,8 +6,9 @@ if (qualityContainer) {
   loadSleepData()
     .then((sleepData) => {
       const flagMap = buildFlagCountMap(sleepData.days);
-      const latestDataDate = getLatestDataDate(sleepData.days, YEAR);
-      qualityContainer.innerHTML = renderCalendarHeatmapFullHistory(YEAR, flagMap, latestDataDate);
+      const latestDataDate = getLatestDataDate(sleepData.days);
+      const years = getSleepDataYearsPresentDescending(sleepData.days);
+      qualityContainer.innerHTML = renderCalendarHeatmapFullHistoryMulti(years, flagMap, latestDataDate);
     })
     .catch(error => {
       console.error('Error loading quality history data:', error);

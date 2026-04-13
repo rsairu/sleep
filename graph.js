@@ -318,7 +318,9 @@ function renderGraphPageCharts() {
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     points.forEach((point, index) => {
       // Check if this is the 1st of the month
-      const [month, day] = point.dateString.split('/').map(Number);
+      const cal = getDateFromString(point.dateString);
+      const month = cal.getMonth() + 1;
+      const day = cal.getDate();
       if (day === 1) {
         const x = xScale(point.date);
         const tickLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -971,7 +973,9 @@ function renderGraphPageCharts() {
 
     // Draw X-axis labels (same as main graph - month starts)
     points.forEach((point) => {
-      const [month, day] = point.dateString.split('/').map(Number);
+      const cal = getDateFromString(point.dateString);
+      const month = cal.getMonth() + 1;
+      const day = cal.getDate();
       if (day === 1) {
         const x = xScale(point.date);
         const tickLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -1062,7 +1066,7 @@ function renderGraphPageCharts() {
       // Add hover events
       mainRect.addEventListener('mouseenter', () => {
         const napText = napMinutes > 0 ? ` (${formatDuration(mainSleepMinutes)} + ${formatDuration(napMinutes)} nap)` : '';
-        tooltip.textContent = `${point.dateString}: ${formatDuration(sleepDurationMinutes)}${napText}`;
+        tooltip.textContent = `${formatSleepDateMonthDay(point.dateString)}: ${formatDuration(sleepDurationMinutes)}${napText}`;
         tooltip.classList.add('visible');
       });
 
@@ -1094,7 +1098,7 @@ function renderGraphPageCharts() {
 
         // Add hover events for nap bar
         napRect.addEventListener('mouseenter', () => {
-          tooltip.textContent = `${point.dateString}: ${formatDuration(sleepDurationMinutes)} (${formatDuration(mainSleepMinutes)} + ${formatDuration(napMinutes)} nap)`;
+          tooltip.textContent = `${formatSleepDateMonthDay(point.dateString)}: ${formatDuration(sleepDurationMinutes)} (${formatDuration(mainSleepMinutes)} + ${formatDuration(napMinutes)} nap)`;
           tooltip.classList.add('visible');
         });
 
@@ -1238,7 +1242,9 @@ function renderGraphPageCharts() {
       });
 
       points.forEach((point) => {
-        const [month, day] = point.dateString.split('/').map(Number);
+        const cal = getDateFromString(point.dateString);
+        const month = cal.getMonth() + 1;
+        const day = cal.getDate();
         if (day === 1) {
           const x = xScale(point.date);
           const tickLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -1320,7 +1326,7 @@ function renderGraphPageCharts() {
 
             wakeDelayRect.addEventListener('mouseenter', () => {
               const alarmText = point.firstAlarm ? ` (alarm ${point.firstAlarm} → get up ${point.getUpString})` : '';
-              tooltip.textContent = `${point.dateString}: ${formatDuration(point.wakeDelayMinutes)} wake delay${alarmText}`;
+              tooltip.textContent = `${formatSleepDateMonthDay(point.dateString)}: ${formatDuration(point.wakeDelayMinutes)} wake delay${alarmText}`;
               tooltip.classList.add('visible');
             });
             wakeDelayRect.addEventListener('mousemove', (e) => {
@@ -1467,7 +1473,9 @@ function renderGraphPageCharts() {
       });
 
       points.forEach((point) => {
-        const [month, day] = point.dateString.split('/').map(Number);
+        const cal = getDateFromString(point.dateString);
+        const month = cal.getMonth() + 1;
+        const day = cal.getDate();
         if (day === 1) {
           const x = xScale(point.date);
           const tickLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -1548,7 +1556,7 @@ function renderGraphPageCharts() {
             solRect.setAttribute('class', 'sleep-bar delay-bar');
 
             solRect.addEventListener('mouseenter', () => {
-              tooltip.textContent = `${point.dateString}: ${formatDuration(point.sleepDelayMinutes)} SOL (bed ${point.bedTimeString} → sleep ${point.sleepStartString})`;
+              tooltip.textContent = `${formatSleepDateMonthDay(point.dateString)}: ${formatDuration(point.sleepDelayMinutes)} SOL (bed ${point.bedTimeString} → sleep ${point.sleepStartString})`;
               tooltip.classList.add('visible');
             });
             solRect.addEventListener('mousemove', (e) => {
