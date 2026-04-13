@@ -47,6 +47,8 @@ function normalizeSleepDayLabels(value) {
 
 const SUPABASE_URL_STORAGE_KEY = 'restore_supabase_url';
 const SUPABASE_ANON_KEY_STORAGE_KEY = 'restore_supabase_anon_key';
+/** When `dev` or `prod`, dev builds re-apply matching pair from `local-supabase-presets.js` on each page. */
+const ACTIVE_SUPABASE_PRESET_KEY = 'sleep-app-active-supabase-preset';
 const RESTORE_LAST_DATA_SOURCE_KEY = 'restore_last_data_source';
 /** When `'1'`, read sleep data from `data/sleep-data.json` even if Supabase is configured (testing). */
 const RESTORE_FORCE_LOCAL_SLEEP_DATA_KEY = 'restore_force_local_sleep_data';
@@ -282,8 +284,57 @@ function clearSupabaseConfig() {
   safeWriteStorage(SUPABASE_URL_STORAGE_KEY, '');
   safeWriteStorage(SUPABASE_ANON_KEY_STORAGE_KEY, '');
   safeWriteStorage(RESTORE_FORCE_LOCAL_SLEEP_DATA_KEY, '');
+  clearActiveSupabasePreset();
   clearSleepDataCache();
   resetUserSettingsCloudHydration();
+}
+
+function readLocalSupabasePresets() {
+  if (typeof window === 'undefined') return null;
+  const raw = window.__RESTORE_SUPABASE_PRESETS__;
+  if (!raw || typeof raw !== 'object') return null;
+  const dev = raw.dev;
+  const prod = raw.prod;
+  if (!dev || typeof dev !== 'object' || !prod || typeof prod !== 'object') return null;
+  const devUrl = String(dev.url || '').trim();
+  const devKey = String(dev.anonKey || '').trim();
+  const prodUrl = String(prod.url || '').trim();
+  const prodKey = String(prod.anonKey || '').trim();
+  if (!devUrl || !devKey || !prodUrl || !prodKey) return null;
+  return {
+    dev: { url: devUrl, anonKey: devKey },
+    prod: { url: prodUrl, anonKey: prodKey }
+  };
+}
+
+function getActiveSupabasePresetId() {
+  const v = safeReadStorage(ACTIVE_SUPABASE_PRESET_KEY).trim().toLowerCase();
+  if (v === 'dev' || v === 'prod') return v;
+  return '';
+}
+
+function setActiveSupabasePresetId(id) {
+  const n = String(id || '').trim().toLowerCase();
+  if (n === 'dev' || n === 'prod') safeWriteStorage(ACTIVE_SUPABASE_PRESET_KEY, n);
+  else safeWriteStorage(ACTIVE_SUPABASE_PRESET_KEY, '');
+}
+
+function clearActiveSupabasePreset() {
+  safeWriteStorage(ACTIVE_SUPABASE_PRESET_KEY, '');
+}
+
+function ensureDevSupabasePresetApplied() {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+  if (!isDevBuildContext()) return;
+  const id = getActiveSupabasePresetId();
+  if (id !== 'dev' && id !== 'prod') return;
+  const presets = readLocalSupabasePresets();
+  if (!presets) return;
+  const pair = presets[id];
+  if (!pair) return;
+  const cur = getSupabaseConfig();
+  if (cur.url === pair.url && cur.anonKey === pair.anonKey) return;
+  setSupabaseConfig(pair.url, pair.anonKey);
 }
 
 function getDataSourceState() {
@@ -1008,6 +1059,7 @@ function initSupabaseConfigForm() {
       return;
     }
     setSupabaseConfig(url, anonKey);
+    clearActiveSupabasePreset();
     syncDataSourceToggleUI();
     setStatus('Saved. Reload any page to use cloud data.', false);
   });
@@ -2806,6 +2858,32 @@ function initDevBannerCloudRefresh() {
   requestAnimationFrame(bindWhenReady);
 }
 
+function initDevBannerSupabasePresetToggle() {
+  if (typeof window === 'undefined' || !isDevBuildContext()) return;
+  if (window.__devBannerPresetToggleBound) return;
+  window.__devBannerPresetToggleBound = true;
+
+  function bindWhenReady() {
+    const devBtn = document.getElementById('nav-dev-banner-preset-dev-btn');
+    const prodBtn = document.getElementById('nav-dev-banner-preset-prod-btn');
+    if (!devBtn || !prodBtn) return;
+    const presets = readLocalSupabasePresets();
+    if (!presets) return;
+    devBtn.addEventListener('click', function () {
+      setActiveSupabasePresetId('dev');
+      setSupabaseConfig(presets.dev.url, presets.dev.anonKey);
+      window.location.reload();
+    });
+    prodBtn.addEventListener('click', function () {
+      setActiveSupabasePresetId('prod');
+      setSupabaseConfig(presets.prod.url, presets.prod.anonKey);
+      window.location.reload();
+    });
+  }
+
+  requestAnimationFrame(bindWhenReady);
+}
+
 function initDevBannerDrawer() {
   if (typeof window === 'undefined' || !isDevBuildContext()) return;
   if (window.__devBannerDrawerBound) return;
@@ -3026,6 +3104,7 @@ function initDayNightTheme() {
   initNavMenu();
   initDevClockControl();
   initDevBannerCloudRefresh();
+  initDevBannerSupabasePresetToggle();
   initDevBannerDrawer();
   setInterval(function () {
     applyDayNightTheme();
@@ -3216,6 +3295,7 @@ function isDevGitBranchMaster() {
 // Render navigation bar
 function renderNavBar(currentPage) {
   applyDayNightTheme();
+  ensureDevSupabasePresetApplied();
 
   const pages = [
     { id: 'dashboard', key: 'nav.tabs.dashboard', defaultName: 'Dashboard', url: 'dashboard.html', icon: '🛌' },
@@ -3343,9 +3423,28 @@ function renderNavBar(currentPage) {
     : '';
   const devBannerBranchRow = '<div class="nav-dev-banner-branch-row">' + githubBannerLink + branchMeta + '</div>';
   const cloudRefreshDisabledAttr = cloudRefreshDisabled ? ' disabled' : '';
+  const localPresets = readLocalSupabasePresets();
+  const activePresetId = getActiveSupabasePresetId();
+  const presetDevActiveClass = activePresetId === 'dev' ? ' nav-dev-banner-preset-btn--active' : '';
+  const presetProdActiveClass = activePresetId === 'prod' ? ' nav-dev-banner-preset-btn--active' : '';
+  const devBannerPresetStrip = localPresets
+    ? '<div class="nav-dev-banner-preset" role="group" aria-label="Supabase project preset">' +
+      '<button type="button" class="nav-dev-banner-preset-btn' +
+      presetDevActiveClass +
+      '" id="nav-dev-banner-preset-dev-btn" title="Use dev Supabase project" aria-label="Use dev Supabase project" aria-pressed="' +
+      (activePresetId === 'dev' ? 'true' : 'false') +
+      '">Dev</button>' +
+      '<button type="button" class="nav-dev-banner-preset-btn' +
+      presetProdActiveClass +
+      '" id="nav-dev-banner-preset-prod-btn" title="Use prod Supabase project" aria-label="Use prod Supabase project" aria-pressed="' +
+      (activePresetId === 'prod' ? 'true' : 'false') +
+      '">Prod</button>' +
+      '</div>'
+    : '';
   const devBannerCloudRow =
     '<div class="nav-dev-banner-cloud-row">' +
     supabaseDashboardLink +
+    devBannerPresetStrip +
     '<span class="nav-dev-banner-cloud-hint">Cloud data not synced in dev</span>' +
     '<button type="button" class="nav-dev-banner-cloud-refresh" id="nav-dev-banner-cloud-refresh-btn"' +
     cloudRefreshDisabledAttr +

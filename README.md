@@ -28,6 +28,10 @@ git config core.hooksPath hooks
 
 That uses `hooks/post-checkout` and `hooks/post-merge`, which invoke `scripts/stamp-dev-branch.js`.
 
+## Local Supabase presets (optional)
+
+Pages load `local-supabase-presets.js` before `sleep-utils.js` so the dev banner can offer a **Dev** / **Prod** toggle. The file is **gitignored**; copy `local-supabase-presets.example.js` to `local-supabase-presets.js` and fill in both project URLs and anon keys. If the file is absent (e.g. production deploy), the script request fails harmlessly and the toggle is hidden. See `docs/dev-banner.md`.
+
 ## npm scripts
 
 - `npm run test:math` — deterministic math and dataset invariant checks (`math-tests.js`).

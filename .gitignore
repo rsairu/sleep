@@ -11,6 +11,9 @@ node_modules/
 # Generated local dev metadata (see README: Git hooks)
 dev-git-branch.js
 
+# Local Supabase dev/prod presets for dev-banner toggle (see local-supabase-presets.example.js)
+local-supabase-presets.js
+
 # Local datasets and manual restore exports (see README: Data on disk)
 data/sleep-data.json
 data/backup/

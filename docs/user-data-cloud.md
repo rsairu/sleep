@@ -32,6 +32,8 @@ This matches `loadSleepDataUsesSupabase(config)` in `sleep-utils.js`. If the use
 | Incomplete night drafts | `public.sleep_day_drafts` + RPC `promote_draft_if_complete` | Same as above. |
 | User preferences (tracked columns) | `public.user_settings` + **localStorage mirror** | See mapping table below. |
 | Supabase URL / anon key | localStorage | Never sent as table data; `restore_supabase_*` keys. |
+| Dev/prod preset mode | localStorage `sleep-app-active-supabase-preset` | Optional: when `dev` or `prod`, credentials are driven by gitignored `local-supabase-presets.js` (see `docs/dev-banner.md`). Cleared when saving or clearing Supabase in Settings. |
+| Preset definitions | `window.__RESTORE_SUPABASE_PRESETS__` (from optional `local-supabase-presets.js`) | Not persisted; loaded before `sleep-utils.js`. If missing or incomplete, Settings-only config applies. |
 | Sleep data cache | localStorage `restore_sleep_data_cache_v1` | Snapshot of last loaded sleep payload + cache key. |
 | Tonight projection tweak | localStorage only | Not in `user_settings`. |
 | Dev banner, app-time simulation, QA flags | localStorage only | Not cloud-synced. |

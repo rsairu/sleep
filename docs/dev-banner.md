@@ -10,7 +10,7 @@ The banner setup has four layers:
 
 1. **Visibility gate**: `isDevBuildContext()` decides whether banner logic is active.
 2. **Render layer**: `renderNavBar()` builds banner HTML (warnings, links, clock controls).
-3. **Interaction layer**: init functions bind controls (`initDevClockControl`, `initDevBannerCloudRefresh`, `initDevBannerDrawer`).
+3. **Interaction layer**: init functions bind controls (`initDevClockControl`, `initDevBannerCloudRefresh`, `initDevBannerSupabasePresetToggle`, `initDevBannerDrawer`).
 4. **Layout reserve**: `syncDevBannerFixedLayout()` keeps fixed banner from overlapping content.
 
 ---
@@ -37,12 +37,12 @@ This gate is reused by drawer/clock/refresh bindings and by app-time override re
 
 ## Layer 2 - rendered banner content
 
-When visible, `renderNavBar()` prepends the fixed `.nav-dev-banner` above nav header/tabs.
+When visible, `renderNavBar()` calls `ensureDevSupabasePresetApplied()` first (dev context only: if `sleep-app-active-supabase-preset` is `dev` or `prod` and presets are valid, syncs `restore_supabase_*` from the preset without redundant writes), then prepends the fixed `.nav-dev-banner` above nav header/tabs.
 
 Main content blocks:
 
 - **Branch row**: GitHub icon + branch label from `window.__DEV_GIT_BRANCH__`.
-- **Cloud row**: Supabase dashboard link + "Refresh" button (`loadSleepData({ forceRefresh: true })` then reload).
+- **Cloud row**: Supabase dashboard link + optional **Dev** / **Prod** preset toggle (when `local-supabase-presets.js` defines valid `window.__RESTORE_SUPABASE_PRESETS__`) + hint text + "Refresh" button (`loadSleepData({ forceRefresh: true })` then reload).
 - **Vercel row**: Production app link + project dashboard link.
 - **Warnings**:
   - Supabase URL includes prod ref (`lsaguxfovamihwnicpkk`) -> red warning.
@@ -89,6 +89,13 @@ Important: app logic should use `getAppNowMs()` / `getAppDate()` when it must ho
 - `syncDevBannerFixedLayout()` sets `.nav-wrapper` `padding-top` to expanded-height reserve + banner margin.
 - When collapsed, reserve stays at expanded height so content does not jump.
 
+### Supabase dev/prod presets (local file)
+
+- Optional script `local-supabase-presets.js` (gitignored; copy from `local-supabase-presets.example.js`) sets `window.__RESTORE_SUPABASE_PRESETS__` with `dev` and `prod` objects, each `{ url, anonKey }` (all four strings required for the toggle to appear).
+- Key: `sleep-app-active-supabase-preset` (`ACTIVE_SUPABASE_PRESET_KEY`) — `dev` or `prod` selects preset mode; empty means custom credentials from Settings only.
+- **Dev** / **Prod** buttons set the key, call `setSupabaseConfig` with the chosen pair, and reload. While preset mode is active, `ensureDevSupabasePresetApplied()` keeps `restore_supabase_*` aligned on each page load.
+- Saving or clearing Supabase credentials in **Settings** clears `sleep-app-active-supabase-preset` so manual config is not overwritten on the next navigation.
+
 ---
 
 ## Layer 4 - fixed layout and motion
@@ -114,6 +121,7 @@ During transitions:
 | `DEV_CLOCK_OVERRIDE_MS_KEY` | `sleep-app-dev-clock-override-ms` | Simulated app wall-clock epoch ms |
 | `DEV_BANNER_DRAWER_COLLAPSED_KEY` | `sleep-app-dev-banner-drawer-collapsed` | Persist collapsed drawer state |
 | `DEV_BANNER_EXPANDED_RESERVE_KEY` | `sleep-app-dev-banner-expanded-reserve-px` | Cached expanded reserve height |
+| `ACTIVE_SUPABASE_PRESET_KEY` | `sleep-app-active-supabase-preset` | `dev` / `prod` preset mode for local `local-supabase-presets.js`; empty = custom |
 | `SUPABASE_PROJECT_REF_PROD` | `lsaguxfovamihwnicpkk` | Marks production DB context |
 | `SUPABASE_PROJECT_REF_DEV` | `pjpzxkyflmzzbfdkujan` | Default dev dashboard target |
 
@@ -128,6 +136,7 @@ During transitions:
 | Banner markup and warnings | `renderNavBar` - `sleep-utils.js` |
 | Clock mode + datetime/step controls | `initDevClockControl` - `sleep-utils.js` |
 | Cloud refresh button | `initDevBannerCloudRefresh` - `sleep-utils.js` |
+| Supabase dev/prod preset toggle | `initDevBannerSupabasePresetToggle`, `readLocalSupabasePresets`, `ensureDevSupabasePresetApplied` - `sleep-utils.js` |
 | Drawer pointer/click behavior | `initDevBannerDrawer` - `sleep-utils.js` |
 | Expanded reserve measurement/caching | `measureDevBannerExpandedHeightPx`, `syncDevBannerFixedLayout` - `sleep-utils.js` |
 | Branch stamp source | `scripts/stamp-dev-branch.js` -> `dev-git-branch.js` |
@@ -140,7 +149,7 @@ During transitions:
 Update this doc when you change:
 
 - dev-banner visibility conditions or override precedence,
-- any of the four localStorage keys above,
+- any of the localStorage keys in the table above (including preset mode),
 - app-time simulation behavior (reload rules, controls, IDs),
 - drawer drag thresholds or collapse persistence behavior,
 - fixed layout reserve strategy (`syncDevBannerFixedLayout`),
