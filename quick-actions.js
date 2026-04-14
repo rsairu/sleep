@@ -336,11 +336,11 @@
     const startStr = formatTimeFromDate(now);
     if (!isSupabaseEnabled()) {
       writeNapSession({ dateMd: md, start: startStr });
-      if (typeof showAppToast === 'function') showAppToast('😴 Nap started');
+      if (typeof showAppToast === 'function') showAppToast('🥱 Nap started');
       return Promise.resolve();
     }
     writeNapSession(null);
-    return persistPartial(md, { nap: { start: startStr, end: null } }, onReload, '😴 Nap started');
+    return persistPartial(md, { nap: { start: startStr, end: null } }, onReload, '🥱 Nap started');
   }
 
   function handleNapEnd(days, averages, onReload, now) {
@@ -349,7 +349,7 @@
     const session = readNapSession();
     if (!isSupabaseEnabled()) {
       writeNapSession(null);
-      if (typeof showAppToast === 'function') showAppToast('💤 Nap ended');
+      if (typeof showAppToast === 'function') showAppToast('😴 Nap ended');
       return Promise.resolve();
     }
     return getEditableDayByMd(md, days).then(function (day) {
@@ -371,7 +371,7 @@
         targetMd,
         { nap: { start: startStr, end: endStr } },
         onReload,
-        '💤 Nap ended'
+        '😴 Nap ended'
       );
     });
   }
@@ -388,12 +388,12 @@
 
   const QUICK_ACTIONS_BY_PHASE = {
     wake: [
-      { qa: 'nap-end', emoji: '💤', label: 'End your nap', when: function (ctx) { return ctx.napActive; } },
+      { qa: 'nap-end', emoji: '😴', label: 'End your nap', when: function (ctx) { return ctx.napActive; } },
       { qa: 'wake', emoji: '🌅', label: 'Wake up' },
       { qa: 'alarm', emoji: '⏰', label: 'Log alarm', when: function (ctx) { return ctx.showAlarm; } }
     ],
     sleep: [
-      { qa: 'nap-end', emoji: '💤', label: 'End your nap', when: function (ctx) { return ctx.napActive; } },
+      { qa: 'nap-end', emoji: '😴', label: 'End your nap', when: function (ctx) { return ctx.napActive; } },
       { qa: 'bed-now', emoji: '🛏️', label: 'Get in bed', when: function (ctx) { return !ctx.bedLoggedForNight; } },
       { qa: 'sleep-0', emoji: '🌙', label: 'Go to sleep', when: function (ctx) { return !ctx.sleepLoggedForNight; } },
       { qa: 'bathroom-trip', emoji: '🧻', label: 'Bathroom break', when: function (ctx) { return ctx.bedSleepLoggedForNight; } },
@@ -402,7 +402,7 @@
     mid: [
       {
         qa: 'nap-start',
-        emoji: '😴',
+        emoji: '🥱',
         label: 'Start a nap',
         when: function (ctx) {
           return (
@@ -413,7 +413,7 @@
           );
         }
       },
-      { qa: 'nap-end', emoji: '💤', label: 'End your nap', when: function (ctx) { return ctx.napActive; } }
+      { qa: 'nap-end', emoji: '😴', label: 'End your nap', when: function (ctx) { return ctx.napActive; } }
     ]
   };
 

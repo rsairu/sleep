@@ -320,7 +320,7 @@ function checkDeviations(day, recentAverages) {
     const label = fragSeverity === 'slight' ? 'Slight' : fragSeverity === 'moderate' ? 'Moderate' : 'Severe';
     warnings.push({
       severity: fragSeverity,
-      emoji: '🧩',
+      emoji: '👁️',
       plainSummary: `${label} WASO`,
       bodyHtml: `<strong>${label}</strong> WASO`
     });
@@ -390,7 +390,7 @@ function deviationWarningMarkup(w) {
   );
 }
 
-// Flag emojis for calendar tooltip (timing uses blended % thresholds; 🧩 when WASO ≥ 1)
+// Flag emojis for calendar tooltip (timing uses blended % thresholds; 👁️ when WASO ≥ 1)
 function getFlagTypes(day, recentAverages) {
   if (!recentAverages || recentAverages.insufficient) return [];
 
@@ -399,7 +399,7 @@ function getFlagTypes(day, recentAverages) {
   if (t.asleepSeverity) flagTypes.push('😴');
   if (t.durationSeverity) flagTypes.push('⌛');
   if (t.wakeSeverity) flagTypes.push('🌅');
-  if (normalizeFragmentationLevel(day)) flagTypes.push('🧩');
+  if (normalizeFragmentationLevel(day)) flagTypes.push('👁️');
   return flagTypes;
 }
 
@@ -696,7 +696,7 @@ function renderWeek(week, weekIndex, allDays) {
   `;
 }
 
-// Heatmap cell color = worst severity among 😴, ⌛, and 🧩 (WASO); 🌅 is tooltip-only.
+// Heatmap cell color = worst severity among 😴, ⌛, and 👁️ (WASO); 🌅 is tooltip-only.
 function buildFlagCountMap(days) {
   const flagMap = new Map();
   days.forEach((day, index) => {
@@ -786,7 +786,7 @@ function generateCalendarHeatmap(year, flagMap, latestDataDate) {
       while (last.length < 7) last.push(null);
     }
 
-    const flagCounts = { '😴': 0, '⌛': 0, '🌅': 0, '🧩': 0 };
+    const flagCounts = { '😴': 0, '⌛': 0, '🌅': 0, '👁️': 0 };
     flatDays.forEach(day => {
       if (day && day.flagTypes) {
         day.flagTypes.forEach(flagType => {
@@ -830,7 +830,7 @@ function renderMonthBlock(month, large) {
     { emoji: '😴', count: month.flagCounts['😴'] },
     { emoji: '⌛', count: month.flagCounts['⌛'] },
     { emoji: '🌅', count: month.flagCounts['🌅'] },
-    { emoji: '🧩', count: month.flagCounts['🧩'] }
+    { emoji: '👁️', count: month.flagCounts['👁️'] }
   ];
   const flagHtml = flagSlots.map(f => `<span class="calendar-flag-slot"><span class="calendar-flag-emoji">${f.emoji}</span><span class="calendar-flag-num">${f.count}</span></span>`).join('');
   const weekdayLabels = ['Su', 'M', 'T', 'W', 'R', 'F', 'Sa'].map(w => `<div class="calendar-weekday-label">${w}</div>`).join('');
@@ -905,9 +905,9 @@ function renderCalendarHeatmapHeader(options) {
           <span class="legend-meaning-item">😴 asleep late vs avg</span>
           <span class="legend-meaning-item">⌛ shorter duration vs avg</span>
           <span class="legend-meaning-item">🌅 wake vs avg</span>
-          <span class="legend-meaning-item">🧩 WASO</span>
+          <span class="legend-meaning-item">👁️ WASO</span>
         </div>
-        <span class="legend-explanation legend-explanation--inline">(cell color from worst of 😴 ⌛ 🧩; 🌅 icon only)</span>
+        <span class="legend-explanation legend-explanation--inline">(cell color from worst of 😴 ⌛ 👁️; 🌅 icon only)</span>
       </div>
       ${swatchLegend}
     </div>
@@ -1145,7 +1145,7 @@ function renderQuickAddDrawer(recentAverages, recentDays, layout = 'drawer') {
                     </div>
                   </div>
                   <div class="quick-add-adv-row quick-add-adv-row--waso quick-add-log-pair">
-                    <span class="quick-add-label quick-add-label--emoji-line quick-add-label--waso" id="quick-add-waso-legend"><span class="quick-add-log-emoji" aria-hidden="true">🧩</span><span class="quick-add-label-text" data-i18n="log.wasoCount">WASO count</span></span>
+                    <span class="quick-add-label quick-add-label--emoji-line quick-add-label--waso" id="quick-add-waso-legend"><span class="quick-add-log-emoji" aria-hidden="true">👁️</span><span class="quick-add-label-text" data-i18n="log.wasoCount">WASO count</span></span>
                     <div class="quick-add-time-row quick-add-time-row--nap quick-add-waso-row" aria-labelledby="quick-add-waso-legend">
                       <input class="quick-add-input quick-add-waso-value" id="quick-add-waso" type="number" min="0" step="1" value="0" inputmode="numeric" aria-labelledby="quick-add-waso-legend">
                       <div class="quick-add-time-spin quick-add-waso-spin">
