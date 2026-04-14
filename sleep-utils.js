@@ -379,9 +379,17 @@ function updateDataSourceBadge(source) {
 }
 
 function mapSupabaseRowToDay(row) {
-  if (!row || !row.date_md) return null;
-  const canon =
-    normalizeSleepDateKey(row.date_md, LEGACY_SLEEP_DATE_FALLBACK_YEAR) || String(row.date_md).trim();
+  if (!row) return null;
+  let canon = '';
+  if (row.sleep_date != null && String(row.sleep_date).trim() !== '') {
+    const s = String(row.sleep_date).trim().slice(0, 10);
+    canon = normalizeSleepDateKey(s, LEGACY_SLEEP_DATE_FALLBACK_YEAR) || s;
+  }
+  if (!canon && row.date_md) {
+    canon =
+      normalizeSleepDateKey(row.date_md, LEGACY_SLEEP_DATE_FALLBACK_YEAR) || String(row.date_md).trim();
+  }
+  if (!canon) return null;
   return {
     date: canon,
     bed: row.bed,
@@ -479,6 +487,8 @@ function mapDayToSupabaseRow(day) {
     normalizeSleepDateKey(day.date, LEGACY_SLEEP_DATE_FALLBACK_YEAR) ||
     (day.date != null ? String(day.date).trim() : '');
   return {
+    user_id: RESTORE_CLOUD_USER_ID,
+    sleep_date: dateMd || null,
     date_md: dateMd,
     bed: normalizeTimeStringForSupabase(day.bed),
     sleep_start: normalizeTimeStringForSupabase(day.sleepStart),
@@ -773,7 +783,11 @@ function fetchStaticSleepData() {
 }
 
 function fetchSupabaseSleepData(config) {
-  const url = config.url.replace(/\/+$/, '') + '/rest/v1/sleep_days?select=date_md,bed,sleep_start,sleep_end,bathroom,alarm,nap_start,nap_end,waso,labels';
+  const uid = encodeURIComponent(RESTORE_CLOUD_USER_ID);
+  const url =
+    config.url.replace(/\/+$/, '') +
+    '/rest/v1/sleep_days?select=user_id,sleep_date,date_md,bed,sleep_start,sleep_end,bathroom,alarm,nap_start,nap_end,waso,labels&user_id=eq.' +
+    uid;
   return fetch(url, {
     headers: {
       apikey: config.anonKey,
@@ -868,7 +882,7 @@ function upsertSleepDay(day) {
     return Promise.reject(new Error('Supabase is not configured. Set URL and anon key in Settings.'));
   }
   const row = mapDayToSupabaseRow(day);
-  const url = config.url.replace(/\/+$/, '') + '/rest/v1/sleep_days?on_conflict=date_md';
+  const url = config.url.replace(/\/+$/, '') + '/rest/v1/sleep_days?on_conflict=user_id,sleep_date';
   return fetch(url, {
     method: 'POST',
     headers: {
@@ -901,9 +915,21 @@ function getSleepDayByDate(dateMd) {
 function getSleepDraftByDate(dateMd) {
   const config = getSupabaseConfig();
   if (!config.enabled || !dateMd) return Promise.resolve(null);
-  const select = 'date_md,bed,sleep_start,sleep_end,bathroom,alarm,nap_start,nap_end,waso,labels';
-  const qDate = encodeURIComponent(dateMd);
-  const url = config.url.replace(/\/+$/, '') + '/rest/v1/sleep_day_drafts?select=' + select + '&date_md=eq.' + qDate + '&limit=1';
+  const iso =
+    normalizeSleepDateKey(dateMd, LEGACY_SLEEP_DATE_FALLBACK_YEAR) || String(dateMd).trim();
+  if (!iso) return Promise.resolve(null);
+  const select = 'user_id,sleep_date,date_md,bed,sleep_start,sleep_end,bathroom,alarm,nap_start,nap_end,waso,labels';
+  const qIso = encodeURIComponent(iso);
+  const uid = encodeURIComponent(RESTORE_CLOUD_USER_ID);
+  const url =
+    config.url.replace(/\/+$/, '') +
+    '/rest/v1/sleep_day_drafts?select=' +
+    select +
+    '&user_id=eq.' +
+    uid +
+    '&sleep_date=eq.' +
+    qIso +
+    '&limit=1';
   return fetch(url, {
     headers: getSupabaseAuthHeaders(config, false)
   }).then(function (res) {
@@ -930,7 +956,7 @@ function upsertSleepDraftPartial(dateMd, partial) {
   return getSleepDraftByDate(dateMd).then(function (existingDraft) {
     const merged = mergePartialSleepDayForUpsert(existingDraft, dateMd, partial || {});
     const row = mapDayToSupabaseRow(merged);
-    const url = config.url.replace(/\/+$/, '') + '/rest/v1/sleep_day_drafts?on_conflict=date_md';
+    const url = config.url.replace(/\/+$/, '') + '/rest/v1/sleep_day_drafts?on_conflict=user_id,sleep_date';
     return fetch(url, {
       method: 'POST',
       headers: Object.assign(
@@ -958,16 +984,18 @@ function saveDraftAndMaybePromote(dateMd, partial) {
   if (!dateMd) {
     return Promise.reject(new Error('Missing date for draft save.'));
   }
+  const key =
+    normalizeSleepDateKey(dateMd, LEGACY_SLEEP_DATE_FALLBACK_YEAR) || String(dateMd).trim();
   const patch = mapPartialDayToDraftPatch(partial || {});
   if (Object.keys(patch).length === 0) {
-    return Promise.resolve({ promoted: false, date_md: dateMd });
+    return Promise.resolve({ promoted: false, date_md: key || dateMd });
   }
   const url = config.url.replace(/\/+$/, '') + '/rest/v1/rpc/promote_draft_if_complete';
   return fetch(url, {
     method: 'POST',
     headers: getSupabaseAuthHeaders(config, true),
     body: JSON.stringify({
-      p_date_md: dateMd,
+      p_date_md: key,
       p_patch: patch
     })
   }).then(function (res) {
@@ -979,8 +1007,8 @@ function saveDraftAndMaybePromote(dateMd, partial) {
     return res.json();
   }).then(function (result) {
     clearSleepDataCache();
-    if (Array.isArray(result)) return result[0] || { promoted: false, date_md: dateMd };
-    return result || { promoted: false, date_md: dateMd };
+    if (Array.isArray(result)) return result[0] || { promoted: false, date_md: key || dateMd };
+    return result || { promoted: false, date_md: key || dateMd };
   });
 }
 
@@ -1082,7 +1110,12 @@ function initSupabaseConfigForm() {
     }
     testBtn.disabled = true;
     setStatus('Testing connection...', false);
-    const endpoint = url.replace(/\/+$/, '') + '/rest/v1/sleep_days?select=date_md&limit=1';
+    const uid = encodeURIComponent(RESTORE_CLOUD_USER_ID);
+    const endpoint =
+      url.replace(/\/+$/, '') +
+      '/rest/v1/sleep_days?select=sleep_date&user_id=eq.' +
+      uid +
+      '&limit=1';
     fetch(endpoint, {
       headers: {
         apikey: anonKey,
