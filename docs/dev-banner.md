@@ -50,6 +50,9 @@ Main content blocks:
 - **App time controls**:
   - Real time mode (no override key)
   - Simulated mode (`datetime-local` + +/- minute/hour/day step buttons)
+- **User / settings (dev)** (below the main row, inside the drawer):
+  - Section title *User settings*; *Cloud tenant* label beside `RESTORE_CLOUD_USER_ID` (fixed MVP cloud tenant UUID; same value as `user_settings.user_id` and sleep row `user_id` in JS). Each preference is one full-width row (sentence-case label, then control); the panel spans the drawer width so there is no empty strip beside it.
+  - Compact controls mirroring [config.html](config.html) / `user_settings`: language (`en` / `ja`), clock `12h` / `24h`, theme Auto / Day / Night, quality palette Meadow / Harbor / Auto, remaining-wake **Active ≥** and **Winding ≥** percent floors (numbers), phase heads-up minutes (`60` … `0`). Changes use the same preference setters and `syncUserSettingsRowToCloud()` as Settings when cloud sleep data is active.
 
 Banner background class:
 
@@ -85,9 +88,14 @@ Important: app logic should use `getAppNowMs()` / `getAppDate()` when it must ho
 
 ### Layout reserve cache
 
-- Key: `sleep-app-dev-banner-expanded-reserve-px`.
-- `syncDevBannerFixedLayout()` sets `.nav-wrapper` `padding-top` to expanded-height reserve + banner margin.
-- When collapsed, reserve stays at expanded height so content does not jump.
+- Key: `sleep-app-dev-banner-expanded-reserve-px` stores the last measured **expanded** drawer height (used while the drawer is opening so `padding-top` does not lag behind the animating banner).
+- `syncDevBannerFixedLayout()` sets `.nav-wrapper` `padding-top` to the current banner height (collapsed strip when the drawer is closed, full height when open) plus banner margin.
+
+### User settings panel (dev)
+
+- Root: `#nav-dev-banner-user-panel` inside `#nav-dev-banner-drawer`.
+- `updateDevBannerUserSettingsPanel()` syncs control state from `localStorage` / getters (also called from `refreshUiAfterUserSettingsHydrate()` after cloud preference hydrate).
+- `initDevBannerUserSettingsPanel()` binds once per page (`window.__devBannerUserSettingsBound`); registered from `initDayNightTheme()` with other dev-banner inits.
 
 ### Supabase dev/prod presets (local file)
 
@@ -108,8 +116,8 @@ The banner is `position: fixed` in `styles.css`, so `syncDevBannerFixedLayout()`
 
 During transitions:
 
-- `data-dev-banner-drawer-toggled-at` temporarily preserves larger reserve to avoid clipping during collapse animation.
-- `measureDevBannerExpandedHeightPx()` temporarily measures expanded state with drawer transitions disabled.
+- `data-dev-banner-drawer-toggled-at` marks a short window (~380ms) after a toggle; while the drawer is **opening**, padding can follow the cached expanded height until live layout catches up. While **closing**, padding follows the live shrinking banner height.
+- `measureDevBannerExpandedHeightPx()` temporarily measures expanded state with drawer transitions disabled (seeds the expanded cache when missing).
 
 ---
 
@@ -120,7 +128,7 @@ During transitions:
 | `DEV_BANNER_OVERRIDE_KEY` | `sleep-app-force-dev-banner` | Force banner on/off (`'1'`/`'0'`) unless URL override provided |
 | `DEV_CLOCK_OVERRIDE_MS_KEY` | `sleep-app-dev-clock-override-ms` | Simulated app wall-clock epoch ms |
 | `DEV_BANNER_DRAWER_COLLAPSED_KEY` | `sleep-app-dev-banner-drawer-collapsed` | Persist collapsed drawer state |
-| `DEV_BANNER_EXPANDED_RESERVE_KEY` | `sleep-app-dev-banner-expanded-reserve-px` | Cached expanded reserve height |
+| `DEV_BANNER_EXPANDED_RESERVE_KEY` | `sleep-app-dev-banner-expanded-reserve-px` | Cached expanded drawer height (expand animation + remeasure when open) |
 | `ACTIVE_SUPABASE_PRESET_KEY` | `sleep-app-active-supabase-preset` | `dev` / `prod` preset mode for local `local-supabase-presets.js`; empty = custom |
 | `SUPABASE_PROJECT_REF_PROD` | `lsaguxfovamihwnicpkk` | Marks production DB context |
 | `SUPABASE_PROJECT_REF_DEV` | `pjpzxkyflmzzbfdkujan` | Default dev dashboard target |

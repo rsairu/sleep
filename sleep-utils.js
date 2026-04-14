@@ -178,6 +178,7 @@ function setLanguagePreference(language) {
   const normalized = normalizeLanguage(language);
   safeWriteStorage(LANGUAGE_KEY, normalized);
   syncUserSettingsRowToCloud();
+  updateDevBannerUserSettingsPanel();
   return normalized;
 }
 
@@ -719,6 +720,7 @@ function refreshUiAfterUserSettingsHydrate() {
     headsUpRange.value = String(remainingWakePhaseHeadsUpMinutesToSliderIndex(mins));
     headsUpRange.setAttribute('aria-valuetext', getRemainingWakePhaseHeadsUpStopAriaLabel(mins));
   }
+  updateDevBannerUserSettingsPanel();
 }
 
 function chainSleepDataWithUserSettingsHydrate(config, dataPromise) {
@@ -1685,6 +1687,7 @@ function setRemainingWakeThresholds(openMin, windingMin) {
     localStorage.setItem(REMAINING_WAKE_THRESHOLDS_KEY, JSON.stringify({ openMin, windingMin }));
   } catch (_) {}
   syncUserSettingsRowToCloud();
+  updateDevBannerUserSettingsPanel();
 }
 
 function getRemainingWakePhaseHeadsUpMinutes() {
@@ -1704,6 +1707,7 @@ function setRemainingWakePhaseHeadsUpMinutes(mins) {
     localStorage.setItem(REMAINING_WAKE_PHASE_HEADS_UP_KEY, String(n));
   } catch (_) {}
   syncUserSettingsRowToCloud();
+  updateDevBannerUserSettingsPanel();
 }
 
 function remainingWakePhaseHeadsUpMinutesToSliderIndex(mins) {
@@ -1779,6 +1783,7 @@ function setClockFormatPreference(format) {
     localStorage.setItem(CLOCK_FORMAT_KEY, format);
   } catch (_) {}
   syncUserSettingsRowToCloud();
+  updateDevBannerUserSettingsPanel();
 }
 
 function getQualityPaletteId() {
@@ -1795,6 +1800,7 @@ function setQualityPaletteId(id) {
     localStorage.setItem(QUALITY_PALETTE_KEY, id);
   } catch (_) {}
   syncUserSettingsRowToCloud();
+  updateDevBannerUserSettingsPanel();
 }
 
 // Concrete palette used for CSS (stored 'auto' → meadow or harbor from effective theme).
@@ -1957,6 +1963,7 @@ function setThemeChoice(choice) {
   applyDayNightTheme();
   updateDayNightIcon();
   updateThemeSelectors();
+  updateDevBannerUserSettingsPanel();
 }
 
 // Updates theme selector active state on Config page (Auto button; Light/Dark row state is in the toggle).
@@ -3226,9 +3233,11 @@ function persistDevBannerExpandedReservePx(px) {
   } catch (_) {}
 }
 
-// Reserves vertical space for the dev banner at its expanded height so main content is not covered
-// when the drawer is open; when collapsed, the same reserve keeps a consistent top parking area.
-// syncDevBannerFixedLayout is bound to resize once per window (see initDayNightTheme).
+// Reserves vertical space for the fixed dev banner: live collapsed height when the drawer is
+// closed (so the page sits under the compact strip), full live height when open. The
+// localStorage expanded-reserve cache is only used to avoid undershooting padding while the
+// drawer is opening (live height lags until max-height finishes). syncDevBannerFixedLayout is
+// bound to resize once per window (see initDayNightTheme).
 function syncDevBannerFixedLayout() {
   const wrap = document.querySelector('.nav-wrapper');
   if (!wrap) return;
@@ -3238,24 +3247,178 @@ function syncDevBannerFixedLayout() {
     return;
   }
   const mb = parseFloat(getComputedStyle(banner).marginBottom) || 0;
+  const toggledAt = parseInt(banner.dataset.devBannerDrawerToggledAt, 10);
+  const inDrawerAnimWindow =
+    Number.isFinite(toggledAt) && Date.now() - toggledAt < 380;
+
   let reservePx;
   if (banner.classList.contains('nav-dev-banner--collapsed')) {
-    const cachedDataset = parseInt(banner.dataset.devBannerReservePx, 10);
-    const cachedStorage = readDevBannerExpandedReservePx();
-    if (Number.isFinite(cachedDataset) && cachedDataset > 0) reservePx = cachedDataset;
-    else if (cachedStorage != null) reservePx = cachedStorage;
-    else reservePx = measureDevBannerExpandedHeightPx(banner);
+    reservePx = Math.ceil(banner.getBoundingClientRect().height);
   } else {
     const live = Math.ceil(banner.getBoundingClientRect().height);
-    const stored = parseInt(banner.dataset.devBannerReservePx, 10);
-    const toggledAt = parseInt(banner.dataset.devBannerDrawerToggledAt, 10);
-    const inDrawerAnimWindow = Number.isFinite(toggledAt) && Date.now() - toggledAt < 380;
-    reservePx =
-      inDrawerAnimWindow && Number.isFinite(stored) && stored > live ? stored : live;
+    let expandedRef = readDevBannerExpandedReservePx();
+    if (expandedRef == null || expandedRef <= 0) {
+      expandedRef = measureDevBannerExpandedHeightPx(banner);
+    }
+    reservePx = inDrawerAnimWindow ? Math.max(live, expandedRef) : live;
+    if (!inDrawerAnimWindow) {
+      persistDevBannerExpandedReservePx(live);
+    } else if (live >= expandedRef) {
+      persistDevBannerExpandedReservePx(live);
+    }
   }
-  banner.dataset.devBannerReservePx = String(reservePx);
-  persistDevBannerExpandedReservePx(reservePx);
+
   wrap.style.paddingTop = `${reservePx + mb}px`;
+}
+
+function updateDevBannerUserSettingsPanel() {
+  if (typeof document === 'undefined') return;
+  const panel = document.getElementById('nav-dev-banner-user-panel');
+  if (!panel) return;
+
+  const langSel = document.getElementById('nav-dev-banner-user-lang');
+  if (langSel) {
+    const cur = getLanguagePreference();
+    langSel.value = SUPPORTED_LANGUAGES.indexOf(cur) === -1 ? 'en' : cur;
+  }
+
+  const cf = getClockFormatPreference();
+  [['12h', 'nav-dev-banner-user-clock-12h'], ['24h', 'nav-dev-banner-user-clock-24h']].forEach(function (pair) {
+    const btn = document.getElementById(pair[1]);
+    if (!btn) return;
+    const on = pair[0] === cf;
+    btn.classList.toggle('nav-dev-banner-user-seg--active', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+
+  const override = getThemeOverride();
+  [['auto', null], ['day', 'day'], ['night', 'night']].forEach(function (pair) {
+    const btn = document.getElementById('nav-dev-banner-user-theme-' + pair[0]);
+    if (!btn) return;
+    const want = pair[0] === 'auto' ? override === null : override === pair[1];
+    btn.classList.toggle('nav-dev-banner-user-seg--active', want);
+    btn.setAttribute('aria-pressed', want ? 'true' : 'false');
+  });
+
+  const pal = getQualityPaletteId();
+  ['meadow', 'harbor', 'auto'].forEach(function (pid) {
+    const btn = document.getElementById('nav-dev-banner-user-pal-' + pid);
+    if (!btn) return;
+    const on = pal === pid;
+    btn.classList.toggle('nav-dev-banner-user-seg--active', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+
+  const th = getRemainingWakeThresholds();
+  const openIn = document.getElementById('nav-dev-banner-rw-open');
+  const windIn = document.getElementById('nav-dev-banner-rw-winding');
+  if (openIn) openIn.value = String(th.openMin);
+  if (windIn) windIn.value = String(th.windingMin);
+
+  const heads = document.getElementById('nav-dev-banner-rw-heads-up');
+  if (heads) heads.value = String(getRemainingWakePhaseHeadsUpMinutes());
+}
+
+function initDevBannerUserSettingsPanel() {
+  if (typeof window === 'undefined' || !isDevBuildContext()) return;
+  if (window.__devBannerUserSettingsBound) return;
+  window.__devBannerUserSettingsBound = true;
+
+  function bindWhenReady() {
+    const panel = document.getElementById('nav-dev-banner-user-panel');
+    if (!panel) return;
+
+    const langSel = document.getElementById('nav-dev-banner-user-lang');
+    if (langSel) {
+      langSel.addEventListener('change', function () {
+        const selected = normalizeLanguage(langSel.value);
+        if (SUPPORTED_LANGUAGES.indexOf(selected) === -1) return;
+        setLanguagePreference(selected);
+        if (document.documentElement) document.documentElement.setAttribute('lang', selected);
+        void initI18n(document);
+        requestAnimationFrame(function () {
+          syncDevBannerFixedLayout();
+        });
+      });
+    }
+
+    panel.addEventListener('click', function (e) {
+      const cBtn = e.target.closest('[data-dev-clock]');
+      if (cBtn) {
+        const f = cBtn.getAttribute('data-dev-clock');
+        if (f === '12h' || f === '24h') {
+          setClockFormatPreference(f);
+          updateClockFormatSelector();
+          document.dispatchEvent(new CustomEvent('clock-format-changed', { detail: { format: f } }));
+          if (typeof initRemainingWakeNav === 'function') initRemainingWakeNav();
+        }
+        return;
+      }
+      const tBtn = e.target.closest('[data-dev-theme]');
+      if (tBtn) {
+        const ch = tBtn.getAttribute('data-dev-theme');
+        if (ch === 'auto' || ch === 'day' || ch === 'night') {
+          setThemeChoice(ch);
+        }
+        return;
+      }
+      const qBtn = e.target.closest('[data-dev-quality]');
+      if (qBtn) {
+        const id = qBtn.getAttribute('data-dev-quality');
+        if (id === 'meadow' || id === 'harbor' || id === 'auto') {
+          setQualityPaletteId(id);
+          applyQualityPaletteToDocument();
+          updateQualityPaletteSelector();
+          document.dispatchEvent(new CustomEvent('quality-palette-changed', { detail: { palette: id } }));
+        }
+      }
+    });
+
+    function syncRwFromDevInputs() {
+      const openEl = document.getElementById('nav-dev-banner-rw-open');
+      const windEl = document.getElementById('nav-dev-banner-rw-winding');
+      if (!openEl || !windEl) return;
+      let openMin = parseInt(openEl.value, 10);
+      let windingMin = parseInt(windEl.value, 10);
+      if (!Number.isFinite(openMin)) openMin = DEFAULT_REMAINING_WAKE_OPEN_MIN;
+      if (!Number.isFinite(windingMin)) windingMin = DEFAULT_REMAINING_WAKE_WINDING_MIN;
+      openMin = clampThresholdPercent(openMin);
+      windingMin = clampThresholdPercent(windingMin);
+      if (openMin <= windingMin) {
+        windingMin = Math.max(0, openMin - 1);
+        if (windingMin < 0 || openMin <= windingMin) {
+          openMin = DEFAULT_REMAINING_WAKE_OPEN_MIN;
+          windingMin = DEFAULT_REMAINING_WAKE_WINDING_MIN;
+        }
+      }
+      setRemainingWakeThresholds(openMin, windingMin);
+      if (typeof initRemainingWakeNav === 'function') initRemainingWakeNav();
+    }
+
+    const openEl = document.getElementById('nav-dev-banner-rw-open');
+    const windEl = document.getElementById('nav-dev-banner-rw-winding');
+    if (openEl) {
+      openEl.addEventListener('change', syncRwFromDevInputs);
+      openEl.addEventListener('blur', syncRwFromDevInputs);
+    }
+    if (windEl) {
+      windEl.addEventListener('change', syncRwFromDevInputs);
+      windEl.addEventListener('blur', syncRwFromDevInputs);
+    }
+
+    const headsSel = document.getElementById('nav-dev-banner-rw-heads-up');
+    if (headsSel) {
+      headsSel.addEventListener('change', function () {
+        const n = parseInt(headsSel.value, 10);
+        setRemainingWakePhaseHeadsUpMinutes(n);
+        if (typeof initRemainingWakeNav === 'function') initRemainingWakeNav();
+      });
+    }
+
+    updateDevBannerUserSettingsPanel();
+  }
+
+  requestAnimationFrame(bindWhenReady);
 }
 
 // Initializes day/night theme, click handler, and timer to re-check (when in auto mode)
@@ -3270,6 +3433,7 @@ function initDayNightTheme() {
   initDevBannerCloudRefresh();
   initDevBannerSupabasePresetToggle();
   initDevBannerDrawer();
+  initDevBannerUserSettingsPanel();
   setInterval(function () {
     applyDayNightTheme();
     updateDayNightIcon();
@@ -3698,6 +3862,82 @@ function renderNavBar(currentPage) {
     '</div>' +
     devBannerRight +
     '</div>';
+  const devBannerUserIdEsc = escapeHtmlBannerText(RESTORE_CLOUD_USER_ID);
+  const devBannerUserPanel =
+    '<div class="nav-dev-banner-user-panel" id="nav-dev-banner-user-panel">' +
+    '<span class="nav-dev-banner-user-panel-title">User settings</span>' +
+    '<div class="nav-dev-banner-user-tenant-row">' +
+    '<span class="nav-dev-banner-user-tenant-label">Cloud tenant</span>' +
+    '<code class="nav-dev-banner-user-id" title="RESTORE_CLOUD_USER_ID; user_settings primary key">' +
+    devBannerUserIdEsc +
+    '</code>' +
+    '</div>' +
+    '<div class="nav-dev-banner-user-settings" role="group" aria-label="User settings (dev; mirrors Settings and user_settings)">' +
+    '<div class="nav-dev-banner-user-settings-row nav-dev-banner-user-settings-row--stacked" role="group" aria-label="Display language">' +
+    '<div class="nav-dev-banner-user-field">' +
+    '<span class="nav-dev-banner-user-label">Language</span>' +
+    '<select id="nav-dev-banner-user-lang" class="nav-dev-banner-user-select nav-dev-banner-user-select--field" aria-label="Display language">' +
+    '<option value="en">en</option>' +
+    '<option value="ja">ja</option>' +
+    '</select>' +
+    '</div>' +
+    '</div>' +
+    '<div class="nav-dev-banner-user-settings-row nav-dev-banner-user-settings-row--stacked" role="group" aria-label="Clock format">' +
+    '<div class="nav-dev-banner-user-field">' +
+    '<span class="nav-dev-banner-user-label">Clock</span>' +
+    '<span class="nav-dev-banner-user-btn-row" role="group" aria-label="Clock format">' +
+    '<button type="button" class="nav-dev-banner-user-seg" id="nav-dev-banner-user-clock-12h" data-dev-clock="12h" aria-pressed="false">12h</button>' +
+    '<button type="button" class="nav-dev-banner-user-seg" id="nav-dev-banner-user-clock-24h" data-dev-clock="24h" aria-pressed="false">24h</button>' +
+    '</span>' +
+    '</div>' +
+    '</div>' +
+    '<div class="nav-dev-banner-user-settings-row nav-dev-banner-user-settings-row--stacked" role="group" aria-label="Theme override">' +
+    '<div class="nav-dev-banner-user-field">' +
+    '<span class="nav-dev-banner-user-label">Theme</span>' +
+    '<span class="nav-dev-banner-user-btn-row" role="group" aria-label="Theme override">' +
+    '<button type="button" class="nav-dev-banner-user-seg" id="nav-dev-banner-user-theme-auto" data-dev-theme="auto" aria-pressed="false">Auto</button>' +
+    '<button type="button" class="nav-dev-banner-user-seg" id="nav-dev-banner-user-theme-day" data-dev-theme="day" aria-pressed="false">Day</button>' +
+    '<button type="button" class="nav-dev-banner-user-seg" id="nav-dev-banner-user-theme-night" data-dev-theme="night" aria-pressed="false">Night</button>' +
+    '</span>' +
+    '</div>' +
+    '</div>' +
+    '<div class="nav-dev-banner-user-settings-row nav-dev-banner-user-settings-row--stacked" role="group" aria-label="Quality palette">' +
+    '<div class="nav-dev-banner-user-field nav-dev-banner-user-field--palette">' +
+    '<span class="nav-dev-banner-user-label">Palette</span>' +
+    '<span class="nav-dev-banner-user-btn-row" role="group" aria-label="Quality palette">' +
+    '<button type="button" class="nav-dev-banner-user-seg" id="nav-dev-banner-user-pal-meadow" data-dev-quality="meadow" aria-pressed="false">Meadow</button>' +
+    '<button type="button" class="nav-dev-banner-user-seg" id="nav-dev-banner-user-pal-harbor" data-dev-quality="harbor" aria-pressed="false">Harbor</button>' +
+    '<button type="button" class="nav-dev-banner-user-seg" id="nav-dev-banner-user-pal-auto" data-dev-quality="auto" aria-pressed="false">Auto</button>' +
+    '</span>' +
+    '</div>' +
+    '</div>' +
+    '<div class="nav-dev-banner-user-settings-row nav-dev-banner-user-settings-row--stacked" role="group" aria-label="Wake thresholds">' +
+    '<div class="nav-dev-banner-user-field nav-dev-banner-user-field--wake">' +
+    '<span class="nav-dev-banner-user-label">Wake percent</span>' +
+    '<span class="nav-dev-banner-user-rw-inputs">' +
+    '<label class="nav-dev-banner-user-num"><span class="nav-dev-banner-user-num-lbl">Active ≥</span>' +
+    '<input type="number" id="nav-dev-banner-rw-open" class="nav-dev-banner-user-input-num" min="1" max="99" step="1" aria-label="Active phase percent floor" />' +
+    '</label>' +
+    '<label class="nav-dev-banner-user-num"><span class="nav-dev-banner-user-num-lbl">Winding ≥</span>' +
+    '<input type="number" id="nav-dev-banner-rw-winding" class="nav-dev-banner-user-input-num" min="0" max="98" step="1" aria-label="Winding phase percent floor" />' +
+    '</label>' +
+    '</span>' +
+    '</div>' +
+    '</div>' +
+    '<div class="nav-dev-banner-user-settings-row nav-dev-banner-user-settings-row--stacked" role="group" aria-label="Phase heads-up">' +
+    '<div class="nav-dev-banner-user-field nav-dev-banner-user-field--heads">' +
+    '<span class="nav-dev-banner-user-label">Heads-up</span>' +
+    '<select id="nav-dev-banner-rw-heads-up" class="nav-dev-banner-user-select nav-dev-banner-user-select--field" aria-label="Phase change heads-up minutes">' +
+    '<option value="60">60 min</option>' +
+    '<option value="45">45 min</option>' +
+    '<option value="30">30 min</option>' +
+    '<option value="15">15 min</option>' +
+    '<option value="0">Off</option>' +
+    '</select>' +
+    '</div>' +
+    '</div>' +
+    '</div>' +
+    '</div>';
   const devTitleStrip =
     '<div class="nav-dev-banner-title-strip">' +
     '<span class="nav-dev-banner-line nav-dev-banner-title">DEV BUILD</span>' +
@@ -3706,6 +3946,7 @@ function renderNavBar(currentPage) {
     '<div class="nav-dev-banner-drawer" id="nav-dev-banner-drawer" role="region" aria-label="Development build details">' +
     devTitleExtras +
     devBannerMainRow +
+    devBannerUserPanel +
     '</div>';
   const devDrawerHandle =
     '<button type="button" class="nav-dev-banner-drawer-handle" id="nav-dev-banner-drawer-handle"' +

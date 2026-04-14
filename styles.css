@@ -717,6 +717,223 @@ body{
   flex-shrink: 0;
 }
 
+.nav-dev-banner-user-panel {
+  box-sizing: border-box;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.35);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  align-self: stretch;
+  width: 100%;
+  max-width: 100%;
+  gap: 6px;
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 0.75rem;
+}
+
+.nav-dev-banner-user-panel-title {
+  font-weight: 400;
+  font-size: 0.72rem;
+  letter-spacing: normal;
+  text-transform: none;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.nav-dev-banner-user-tenant-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.nav-dev-banner-user-tenant-label {
+  flex-shrink: 0;
+  font-weight: 400;
+  font-size: 0.65rem;
+  line-height: 1.2;
+  letter-spacing: normal;
+  text-transform: none;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.nav-dev-banner-user-id {
+  display: block;
+  flex: 0 1 auto;
+  width: fit-content;
+  max-width: min(100%, 17rem);
+  min-width: 0;
+  margin: 0;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.22);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.65rem;
+  word-break: break-all;
+  color: #ffffff;
+}
+
+.nav-dev-banner-user-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  max-width: 100%;
+}
+
+.nav-dev-banner-user-settings-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.nav-dev-banner-user-settings-row--stacked {
+  flex-wrap: nowrap;
+}
+
+.nav-dev-banner-user-settings-row--stacked .nav-dev-banner-user-field {
+  flex: 0 1 auto;
+  width: auto;
+  max-width: 100%;
+  min-width: 0;
+  align-self: flex-start;
+}
+
+.nav-dev-banner-user-field {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px 8px;
+  min-width: 0;
+}
+
+.nav-dev-banner-user-label {
+  flex: 0 0 auto;
+  display: block;
+  width: 6.25rem;
+  flex-shrink: 0;
+  font-weight: 400;
+  font-size: 0.65rem;
+  line-height: 1.25;
+  letter-spacing: normal;
+  text-transform: none;
+  color: rgba(255, 255, 255, 0.82);
+  text-align: left;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.nav-dev-banner-user-field > .nav-dev-banner-user-select--field,
+.nav-dev-banner-user-field > .nav-dev-banner-user-btn-row {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.nav-dev-banner-user-field > .nav-dev-banner-user-rw-inputs {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.nav-dev-banner-user-btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 3px;
+}
+
+.nav-dev-banner-user-seg {
+  font: inherit;
+  font-size: 0.65rem;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: 4px 8px;
+  margin: 0;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  cursor: pointer;
+  line-height: 1.2;
+  box-sizing: border-box;
+}
+
+.nav-dev-banner-user-seg--active {
+  background: rgba(255, 255, 255, 0.35);
+  font-weight: 700;
+}
+
+.nav-dev-banner-user-seg:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+  z-index: 1;
+  position: relative;
+}
+
+.nav-dev-banner-user-select {
+  font: inherit;
+  font-size: 0.68rem;
+  min-width: 5rem;
+  padding: 3px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  background: rgba(0, 0, 0, 0.2);
+  color: #ffffff;
+}
+
+.nav-dev-banner-user-select--field {
+  width: auto;
+  max-width: 10rem;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.nav-dev-banner-user-rw-inputs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.nav-dev-banner-user-num {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.nav-dev-banner-user-num-lbl {
+  white-space: nowrap;
+}
+
+.nav-dev-banner-user-input-num {
+  font: inherit;
+  font-size: 0.68rem;
+  width: 3.25rem;
+  padding: 2px 4px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  background: rgba(0, 0, 0, 0.2);
+  color: #ffffff;
+}
+
 .nav-dev-banner-vercel-row {
   display: flex;
   flex-wrap: wrap;
