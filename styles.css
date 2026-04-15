@@ -734,33 +734,37 @@ body{
   font-size: 0.75rem;
 }
 
-.nav-dev-banner-user-panel-title {
-  font-weight: 400;
-  font-size: 0.72rem;
-  letter-spacing: normal;
-  text-transform: none;
-  color: rgba(255, 255, 255, 0.92);
-}
-
-.nav-dev-banner-user-tenant-row {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 10px;
+.nav-dev-banner-user-panel-header {
+  display: block;
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
 }
 
-.nav-dev-banner-user-tenant-label {
-  flex-shrink: 0;
+.nav-dev-banner-user-panel-title-line {
+  display: inline-flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.nav-dev-banner-user-panel-title {
   font-weight: 400;
-  font-size: 0.65rem;
-  line-height: 1.2;
+  font-size: inherit;
   letter-spacing: normal;
   text-transform: none;
-  color: rgba(255, 255, 255, 0.82);
+  color: rgba(255, 255, 255, 0.92);
+  min-width: 0;
+}
+
+.nav-dev-banner-user-id-paren {
+  font-weight: 400;
+  font-size: inherit;
+  color: rgba(255, 255, 255, 0.88);
+  flex-shrink: 0;
 }
 
 .nav-dev-banner-user-id {
@@ -774,9 +778,35 @@ body{
   border-radius: 4px;
   background: rgba(0, 0, 0, 0.22);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.65rem;
+  font-size: inherit;
   word-break: break-all;
   color: #ffffff;
+}
+
+.nav-dev-banner-user-id--inline {
+  display: inline;
+  width: auto;
+  max-width: none;
+  padding: 2px 5px;
+  vertical-align: baseline;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.nav-dev-banner-user-defaults-slot {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  flex: 0 0 auto;
+  align-self: flex-end;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.nav-dev-banner-user-defaults-slot .nav-dev-banner-user-defaults-btn {
+  flex-shrink: 0;
 }
 
 .nav-dev-banner-user-settings {
@@ -785,6 +815,31 @@ body{
   gap: 8px;
   width: 100%;
   max-width: 100%;
+}
+
+.nav-dev-banner-user-defaults-btn {
+  font: inherit;
+  font-size: inherit;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  padding: 4px 10px;
+  margin: 0;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  cursor: pointer;
+  line-height: 1.25;
+  box-sizing: border-box;
+}
+
+.nav-dev-banner-user-defaults-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.nav-dev-banner-user-defaults-btn:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
 }
 
 .nav-dev-banner-user-settings-row {
@@ -809,6 +864,213 @@ body{
   align-self: flex-start;
 }
 
+.nav-dev-banner-user-settings-row--prefs-grid {
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  gap: 6px 8px;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  box-sizing: border-box;
+  scrollbar-width: thin;
+}
+
+.nav-dev-banner-user-settings-row--prefs-grid > .nav-dev-banner-user-field--pref {
+  flex: 0 0 auto;
+  min-width: 0;
+  max-width: none;
+}
+
+.nav-dev-banner-user-settings-row--prefs-grid > .nav-dev-banner-user-remaining-time {
+  flex: 0 0 auto;
+  min-width: 0;
+  max-width: none;
+}
+
+.nav-dev-banner-user-settings-row--prefs-grid .nav-dev-banner-user-field--pref.nav-dev-banner-user-field--col > .nav-dev-banner-user-select--field {
+  width: auto;
+  max-width: none;
+  min-width: 0;
+  align-self: center;
+}
+
+.nav-dev-banner-user-settings-row--prefs-grid .nav-dev-banner-user-field--pref .nav-dev-banner-user-select {
+  min-width: 0;
+  width: max-content;
+  max-width: 100%;
+  font-size: inherit;
+}
+
+.nav-dev-banner-user-field--col {
+  flex-direction: column;
+  align-items: stretch;
+  align-self: center;
+  gap: 4px;
+  flex: 1 1 4.5rem;
+  min-width: min(100%, 4.5rem);
+}
+
+.nav-dev-banner-user-settings-row--prefs-grid .nav-dev-banner-user-field--col.nav-dev-banner-user-field--pref {
+  flex: 0 0 auto;
+  min-width: 0;
+  align-items: center;
+}
+
+.nav-dev-banner-user-field--col.nav-dev-banner-user-field--pref {
+  align-items: flex-start;
+}
+
+.nav-dev-banner-user-field--pref.nav-dev-banner-user-field--col > .nav-dev-banner-user-label {
+  display: block;
+  width: 100%;
+  flex: 0 0 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.nav-dev-banner-user-settings-row--prefs-grid .nav-dev-banner-user-field--pref.nav-dev-banner-user-field--col > .nav-dev-banner-user-label {
+  width: 100%;
+  flex: 0 0 auto;
+  max-width: 100%;
+  text-align: center;
+}
+
+.nav-dev-banner-user-field--col > .nav-dev-banner-user-label {
+  width: auto;
+  flex-shrink: 0;
+}
+
+.nav-dev-banner-user-field--pref.nav-dev-banner-user-field--col > .nav-dev-banner-user-select--field {
+  width: auto;
+  max-width: 6.75rem;
+  min-width: 3.35rem;
+  align-self: flex-start;
+}
+
+.nav-dev-banner-user-field--col > .nav-dev-banner-user-pct-row {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 3px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.nav-dev-banner-user-pct-suffix {
+  flex-shrink: 0;
+  font-size: inherit;
+  line-height: 1.2;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.nav-dev-banner-user-input-num--pct {
+  flex: 1 1 auto;
+  width: 0;
+  min-width: 2rem;
+  max-width: 4rem;
+}
+
+.nav-dev-banner-user-remaining-time {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  align-self: flex-end;
+  gap: 4px;
+  box-sizing: border-box;
+  padding: 0;
+  margin-left: 0;
+  margin-right: 0;
+  min-width: 0;
+  max-width: none;
+  background: transparent;
+}
+
+.nav-dev-banner-user-remaining-time-heading {
+  font-weight: 500;
+  font-size: inherit;
+  line-height: 1.25;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: rgba(255, 255, 255, 0.88);
+  width: 100%;
+  text-align: center;
+  box-sizing: border-box;
+  padding: 0 2px 5px;
+  margin: 0;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.48);
+}
+
+.nav-dev-banner-user-remaining-time-controls {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 6px 8px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0 2px;
+}
+
+.nav-dev-banner-user-remaining-time-controls .nav-dev-banner-user-field--col {
+  flex: 0 0 auto;
+  min-width: 0;
+  align-items: center;
+}
+
+.nav-dev-banner-user-remaining-time-controls .nav-dev-banner-user-pct-row {
+  width: 4.35rem;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.nav-dev-banner-user-label--rw {
+  width: auto;
+  max-width: 100%;
+  text-align: center;
+  justify-content: center;
+  white-space: normal;
+}
+
+.nav-dev-banner-user-field--rw > .nav-dev-banner-user-label--rw {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2em;
+  width: 100%;
+}
+
+.nav-dev-banner-user-emoji {
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+/* Match control footprint: percent inputs and heads-up select */
+.nav-dev-banner-user-remaining-time-controls .nav-dev-banner-user-input-num--pct {
+  flex: 0 0 auto;
+  width: 2.65rem;
+  min-width: 2.65rem;
+  max-width: 2.65rem;
+}
+
+.nav-dev-banner-user-remaining-time-controls .nav-dev-banner-user-input-num,
+.nav-dev-banner-user-remaining-time-controls .nav-dev-banner-user-select--rw-compact {
+  min-height: 1.5rem;
+  box-sizing: border-box;
+}
+
+.nav-dev-banner-user-remaining-time-controls .nav-dev-banner-user-select--rw-compact {
+  width: 4.35rem;
+  min-width: 4.35rem;
+  max-width: 4.35rem;
+  min-height: 1.5rem;
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
 .nav-dev-banner-user-field {
   display: flex;
   flex-direction: row;
@@ -819,13 +1081,20 @@ body{
   min-width: 0;
 }
 
+/* Base .nav-dev-banner-user-field sets row; label-over-control stacks need column to win. */
+.nav-dev-banner-user-field.nav-dev-banner-user-field--col {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+}
+
 .nav-dev-banner-user-label {
   flex: 0 0 auto;
   display: block;
   width: 6.25rem;
   flex-shrink: 0;
   font-weight: 400;
-  font-size: 0.65rem;
+  font-size: inherit;
   line-height: 1.25;
   letter-spacing: normal;
   text-transform: none;
@@ -888,7 +1157,7 @@ body{
 
 .nav-dev-banner-user-select {
   font: inherit;
-  font-size: 0.68rem;
+  font-size: inherit;
   min-width: 5rem;
   padding: 3px 6px;
   border-radius: 4px;

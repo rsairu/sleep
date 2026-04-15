@@ -48,7 +48,7 @@ This matches `loadSleepDataUsesSupabase(config)` in `sleep-utils.js`. If the use
 | `language` | `sleep-app-language`; `getLanguagePreference` / `setLanguagePreference`. |
 | `theme_override` | `sleep-app-theme-override`; `null` in DB = auto (remove key); `'day'` / `'night'` = manual. |
 | `clock_format` | `sleep-app-clock-format`; `12h` / `24h`. |
-| `quality_palette` | `sleep-app-quality-palette`; `meadow` / `harbor` / `auto`. |
+| `quality_palette` | `sleep-app-quality-palette`; `meadow` / `harbor` / `auto` (app and DB default: `auto`). |
 | `remaining_wake_open_min` / `remaining_wake_winding_min` | JSON in `sleep-app-remaining-wake-thresholds`; must satisfy `openMin > windingMin` (matches DB check). |
 | `remaining_wake_phase_heads_up_mins` | `sleep-app-remaining-wake-phase-heads-up-mins`; allowed 0, 15, 30, 45, 60. |
 

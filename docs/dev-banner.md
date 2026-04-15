@@ -51,8 +51,10 @@ Main content blocks:
   - Real time mode (no override key)
   - Simulated mode (`datetime-local` + +/- minute/hour/day step buttons)
 - **User / settings (dev)** (below the main row, inside the drawer):
-  - Section title *User settings*; *Cloud tenant* label beside `RESTORE_CLOUD_USER_ID` (fixed MVP cloud tenant UUID; same value as `user_settings.user_id` and sleep row `user_id` in JS). Each preference is one full-width row (sentence-case label, then control); the panel spans the drawer width so there is no empty strip beside it.
-  - Compact controls mirroring [config.html](config.html) / `user_settings`: language (`en` / `ja`), clock `12h` / `24h`, theme Auto / Day / Night, quality palette Meadow / Harbor / Auto, remaining-wake **Active ≥** and **Winding ≥** percent floors (numbers), phase heads-up minutes (`60` … `0`). Changes use the same preference setters and `syncUserSettingsRowToCloud()` as Settings when cloud sleep data is active.
+  - Header: one inline line (`nav-dev-banner-user-panel-title-line`) reading **User settings** (`<span class="nav-dev-banner-user-panel-title">`) immediately followed by parentheses and `RESTORE_CLOUD_USER_ID` in `<code class="nav-dev-banner-user-id nav-dev-banner-user-id--inline">` (`title` explains user_settings primary key / cloud tenant; same value as `user_settings.user_id` and sleep row `user_id` in JS). The UUID does not span full width; it stays content-sized on the same line as the title when space allows.
+  - **Use defaults** (`#nav-dev-banner-user-use-default`, `aria-label` “Reset user settings to app defaults”) sits in `nav-dev-banner-user-defaults-slot` as the **first** child of `nav-dev-banner-user-settings-row--prefs-grid`, left-aligned on the **same row** as Language / Clock / Theme / Palette / **Remaining time** (`align-self: flex-end` so it lines up with the control row). The button calls `applyDevBannerUserSettingsDefaults()` to reset language (`en`), clock (`24h`), theme (auto), palette (auto), remaining-wake thresholds (35% / 15%), and heads-up (`30` min), then refreshes i18n, theme, palette, config remaining-wake UI if present, nav remaining-wake, and the dev-banner panel.
+  - Language, clock format, theme, palette, and **Remaining time** continue on that prefs row (`flex-wrap: nowrap`; `overflow-x: auto` with thin scrollbar only if the viewport is too narrow). Each pref and remaining-wake control uses `nav-dev-banner-user-field--col` (label above control). Because the base `nav-dev-banner-user-field` rule sets `flex-direction: row`, stacked fields rely on `.nav-dev-banner-user-field.nav-dev-banner-user-field--col` so column layout wins. Pref labels and selects are centered within each column like the winding / pre-sleep / heads-up cluster. Panel copy uses the same inherited font size as the branch / cloud hint rows (`0.75rem` on `nav-dev-banner-user-panel`). Pref `<select>` elements stay content-sized (`width: max-content`, `min-width: 0` on the pref row). **Remaining time** has no border box; the “Remaining time” label is full width of that cluster with a `border-bottom` rule so the line runs under the title across winding / pre-sleep / heads-up. Labels inside the remaining-time cluster are centered.
+  - Winding and pre-sleep values mirror `remaining_wake_open_min` and `remaining_wake_winding_min`: percent of wake time remaining where the active phase ends (winding begins below the first) and where winding ends (pre-sleep begins below the second). **Heads-up** is `remaining_wake_phase_heads_up_mins`. Changes use the same preference setters and `syncUserSettingsRowToCloud()` as Settings when cloud sleep data is active.
 
 Banner background class:
 
@@ -96,6 +98,7 @@ Important: app logic should use `getAppNowMs()` / `getAppDate()` when it must ho
 - Root: `#nav-dev-banner-user-panel` inside `#nav-dev-banner-drawer`.
 - `updateDevBannerUserSettingsPanel()` syncs control state from `localStorage` / getters (also called from `refreshUiAfterUserSettingsHydrate()` after cloud preference hydrate).
 - `initDevBannerUserSettingsPanel()` binds once per page (`window.__devBannerUserSettingsBound`); registered from `initDayNightTheme()` with other dev-banner inits.
+- `applyDevBannerUserSettingsDefaults()` resets the mirrored preferences to the same defaults as a fresh install / Settings reset path; invoked from **Use defaults** at the start of the prefs row (`#nav-dev-banner-user-use-default`).
 
 ### Supabase dev/prod presets (local file)
 
@@ -147,6 +150,7 @@ During transitions:
 | Supabase dev/prod preset toggle | `initDevBannerSupabasePresetToggle`, `readLocalSupabasePresets`, `ensureDevSupabasePresetApplied` - `sleep-utils.js` |
 | Drawer pointer/click behavior | `initDevBannerDrawer` - `sleep-utils.js` |
 | Expanded reserve measurement/caching | `measureDevBannerExpandedHeightPx`, `syncDevBannerFixedLayout` - `sleep-utils.js` |
+| User settings defaults (dev panel) | `applyDevBannerUserSettingsDefaults`, `initDevBannerUserSettingsPanel` - `sleep-utils.js` |
 | Branch stamp source | `scripts/stamp-dev-branch.js` -> `dev-git-branch.js` |
 | Banner visual system and responsive behavior | `.nav-dev-banner*` selectors in `styles.css` |
 
