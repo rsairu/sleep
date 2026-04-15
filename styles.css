@@ -746,7 +746,7 @@ body{
   flex-direction: row;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 0;
+  gap: 0.5em;
   max-width: 100%;
   box-sizing: border-box;
 }
@@ -1752,60 +1752,237 @@ body{
   gap: 6px;
 }
 
-.graph-show-hide-columns {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-5) var(--space-6);
-  align-items: flex-start;
-}
-
-.graph-show-hide-col {
+.graph-show-hide-grid {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  width: fit-content;
+  max-width: 100%;
+  align-items: stretch;
+  padding-top: var(--space-1);
+}
+
+.graph-sh-section {
+  border-top: 1px solid var(--panel-border-color);
+  padding-top: var(--space-2);
+}
+
+.graph-sh-section--first {
+  border-top: none;
+  padding-top: 0;
+}
+
+.graph-sh-row--cols {
+  display: grid;
+  grid-template-columns: 2.5rem max-content max-content max-content;
+  column-gap: var(--space-3);
+  align-items: center;
+  justify-items: start;
+}
+
+.graph-sh-row--all-with-heads {
+  align-items: center;
+}
+
+.graph-sh-row--cols > .graph-sh-rail {
+  justify-self: stretch;
+}
+
+.graph-sh-row--wake {
+  display: grid;
+  grid-template-columns: 2.5rem max-content max-content max-content;
+  column-gap: var(--space-3);
+  align-items: stretch;
+  justify-items: start;
+}
+
+.graph-sh-wake-rail {
+  grid-row: 1 / 3;
+  grid-column: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: stretch;
+  width: 100%;
+}
+
+.graph-sh-wake-line {
+  grid-row: 1 / 3;
+  grid-column: 2;
+}
+
+.graph-sh-wake-trend {
+  grid-row: 1 / 3;
+  grid-column: 3;
+}
+
+.graph-sh-wake-points {
+  grid-row: 1 / 3;
+  grid-column: 4;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  justify-content: center;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.graph-sh-rail-label {
+  font-size: 12px;
+  opacity: 0.9;
+  text-align: center;
+  user-select: none;
+}
+
+.graph-sh-rail-emoji {
+  font-size: 0.92em;
+  line-height: 1.25;
+  text-align: center;
+  user-select: none;
+}
+
+.graph-sh-data-line {
+  display: block;
+  width: 100%;
+  max-width: 1.5rem;
+  height: 2px;
+  border-radius: 1px;
+  box-sizing: border-box;
+}
+
+.graph-sh-data-line--bed {
+  background: var(--color-bed);
+}
+
+.graph-sh-data-line--sleep {
+  background: var(--color-sleep);
+}
+
+.graph-sh-data-line--up {
+  background: var(--color-up);
 }
 
 .graph-sh-toggle-label {
   display: grid;
-  grid-template-columns: 1rem 30px minmax(0, 1fr);
+  grid-template-columns: 1rem 1.5rem minmax(0, 1fr);
   column-gap: 6px;
   align-items: center;
+  justify-items: start;
+}
+
+.graph-sh-toggle-label.graph-sh-toggle-label--all-col-head {
+  grid-template-columns: 1rem minmax(0, max-content);
+  white-space: nowrap;
+}
+
+.graph-sh-toggle-label.graph-sh-toggle-label--all-col-head .graph-sh-legend-gap {
+  display: none;
+}
+
+.graph-sh-col-head-inline {
+  margin-bottom: 0;
+  user-select: none;
+}
+
+.graph-sh-toggle-label.graph-sh-toggle-label--rowspan {
+  align-self: stretch;
+  align-items: center;
+}
+
+.graph-sh-toggle-label.graph-sh-toggle-label--wake-points {
+  grid-template-columns: 1rem 1.5rem minmax(0, 1fr);
+  align-items: center;
+  justify-items: start;
+  width: 100%;
+}
+
+.graph-sh-wake-paren {
+  display: block;
+  color: var(--color-up);
+  font-size: 12px;
+  line-height: 1.2;
+  text-align: left;
 }
 
 .graph-sh-toggle-label input[type="checkbox"] {
   margin: 0;
   width: 1rem;
   height: 1rem;
+  align-self: center;
   flex-shrink: 0;
+}
+
+.graph-sh-legend-dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.25em;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.graph-sh-legend-dot::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.graph-sh-legend-dot--bed::after {
+  background: var(--color-bed);
+}
+
+.graph-sh-legend-dot--asleep::after {
+  background: var(--color-sleep);
 }
 
 .graph-sh-legend-gap {
   display: block;
-  width: 30px;
+  width: 1.5rem;
   height: 2px;
   flex-shrink: 0;
 }
 
-/* Graph show/hide: same emojis as log (bed / sleep / wake / alarm) + daily natural wake */
+/* Graph show/hide: emoji sized to match label text (typed-inline feel) */
 .graph-sh-legend-icon {
-  font-size: 1.15rem;
-  line-height: 1;
-  width: 30px;
-  height: 30px;
-  display: flex;
+  font-size: 1em;
+  line-height: 1.25;
+  width: 1.5rem;
+  height: 1.25em;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  box-sizing: border-box;
 }
 
-/* Wake-type column: match chart markers (alarm dot vs larger natural-wake disc) */
+.graph-sh-legend-icon--inline {
+  font-size: 0.92em;
+  line-height: 1;
+}
+
+.graph-sh-label--bed {
+  color: var(--color-bed);
+}
+
+.graph-sh-label--sleep {
+  color: var(--color-sleep);
+}
+
+.graph-sh-label--wake {
+  color: var(--color-up);
+}
+
+/* Wake-type column: alarm dot matches bed/sleep point dots (6px) */
 .graph-sh-legend-wake-type-sample {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 1.5rem;
+  height: 1.25em;
   flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .graph-sh-legend-wake-type-sample--alarm::after {
@@ -1817,8 +1994,8 @@ body{
 }
 
 .graph-sh-legend-natural-bullseye {
-  width: 16px;
-  height: 16px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   box-sizing: border-box;
   border: 2px solid var(--color-up);
@@ -1832,8 +2009,8 @@ body{
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  width: 5px;
-  height: 5px;
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
   background: var(--color-up);
 }
@@ -1855,11 +2032,22 @@ body{
   user-select: none;
 }
 
+.time-toggle.graph-sh-toggle-label {
+  display: grid;
+  gap: 0;
+  column-gap: 6px;
+}
+
 .time-toggle .legend-line {
   width: 30px;
   height: 2px;
   border-radius: 1px;
   flex-shrink: 0;
+}
+
+.time-toggle.graph-sh-toggle-label .legend-line {
+  width: 100%;
+  max-width: 1.5rem;
 }
 
 .time-toggle .legend-line.getup-regression,
@@ -1871,9 +2059,9 @@ body{
   background-image: repeating-linear-gradient(
     to right,
     currentColor 0,
-    currentColor 6px,
-    transparent 6px,
-    transparent 12px
+    currentColor 4px,
+    transparent 4px,
+    transparent 8px
   );
   margin-top: 0;
 }
@@ -3916,6 +4104,163 @@ h1,
   margin-top: 0;
 }
 
+.graph-chart-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin: var(--space-5) 0 var(--space-3);
+}
+
+.graph-chart-heading--inline {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.graph-chart-heading--skp-time,
+.graph-chart-heading--skp-sleep,
+.graph-chart-heading--skp-wake,
+.graph-chart-heading--skp-bed {
+  position: relative;
+  padding-left: 14px;
+}
+
+.graph-chart-heading--skp-time::before,
+.graph-chart-heading--skp-sleep::before,
+.graph-chart-heading--skp-wake::before,
+.graph-chart-heading--skp-bed::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.12em;
+  bottom: 0.12em;
+  width: 4px;
+  border-radius: 2px;
+}
+
+.graph-chart-heading--skp-time::before {
+  background: linear-gradient(180deg, var(--color-bed), var(--color-sleep) 50%, var(--color-up));
+}
+
+.graph-chart-heading--skp-sleep::before {
+  background: var(--color-sleep);
+}
+
+.graph-chart-heading--skp-wake::before {
+  background: var(--color-up);
+}
+
+.graph-chart-heading--skp-bed::before {
+  background: var(--color-bed);
+}
+
+.graph-chart-mode-rocker {
+  display: inline-flex;
+  border: 1px solid var(--panel-border-color);
+  border-radius: var(--radius-control-sm);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.graph-chart-mode-seg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 32px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: var(--panel);
+  color: color-mix(in srgb, var(--text) 45%, transparent);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.graph-chart-mode-seg + .graph-chart-mode-seg {
+  border-left: 1px solid var(--panel-border-color);
+}
+
+.graph-chart-mode-seg:hover {
+  color: var(--text);
+  background: var(--hover-bg);
+}
+
+.graph-chart-mode-seg.is-active {
+  background: color-mix(in srgb, var(--color-sleep) 22%, var(--panel));
+  color: var(--color-sleep);
+}
+
+.graph-chart-mode-icon {
+  display: block;
+  width: 22px;
+  height: 14px;
+  pointer-events: none;
+}
+
+.graph-chart-mode-icon rect {
+  fill: currentColor;
+}
+
+.graph-chart-mode-icon path {
+  stroke: currentColor;
+  fill: none;
+}
+
+.graph-chart-mode-icon circle {
+  fill: currentColor;
+}
+
+.graph-hover-line {
+  stroke: var(--tick-line);
+}
+
+.graph-metric-line {
+  fill: none;
+  stroke-width: 2;
+  pointer-events: none;
+}
+
+.graph-duration-total-line {
+  stroke: var(--color-sleep);
+}
+
+.graph-metric-dot {
+  fill: var(--color-sleep);
+  cursor: pointer;
+  transition: r 0.15s;
+}
+
+.graph-metric-dot.graph-wake-delay-dot {
+  fill: var(--color-up);
+  stroke: var(--bg);
+  stroke-width: 1.25;
+}
+
+.graph-metric-dot.graph-sol-dot {
+  fill: var(--color-bed);
+  stroke: var(--bg);
+  stroke-width: 1.25;
+}
+
+.graph-metric-dot:hover {
+  opacity: 0.92;
+}
+
 .graph-show-hide-wrap {
   margin: var(--space-4) 0 var(--space-5);
   padding-top: var(--space-3);
@@ -4046,10 +4391,14 @@ svg {
 
 .regression-line.wake-delay-trend {
   stroke: var(--color-up);
+  stroke-width: 1.25;
+  opacity: 0.42;
 }
 
 .regression-line.sleep-delay-trend {
   stroke: var(--color-bed);
+  stroke-width: 1.25;
+  opacity: 0.42;
 }
 
 .data-point {

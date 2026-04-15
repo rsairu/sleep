@@ -1,0 +1,10 @@
+---
+description: Use the Semantic Keyword Palette (SKP) for bed/sleep/wake-colored UI
+alwaysApply: true
+---
+
+# Semantic Keyword Palette (SKP)
+
+When styling or naming anything tied to **bed**, **sleep/asleep**, **wake**, **alarm**, **nap**, etc., follow the **Semantic Keyword Palette (SKP)** documented in [docs/semantic-keyword-palette.md](docs/semantic-keyword-palette.md).
+
+Use the CSS variables listed there (`--color-bed`, `--color-sleep`, `--color-up`, …) defined in `styles.css` instead of ad-hoc hex for those meanings. For new charts, timelines, or legends, match the same tokens the daily view uses.

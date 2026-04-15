@@ -84,6 +84,10 @@ function runTests() {
   expectEqual(u.calculateFirstAlarmToWake(eveningAlarmRollDay), -1410, 'signed alarm delta raw overnight');
   expectEqual(u.calculateWakeDelay(eveningAlarmRollDay), 30, 'wake delay rolls over for evening alarms');
 
+  const wakeAtAlarmDay = { alarm: ['07:00'], sleepEnd: '07:00' };
+  expectEqual(u.calculateFirstAlarmToWake(wakeAtAlarmDay), 0, 'signed alarm delta zero at wake');
+  expectEqual(u.calculateWakeDelay(wakeAtAlarmDay), 0, 'wake delay zero when wake at first alarm');
+
   // Delay + uninterrupted calculations
   const bedDelayDay = { bed: '23:50', sleepStart: '00:20' };
   expectEqual(u.calculateSleepDelay(bedDelayDay), 30, 'bed to sleep delay across midnight');
@@ -168,8 +172,8 @@ function runTests() {
     const days = JSON.parse(fs.readFileSync(dataPath, 'utf8')).days || [];
     days.forEach((d, idx) => {
       const wakeDelay = u.calculateWakeDelay(d);
-      if (wakeDelay !== null && wakeDelay <= 0) {
-        failures.push(`dataset invariant day ${idx} (${d.date}): wakeDelay must be > 0 or null`);
+      if (wakeDelay !== null && wakeDelay < 0) {
+        failures.push(`dataset invariant day ${idx} (${d.date}): wakeDelay must be >= 0 or null`);
       } else {
         passed += 1;
       }
