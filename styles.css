@@ -1871,6 +1871,7 @@ body{
 
 .graph-sh-toggle-label.graph-sh-toggle-label--all-col-head {
   grid-template-columns: 1rem minmax(0, max-content);
+  column-gap: 4px;
   white-space: nowrap;
 }
 
