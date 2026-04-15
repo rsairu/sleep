@@ -45,8 +45,8 @@ Main content blocks:
 - **Cloud row**: Supabase dashboard link + optional **Dev** / **Prod** preset toggle (when `local-supabase-presets.js` defines valid `window.__RESTORE_SUPABASE_PRESETS__`) + hint text + "Refresh" button (`loadSleepData({ forceRefresh: true })` then reload).
 - **Vercel row**: Production app link + project dashboard link.
 - **Warnings**:
-  - Supabase URL includes prod ref (`lsaguxfovamihwnicpkk`) -> red warning.
-  - Branch is `master` -> branch warning.
+  - Supabase URL includes prod ref (`lsaguxfovamihwnicpkk`) -> red warning; copy uses 🛑 and class `nav-dev-banner-prod-warning--prod-data` (uppercase, inset strip) at the same `0.7rem` as other warning lines.
+  - Branch is `master` -> branch warning (⚠️, base `nav-dev-banner-prod-warning` only).
 - **App time controls**:
   - Real time mode (no override key)
   - Simulated mode (`datetime-local` + +/- minute/hour/day step buttons)
