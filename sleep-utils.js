@@ -3836,7 +3836,8 @@ function renderNavBar(currentPage) {
   const devBannerLeftInner = devBannerBranchRow + devBannerCloudRow + devBannerVercelRow;
   let devBannerWarnings = '';
   if (devBannerDbClass === 'nav-dev-banner--db-prod') {
-    devBannerWarnings += '<p class="nav-dev-banner-prod-warning">⚠️ You are using PROD data!</p>';
+    devBannerWarnings +=
+      '<p class="nav-dev-banner-prod-warning nav-dev-banner-prod-warning--prod-data">🛑 You are using PROD data!</p>';
   }
   if (devBannerOnMaster) {
     devBannerWarnings +=
