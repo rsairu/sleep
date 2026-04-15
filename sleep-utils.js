@@ -1540,7 +1540,8 @@ function calculateWakeDelay(day) {
   if (delay < 0 && firstAlarm >= 1080) {
     delay = (wakeTime + 1440) - firstAlarm;
   }
-  return delay > 0 ? delay : null;
+  if (delay < 0) return null;
+  return delay;
 }
 
 function calculateBedToSleepDelay(day) {
@@ -3917,12 +3918,10 @@ function renderNavBar(currentPage) {
     '<div class="nav-dev-banner-user-panel" id="nav-dev-banner-user-panel">' +
     '<div class="nav-dev-banner-user-panel-header">' +
     '<span class="nav-dev-banner-user-panel-title-line">' +
-    '<span class="nav-dev-banner-user-panel-title">User settings</span>' +
-    '<span class="nav-dev-banner-user-id-paren" aria-hidden="true"> (</span>' +
+    '<span class="nav-dev-banner-user-panel-title">UUID</span>' +
     '<code class="nav-dev-banner-user-id nav-dev-banner-user-id--inline" title="RESTORE_CLOUD_USER_ID; user_settings primary key (cloud tenant)">' +
     devBannerUserIdEsc +
     '</code>' +
-    '<span class="nav-dev-banner-user-id-paren" aria-hidden="true">)</span>' +
     '</span>' +
     '</div>' +
     '<div class="nav-dev-banner-user-settings" role="group" aria-label="User settings (dev; mirrors Settings and user_settings)">' +
