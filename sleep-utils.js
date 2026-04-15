@@ -56,6 +56,8 @@ const RESTORE_FORCE_LOCAL_SLEEP_DATA_KEY = 'restore_force_local_sleep_data';
 const RESTORE_CLOUD_USER_ID = '00000000-0000-0000-0000-000000000001';
 /** After one-time local→cloud push when cloud row was still seed defaults */
 const USER_SETTINGS_CLOUD_MIGRATION_DONE_KEY = 'restore_user_settings_cloud_migration_v1';
+/** `sleep-app-quality-palette` when unset/invalid; seed defaults; dev-banner reset. */
+const DEFAULT_QUALITY_PALETTE_ID = 'auto';
 const SLEEP_DATA_LOCAL_CACHE_KEY = 'restore_sleep_data_cache_v2';
 const SLEEP_DATA_CACHE_TTL_MS = 5 * 60 * 1000;
 
@@ -545,7 +547,7 @@ function isSeedDefaultUserSettingsRow(row) {
     row.language === 'en' &&
     (t == null || t === '') &&
     row.clock_format === '24h' &&
-    row.quality_palette === 'meadow' &&
+    row.quality_palette === DEFAULT_QUALITY_PALETTE_ID &&
     Number(row.remaining_wake_open_min) === 35 &&
     Number(row.remaining_wake_winding_min) === 15 &&
     Number(row.remaining_wake_phase_heads_up_mins) === 30
@@ -559,7 +561,9 @@ function localUserSettingsToRow() {
   let clock_format = getClockFormatPreference();
   if (clock_format !== '12h' && clock_format !== '24h') clock_format = '24h';
   let quality_palette = getQualityPaletteId();
-  if (quality_palette !== 'meadow' && quality_palette !== 'harbor' && quality_palette !== 'auto') quality_palette = 'meadow';
+  if (quality_palette !== 'meadow' && quality_palette !== 'harbor' && quality_palette !== 'auto') {
+    quality_palette = DEFAULT_QUALITY_PALETTE_ID;
+  }
   let thresholds = getRemainingWakeThresholds();
   let openMin = clampThresholdPercent(thresholds.openMin);
   let windingMin = clampThresholdPercent(thresholds.windingMin);
@@ -1654,7 +1658,7 @@ const QUALITY_PALETTE_CSS_VARS = [
   '--quality-severe'
 ];
 
-// Default remaining wake phase thresholds (percent of wake time remaining): open >= openMin, winding >= windingMin, presleep < windingMin.
+// Percent of wake time remaining: active while >= openMin; winding while >= windingMin and < openMin; pre-sleep while < windingMin. (Dev banner: Winding % = openMin, Pre-sleep % = windingMin.)
 const DEFAULT_REMAINING_WAKE_OPEN_MIN = 35;
 const DEFAULT_REMAINING_WAKE_WINDING_MIN = 15;
 
@@ -1791,7 +1795,7 @@ function getQualityPaletteId() {
     const v = localStorage.getItem(QUALITY_PALETTE_KEY);
     if (v === 'meadow' || v === 'harbor' || v === 'auto') return v;
   } catch (_) {}
-  return 'meadow';
+  return DEFAULT_QUALITY_PALETTE_ID;
 }
 
 function setQualityPaletteId(id) {
@@ -3282,32 +3286,23 @@ function updateDevBannerUserSettingsPanel() {
     langSel.value = SUPPORTED_LANGUAGES.indexOf(cur) === -1 ? 'en' : cur;
   }
 
-  const cf = getClockFormatPreference();
-  [['12h', 'nav-dev-banner-user-clock-12h'], ['24h', 'nav-dev-banner-user-clock-24h']].forEach(function (pair) {
-    const btn = document.getElementById(pair[1]);
-    if (!btn) return;
-    const on = pair[0] === cf;
-    btn.classList.toggle('nav-dev-banner-user-seg--active', on);
-    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-  });
+  const clockSel = document.getElementById('nav-dev-banner-user-clock');
+  if (clockSel) {
+    const cf = getClockFormatPreference();
+    clockSel.value = cf === '12h' ? '12h' : '24h';
+  }
 
-  const override = getThemeOverride();
-  [['auto', null], ['day', 'day'], ['night', 'night']].forEach(function (pair) {
-    const btn = document.getElementById('nav-dev-banner-user-theme-' + pair[0]);
-    if (!btn) return;
-    const want = pair[0] === 'auto' ? override === null : override === pair[1];
-    btn.classList.toggle('nav-dev-banner-user-seg--active', want);
-    btn.setAttribute('aria-pressed', want ? 'true' : 'false');
-  });
+  const themeSel = document.getElementById('nav-dev-banner-user-theme');
+  if (themeSel) {
+    const override = getThemeOverride();
+    themeSel.value = override === null ? 'auto' : override;
+  }
 
-  const pal = getQualityPaletteId();
-  ['meadow', 'harbor', 'auto'].forEach(function (pid) {
-    const btn = document.getElementById('nav-dev-banner-user-pal-' + pid);
-    if (!btn) return;
-    const on = pal === pid;
-    btn.classList.toggle('nav-dev-banner-user-seg--active', on);
-    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-  });
+  const palSel = document.getElementById('nav-dev-banner-user-palette');
+  if (palSel) {
+    const pal = getQualityPaletteId();
+    if (pal === 'meadow' || pal === 'harbor' || pal === 'auto') palSel.value = pal;
+  }
 
   const th = getRemainingWakeThresholds();
   const openIn = document.getElementById('nav-dev-banner-rw-open');
@@ -3317,6 +3312,37 @@ function updateDevBannerUserSettingsPanel() {
 
   const heads = document.getElementById('nav-dev-banner-rw-heads-up');
   if (heads) heads.value = String(getRemainingWakePhaseHeadsUpMinutes());
+}
+
+/** Resets dev-banner user settings (and mirrored prefs) to app defaults; dev build only (Use defaults). */
+function applyDevBannerUserSettingsDefaults() {
+  if (typeof document === 'undefined') return;
+  setLanguagePreference(DEFAULT_LANGUAGE);
+  if (document.documentElement) document.documentElement.setAttribute('lang', DEFAULT_LANGUAGE);
+  void initI18n(document);
+  setClockFormatPreference('24h');
+  updateClockFormatSelector();
+  document.dispatchEvent(new CustomEvent('clock-format-changed', { detail: { format: '24h' } }));
+  setThemeChoice('auto');
+  setQualityPaletteId(DEFAULT_QUALITY_PALETTE_ID);
+  applyQualityPaletteToDocument();
+  updateQualityPaletteSelector();
+  document.dispatchEvent(
+    new CustomEvent('quality-palette-changed', { detail: { palette: DEFAULT_QUALITY_PALETTE_ID } })
+  );
+  setRemainingWakeThresholds(DEFAULT_REMAINING_WAKE_OPEN_MIN, DEFAULT_REMAINING_WAKE_WINDING_MIN);
+  setRemainingWakePhaseHeadsUpMinutes(DEFAULT_REMAINING_WAKE_PHASE_HEADS_UP_MINS);
+  if (typeof applyRemainingWakeThresholdsUI === 'function') {
+    applyRemainingWakeThresholdsUI(
+      100 - DEFAULT_REMAINING_WAKE_OPEN_MIN,
+      100 - DEFAULT_REMAINING_WAKE_WINDING_MIN
+    );
+  }
+  if (typeof initRemainingWakeNav === 'function') initRemainingWakeNav();
+  updateDevBannerUserSettingsPanel();
+  requestAnimationFrame(function () {
+    syncDevBannerFixedLayout();
+  });
 }
 
 function initDevBannerUserSettingsPanel() {
@@ -3342,37 +3368,38 @@ function initDevBannerUserSettingsPanel() {
       });
     }
 
-    panel.addEventListener('click', function (e) {
-      const cBtn = e.target.closest('[data-dev-clock]');
-      if (cBtn) {
-        const f = cBtn.getAttribute('data-dev-clock');
-        if (f === '12h' || f === '24h') {
-          setClockFormatPreference(f);
-          updateClockFormatSelector();
-          document.dispatchEvent(new CustomEvent('clock-format-changed', { detail: { format: f } }));
-          if (typeof initRemainingWakeNav === 'function') initRemainingWakeNav();
-        }
-        return;
-      }
-      const tBtn = e.target.closest('[data-dev-theme]');
-      if (tBtn) {
-        const ch = tBtn.getAttribute('data-dev-theme');
-        if (ch === 'auto' || ch === 'day' || ch === 'night') {
-          setThemeChoice(ch);
-        }
-        return;
-      }
-      const qBtn = e.target.closest('[data-dev-quality]');
-      if (qBtn) {
-        const id = qBtn.getAttribute('data-dev-quality');
-        if (id === 'meadow' || id === 'harbor' || id === 'auto') {
-          setQualityPaletteId(id);
-          applyQualityPaletteToDocument();
-          updateQualityPaletteSelector();
-          document.dispatchEvent(new CustomEvent('quality-palette-changed', { detail: { palette: id } }));
-        }
-      }
-    });
+    const clockSel = document.getElementById('nav-dev-banner-user-clock');
+    if (clockSel) {
+      clockSel.addEventListener('change', function () {
+        const f = clockSel.value;
+        if (f !== '12h' && f !== '24h') return;
+        setClockFormatPreference(f);
+        updateClockFormatSelector();
+        document.dispatchEvent(new CustomEvent('clock-format-changed', { detail: { format: f } }));
+        if (typeof initRemainingWakeNav === 'function') initRemainingWakeNav();
+      });
+    }
+
+    const themeSel = document.getElementById('nav-dev-banner-user-theme');
+    if (themeSel) {
+      themeSel.addEventListener('change', function () {
+        const ch = themeSel.value;
+        if (ch !== 'auto' && ch !== 'day' && ch !== 'night') return;
+        setThemeChoice(ch);
+      });
+    }
+
+    const palSel = document.getElementById('nav-dev-banner-user-palette');
+    if (palSel) {
+      palSel.addEventListener('change', function () {
+        const id = palSel.value;
+        if (id !== 'meadow' && id !== 'harbor' && id !== 'auto') return;
+        setQualityPaletteId(id);
+        applyQualityPaletteToDocument();
+        updateQualityPaletteSelector();
+        document.dispatchEvent(new CustomEvent('quality-palette-changed', { detail: { palette: id } }));
+      });
+    }
 
     function syncRwFromDevInputs() {
       const openEl = document.getElementById('nav-dev-banner-rw-open');
@@ -3412,6 +3439,13 @@ function initDevBannerUserSettingsPanel() {
         const n = parseInt(headsSel.value, 10);
         setRemainingWakePhaseHeadsUpMinutes(n);
         if (typeof initRemainingWakeNav === 'function') initRemainingWakeNav();
+      });
+    }
+
+    const useDefaultBtn = document.getElementById('nav-dev-banner-user-use-default');
+    if (useDefaultBtn) {
+      useDefaultBtn.addEventListener('click', function () {
+        applyDevBannerUserSettingsDefaults();
       });
     }
 
@@ -3881,75 +3915,84 @@ function renderNavBar(currentPage) {
   const devBannerUserIdEsc = escapeHtmlBannerText(RESTORE_CLOUD_USER_ID);
   const devBannerUserPanel =
     '<div class="nav-dev-banner-user-panel" id="nav-dev-banner-user-panel">' +
+    '<div class="nav-dev-banner-user-panel-header">' +
+    '<span class="nav-dev-banner-user-panel-title-line">' +
     '<span class="nav-dev-banner-user-panel-title">User settings</span>' +
-    '<div class="nav-dev-banner-user-tenant-row">' +
-    '<span class="nav-dev-banner-user-tenant-label">Cloud tenant</span>' +
-    '<code class="nav-dev-banner-user-id" title="RESTORE_CLOUD_USER_ID; user_settings primary key">' +
+    '<span class="nav-dev-banner-user-id-paren" aria-hidden="true"> (</span>' +
+    '<code class="nav-dev-banner-user-id nav-dev-banner-user-id--inline" title="RESTORE_CLOUD_USER_ID; user_settings primary key (cloud tenant)">' +
     devBannerUserIdEsc +
     '</code>' +
+    '<span class="nav-dev-banner-user-id-paren" aria-hidden="true">)</span>' +
+    '</span>' +
     '</div>' +
     '<div class="nav-dev-banner-user-settings" role="group" aria-label="User settings (dev; mirrors Settings and user_settings)">' +
-    '<div class="nav-dev-banner-user-settings-row nav-dev-banner-user-settings-row--stacked" role="group" aria-label="Display language">' +
-    '<div class="nav-dev-banner-user-field">' +
+    '<div class="nav-dev-banner-user-settings-row nav-dev-banner-user-settings-row--prefs-grid" role="group" aria-label="Display, quality, and remaining time">' +
+    '<div class="nav-dev-banner-user-defaults-slot">' +
+    '<button type="button" class="nav-dev-banner-user-defaults-btn" id="nav-dev-banner-user-use-default"' +
+    ' aria-label="Reset user settings to app defaults">Use defaults</button>' +
+    '</div>' +
+    '<div class="nav-dev-banner-user-field nav-dev-banner-user-field--col nav-dev-banner-user-field--pref">' +
     '<span class="nav-dev-banner-user-label">Language</span>' +
     '<select id="nav-dev-banner-user-lang" class="nav-dev-banner-user-select nav-dev-banner-user-select--field" aria-label="Display language">' +
     '<option value="en">en</option>' +
     '<option value="ja">ja</option>' +
     '</select>' +
     '</div>' +
-    '</div>' +
-    '<div class="nav-dev-banner-user-settings-row nav-dev-banner-user-settings-row--stacked" role="group" aria-label="Clock format">' +
-    '<div class="nav-dev-banner-user-field">' +
+    '<div class="nav-dev-banner-user-field nav-dev-banner-user-field--col nav-dev-banner-user-field--pref">' +
     '<span class="nav-dev-banner-user-label">Clock</span>' +
-    '<span class="nav-dev-banner-user-btn-row" role="group" aria-label="Clock format">' +
-    '<button type="button" class="nav-dev-banner-user-seg" id="nav-dev-banner-user-clock-12h" data-dev-clock="12h" aria-pressed="false">12h</button>' +
-    '<button type="button" class="nav-dev-banner-user-seg" id="nav-dev-banner-user-clock-24h" data-dev-clock="24h" aria-pressed="false">24h</button>' +
-    '</span>' +
+    '<select id="nav-dev-banner-user-clock" class="nav-dev-banner-user-select nav-dev-banner-user-select--field" aria-label="Clock format">' +
+    '<option value="12h">12h</option>' +
+    '<option value="24h">24h</option>' +
+    '</select>' +
     '</div>' +
-    '</div>' +
-    '<div class="nav-dev-banner-user-settings-row nav-dev-banner-user-settings-row--stacked" role="group" aria-label="Theme override">' +
-    '<div class="nav-dev-banner-user-field">' +
+    '<div class="nav-dev-banner-user-field nav-dev-banner-user-field--col nav-dev-banner-user-field--pref">' +
     '<span class="nav-dev-banner-user-label">Theme</span>' +
-    '<span class="nav-dev-banner-user-btn-row" role="group" aria-label="Theme override">' +
-    '<button type="button" class="nav-dev-banner-user-seg" id="nav-dev-banner-user-theme-auto" data-dev-theme="auto" aria-pressed="false">Auto</button>' +
-    '<button type="button" class="nav-dev-banner-user-seg" id="nav-dev-banner-user-theme-day" data-dev-theme="day" aria-pressed="false">Day</button>' +
-    '<button type="button" class="nav-dev-banner-user-seg" id="nav-dev-banner-user-theme-night" data-dev-theme="night" aria-pressed="false">Night</button>' +
-    '</span>' +
+    '<select id="nav-dev-banner-user-theme" class="nav-dev-banner-user-select nav-dev-banner-user-select--field" aria-label="Theme override">' +
+    '<option value="auto">Auto</option>' +
+    '<option value="day">Day</option>' +
+    '<option value="night">Night</option>' +
+    '</select>' +
     '</div>' +
-    '</div>' +
-    '<div class="nav-dev-banner-user-settings-row nav-dev-banner-user-settings-row--stacked" role="group" aria-label="Quality palette">' +
-    '<div class="nav-dev-banner-user-field nav-dev-banner-user-field--palette">' +
+    '<div class="nav-dev-banner-user-field nav-dev-banner-user-field--col nav-dev-banner-user-field--pref">' +
     '<span class="nav-dev-banner-user-label">Palette</span>' +
-    '<span class="nav-dev-banner-user-btn-row" role="group" aria-label="Quality palette">' +
-    '<button type="button" class="nav-dev-banner-user-seg" id="nav-dev-banner-user-pal-meadow" data-dev-quality="meadow" aria-pressed="false">Meadow</button>' +
-    '<button type="button" class="nav-dev-banner-user-seg" id="nav-dev-banner-user-pal-harbor" data-dev-quality="harbor" aria-pressed="false">Harbor</button>' +
-    '<button type="button" class="nav-dev-banner-user-seg" id="nav-dev-banner-user-pal-auto" data-dev-quality="auto" aria-pressed="false">Auto</button>' +
+    '<select id="nav-dev-banner-user-palette" class="nav-dev-banner-user-select nav-dev-banner-user-select--field" aria-label="Quality palette">' +
+    '<option value="meadow">Meadow</option>' +
+    '<option value="harbor">Harbor</option>' +
+    '<option value="auto">Auto</option>' +
+    '</select>' +
+    '</div>' +
+    '<div class="nav-dev-banner-user-remaining-time" role="group" aria-labelledby="nav-dev-banner-remaining-time-heading">' +
+    '<span class="nav-dev-banner-user-remaining-time-heading" id="nav-dev-banner-remaining-time-heading">Remaining time</span>' +
+    '<div class="nav-dev-banner-user-remaining-time-controls">' +
+    '<div class="nav-dev-banner-user-field nav-dev-banner-user-field--col nav-dev-banner-user-field--rw">' +
+    '<span class="nav-dev-banner-user-label nav-dev-banner-user-label--rw">' +
+    '<span class="nav-dev-banner-user-emoji" aria-hidden="true">🌇</span> Winding' +
+    '</span>' +
+    '<span class="nav-dev-banner-user-pct-row">' +
+    '<input type="number" id="nav-dev-banner-rw-open" class="nav-dev-banner-user-input-num nav-dev-banner-user-input-num--pct" min="1" max="99" step="1" aria-label="Winding: percent of wake time remaining when the active phase ends (winding begins below this)" />' +
+    '<span class="nav-dev-banner-user-pct-suffix" aria-hidden="true">%</span>' +
     '</span>' +
     '</div>' +
-    '</div>' +
-    '<div class="nav-dev-banner-user-settings-row nav-dev-banner-user-settings-row--stacked" role="group" aria-label="Wake thresholds">' +
-    '<div class="nav-dev-banner-user-field nav-dev-banner-user-field--wake">' +
-    '<span class="nav-dev-banner-user-label">Wake percent</span>' +
-    '<span class="nav-dev-banner-user-rw-inputs">' +
-    '<label class="nav-dev-banner-user-num"><span class="nav-dev-banner-user-num-lbl">Active ≥</span>' +
-    '<input type="number" id="nav-dev-banner-rw-open" class="nav-dev-banner-user-input-num" min="1" max="99" step="1" aria-label="Active phase percent floor" />' +
-    '</label>' +
-    '<label class="nav-dev-banner-user-num"><span class="nav-dev-banner-user-num-lbl">Winding ≥</span>' +
-    '<input type="number" id="nav-dev-banner-rw-winding" class="nav-dev-banner-user-input-num" min="0" max="98" step="1" aria-label="Winding phase percent floor" />' +
-    '</label>' +
+    '<div class="nav-dev-banner-user-field nav-dev-banner-user-field--col nav-dev-banner-user-field--rw">' +
+    '<span class="nav-dev-banner-user-label nav-dev-banner-user-label--rw">' +
+    '<span class="nav-dev-banner-user-emoji" aria-hidden="true">🛏️</span> Pre-sleep' +
+    '</span>' +
+    '<span class="nav-dev-banner-user-pct-row">' +
+    '<input type="number" id="nav-dev-banner-rw-winding" class="nav-dev-banner-user-input-num nav-dev-banner-user-input-num--pct" min="0" max="98" step="1" aria-label="Pre-sleep: percent of wake time remaining when winding ends (pre-sleep begins below this)" />' +
+    '<span class="nav-dev-banner-user-pct-suffix" aria-hidden="true">%</span>' +
     '</span>' +
     '</div>' +
-    '</div>' +
-    '<div class="nav-dev-banner-user-settings-row nav-dev-banner-user-settings-row--stacked" role="group" aria-label="Phase heads-up">' +
-    '<div class="nav-dev-banner-user-field nav-dev-banner-user-field--heads">' +
-    '<span class="nav-dev-banner-user-label">Heads-up</span>' +
-    '<select id="nav-dev-banner-rw-heads-up" class="nav-dev-banner-user-select nav-dev-banner-user-select--field" aria-label="Phase change heads-up minutes">' +
+    '<div class="nav-dev-banner-user-field nav-dev-banner-user-field--col nav-dev-banner-user-field--rw">' +
+    '<span class="nav-dev-banner-user-label nav-dev-banner-user-label--rw">Heads-up</span>' +
+    '<select id="nav-dev-banner-rw-heads-up" class="nav-dev-banner-user-select nav-dev-banner-user-select--field nav-dev-banner-user-select--rw-compact" aria-label="Heads-up before phase change (minutes)">' +
     '<option value="60">60 min</option>' +
     '<option value="45">45 min</option>' +
     '<option value="30">30 min</option>' +
     '<option value="15">15 min</option>' +
     '<option value="0">Off</option>' +
     '</select>' +
+    '</div>' +
+    '</div>' +
     '</div>' +
     '</div>' +
     '</div>' +

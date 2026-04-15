@@ -11,4 +11,4 @@ alwaysApply: false
 
 Dev-banner visibility, warnings, drawer behavior, app-time simulation, and fixed-layout reserve logic are documented in **`docs/dev-banner.md`**.
 
-When changing `isDevBuildContext`, `readDevClockOverrideMs`, `getAppNowMs`, `renderNavBar`, `initDevClockControl`, `initDevBannerCloudRefresh`, `initDevBannerSupabasePresetToggle`, `initDevBannerDrawer`, `initDevBannerUserSettingsPanel`, `updateDevBannerUserSettingsPanel`, `measureDevBannerExpandedHeightPx`, `syncDevBannerFixedLayout`, or `ensureDevSupabasePresetApplied`, update that doc and the **Keys and constants** table if any key names, precedence, or thresholds change.
+When changing `isDevBuildContext`, `readDevClockOverrideMs`, `getAppNowMs`, `renderNavBar`, `initDevClockControl`, `initDevBannerCloudRefresh`, `initDevBannerSupabasePresetToggle`, `initDevBannerDrawer`, `initDevBannerUserSettingsPanel`, `updateDevBannerUserSettingsPanel`, `applyDevBannerUserSettingsDefaults`, `measureDevBannerExpandedHeightPx`, `syncDevBannerFixedLayout`, or `ensureDevSupabasePresetApplied`, update that doc and the **Keys and constants** table if any key names, precedence, or thresholds change.
