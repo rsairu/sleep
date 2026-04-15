@@ -1133,6 +1133,35 @@ body{
   line-height: 0;
 }
 
+.nav-app-icon-wrap.nav-slumby-icon-wrap {
+  position: relative;
+  width: 36px;
+  height: 36px;
+}
+
+.nav-slumby-icon-wrap .nav-slumby-gif {
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.nav-slumby-icon-wrap.nav-slumby-icon-wrap--animating .nav-slumby-still {
+  visibility: hidden;
+}
+
+.nav-slumby-icon-wrap.nav-slumby-icon-wrap--animating .nav-slumby-gif {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Slumby’s corners extend past a 10px radius on a 36×36 slot; no radius avoids clipping. */
+.nav-slumby-icon-wrap .nav-app-icon {
+  border-radius: 0;
+}
+
 .nav-app-icon {
   display: block;
   width: 36px;

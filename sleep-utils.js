@@ -3429,6 +3429,7 @@ function initDayNightTheme() {
   const pillWrap = document.getElementById('nav-daynight');
   if (pillWrap) pillWrap.addEventListener('click', handleDayNightClick);
   initNavMenu();
+  initNavSlumbyBounce();
   initDevClockControl();
   initDevBannerCloudRefresh();
   initDevBannerSupabasePresetToggle();
@@ -3620,6 +3621,13 @@ function isDevGitBranchMaster() {
   return label !== '' && label.toLowerCase() === 'master';
 }
 
+/** 1×1 transparent GIF — idle `src` for nav Slumby bounce overlay between plays. */
+var SLUMBY_NAV_GIF_IDLE_DATA_URI =
+  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+var SLUMBY_NAV_BOUNCE_MS = 4180;
+var SLUMBY_NAV_STILL_PATH = 'assets/slumby_bounce_still.png';
+var SLUMBY_NAV_GIF_PATH = 'assets/slumby_bounce_mini.gif';
+
 // Render navigation bar
 function renderNavBar(currentPage) {
   applyDayNightTheme();
@@ -3669,8 +3677,16 @@ function renderNavBar(currentPage) {
   );
   const navRight = `<div class="nav-right nav-menu-wrap">${menuTrigger}${menuItems}</div>`;
 
-  const appIcon = '<img src="assets/icon_512.png" alt="" class="nav-app-icon" width="36" height="36">';
-  const appName = `<a href="dashboard.html" class="nav-app-block nav-app-block--stacked" title="${t('nav.tabs.dashboard', 'Dashboard')}"><span class="nav-app-name">Restore</span><span class="nav-app-icon-wrap">${appIcon}</span><span class="nav-app-subtitle">${t('nav.app.subtitle', 'Sleep Tracker')}</span></a>`;
+  const appIcon =
+    '<span class="nav-app-icon-wrap nav-slumby-icon-wrap" id="nav-slumby-icon-wrap">' +
+    '<img src="' +
+    SLUMBY_NAV_STILL_PATH +
+    '" alt="" class="nav-app-icon nav-slumby-still" id="nav-slumby-still" width="36" height="36" decoding="async">' +
+    '<img src="' +
+    SLUMBY_NAV_GIF_IDLE_DATA_URI +
+    '" alt="" class="nav-app-icon nav-slumby-gif" id="nav-slumby-gif" width="36" height="36" decoding="async" aria-hidden="true">' +
+    '</span>';
+  const appName = `<a href="dashboard.html" class="nav-app-block nav-app-block--stacked" title="${t('nav.tabs.dashboard', 'Dashboard')}"><span class="nav-app-name">Restore</span>${appIcon}<span class="nav-app-subtitle">${t('nav.app.subtitle', 'Sleep Tracker')}</span></a>`;
   const remainingWakeSlot = `<div class="nav-remaining-wake" id="nav-remaining-wake"></div>`;
   const headerRow = `<div class="nav-header nav-header--remaining-wake">${appName}${remainingWakeSlot}${navRight}</div>`;
   const tabsRow = `<div class="nav-tabs-row"><div class="nav-tabs">${navItems}</div></div>`;
@@ -4156,6 +4172,63 @@ function updateRemainingWakeNav(display) {
  * Fetches sleep data and fills remaining wake in nav. Call on every page so header is consistent.
  * @param {{ interval?: boolean }} [options] — pass `{ interval: false }` when the page already refreshes the nav (e.g. log) or to avoid racing before `nav-container` is filled (dashboard runs load before inline nav render).
  */
+function scheduleNextNavSlumbyBounce() {
+  if (typeof window === 'undefined') return;
+  var schedKey = '__sleepAppNavSlumbyScheduleTimer';
+  if (window[schedKey]) {
+    clearTimeout(window[schedKey]);
+    window[schedKey] = null;
+  }
+  var minMs = 10000;
+  var maxMs = 35000;
+  var delay = minMs + Math.random() * (maxMs - minMs);
+  window[schedKey] = setTimeout(function () {
+    window[schedKey] = null;
+    playNavSlumbyBounce();
+  }, delay);
+}
+
+function playNavSlumbyBounce() {
+  if (typeof document === 'undefined') return;
+  var wrap = document.getElementById('nav-slumby-icon-wrap');
+  var gifEl = document.getElementById('nav-slumby-gif');
+  if (!wrap || !gifEl) {
+    scheduleNextNavSlumbyBounce();
+    return;
+  }
+  var endKey = '__sleepAppNavSlumbyEndTimer';
+  if (typeof window !== 'undefined' && window[endKey]) {
+    clearTimeout(window[endKey]);
+    window[endKey] = null;
+  }
+  gifEl.src = SLUMBY_NAV_GIF_PATH + '?t=' + Date.now();
+  wrap.classList.add('nav-slumby-icon-wrap--animating');
+  if (typeof window === 'undefined') return;
+  window[endKey] = setTimeout(function () {
+    window[endKey] = null;
+    wrap.classList.remove('nav-slumby-icon-wrap--animating');
+    gifEl.src = SLUMBY_NAV_GIF_IDLE_DATA_URI;
+    scheduleNextNavSlumbyBounce();
+  }, SLUMBY_NAV_BOUNCE_MS);
+}
+
+/** Random intermittent Slumby bounce in the main nav (still PNG + overlay GIF). */
+function initNavSlumbyBounce() {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+  var schedKey = '__sleepAppNavSlumbyScheduleTimer';
+  var endKey = '__sleepAppNavSlumbyEndTimer';
+  if (window[schedKey]) {
+    clearTimeout(window[schedKey]);
+    window[schedKey] = null;
+  }
+  if (window[endKey]) {
+    clearTimeout(window[endKey]);
+    window[endKey] = null;
+  }
+  if (!document.getElementById('nav-slumby-icon-wrap')) return;
+  scheduleNextNavSlumbyBounce();
+}
+
 function initRemainingWakeNav(options) {
   const runInterval = !options || options.interval !== false;
   const timerKey = '__sleepAppRemainingWakeNavTimer';
