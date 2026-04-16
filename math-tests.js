@@ -19,6 +19,8 @@ function loadSleepUtils() {
   };
   vm.createContext(context);
   vm.runInContext(code, context, { filename: 'sleep-utils.js' });
+  const aggPath = path.join(__dirname, 'stats-aggregates.js');
+  vm.runInContext(fs.readFileSync(aggPath, 'utf8'), context, { filename: 'stats-aggregates.js' });
   return context;
 }
 
@@ -166,10 +168,75 @@ function runTests() {
     'resolveRecordDateMdForWake uses sleep-period key outside early-morning band'
   );
 
+  // stats-aggregates: mid-sleep geometry (must match stats.js)
+  const SA = u.StatsAggregates;
+  expectTruthy(SA, 'StatsAggregates is attached');
+  expectEqual(SA.perNightMidSleepClockMinutes({ sleepStart: '23:00', sleepEnd: '07:00' }), 180, 'mid-sleep overnight wrap → 03:00');
+  expectEqual(SA.perNightMidSleepClockMinutes({ sleepStart: '01:00', sleepEnd: '08:30' }), 285, 'mid-sleep same segment → 04:45');
+  expectEqual(SA.perNightMidSleepClockMinutes({ sleepStart: '22:30', sleepEnd: '06:15' }), 143, 'mid-sleep 22:30–06:15 → 02:23');
+  const midAvgTwo = SA.averageMidSleepClockMinutes([
+    { sleepStart: '23:00', sleepEnd: '07:00' },
+    { sleepStart: '00:15', sleepEnd: '07:45' }
+  ]);
+  expectEqual(midAvgTwo, 210, 'average mid-sleep nights 03:00 + 04:00 → 03:30 (normalize path)');
+
+  expectEqual(SA.isScheduledDay({ date: '2026-01-05' }), true, 'isScheduledDay Mon non-holiday');
+  expectEqual(SA.isScheduledDay({ date: '2026-01-03' }), false, 'isScheduledDay Saturday');
+  expectEqual(SA.isScheduledDay({ date: '2026-01-01' }), false, 'isScheduledDay New Year holiday');
+
+  const social = SA.socialLagMinutes(
+    [{ sleepStart: '00:00', sleepEnd: '08:00' }],
+    [{ sleepStart: '02:00', sleepEnd: '08:30' }]
+  );
+  expectEqual(social, 75, 'social lag |05:15 − 04:00| = 75 min on shortest arc');
+
+  const wakeLag = SA.wakeLagMinutes([
+    { sleepStart: '23:00', sleepEnd: '07:30', alarm: [] },
+    { sleepStart: '23:00', sleepEnd: '07:00', alarm: ['06:40'] }
+  ]);
+  expectEqual(wakeLag, 30, 'wake lag natural 07:30 vs alarm-assisted 07:00 → +30 min');
+
+  const filtered7 = SA.filterDaysByPeriod(
+    [
+      { date: '2026-04-10', sleepStart: '23:00', sleepEnd: '07:00' },
+      { date: '2026-04-01', sleepStart: '23:00', sleepEnd: '07:00' }
+    ],
+    '7',
+    new Date(2026, 3, 10)
+  );
+  expectEqual(filtered7.length, 1, 'filterDaysByPeriod 7-day window inclusive end');
+
   // Dataset invariants on current data (guardrails for regressions)
   const dataPath = path.join(__dirname, 'data', 'sleep-data.json');
   if (fs.existsSync(dataPath)) {
     const days = JSON.parse(fs.readFileSync(dataPath, 'utf8')).days || [];
+    if (process.env.STATS_MID_VERIFY === '1' && u.StatsAggregates) {
+      let n = 0;
+      for (let i = 0; i < days.length && n < 5; i++) {
+        const d = days[i];
+        if (!d || !d.sleepStart || !d.sleepEnd) continue;
+        const m = u.StatsAggregates.perNightMidSleepClockMinutes(d);
+        if (m === null) continue;
+        const hh = String(Math.floor(m / 60)).padStart(2, '0');
+        const mm = String(m % 60).padStart(2, '0');
+        console.log(
+          '[STATS_MID_VERIFY] ' +
+            d.date +
+            ' sleepStart=' +
+            d.sleepStart +
+            ' sleepEnd=' +
+            d.sleepEnd +
+            ' → midClock=' +
+            m +
+            ' min (' +
+            hh +
+            ':' +
+            mm +
+            ')'
+        );
+        n++;
+      }
+    }
     days.forEach((d, idx) => {
       const wakeDelay = u.calculateWakeDelay(d);
       if (wakeDelay !== null && wakeDelay < 0) {
