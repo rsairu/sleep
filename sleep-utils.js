@@ -4245,14 +4245,41 @@ function playNavSlumbyBounce() {
     window[endKey] = null;
   }
   gifEl.src = SLUMBY_NAV_GIF_PATH + '?t=' + Date.now();
-  wrap.classList.add('nav-slumby-icon-wrap--animating');
-  if (typeof window === 'undefined') return;
-  window[endKey] = setTimeout(function () {
-    window[endKey] = null;
-    wrap.classList.remove('nav-slumby-icon-wrap--animating');
-    gifEl.src = SLUMBY_NAV_GIF_IDLE_DATA_URI;
+  function revealAndRunBounceTimer() {
+    wrap.classList.add('nav-slumby-icon-wrap--animating');
+    if (typeof window === 'undefined') return;
+    window[endKey] = setTimeout(function () {
+      window[endKey] = null;
+      wrap.classList.remove('nav-slumby-icon-wrap--animating');
+      gifEl.src = SLUMBY_NAV_GIF_IDLE_DATA_URI;
+      scheduleNextNavSlumbyBounce();
+    }, SLUMBY_NAV_BOUNCE_MS);
+  }
+  function onGifReadyFailed() {
     scheduleNextNavSlumbyBounce();
-  }, SLUMBY_NAV_BOUNCE_MS);
+  }
+  if (typeof gifEl.decode === 'function') {
+    gifEl.decode().then(revealAndRunBounceTimer).catch(onGifReadyFailed);
+  } else if (gifEl.complete) {
+    revealAndRunBounceTimer();
+  } else {
+    gifEl.addEventListener(
+      'load',
+      function onGifLoad() {
+        gifEl.removeEventListener('load', onGifLoad);
+        revealAndRunBounceTimer();
+      },
+      { once: true }
+    );
+    gifEl.addEventListener(
+      'error',
+      function onGifError() {
+        gifEl.removeEventListener('error', onGifError);
+        onGifReadyFailed();
+      },
+      { once: true }
+    );
+  }
 }
 
 /** Random intermittent Slumby bounce in the main nav (still PNG + overlay GIF). */

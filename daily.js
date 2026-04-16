@@ -623,22 +623,6 @@ function renderAveragesColumn(averages, title) {
   `;
 }
 
-// Render top averages for stats page: recent (left) and lifetime (right) in split columns
-function renderStatsTopAverages(days) {
-  if (!days || days.length === 0) return '';
-  const recentDays = days.slice(0, Math.min(7, days.length));
-  const recentAverages = calculateAverages(recentDays);
-  const lifetimeAverages = calculateAverages(days);
-  return `
-    <div class="dashboard-averages-panel stats-top-averages">
-      <div class="averages-container">
-        ${renderAveragesColumn(recentAverages, '🕒 Recent average (7 days)')}
-        ${renderAveragesColumn(lifetimeAverages, '🌳 Lifetime average')}
-      </div>
-    </div>
-  `;
-}
-
 // Render week summary stats (for collapsed state)
 function renderWeekSummary(days) {
   const averages = calculateAverages(days);
