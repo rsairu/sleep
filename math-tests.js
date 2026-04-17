@@ -63,6 +63,11 @@ function runTests() {
     'normalizeSleepDayLabels filters and orders'
   );
 
+  expectEqual(u.normalizeSleepDateKey('2026-03-15'), '2026-03-15', 'normalizeSleepDateKey ISO passthrough');
+  expectEqual(u.normalizeSleepDateKey('  2026-03-15  '), '2026-03-15', 'normalizeSleepDateKey trims ISO');
+  expectEqual(u.normalizeSleepDateKey('3/15/2026'), '', 'normalizeSleepDateKey rejects M/D');
+  expectEqual(u.normalizeSleepDateKey('2026-13-40'), '', 'normalizeSleepDateKey rejects invalid calendar');
+
   // Sleep totals + nap handling
   const napCrossingMidnightDay = {
     sleepStart: '23:30',

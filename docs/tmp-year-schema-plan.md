@@ -6,8 +6,8 @@ overview: >
   (user_id, sleep_date), wired to RESTORE_CLOUD_USER_ID. JS model uses
   ISO YYYY-MM-DD throughout. Ends with a final cutover that drops date_md and
   all legacy constraints.
-phases_completed: [phase1-iso-js, phase2-ddl, phase3-rest, phase4-rpc]
-next_phase: phase5-js-legacy
+phases_completed: [phase1-iso-js, phase2-ddl, phase3-rest, phase4-rpc, phase5-js-legacy]
+next_phase: phase6-ddl-cutover
 ---
 
 # Master Plan — Postgres `sleep_date` + Composite Unique Key
@@ -25,7 +25,7 @@ storage requires removing uniqueness on `M/D` and enforcing identity on
 | Constant | Value | Where used |
 |---|---|---|
 | `RESTORE_CLOUD_USER_ID` | `00000000-0000-0000-0000-000000000001` | `sleep-utils.js`, DB column default, `user_settings` seed |
-| `LEGACY_SLEEP_DATE_FALLBACK_YEAR` | `2026` | `sleep-utils.js`, DB backfill helper |
+| `restore_parse_sleep_date_md` fallback year | `2026` | Postgres only (`supabase/schema.sql`, migrations) |
 
 ### File map
 | File | Role |
@@ -49,8 +49,9 @@ storage requires removing uniqueness on `M/D` and enforcing identity on
 
 ### ✅ Phase 1 — ISO date in the JS client (DONE)
 
-All client code uses `YYYY-MM-DD` for `day.date`. Legacy `M/D` is supported
-via a parser with explicit fallback year.
+All client code uses strict ISO `YYYY-MM-DD` for `day.date` (Phase 5). Legacy
+`M/D` keys are no longer parsed in JS; Postgres still uses
+`restore_parse_sleep_date_md` for migrations and RPC-era backfill only.
 
 **What was implemented:**
 - `normalizeSleepDateKey`, `parseIsoLocalDate`, `parseSleepDateToLocalDate`,
@@ -237,23 +238,26 @@ deploying the updated `sleep-utils.js` (old RPC signature is removed).
 
 ---
 
-## Phase 5 — Remove all `M/D` / `date_md` / legacy `YEAR` from JS
+### ✅ Phase 5 — ISO-only sleep keys in JS (DONE)
 
-**Goal:** No JS code path depends on `M/D` strings or global year constants.
+**Goal:** No JS parsing of `M/D` storage keys or `LEGACY_SLEEP_DATE_FALLBACK_YEAR`.
 
-**Tasks:**
-1. Grep for: `date_md`, `split('/')`, `YEAR`, `parseDateString`, `M/D`,
-   `getDateFromString` with hardcoded year — remove dead branches now that
-   ISO is the only format.
-2. Remove `LEGACY_SLEEP_DATE_FALLBACK_YEAR` references once no legacy data
-   can exist in the DB (after Phase 2 backfill + normalization confirmed).
-3. `sortDaysNewestFirst` — confirm it sorts lexicographically on ISO strings
-   (or via `Date` objects); no M/D special-casing.
-4. Regression pass on: log view, daily, stats, graph, quality, quick actions,
-   config cloud test.
+**Implemented:**
+- `normalizeSleepDateKey` accepts strict `YYYY-MM-DD` only (no `split('/')` path).
+- Removed `LEGACY_SLEEP_DATE_FALLBACK_YEAR` from JS; empty-data year fallbacks
+  use `getAppDate().getFullYear()` or `new Date().getFullYear()`.
+- `parseSleepDateToLocalDate`, `getDateFromString`, `isWeekend`, `isHoliday`:
+  ISO-only string branch; dropped unused `fallbackYear` parameters.
+- Cloud row mapping: `date_md` fallback only when it normalizes as ISO; draft
+  upsert rejects non-ISO night keys.
+- `sortDaysNewestFirst` unchanged — still lexicographic on normalized ISO keys.
 
-**Validation:** Full UI regression. `node math-tests.js` passes. No `date_md`
-or `M/D` string manipulation in JS.
+**Still until Phase 6:** PostgREST payloads include the `date_md` **column**
+(mirrored ISO) for `sleep_days` / `sleep_day_drafts`; RPC result normalization
+may still read `result_date_md` from a pre–Phase 4 server. That is transport,
+not M/D parsing.
+
+**Validation:** `node math-tests.js` passes; UI spot-check recommended.
 
 ---
 

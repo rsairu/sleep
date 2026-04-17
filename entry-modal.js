@@ -6,10 +6,10 @@
   /** Last loaded main times per dateMd for QA flags (bed / sleep / wake) after save. */
   let quickAddInitialSnapshot = null;
 
-  /** `YYYY-MM-DD` for `<input type="date">` from stored sleep key (ISO or legacy M/D). */
+  /** `YYYY-MM-DD` for `<input type="date">` from stored sleep key (ISO only). */
   function sleepDateKeyToDateInputValue(key) {
     if (!key || typeof key !== 'string') return '';
-    const iso = normalizeSleepDateKey(key, getAppDate().getFullYear());
+    const iso = normalizeSleepDateKey(key);
     return iso || '';
   }
 

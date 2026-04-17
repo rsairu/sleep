@@ -386,7 +386,7 @@ function mapSupabaseRowToDay(row) {
   const hasSleepDate = row.sleep_date != null && String(row.sleep_date).trim() !== '';
   if (hasSleepDate) {
     const s = String(row.sleep_date).trim().slice(0, 10);
-    canon = normalizeSleepDateKey(s, LEGACY_SLEEP_DATE_FALLBACK_YEAR) || s;
+    canon = normalizeSleepDateKey(s);
   }
   if (!canon && row.date_md) {
     if (!warnedSleepDateMissingFromCloudRow && typeof console !== 'undefined' && console.warn) {
@@ -395,8 +395,7 @@ function mapSupabaseRowToDay(row) {
         'Restore: cloud row missing sleep_date; using date_md fallback. This should not occur after Phase 2 migration.'
       );
     }
-    canon =
-      normalizeSleepDateKey(row.date_md, LEGACY_SLEEP_DATE_FALLBACK_YEAR) || String(row.date_md).trim();
+    canon = normalizeSleepDateKey(String(row.date_md).trim().slice(0, 10));
   }
   if (!canon) return null;
   return {
@@ -492,9 +491,7 @@ function mergePartialSleepDayForUpsert(existing, dateMd, partial) {
 function mapDayToSupabaseRow(day) {
   const bathroom = Array.isArray(day.bathroom) ? day.bathroom.map(normalizeTimeStringForSupabase) : [];
   const alarm = Array.isArray(day.alarm) ? day.alarm.map(normalizeTimeStringForSupabase) : [];
-  const dateMd =
-    normalizeSleepDateKey(day.date, LEGACY_SLEEP_DATE_FALLBACK_YEAR) ||
-    (day.date != null ? String(day.date).trim() : '');
+  const dateMd = normalizeSleepDateKey(day.date) || '';
   return {
     user_id: RESTORE_CLOUD_USER_ID,
     sleep_date: dateMd || null,
@@ -924,8 +921,7 @@ function getSleepDayByDate(dateMd) {
 function getSleepDraftByDate(dateMd) {
   const config = getSupabaseConfig();
   if (!config.enabled || !dateMd) return Promise.resolve(null);
-  const iso =
-    normalizeSleepDateKey(dateMd, LEGACY_SLEEP_DATE_FALLBACK_YEAR) || String(dateMd).trim();
+  const iso = normalizeSleepDateKey(dateMd);
   if (!iso) return Promise.resolve(null);
   const select = 'user_id,sleep_date,date_md,bed,sleep_start,sleep_end,bathroom,alarm,nap_start,nap_end,waso,labels';
   const qIso = encodeURIComponent(iso);
@@ -962,8 +958,12 @@ function upsertSleepDraftPartial(dateMd, partial) {
   if (!dateMd) {
     return Promise.reject(new Error('Missing date for draft upsert.'));
   }
-  return getSleepDraftByDate(dateMd).then(function (existingDraft) {
-    const merged = mergePartialSleepDayForUpsert(existingDraft, dateMd, partial || {});
+  const nightKey = normalizeSleepDateKey(dateMd);
+  if (!nightKey) {
+    return Promise.reject(new Error('Invalid sleep date for draft upsert.'));
+  }
+  return getSleepDraftByDate(nightKey).then(function (existingDraft) {
+    const merged = mergePartialSleepDayForUpsert(existingDraft, nightKey, partial || {});
     const row = mapDayToSupabaseRow(merged);
     const url = config.url.replace(/\/+$/, '') + '/rest/v1/sleep_day_drafts?on_conflict=user_id,sleep_date';
     return fetch(url, {
@@ -997,9 +997,7 @@ function normalizePromoteDraftRpcResult(result, fallbackIso) {
   if (row.result_sleep_date != null && String(row.result_sleep_date).trim() !== '') {
     iso = String(row.result_sleep_date).trim().slice(0, 10);
   } else if (row.result_date_md) {
-    iso =
-      normalizeSleepDateKey(row.result_date_md, LEGACY_SLEEP_DATE_FALLBACK_YEAR) ||
-      String(row.result_date_md).trim().slice(0, 10);
+    iso = normalizeSleepDateKey(String(row.result_date_md).trim().slice(0, 10));
   }
   return { promoted: promoted, result_sleep_date: iso, date_md: iso };
 }
@@ -1012,8 +1010,7 @@ function saveDraftAndMaybePromote(dateMd, partial) {
   if (!dateMd) {
     return Promise.reject(new Error('Missing date for draft save.'));
   }
-  const key =
-    normalizeSleepDateKey(dateMd, LEGACY_SLEEP_DATE_FALLBACK_YEAR) || String(dateMd).trim();
+  const key = normalizeSleepDateKey(dateMd);
   if (!key) {
     return Promise.reject(new Error('Invalid sleep date for draft save.'));
   }
@@ -1280,9 +1277,6 @@ function appendSvgSleepBarFragmentation(parentG, x, y, width, height, level) {
   parentG.appendChild(fo);
 }
 
-/** When a sleep key is legacy M/D (no year), assume this calendar year. */
-var LEGACY_SLEEP_DATE_FALLBACK_YEAR = 2026;
-
 function isIsoSleepDateString(s) {
   return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s.trim());
 }
@@ -1308,60 +1302,38 @@ function formatIsoDateFromLocalDate(d) {
 }
 
 /**
- * Canonical sleep row key YYYY-MM-DD. Accepts ISO, legacy M/D, or M/D/YYYY.
+ * Canonical sleep row key YYYY-MM-DD. Strict ISO calendar dates only (`YYYY-MM-DD`).
  * @param {string} input
- * @param {number} [fallbackYear] for M/D without year (defaults to LEGACY_SLEEP_DATE_FALLBACK_YEAR)
  */
-function normalizeSleepDateKey(input, fallbackYear) {
+function normalizeSleepDateKey(input) {
   if (input == null || input === '') return '';
   const s = String(input).trim();
   if (!s) return '';
-  if (isIsoSleepDateString(s)) {
-    const d = parseIsoLocalDate(s);
-    return d ? formatIsoDateFromLocalDate(d) : '';
-  }
-  const parts = s.split('/').map(function (p) {
-    return p.trim();
-  });
-  if (parts.length >= 2) {
-    const month = parseInt(parts[0], 10);
-    const day = parseInt(parts[1], 10);
-    const y =
-      parts.length >= 3 && parts[2] !== ''
-        ? parseInt(parts[2], 10)
-        : Number.isFinite(fallbackYear)
-          ? fallbackYear
-          : LEGACY_SLEEP_DATE_FALLBACK_YEAR;
-    if (!Number.isFinite(month) || !Number.isFinite(day) || !Number.isFinite(y)) return '';
-    if (month < 1 || month > 12 || day < 1 || day > 31) return '';
-    const d = new Date(y, month - 1, day);
-    if (d.getFullYear() !== y || d.getMonth() !== month - 1 || d.getDate() !== day) return '';
-    return formatIsoDateFromLocalDate(d);
-  }
-  return '';
+  if (!isIsoSleepDateString(s)) return '';
+  const d = parseIsoLocalDate(s);
+  return d ? formatIsoDateFromLocalDate(d) : '';
 }
 
-/** Local midnight Date from sleep key (ISO or legacy M/D). */
-function parseSleepDateToLocalDate(dateString, fallbackYear) {
+/** Local midnight Date from sleep night key (ISO `YYYY-MM-DD` only). */
+function parseSleepDateToLocalDate(dateString) {
   if (!dateString) return new Date(NaN);
-  const fy = Number.isFinite(fallbackYear) ? fallbackYear : LEGACY_SLEEP_DATE_FALLBACK_YEAR;
-  const iso = normalizeSleepDateKey(dateString, fy);
+  const iso = normalizeSleepDateKey(dateString);
   if (!iso) return new Date(NaN);
   const d = parseIsoLocalDate(iso);
   return d || new Date(NaN);
 }
 
-/** M/D display for UI tooltips and day headers (from ISO or legacy key). */
-function formatSleepDateMonthDay(isoOrLegacy) {
-  const d = parseSleepDateToLocalDate(isoOrLegacy);
-  if (Number.isNaN(d.getTime())) return String(isoOrLegacy || '');
+/** Month/day display (e.g. `4/8`) for tooltips and headers; `isoOrKey` must be ISO `YYYY-MM-DD`. */
+function formatSleepDateMonthDay(isoOrKey) {
+  const d = parseSleepDateToLocalDate(isoOrKey);
+  if (Number.isNaN(d.getTime())) return String(isoOrKey || '');
   return d.getMonth() + 1 + '/' + d.getDate();
 }
 
 /** Years present in sleep rows (newest first), for multi-year heatmaps. */
 function getSleepDataYearsPresentDescending(days) {
   if (!days || !days.length) {
-    return typeof getAppDate === 'function' ? [getAppDate().getFullYear()] : [LEGACY_SLEEP_DATE_FALLBACK_YEAR];
+    return typeof getAppDate === 'function' ? [getAppDate().getFullYear()] : [new Date().getFullYear()];
   }
   const years = new Set();
   for (let i = 0; i < days.length; i++) {
@@ -1374,37 +1346,36 @@ function getSleepDataYearsPresentDescending(days) {
   });
   return arr.length
     ? arr
-    : [typeof getAppDate === 'function' ? getAppDate().getFullYear() : LEGACY_SLEEP_DATE_FALLBACK_YEAR];
+    : [typeof getAppDate === 'function' ? getAppDate().getFullYear() : new Date().getFullYear()];
 }
 
-// Parse date string to [month, day] (1-based month). Supports ISO and legacy M/D.
+// Parse date string to [month, day] (1-based month). Sleep key must be ISO `YYYY-MM-DD`.
 function parseDateString(dateString) {
   const d = parseSleepDateToLocalDate(dateString);
   if (Number.isNaN(d.getTime())) return [NaN, NaN];
   return [d.getMonth() + 1, d.getDate()];
 }
 
-// Get Date from sleep key; legacy M/D uses fallbackYear when year is absent from string.
-function getDateFromString(dateString, fallbackYear) {
-  const fy = Number.isFinite(fallbackYear) ? fallbackYear : LEGACY_SLEEP_DATE_FALLBACK_YEAR;
-  return parseSleepDateToLocalDate(dateString, fy);
+// Get Date from sleep night key (ISO `YYYY-MM-DD` only).
+function getDateFromString(dateString) {
+  return parseSleepDateToLocalDate(dateString);
 }
 
 // Check if a date is a weekend (Saturday or Sunday)
-// Accepts either a Date object or sleep date string (ISO or legacy M/D).
-function isWeekend(dateOrString, fallbackYear) {
+// Accepts either a Date object or sleep date string (ISO).
+function isWeekend(dateOrString) {
   let date;
   if (dateOrString instanceof Date) {
     date = dateOrString;
   } else {
-    date = getDateFromString(dateOrString, fallbackYear);
+    date = getDateFromString(dateOrString);
   }
   return date.getDay() % 6 === 0; // 0 = Sunday, 6 = Saturday
 }
 
 // Check if a date is a holiday
 // Accepts either a Date object or sleep date string. holidays is optional (defaults to HOLIDAYS_BY_YEAR).
-function isHoliday(dateOrString, holidays, fallbackYear) {
+function isHoliday(dateOrString, holidays) {
   const h = holidays ?? HOLIDAYS_BY_YEAR;
   let month;
   let day;
@@ -1414,8 +1385,7 @@ function isHoliday(dateOrString, holidays, fallbackYear) {
     day = dateOrString.getDate();
     y = dateOrString.getFullYear();
   } else {
-    const fy = Number.isFinite(fallbackYear) ? fallbackYear : LEGACY_SLEEP_DATE_FALLBACK_YEAR;
-    const d = parseSleepDateToLocalDate(dateOrString, fy);
+    const d = parseSleepDateToLocalDate(dateOrString);
     if (Number.isNaN(d.getTime())) return false;
     month = d.getMonth() + 1;
     day = d.getDate();
@@ -2139,7 +2109,7 @@ function readNightQaSleepFlagMap() {
     let changed = false;
     const migrated = {};
     Object.keys(o).forEach(function (k) {
-      const iso = normalizeSleepDateKey(k, LEGACY_SLEEP_DATE_FALLBACK_YEAR);
+      const iso = normalizeSleepDateKey(k);
       const nk = iso || k;
       if (nk !== k) changed = true;
       if (!migrated[nk]) migrated[nk] = {};
