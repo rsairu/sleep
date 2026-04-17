@@ -15,7 +15,7 @@
     <div class="graph-page-header">
       <h1 class="page-title">Sleep Graph</h1>
       <nav class="graph-chart-toc" aria-label="Jump to a chart">
-        <a href="#chart-bed-sleep-getup">Bed time, fell asleep, and get up</a>
+        <a href="#chart-bed-asleep-wake">Bed, asleep, and wake times</a>
         <a href="#chart-sleep-duration">Sleep duration</a>
         <a href="#chart-wake-delay">Wake delay (first alarm to get up)</a>
         <a href="#chart-sol">Sleep onset latency (SOL)</a>
@@ -31,83 +31,134 @@
         <button type="button" class="graph-range-btn" data-range="all" aria-pressed="false">All</button>
       </div>
     </div>
-    <h2 class="graph-chart-heading" id="chart-bed-sleep-getup">Bed time, fell asleep, and get up</h2>
+    <h2 class="graph-chart-heading graph-chart-heading--skp-time" id="chart-bed-asleep-wake">Bed, asleep, and wake times</h2>
     <div class="graph-container" id="graph-container">
       <svg id="graph-svg"></svg>
     </div>
     <div class="graph-show-hide-wrap">
       <div class="show-hide-section graph-show-hide-section">
-        <div class="show-hide-title">show/hide</div>
-        <div class="graph-show-hide-columns" role="group" aria-label="Line chart visibility">
-          <div class="graph-show-hide-col">
-            <label class="time-toggle graph-sh-toggle-label">
-              <input type="checkbox" id="show-all-data-lines" checked>
-              <span class="graph-sh-legend-gap" aria-hidden="true"></span>
-              <span>All data</span>
-            </label>
-            <label class="time-toggle graph-sh-toggle-label">
-              <input type="checkbox" id="show-bedtime-line" checked>
-              <span class="graph-sh-legend-icon" aria-hidden="true">🛏️</span>
-              <span>bed time</span>
-            </label>
-            <label class="time-toggle graph-sh-toggle-label">
-              <input type="checkbox" id="show-sleep-start-line" checked>
-              <span class="graph-sh-legend-icon" aria-hidden="true">🌙</span>
-              <span>fell asleep</span>
-            </label>
-            <label class="time-toggle graph-sh-toggle-label">
-              <input type="checkbox" id="show-getup-line" checked>
-              <span class="graph-sh-legend-icon" aria-hidden="true">🌅</span>
-              <span>get up</span>
-            </label>
+        <div class="graph-show-hide-grid" role="group" aria-label="Chart visibility">
+          <div class="graph-sh-section graph-sh-section--first">
+            <div class="graph-sh-row graph-sh-row--cols graph-sh-row--all-with-heads">
+              <div class="graph-sh-rail graph-sh-rail-label">All</div>
+              <label class="time-toggle graph-sh-toggle-label graph-sh-toggle-label--all-col-head">
+                <input type="checkbox" id="show-all-data-lines" checked>
+                <span class="graph-sh-legend-gap" aria-hidden="true"></span>
+                <span class="show-hide-title graph-sh-col-head-inline">Lines</span>
+              </label>
+              <label class="time-toggle graph-sh-toggle-label graph-sh-toggle-label--all-col-head">
+                <input type="checkbox" id="show-all-trend-lines" checked>
+                <span class="graph-sh-legend-gap" aria-hidden="true"></span>
+                <span class="show-hide-title graph-sh-col-head-inline">Trends</span>
+              </label>
+              <label class="time-toggle graph-sh-toggle-label graph-sh-toggle-label--all-col-head">
+                <input type="checkbox" id="show-all-graph-points" checked>
+                <span class="graph-sh-legend-gap" aria-hidden="true"></span>
+                <span class="show-hide-title graph-sh-col-head-inline">Points</span>
+              </label>
+            </div>
           </div>
-          <div class="graph-show-hide-col">
-            <label class="time-toggle graph-sh-toggle-label">
-              <input type="checkbox" id="show-all-trend-lines" checked>
-              <span class="graph-sh-legend-gap" aria-hidden="true"></span>
-              <span>All trends</span>
-            </label>
-            <label class="time-toggle graph-sh-toggle-label">
-              <input type="checkbox" id="show-bedtime-regression" checked>
-              <div class="legend-line bedtime-regression"></div>
-              <span>trend</span>
-            </label>
-            <label class="time-toggle graph-sh-toggle-label">
-              <input type="checkbox" id="show-sleep-start-regression" checked>
-              <div class="legend-line sleep-start-regression"></div>
-              <span>trend</span>
-            </label>
-            <label class="time-toggle graph-sh-toggle-label">
-              <input type="checkbox" id="show-getup-regression" checked>
-              <div class="legend-line getup-regression"></div>
-              <span>trend</span>
-            </label>
+          <div class="graph-sh-section">
+            <div class="graph-sh-row graph-sh-row--cols">
+              <div class="graph-sh-rail graph-sh-rail-emoji" aria-hidden="true">🛏️</div>
+              <label class="time-toggle graph-sh-toggle-label" aria-label="Bed time line">
+                <input type="checkbox" id="show-bedtime-line" checked>
+                <span class="graph-sh-data-line graph-sh-data-line--bed" aria-hidden="true"></span>
+              </label>
+              <label class="time-toggle graph-sh-toggle-label" aria-label="Bed time trend">
+                <input type="checkbox" id="show-bedtime-regression" checked>
+                <div class="legend-line bedtime-regression" aria-hidden="true"></div>
+              </label>
+              <label class="time-toggle graph-sh-toggle-label" aria-label="Bed time points">
+                <input type="checkbox" id="show-bedtime-points" checked>
+                <span class="graph-sh-legend-dot graph-sh-legend-dot--bed" aria-hidden="true"></span>
+              </label>
+            </div>
           </div>
-          <div class="graph-show-hide-col graph-show-hide-col--wake-type" role="group" aria-label="Get up wake type markers">
-            <div class="show-hide-title">Wake type</div>
-            <label class="time-toggle graph-sh-toggle-label">
-              <input type="checkbox" id="show-alarm-wake-markers" checked>
-              <span class="graph-sh-legend-wake-type-sample graph-sh-legend-wake-type-sample--alarm" aria-hidden="true"></span>
-              <span>alarm wake</span>
-            </label>
-            <label class="time-toggle graph-sh-toggle-label">
-              <input type="checkbox" id="show-natural-wake-markers" checked>
-              <span class="graph-sh-legend-wake-type-sample" aria-hidden="true"><span class="graph-sh-legend-natural-bullseye"></span></span>
-              <span>natural wake</span>
-            </label>
+          <div class="graph-sh-section">
+            <div class="graph-sh-row graph-sh-row--cols">
+              <div class="graph-sh-rail graph-sh-rail-emoji" aria-hidden="true">🌙</div>
+              <label class="time-toggle graph-sh-toggle-label" aria-label="Fell asleep time line">
+                <input type="checkbox" id="show-sleep-start-line" checked>
+                <span class="graph-sh-data-line graph-sh-data-line--sleep" aria-hidden="true"></span>
+              </label>
+              <label class="time-toggle graph-sh-toggle-label" aria-label="Fell asleep trend">
+                <input type="checkbox" id="show-sleep-start-regression" checked>
+                <div class="legend-line sleep-start-regression" aria-hidden="true"></div>
+              </label>
+              <label class="time-toggle graph-sh-toggle-label" aria-label="Sleep start points">
+                <input type="checkbox" id="show-sleep-start-points" checked>
+                <span class="graph-sh-legend-dot graph-sh-legend-dot--asleep" aria-hidden="true"></span>
+              </label>
+            </div>
+          </div>
+          <div class="graph-sh-section graph-sh-section--wake">
+            <div class="graph-sh-row graph-sh-row--wake">
+              <div class="graph-sh-wake-rail graph-sh-rail-emoji" aria-hidden="true">🌅</div>
+              <label class="time-toggle graph-sh-toggle-label graph-sh-toggle-label--rowspan graph-sh-wake-line" aria-label="Get up time line">
+                <input type="checkbox" id="show-getup-line" checked>
+                <span class="graph-sh-data-line graph-sh-data-line--up" aria-hidden="true"></span>
+              </label>
+              <label class="time-toggle graph-sh-toggle-label graph-sh-toggle-label--rowspan graph-sh-wake-trend" aria-label="Get up trend">
+                <input type="checkbox" id="show-getup-regression" checked>
+                <div class="legend-line getup-regression" aria-hidden="true"></div>
+              </label>
+              <div class="graph-sh-wake-points">
+                <label class="time-toggle graph-sh-toggle-label graph-sh-toggle-label--wake-points" aria-label="Alarm wake markers">
+                  <input type="checkbox" id="show-alarm-wake-markers" checked>
+                  <span class="graph-sh-legend-wake-type-sample graph-sh-legend-wake-type-sample--alarm" aria-hidden="true"></span>
+                  <span class="graph-sh-wake-paren">(alarm wake)</span>
+                </label>
+                <label class="time-toggle graph-sh-toggle-label graph-sh-toggle-label--wake-points" aria-label="Natural wake markers">
+                  <input type="checkbox" id="show-natural-wake-markers" checked>
+                  <span class="graph-sh-legend-wake-type-sample" aria-hidden="true"><span class="graph-sh-legend-natural-bullseye"></span></span>
+                  <span class="graph-sh-wake-paren">(natural wake)</span>
+                </label>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
-    <h2 class="graph-chart-heading" id="chart-sleep-duration">Sleep duration</h2>
+    <div class="graph-chart-heading-row">
+      <h2 class="graph-chart-heading graph-chart-heading--inline graph-chart-heading--skp-sleep" id="chart-sleep-duration">Sleep duration</h2>
+      <div class="graph-chart-mode-rocker" role="group" aria-label="Sleep duration chart style">
+        <button type="button" class="graph-chart-mode-seg is-active" data-graph-chart-mode="sleepDuration" data-shape="bar" aria-pressed="true" aria-label="Sleep duration: bar chart" title="Bar chart">
+          <svg class="graph-chart-mode-icon" viewBox="0 0 24 16" aria-hidden="true"><rect x="2" y="2" width="4" height="12" rx="1"/><rect x="10" y="5" width="4" height="9" rx="1"/><rect x="18" y="8" width="4" height="6" rx="1"/></svg>
+        </button>
+        <button type="button" class="graph-chart-mode-seg" data-graph-chart-mode="sleepDuration" data-shape="line" aria-pressed="false" aria-label="Sleep duration: line chart" title="Line chart">
+          <svg class="graph-chart-mode-icon" viewBox="0 0 24 16" aria-hidden="true"><path fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M2 12 L9 5 L15 9 L22 3"/></svg>
+        </button>
+      </div>
+    </div>
     <div class="graph-container chart-section" id="bar-chart-container">
       <svg id="bar-chart-svg"></svg>
     </div>
-    <h2 class="graph-chart-heading" id="chart-wake-delay">Wake delay (first alarm to get up)</h2>
+    <div class="graph-chart-heading-row">
+      <h2 class="graph-chart-heading graph-chart-heading--inline graph-chart-heading--skp-wake" id="chart-wake-delay">Wake delay (first alarm to get up)</h2>
+      <div class="graph-chart-mode-rocker" role="group" aria-label="Wake delay chart style">
+        <button type="button" class="graph-chart-mode-seg is-active" data-graph-chart-mode="wakeDelay" data-shape="bar" aria-pressed="true" aria-label="Wake delay: bar chart" title="Bar chart">
+          <svg class="graph-chart-mode-icon" viewBox="0 0 24 16" aria-hidden="true"><rect x="2" y="2" width="4" height="12" rx="1"/><rect x="10" y="5" width="4" height="9" rx="1"/><rect x="18" y="8" width="4" height="6" rx="1"/></svg>
+        </button>
+        <button type="button" class="graph-chart-mode-seg" data-graph-chart-mode="wakeDelay" data-shape="line" aria-pressed="false" aria-label="Wake delay: dot plot (one point per day)" title="Dot plot">
+          <svg class="graph-chart-mode-icon" viewBox="0 0 24 16" aria-hidden="true"><circle cx="4" cy="11" r="2.25"/><circle cx="10" cy="5" r="2.25"/><circle cx="16" cy="10" r="2.25"/><circle cx="21" cy="4" r="2.25"/></svg>
+        </button>
+      </div>
+    </div>
     <div class="graph-container chart-section" id="delay-chart-container">
       <svg id="delay-chart-svg"></svg>
     </div>
-    <h2 class="graph-chart-heading" id="chart-sol">Sleep onset latency (SOL)</h2>
+    <div class="graph-chart-heading-row">
+      <h2 class="graph-chart-heading graph-chart-heading--inline graph-chart-heading--skp-bed" id="chart-sol">Sleep onset latency (SOL)</h2>
+      <div class="graph-chart-mode-rocker" role="group" aria-label="SOL chart style">
+        <button type="button" class="graph-chart-mode-seg is-active" data-graph-chart-mode="sol" data-shape="bar" aria-pressed="true" aria-label="SOL: bar chart" title="Bar chart">
+          <svg class="graph-chart-mode-icon" viewBox="0 0 24 16" aria-hidden="true"><rect x="2" y="2" width="4" height="12" rx="1"/><rect x="10" y="5" width="4" height="9" rx="1"/><rect x="18" y="8" width="4" height="6" rx="1"/></svg>
+        </button>
+        <button type="button" class="graph-chart-mode-seg" data-graph-chart-mode="sol" data-shape="line" aria-pressed="false" aria-label="SOL: dot plot (one point per day)" title="Dot plot">
+          <svg class="graph-chart-mode-icon" viewBox="0 0 24 16" aria-hidden="true"><circle cx="4" cy="11" r="2.25"/><circle cx="10" cy="5" r="2.25"/><circle cx="16" cy="10" r="2.25"/><circle cx="21" cy="4" r="2.25"/></svg>
+        </button>
+      </div>
+    </div>
     <div class="graph-container chart-section" id="sol-chart-container">
       <svg id="sol-chart-svg"></svg>
     </div>

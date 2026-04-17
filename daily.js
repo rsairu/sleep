@@ -623,22 +623,6 @@ function renderAveragesColumn(averages, title) {
   `;
 }
 
-// Render top averages for stats page: recent (left) and lifetime (right) in split columns
-function renderStatsTopAverages(days) {
-  if (!days || days.length === 0) return '';
-  const recentDays = days.slice(0, Math.min(7, days.length));
-  const recentAverages = calculateAverages(recentDays);
-  const lifetimeAverages = calculateAverages(days);
-  return `
-    <div class="dashboard-averages-panel stats-top-averages">
-      <div class="averages-container">
-        ${renderAveragesColumn(recentAverages, '🕒 Recent average (7 days)')}
-        ${renderAveragesColumn(lifetimeAverages, '🌳 Lifetime average')}
-      </div>
-    </div>
-  `;
-}
-
 // Render week summary stats (for collapsed state)
 function renderWeekSummary(days) {
   const averages = calculateAverages(days);
@@ -1434,10 +1418,12 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
   function updateFromSliders(changedSide) {
     let sleepNorm = parseInt(sleepSlider.value, 10);
     let wakeNorm = parseInt(wakeSlider.value, 10);
-    if (changedSide === 'sleep' && sleepNorm >= wakeNorm) {
-      sleepNorm = wakeNorm - TONIGHT_ADJUST_MIN_GAP_MINUTES;
-    } else if (changedSide === 'wake' && wakeNorm <= sleepNorm) {
-      wakeNorm = sleepNorm + TONIGHT_ADJUST_MIN_GAP_MINUTES;
+    if (changedSide !== 'both') {
+      if (changedSide === 'sleep' && sleepNorm >= wakeNorm) {
+        sleepNorm = wakeNorm - TONIGHT_ADJUST_MIN_GAP_MINUTES;
+      } else if (changedSide === 'wake' && wakeNorm <= sleepNorm) {
+        wakeNorm = sleepNorm + TONIGHT_ADJUST_MIN_GAP_MINUTES;
+      }
     }
     const clamped = clampTonightProjectionNorms(base, sleepNorm, wakeNorm);
     state = {
@@ -1458,11 +1444,40 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
     return Math.round(base.scopeStartNorm + frac * (base.scopeEndNorm - base.scopeStartNorm));
   }
 
+  const TONIGHT_OVERLAY_THUMB_PAD_PX = 16;
   let dragging = null;
+  let panDragStartNorm = 0;
+  let panDragStartSleepNorm = 0;
+  let panDragStartWakeNorm = 0;
+
   function onPointerDown(e) {
     if (e.button !== undefined && e.button !== 0) return;
     if (e.touches && e.touches.length > 1) return;
     if (e.cancelable) e.preventDefault();
+    const rect = sliderWrap.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const x = clientX - rect.left;
+    const scopeSpan = base.scopeEndNorm - base.scopeStartNorm;
+    let usePan = false;
+    if (rect.width > 0 && scopeSpan > 0) {
+      const sleepX = ((state.sleepNorm - base.scopeStartNorm) / scopeSpan) * rect.width;
+      const wakeX = ((state.wakeNorm - base.scopeStartNorm) / scopeSpan) * rect.width;
+      const lo = Math.min(sleepX, wakeX);
+      const hi = Math.max(sleepX, wakeX);
+      const innerLeft = lo + TONIGHT_OVERLAY_THUMB_PAD_PX;
+      const innerRight = hi - TONIGHT_OVERLAY_THUMB_PAD_PX;
+      if (innerLeft <= innerRight && x >= innerLeft && x <= innerRight) {
+        usePan = true;
+      }
+    }
+    if (usePan) {
+      dragging = 'both';
+      panDragStartNorm = getNormFromPointer(e);
+      panDragStartSleepNorm = state.sleepNorm;
+      panDragStartWakeNorm = state.wakeNorm;
+      sliderOverlay.style.cursor = 'grabbing';
+      return;
+    }
     const norm = getNormFromPointer(e);
     const distToSleep = Math.abs(norm - state.sleepNorm);
     const distToWake = Math.abs(norm - state.wakeNorm);
@@ -1478,6 +1493,15 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
   function onPointerMove(e) {
     if (!dragging) return;
     if (e.cancelable) e.preventDefault();
+    if (dragging === 'both') {
+      const deltaNorm = getNormFromPointer(e) - panDragStartNorm;
+      const nextSleep = panDragStartSleepNorm + deltaNorm;
+      const nextWake = panDragStartWakeNorm + deltaNorm;
+      sleepSlider.value = String(nextSleep);
+      wakeSlider.value = String(nextWake);
+      updateFromSliders('both');
+      return;
+    }
     const norm = getNormFromPointer(e);
     if (dragging === 'sleep') {
       sleepSlider.value = String(norm);
@@ -1488,6 +1512,9 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
   }
 
   function onPointerUp() {
+    if (dragging === 'both') {
+      sliderOverlay.style.cursor = '';
+    }
     dragging = null;
   }
 

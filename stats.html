@@ -3,23 +3,33 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sleep Stats</title>
+<title>Sleep Statistics</title>
 <link rel="stylesheet" href="theme-toggle.css">
 <link rel="stylesheet" href="styles.css">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
 </head>
-<body>
+<body class="page-stats">
   <div id="nav-container"></div>
-  <div class="container">
-    <h1 class="page-title">Monthly Sleep Statistics</h1>
-    <div id="stats-container"></div>
+  <div class="stats-page-shell">
+    <div class="container stats-page-shell__title">
+      <h1 class="page-title">Sleep Statistics</h1>
+      <p class="stats-page-about-link"><a class="content-link" href="about.html#sleep-statistics">More about these statistics</a></p>
+    </div>
+    <div class="stats-page-shell__sticky">
+      <div class="container stats-page-shell__sticky-inner">
+        <div id="stats-period-scope" class="stats-period-scope"></div>
+      </div>
+    </div>
+    <div class="container stats-page-shell__matrix">
+      <div id="stats-container"></div>
+    </div>
   </div>
 
   <script src="dev-git-branch.js"></script>
   <script src="local-supabase-presets.js"></script>
   <script src="sleep-utils.js"></script>
-  <script src="daily.js"></script>
+  <script src="stats-aggregates.js"></script>
   <script src="stats.js"></script>
   <script>
     (async function initStatsPage() {

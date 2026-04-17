@@ -45,11 +45,16 @@ Main content blocks:
 - **Cloud row**: Supabase dashboard link + optional **Dev** / **Prod** preset toggle (when `local-supabase-presets.js` defines valid `window.__RESTORE_SUPABASE_PRESETS__`) + hint text + "Refresh" button (`loadSleepData({ forceRefresh: true })` then reload).
 - **Vercel row**: Production app link + project dashboard link.
 - **Warnings**:
-  - Supabase URL includes prod ref (`lsaguxfovamihwnicpkk`) -> red warning.
-  - Branch is `master` -> branch warning.
+  - Supabase URL includes prod ref (`lsaguxfovamihwnicpkk`) -> red warning; copy uses 🛑 and class `nav-dev-banner-prod-warning--prod-data` (uppercase, inset strip) at the same `0.7rem` as other warning lines.
+  - Branch is `master` -> branch warning (⚠️, base `nav-dev-banner-prod-warning` only).
 - **App time controls**:
   - Real time mode (no override key)
   - Simulated mode (`datetime-local` + +/- minute/hour/day step buttons)
+- **User / settings (dev)** (below the main row, inside the drawer):
+  - Header: one inline line (`nav-dev-banner-user-panel-title-line`) reading **User settings** (`<span class="nav-dev-banner-user-panel-title">`) immediately followed by parentheses and `RESTORE_CLOUD_USER_ID` in `<code class="nav-dev-banner-user-id nav-dev-banner-user-id--inline">` (`title` explains user_settings primary key / cloud tenant; same value as `user_settings.user_id` and sleep row `user_id` in JS). The UUID does not span full width; it stays content-sized on the same line as the title when space allows.
+  - **Use defaults** (`#nav-dev-banner-user-use-default`, `aria-label` “Reset user settings to app defaults”) sits in `nav-dev-banner-user-defaults-slot` as the **first** child of `nav-dev-banner-user-settings-row--prefs-grid`, left-aligned on the **same row** as Language / Clock / Theme / Palette / **Remaining time** (`align-self: flex-end` so it lines up with the control row). The button calls `applyDevBannerUserSettingsDefaults()` to reset language (`en`), clock (`24h`), theme (auto), palette (auto), remaining-wake thresholds (35% / 15%), and heads-up (`30` min), then refreshes i18n, theme, palette, config remaining-wake UI if present, nav remaining-wake, and the dev-banner panel.
+  - Language, clock format, theme, palette, and **Remaining time** continue on that prefs row (`flex-wrap: nowrap`; `overflow-x: auto` with thin scrollbar only if the viewport is too narrow). Each pref and remaining-wake control uses `nav-dev-banner-user-field--col` (label above control). Because the base `nav-dev-banner-user-field` rule sets `flex-direction: row`, stacked fields rely on `.nav-dev-banner-user-field.nav-dev-banner-user-field--col` so column layout wins. Pref labels and selects are centered within each column like the winding / pre-sleep / heads-up cluster. Panel copy uses the same inherited font size as the branch / cloud hint rows (`0.75rem` on `nav-dev-banner-user-panel`). Pref `<select>` elements stay content-sized (`width: max-content`, `min-width: 0` on the pref row). **Remaining time** has no border box; the “Remaining time” label is full width of that cluster with a `border-bottom` rule so the line runs under the title across winding / pre-sleep / heads-up. Labels inside the remaining-time cluster are centered.
+  - Winding and pre-sleep values mirror `remaining_wake_open_min` and `remaining_wake_winding_min`: percent of wake time remaining where the active phase ends (winding begins below the first) and where winding ends (pre-sleep begins below the second). **Heads-up** is `remaining_wake_phase_heads_up_mins`. Changes use the same preference setters and `syncUserSettingsRowToCloud()` as Settings when cloud sleep data is active.
 
 Banner background class:
 
@@ -85,9 +90,15 @@ Important: app logic should use `getAppNowMs()` / `getAppDate()` when it must ho
 
 ### Layout reserve cache
 
-- Key: `sleep-app-dev-banner-expanded-reserve-px`.
-- `syncDevBannerFixedLayout()` sets `.nav-wrapper` `padding-top` to expanded-height reserve + banner margin.
-- When collapsed, reserve stays at expanded height so content does not jump.
+- Key: `sleep-app-dev-banner-expanded-reserve-px` stores the last measured **expanded** drawer height (used while the drawer is opening so `padding-top` does not lag behind the animating banner).
+- `syncDevBannerFixedLayout()` sets `.nav-wrapper` `padding-top` to the current banner height (collapsed strip when the drawer is closed, full height when open) plus banner margin.
+
+### User settings panel (dev)
+
+- Root: `#nav-dev-banner-user-panel` inside `#nav-dev-banner-drawer`.
+- `updateDevBannerUserSettingsPanel()` syncs control state from `localStorage` / getters (also called from `refreshUiAfterUserSettingsHydrate()` after cloud preference hydrate).
+- `initDevBannerUserSettingsPanel()` binds once per page (`window.__devBannerUserSettingsBound`); registered from `initDayNightTheme()` with other dev-banner inits.
+- `applyDevBannerUserSettingsDefaults()` resets the mirrored preferences to the same defaults as a fresh install / Settings reset path; invoked from **Use defaults** at the start of the prefs row (`#nav-dev-banner-user-use-default`).
 
 ### Supabase dev/prod presets (local file)
 
@@ -108,8 +119,8 @@ The banner is `position: fixed` in `styles.css`, so `syncDevBannerFixedLayout()`
 
 During transitions:
 
-- `data-dev-banner-drawer-toggled-at` temporarily preserves larger reserve to avoid clipping during collapse animation.
-- `measureDevBannerExpandedHeightPx()` temporarily measures expanded state with drawer transitions disabled.
+- `data-dev-banner-drawer-toggled-at` marks a short window (~380ms) after a toggle; while the drawer is **opening**, padding can follow the cached expanded height until live layout catches up. While **closing**, padding follows the live shrinking banner height.
+- `measureDevBannerExpandedHeightPx()` temporarily measures expanded state with drawer transitions disabled (seeds the expanded cache when missing).
 
 ---
 
@@ -120,7 +131,7 @@ During transitions:
 | `DEV_BANNER_OVERRIDE_KEY` | `sleep-app-force-dev-banner` | Force banner on/off (`'1'`/`'0'`) unless URL override provided |
 | `DEV_CLOCK_OVERRIDE_MS_KEY` | `sleep-app-dev-clock-override-ms` | Simulated app wall-clock epoch ms |
 | `DEV_BANNER_DRAWER_COLLAPSED_KEY` | `sleep-app-dev-banner-drawer-collapsed` | Persist collapsed drawer state |
-| `DEV_BANNER_EXPANDED_RESERVE_KEY` | `sleep-app-dev-banner-expanded-reserve-px` | Cached expanded reserve height |
+| `DEV_BANNER_EXPANDED_RESERVE_KEY` | `sleep-app-dev-banner-expanded-reserve-px` | Cached expanded drawer height (expand animation + remeasure when open) |
 | `ACTIVE_SUPABASE_PRESET_KEY` | `sleep-app-active-supabase-preset` | `dev` / `prod` preset mode for local `local-supabase-presets.js`; empty = custom |
 | `SUPABASE_PROJECT_REF_PROD` | `lsaguxfovamihwnicpkk` | Marks production DB context |
 | `SUPABASE_PROJECT_REF_DEV` | `pjpzxkyflmzzbfdkujan` | Default dev dashboard target |
@@ -139,6 +150,7 @@ During transitions:
 | Supabase dev/prod preset toggle | `initDevBannerSupabasePresetToggle`, `readLocalSupabasePresets`, `ensureDevSupabasePresetApplied` - `sleep-utils.js` |
 | Drawer pointer/click behavior | `initDevBannerDrawer` - `sleep-utils.js` |
 | Expanded reserve measurement/caching | `measureDevBannerExpandedHeightPx`, `syncDevBannerFixedLayout` - `sleep-utils.js` |
+| User settings defaults (dev panel) | `applyDevBannerUserSettingsDefaults`, `initDevBannerUserSettingsPanel` - `sleep-utils.js` |
 | Branch stamp source | `scripts/stamp-dev-branch.js` -> `dev-git-branch.js` |
 | Banner visual system and responsive behavior | `.nav-dev-banner*` selectors in `styles.css` |
 

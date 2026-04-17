@@ -43,7 +43,7 @@ create table if not exists public.user_settings (
   language text not null default 'en' check (language in ('en', 'ja')),
   theme_override text check (theme_override in ('day', 'night')),
   clock_format text not null default '24h' check (clock_format in ('12h', '24h')),
-  quality_palette text not null default 'meadow' check (quality_palette in ('meadow', 'harbor', 'auto')),
+  quality_palette text not null default 'auto' check (quality_palette in ('meadow', 'harbor', 'auto')),
   remaining_wake_open_min integer not null default 35 check (remaining_wake_open_min >= 0 and remaining_wake_open_min <= 100),
   remaining_wake_winding_min integer not null default 15 check (remaining_wake_winding_min >= 0 and remaining_wake_winding_min <= 100),
   remaining_wake_phase_heads_up_mins integer not null default 30 check (remaining_wake_phase_heads_up_mins in (0, 15, 30, 45, 60)),
@@ -93,7 +93,7 @@ values (
   'en',
   null,
   '24h',
-  'meadow',
+  'auto',
   35,
   15,
   30

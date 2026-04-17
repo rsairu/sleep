@@ -54,7 +54,7 @@
       </li>
       <li>
         <span class="about-page-icon" aria-hidden="true">🔢</span>
-        <span class="about-page-name">Stats</span>
+        <a class="about-page-name content-link" href="#sleep-statistics">Stats</a>
         <span class="about-page-desc">Monthly sleep statistics.</span>
       </li>
     </ul>
@@ -151,6 +151,17 @@
 
     <h2 class="section-title" id="night-labels">Night notes (emoji labels)</h2>
     <p class="section-intro">From the <strong>Log</strong> screen you can tag a night with optional emoji &ldquo;notes&rdquo; (kids, pet, alcohol, travel, stress, work, caffeine, late meal, illness). They are saved with that night&rsquo;s row, show next to <a class="content-link" href="#daily-flags">daily flags</a> on the timeline and dashboard, and do not change scores or charts.</p>
+
+    <hr class="about-section-rule" />
+    <h2 class="section-title" id="sleep-statistics">Sleep statistics</h2>
+    <p class="section-intro">The <a class="content-link" href="stats.html">Statistics</a> page summarizes your logged nights for a range you pick (past week through this year). You get side-by-side columns for <strong>all days</strong>, <strong>work days</strong>, and <strong>free days</strong> (weekends and holidays): averages for total sleep, bed and sleep times, delays, nap habits, mid-sleep, and earliest or latest bed, fell-asleep, and wake.</p>
+    <div class="about-stats-visual">
+      <div class="about-stats-visual__copy">
+        <p class="section-intro"><strong>Social lag</strong> is a simple way to see whether your sleep timing shifts between workdays and days off. We compare the <em>middle</em> of your sleep on workdays with the middle on free days. A larger gap usually means your weekday routine and your weekend rhythm are not lining up—useful for noticing schedule strain, not a grade on how you sleep.</p>
+        <p class="section-intro"><strong>Wake lag</strong> compares how you wake on mornings when an alarm was involved versus mornings when you woke without one. If the number is positive, your natural wake time tends to run <em>later</em> than when the alarm pulls you up—so the alarm is getting you out of bed a bit earlier than you might on your own.</p>
+      </div>
+      <img src="assets/slumby_stats.png" alt="" class="about-stats-visual__img" loading="lazy" decoding="async" />
+    </div>
   </div>
 
   <script src="dev-git-branch.js"></script>
