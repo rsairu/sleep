@@ -124,7 +124,7 @@
       if (!raw) return null;
       const o = JSON.parse(raw);
       if (!o || typeof o.dateMd !== 'string' || typeof o.start !== 'string') return null;
-      const iso = normalizeSleepDateKey(o.dateMd, LEGACY_SLEEP_DATE_FALLBACK_YEAR);
+      const iso = normalizeSleepDateKey(o.dateMd);
       const session = { dateMd: iso || o.dateMd, start: o.start };
       if (iso && iso !== o.dateMd) {
         try {

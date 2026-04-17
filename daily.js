@@ -24,7 +24,7 @@ const PREVIOUS_DAY_DURATION = 180; // 3 hours from 21:00 to 00:00
 // Holidays data (from sleep-utils.js HOLIDAYS_BY_YEAR)
 let holidays = typeof window !== 'undefined' && window.HOLIDAYS_BY_YEAR ? window.HOLIDAYS_BY_YEAR : {};
 
-// Note: parseDateString, getDateFromString, isHoliday, and isWeekend are now in sleep-utils.js
+// Note: parseDateString, getDateFromString, isHoliday, and isWeekend are in sleep-utils.js (ISO `YYYY-MM-DD` sleep keys).
 
 // Get Monday of the week for a given date (Monday-Sunday weeks)
 function getMondayOfWeek(date) {
@@ -693,7 +693,7 @@ function buildFlagCountMap(days) {
   return flagMap;
 }
 
-// Format date as M/D for display
+// Format a Date as month/day for display (e.g. 4/8).
 function formatDateShort(date) {
   return `${date.getMonth() + 1}/${date.getDate()}`;
 }
