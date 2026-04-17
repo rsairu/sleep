@@ -6,8 +6,8 @@ overview: >
   (user_id, sleep_date), wired to RESTORE_CLOUD_USER_ID. JS model uses
   ISO YYYY-MM-DD throughout. Ends with a final cutover that drops date_md and
   all legacy constraints.
-phases_completed: [phase1-iso-js, phase2-ddl]
-next_phase: phase3-rest
+phases_completed: [phase1-iso-js, phase2-ddl, phase3-rest]
+next_phase: phase4-rpc
 ---
 
 # Master Plan — Postgres `sleep_date` + Composite Unique Key
@@ -91,7 +91,7 @@ Migration file: `supabase/migrations/20260414120000_phase2_user_sleep_date.sql`
 8. **Drops** `sleep_days_date_md_key` and `sleep_day_drafts_date_md_key`.
 9. **Creates** `sleep_days_user_id_sleep_date_key` and
    `sleep_day_drafts_user_id_sleep_date_key`.
-10. **Replaces** `promote_draft_if_complete(p_date_md text, p_data jsonb)` —
+10. **Replaces** `promote_draft_if_complete(p_date_md text, p_patch jsonb)` —
     same external signature, now keys internally on `(user_id, sleep_date)`,
     uses `ON CONFLICT (user_id, sleep_date)`, returns ISO in `result_date_md`.
 
@@ -111,72 +111,102 @@ Migration file: `supabase/migrations/20260414120000_phase2_user_sleep_date.sql`
 
 ---
 
-## 🔜 Phase 3 — Full cloud I/O audit: read/write `user_id` + `sleep_date` (NEXT)
+### ✅ Phase 3 — Full cloud I/O audit: read/write `user_id` + `sleep_date` (DONE)
 
-**Goal:** Every cloud path in `sleep-utils.js` is fully audited and tested
-against the Phase 2 schema. No path should be relying on `date_md` for
-identity (only for legacy compatibility if still written). No path should
-fetch or upsert without a `user_id` filter.
+**Goal (met in repo):** All PostgREST paths for `sleep_days` / `sleep_day_drafts`
+live in `sleep-utils.js` only. Static audit: every `select=` for those tables
+includes `user_id` and `sleep_date`; list reads filter `user_id`; row-specific
+draft reads filter `user_id` + `sleep_date`; upserts use
+`on_conflict=user_id,sleep_date` with `Prefer: resolution=merge-duplicates`;
+`mapDayToSupabaseRow` always sets `RESTORE_CLOUD_USER_ID` and ISO `sleep_date` /
+`date_md`; RPC uses normalized ISO in `p_date_md` with `p_patch` (matches SQL).
 
-**Starting state (what Phase 2 already did to `sleep-utils.js`):**
-The following were updated in Phase 2 but need integration/regression testing
-in a staging environment:
-- `mapDayToSupabaseRow` → sends `user_id`, `sleep_date`
-- `mapSupabaseRowToDay` → reads `sleep_date` preferentially
-- `fetchSupabaseSleepData` → selects + filters by `user_id`
-- `upsertSleepDay` → `on_conflict=user_id,sleep_date`
-- `getSleepDraftByDate` → filters `user_id` + `sleep_date`
-- `upsertSleepDraftPartial` → `on_conflict=user_id,sleep_date`
-- `saveDraftAndMaybePromote` → passes normalized key as `p_date_md`
-- Connection test → uses `sleep_date` + `user_id` filter
+**Code changes in Phase 3:**
+- `mapSupabaseRowToDay`: one-time `console.warn` if a row has `date_md` but no
+  usable `sleep_date` (should not happen post–Phase 2); avoids log spam on
+  bulk fetch.
+- Settings connection test: `select=user_id,sleep_date` (was `sleep_date` only).
 
-**Tasks for Phase 3:**
+**Your verification (run on your dev-preset Supabase):** Phase 2 migration must
+already be applied. Use SQL Editor or `psql` as you prefer.
 
-1. **Staging environment:** Point the app at a Supabase staging project with
-   the Phase 2 migration applied. Confirm all rows have `sleep_date` populated
-   and `date_md` is now ISO.
+1. **No null `sleep_date` on real data**
 
-2. **Audit `select=` strings:** Grep `sleep-utils.js` for all PostgREST
-   `select=` strings. Confirm each one includes `user_id,sleep_date` and does
-   not rely on `date_md` as a key (it can still appear for compatibility, but
-   must not be the row identity).
+```sql
+select 'sleep_days' as tbl, count(*) as missing
+from public.sleep_days
+where sleep_date is null
+union all
+select 'sleep_day_drafts', count(*)
+from public.sleep_day_drafts
+where sleep_date is null;
+```
 
-3. **Audit all `upsert` calls:** Confirm every upsert to `sleep_days` and
-   `sleep_day_drafts` sends both `user_id` and `sleep_date`, and specifies
-   `on_conflict=user_id,sleep_date`. The `Prefer: resolution=merge-duplicates`
-   header should be present.
+Expect `0` / `0`. If not, backfill or re-run migration logic before relying on
+the app.
 
-4. **Audit all `filter` / `eq` clauses:** Every query that fetches a specific
-   row should filter on `user_id=eq.<RESTORE_CLOUD_USER_ID>` AND
-   `sleep_date=eq.YYYY-MM-DD`. No query should filter on `date_md` alone.
+2. **`date_md` normalized to ISO** (spot check)
 
-5. **`mapSupabaseRowToDay` fallback:** Confirm the fallback chain is:
-   `sleep_date` (preferred) → `date_md` (legacy parse) → error. Log a warning
-   if `sleep_date` is absent but `date_md` is present (should not happen after
-   Phase 2 migration).
+```sql
+select sleep_date, date_md
+from public.sleep_days
+where date_md !~ '^\d{4}-\d{2}-\d{2}$'
+limit 20;
+```
 
-6. **`mapDayToSupabaseRow` writes:** Confirm `user_id` is always
-   `RESTORE_CLOUD_USER_ID` (not undefined, not null). Keep writing `date_md`
-   as ISO for now (Phase 6 drops it).
+Expect **no rows**. (Empty result = all `date_md` look like `YYYY-MM-DD`.)
 
-7. **Draft lifecycle test:** In staging, run the full cycle:
-   - Create a new night (upsert to `sleep_day_drafts`)
-   - Partially fill fields → confirm draft persists via `getSleepDraftByDate`
-   - Complete all required fields → `saveDraftAndMaybePromote` → row appears
-     in `sleep_days`, draft removed
-   - Edit the promoted row → upsert merges correctly
+3. **Two-year coexistence** (optional; use dates you do not care about, then
+   delete)
 
-8. **Two-year boundary test:** Insert two rows with the same `M/D` but
-   different years (e.g. `2025-03-15` and `2026-03-15`). Both should coexist.
-   Inserting a duplicate `(user_id, sleep_date)` should fail with a PostgREST
-   409/conflict error.
+```sql
+-- Insert two canonical nights for the restore user (adjust times if NOT NULL requires more)
+insert into public.sleep_days (user_id, sleep_date, date_md, bed, sleep_start, sleep_end)
+values
+  ('00000000-0000-0000-0000-000000000001', '2025-03-15', '2025-03-15', '22:00', '22:30', '06:00'),
+  ('00000000-0000-0000-0000-000000000001', '2026-03-15', '2026-03-15', '22:00', '22:30', '06:00')
+on conflict on constraint sleep_days_user_id_sleep_date_key do nothing;
 
-9. **`docs/user-data-cloud.md`:** Confirm the composite key and
-   `RESTORE_CLOUD_USER_ID` pattern are documented. Update if any behavior
-   changed during testing.
+select sleep_date, date_md from public.sleep_days
+where user_id = '00000000-0000-0000-0000-000000000001'
+  and sleep_date in ('2025-03-15', '2026-03-15');
+```
 
-**Validation gate:** Full save/load/draft cycle passes in staging for a
-two-year dataset. No PostgREST errors. `node math-tests.js` still passes.
+Expect **two rows**. Cleanup:
+
+```sql
+delete from public.sleep_days
+where user_id = '00000000-0000-0000-0000-000000000001'
+  and sleep_date in ('2025-03-15', '2026-03-15');
+```
+
+4. **Duplicate key** (expect one row inserted, second statement errors)
+
+```sql
+insert into public.sleep_days (user_id, sleep_date, date_md, bed, sleep_start, sleep_end)
+values ('00000000-0000-0000-0000-000000000001', '2099-01-01', '2099-01-01', '22:00', '22:30', '06:00');
+
+insert into public.sleep_days (user_id, sleep_date, date_md, bed, sleep_start, sleep_end)
+values ('00000000-0000-0000-0000-000000000001', '2099-01-01', '2099-01-01', '23:00', '23:30', '07:00');
+```
+
+Second insert should fail on `sleep_days_user_id_sleep_date_key`. Then:
+
+```sql
+delete from public.sleep_days
+where user_id = '00000000-0000-0000-0000-000000000001' and sleep_date = '2099-01-01';
+```
+
+5. **App / draft lifecycle (no SQL):** With cloud data source on, in the UI:
+   start a new night for a disposable date → partial save → reload or navigate
+   → complete required fields so it promotes → confirm one row in `sleep_days`
+   and no draft for that `sleep_date` → edit the night and confirm merge.
+
+`docs/user-data-cloud.md` already documents composite key and gate; no
+behavior change required for Phase 3.
+
+**Validation gate:** `node math-tests.js` passes after changes; your checks
+above pass on the DB you use with the dev preset.
 
 ---
 
@@ -187,8 +217,8 @@ still accepts `p_date_md text` (Phase 2 kept backward-compatible signature).
 This phase renames to explicit typed params.
 
 **Tasks:**
-1. New SQL: replace `promote_draft_if_complete(p_date_md text, p_data jsonb)`
-   with `promote_draft_if_complete(p_user_id uuid, p_sleep_date date, p_data jsonb)`.
+1. New SQL: replace `promote_draft_if_complete(p_date_md text, p_patch jsonb)`
+   with `promote_draft_if_complete(p_user_id uuid, p_sleep_date date, p_patch jsonb)`.
    - Default `p_user_id` to `'00000000-0000-0000-0000-000000000001'` in SQL
      OR require the client to pass `RESTORE_CLOUD_USER_ID` — pick one and
      document it.
