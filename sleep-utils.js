@@ -58,7 +58,7 @@ const RESTORE_CLOUD_USER_ID = '00000000-0000-0000-0000-000000000001';
 const USER_SETTINGS_CLOUD_MIGRATION_DONE_KEY = 'restore_user_settings_cloud_migration_v1';
 /** `sleep-app-quality-palette` when unset/invalid; seed defaults; dev-banner reset. */
 const DEFAULT_QUALITY_PALETTE_ID = 'auto';
-const SLEEP_DATA_LOCAL_CACHE_KEY = 'restore_sleep_data_cache_v2';
+const SLEEP_DATA_LOCAL_CACHE_KEY = 'restore_sleep_data_cache_v3';
 const SLEEP_DATA_CACHE_TTL_MS = 5 * 60 * 1000;
 
 let sleepDataCacheValue = null;
@@ -68,8 +68,6 @@ let sleepDataPendingPromise = null;
 
 let userSettingsCloudHydrateSucceeded = false;
 let userSettingsCloudHydratePromise = null;
-/** One-time guard: bulk fetch should not log per row if legacy rows lack sleep_date. */
-let warnedSleepDateMissingFromCloudRow = false;
 
 function isSleepDataForcedLocal() {
   return safeReadStorage(RESTORE_FORCE_LOCAL_SLEEP_DATA_KEY) === '1';
@@ -391,15 +389,6 @@ function mapSupabaseRowToDay(row) {
     const s = String(row.sleep_date).trim().slice(0, 10);
     canon = normalizeSleepDateKey(s);
   }
-  if (!canon && row.date_md) {
-    if (!warnedSleepDateMissingFromCloudRow && typeof console !== 'undefined' && console.warn) {
-      warnedSleepDateMissingFromCloudRow = true;
-      console.warn(
-        'Restore: cloud row missing sleep_date; using date_md fallback. This should not occur after Phase 2 migration.'
-      );
-    }
-    canon = normalizeSleepDateKey(String(row.date_md).trim().slice(0, 10));
-  }
   if (!canon) return null;
   return {
     date: canon,
@@ -498,7 +487,6 @@ function mapDayToSupabaseRow(day) {
   return {
     user_id: RESTORE_CLOUD_USER_ID,
     sleep_date: dateMd || null,
-    date_md: dateMd,
     bed: normalizeTimeStringForSupabase(day.bed),
     sleep_start: normalizeTimeStringForSupabase(day.sleepStart),
     sleep_end: normalizeTimeStringForSupabase(day.sleepEnd),
@@ -798,7 +786,7 @@ function fetchSupabaseSleepData(config) {
   const uid = encodeURIComponent(RESTORE_CLOUD_USER_ID);
   const url =
     config.url.replace(/\/+$/, '') +
-    '/rest/v1/sleep_days?select=user_id,sleep_date,date_md,bed,sleep_start,sleep_end,bathroom,alarm,nap_start,nap_end,waso,labels&user_id=eq.' +
+    '/rest/v1/sleep_days?select=user_id,sleep_date,bed,sleep_start,sleep_end,bathroom,alarm,nap_start,nap_end,waso,labels&user_id=eq.' +
     uid;
   return fetch(url, {
     headers: {
@@ -929,7 +917,7 @@ function getSleepDraftByDate(dateMd) {
   if (!config.enabled || !dateMd) return Promise.resolve(null);
   const iso = normalizeSleepDateKey(dateMd);
   if (!iso) return Promise.resolve(null);
-  const select = 'user_id,sleep_date,date_md,bed,sleep_start,sleep_end,bathroom,alarm,nap_start,nap_end,waso,labels';
+  const select = 'user_id,sleep_date,bed,sleep_start,sleep_end,bathroom,alarm,nap_start,nap_end,waso,labels';
   const qIso = encodeURIComponent(iso);
   const uid = encodeURIComponent(RESTORE_CLOUD_USER_ID);
   const url =
@@ -991,21 +979,19 @@ function upsertSleepDraftPartial(dateMd, partial) {
   });
 }
 
-/** Normalize PostgREST RPC row from `promote_draft_if_complete` (Phase 4: `result_sleep_date`). */
+/** Normalize PostgREST RPC row from `promote_draft_if_complete` (`result_sleep_date`). */
 function normalizePromoteDraftRpcResult(result, fallbackIso) {
   const row = Array.isArray(result) ? result[0] : result;
   const fb = fallbackIso != null ? String(fallbackIso).trim().slice(0, 10) : '';
   if (!row || typeof row !== 'object') {
-    return { promoted: false, result_sleep_date: fb, date_md: fb };
+    return { promoted: false, result_sleep_date: fb };
   }
   const promoted = Boolean(row.promoted);
   let iso = fb;
   if (row.result_sleep_date != null && String(row.result_sleep_date).trim() !== '') {
     iso = String(row.result_sleep_date).trim().slice(0, 10);
-  } else if (row.result_date_md) {
-    iso = normalizeSleepDateKey(String(row.result_date_md).trim().slice(0, 10));
   }
-  return { promoted: promoted, result_sleep_date: iso, date_md: iso };
+  return { promoted: promoted, result_sleep_date: iso };
 }
 
 function saveDraftAndMaybePromote(dateMd, partial) {
@@ -1022,7 +1008,7 @@ function saveDraftAndMaybePromote(dateMd, partial) {
   }
   const patch = mapPartialDayToDraftPatch(partial || {});
   if (Object.keys(patch).length === 0) {
-    return Promise.resolve({ promoted: false, result_sleep_date: key, date_md: key });
+    return Promise.resolve({ promoted: false, result_sleep_date: key });
   }
   const url = config.url.replace(/\/+$/, '') + '/rest/v1/rpc/promote_draft_if_complete';
   return fetch(url, {

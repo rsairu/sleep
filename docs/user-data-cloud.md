@@ -28,7 +28,7 @@ This matches `loadSleepDataUsesSupabase(config)` in `sleep-utils.js`. If the use
 
 | Area | Storage | Notes |
 |------|---------|--------|
-| Sleep nights (completed rows) | `public.sleep_days` | Upsert via REST with `on_conflict=user_id,sleep_date`; rows scoped by `RESTORE_CLOUD_USER_ID` and native `sleep_date` (see `supabase/migrations/` phase 2). Client: `day.date` is strict ISO; `mapSupabaseRowToDay` uses `sleep_date`, else ISO `date_md` only. |
+| Sleep nights (completed rows) | `public.sleep_days` | Upsert via REST with `on_conflict=user_id,sleep_date`; rows scoped by `RESTORE_CLOUD_USER_ID` and native `sleep_date` (Phase 6: no `date_md` column). Client `day.date` is strict ISO; `mapSupabaseRowToDay` reads `sleep_date` only. |
 | Incomplete night drafts | `public.sleep_day_drafts` + RPC `promote_draft_if_complete` | Same composite key; draft fetch filters `user_id` + `sleep_date`. RPC args: `p_user_id`, `p_sleep_date` (`date`), `p_patch`. Returns `promoted`, `result_sleep_date`. Optional checks: **Phases 3–4** in `docs/tmp-year-schema-plan.md`. |
 | User preferences (tracked columns) | `public.user_settings` + **localStorage mirror** | See mapping table below. |
 | Supabase URL / anon key | localStorage | Never sent as table data; `restore_supabase_*` keys. |
