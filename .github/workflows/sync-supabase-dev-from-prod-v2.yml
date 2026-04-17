@@ -59,7 +59,7 @@ jobs:
                 grant usage on schema public to anon, authenticated;
                 grant select, insert, update, delete on all tables in schema public to anon, authenticated;
                 grant usage, select on all sequences in schema public to anon, authenticated;
-                grant execute on function public.promote_draft_if_complete(text, jsonb) to anon, authenticated;
+                grant execute on function public.promote_draft_if_complete(uuid, date, jsonb) to anon, authenticated;
               SQL
             '
       - name: Print timing context

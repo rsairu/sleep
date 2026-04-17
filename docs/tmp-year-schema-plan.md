@@ -6,8 +6,8 @@ overview: >
   (user_id, sleep_date), wired to RESTORE_CLOUD_USER_ID. JS model uses
   ISO YYYY-MM-DD throughout. Ends with a final cutover that drops date_md and
   all legacy constraints.
-phases_completed: [phase1-iso-js, phase2-ddl, phase3-rest]
-next_phase: phase4-rpc
+phases_completed: [phase1-iso-js, phase2-ddl, phase3-rest, phase4-rpc]
+next_phase: phase5-js-legacy
 ---
 
 # Master Plan — Postgres `sleep_date` + Composite Unique Key
@@ -119,7 +119,8 @@ includes `user_id` and `sleep_date`; list reads filter `user_id`; row-specific
 draft reads filter `user_id` + `sleep_date`; upserts use
 `on_conflict=user_id,sleep_date` with `Prefer: resolution=merge-duplicates`;
 `mapDayToSupabaseRow` always sets `RESTORE_CLOUD_USER_ID` and ISO `sleep_date` /
-`date_md`; RPC uses normalized ISO in `p_date_md` with `p_patch` (matches SQL).
+`date_md`. **Phase 4** renamed the RPC to `p_user_id`, `p_sleep_date`, `p_patch`
+(see below).
 
 **Code changes in Phase 3:**
 - `mapSupabaseRowToDay`: one-time `console.warn` if a row has `date_md` but no
@@ -210,28 +211,29 @@ above pass on the DB you use with the dev preset.
 
 ---
 
-## Phase 4 — RPC parameter rename: `p_sleep_date` / `p_user_id` (cleanup)
+### ✅ Phase 4 — RPC parameter rename: `p_sleep_date` / `p_user_id` (DONE)
 
-**Goal:** Clean up the RPC signature. Currently `promote_draft_if_complete`
-still accepts `p_date_md text` (Phase 2 kept backward-compatible signature).
-This phase renames to explicit typed params.
+**Goal:** Typed RPC args aligned with table identity; return `result_sleep_date`.
 
-**Tasks:**
-1. New SQL: replace `promote_draft_if_complete(p_date_md text, p_patch jsonb)`
-   with `promote_draft_if_complete(p_user_id uuid, p_sleep_date date, p_patch jsonb)`.
-   - Default `p_user_id` to `'00000000-0000-0000-0000-000000000001'` in SQL
-     OR require the client to pass `RESTORE_CLOUD_USER_ID` — pick one and
-     document it.
-   - Return shape: `promoted boolean, result_sleep_date date`
-     (drop `result_date_md` or keep as ISO alias).
-   - Grant `EXECUTE` to `anon, authenticated`.
-2. `saveDraftAndMaybePromote` in `sleep-utils.js`: POST body uses
-   `p_user_id` + `p_sleep_date`; handle updated response shape.
-3. Add migration file: `supabase/migrations/YYYYMMDDHHMM_phase4_rpc_rename.sql`.
-4. Update `supabase/schema.sql` to new RPC signature.
+**Implemented:**
+- Migration: `supabase/migrations/20260415120000_phase4_promote_rpc_params.sql`
+  — `drop function promote_draft_if_complete(text, jsonb)`; new signature
+  `promote_draft_if_complete(p_user_id uuid, p_sleep_date date, p_patch jsonb)`
+  returns `(promoted boolean, result_sleep_date date)`.
+- SQL `coalesce(p_user_id, …)` on the restore UUID if null; client always sends
+  `RESTORE_CLOUD_USER_ID` from `sleep-utils.js`.
+- `saveDraftAndMaybePromote` POST body: `p_user_id`, `p_sleep_date` (ISO
+  `YYYY-MM-DD`), `p_patch`. `normalizePromoteDraftRpcResult` maps the response
+  and still accepts legacy `result_date_md` if an old server responds during
+  rollout.
+- `supabase/schema.sql` and `.github/workflows/sync-supabase-dev-from-prod-v2.yml`
+  grant updated to `(uuid, date, jsonb)`.
 
-**Validation:** Partial draft → complete fields → promoted correctly. Duplicate
-night upserts merge without error.
+**Apply:** Run the new migration on each Supabase project **before** or with
+deploying the updated `sleep-utils.js` (old RPC signature is removed).
+
+**Validation:** Partial draft → complete → promote; duplicate-night merge;
+`node math-tests.js` passes.
 
 ---
 
@@ -313,5 +315,5 @@ supabase/
   schema.sql                          ← canonical current-head schema
   migrations/
     20260414120000_phase2_user_sleep_date.sql   ← Phase 2 (applied)
-    (future phases add files here)
+    20260415120000_phase4_promote_rpc_params.sql  ← Phase 4 RPC (apply with app)
 ```

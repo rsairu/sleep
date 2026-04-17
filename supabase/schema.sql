@@ -146,19 +146,27 @@ $$;
 revoke all on function public.restore_parse_sleep_date_md(text, integer) from public;
 
 create or replace function public.promote_draft_if_complete(
-  p_date_md text,
+  p_user_id uuid,
+  p_sleep_date date,
   p_patch jsonb
 )
-returns table (promoted boolean, result_date_md text) as $$
+returns table (promoted boolean, result_sleep_date date) as $$
 declare
   v_patch jsonb := coalesce(p_patch, '{}'::jsonb);
-  v_user_id uuid := '00000000-0000-0000-0000-000000000001';
+  v_user_id uuid := coalesce(
+    p_user_id,
+    '00000000-0000-0000-0000-000000000001'::uuid
+  );
   v_sleep_date date;
   v_date_md text;
   v_draft public.sleep_day_drafts%rowtype;
   v_complete boolean := false;
 begin
-  v_sleep_date := public.restore_parse_sleep_date_md(trim(p_date_md), 2026);
+  if p_sleep_date is null then
+    raise exception 'p_sleep_date is required';
+  end if;
+
+  v_sleep_date := p_sleep_date;
   v_date_md := to_char(v_sleep_date, 'YYYY-MM-DD');
 
   insert into public.sleep_day_drafts (date_md, user_id, sleep_date)
@@ -278,8 +286,8 @@ begin
   end if;
 
   return query
-    select v_complete as promoted, v_date_md as result_date_md;
+    select v_complete as promoted, v_sleep_date as result_sleep_date;
 end;
 $$ language plpgsql security definer set search_path = public;
 
-grant execute on function public.promote_draft_if_complete(text, jsonb) to anon, authenticated;
+grant execute on function public.promote_draft_if_complete(uuid, date, jsonb) to anon, authenticated;
