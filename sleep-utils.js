@@ -985,6 +985,25 @@ function upsertSleepDraftPartial(dateMd, partial) {
   });
 }
 
+/** Normalize PostgREST RPC row from `promote_draft_if_complete` (Phase 4: `result_sleep_date`). */
+function normalizePromoteDraftRpcResult(result, fallbackIso) {
+  const row = Array.isArray(result) ? result[0] : result;
+  const fb = fallbackIso != null ? String(fallbackIso).trim().slice(0, 10) : '';
+  if (!row || typeof row !== 'object') {
+    return { promoted: false, result_sleep_date: fb, date_md: fb };
+  }
+  const promoted = Boolean(row.promoted);
+  let iso = fb;
+  if (row.result_sleep_date != null && String(row.result_sleep_date).trim() !== '') {
+    iso = String(row.result_sleep_date).trim().slice(0, 10);
+  } else if (row.result_date_md) {
+    iso =
+      normalizeSleepDateKey(row.result_date_md, LEGACY_SLEEP_DATE_FALLBACK_YEAR) ||
+      String(row.result_date_md).trim().slice(0, 10);
+  }
+  return { promoted: promoted, result_sleep_date: iso, date_md: iso };
+}
+
 function saveDraftAndMaybePromote(dateMd, partial) {
   const config = getSupabaseConfig();
   if (!config.enabled) {
@@ -995,16 +1014,20 @@ function saveDraftAndMaybePromote(dateMd, partial) {
   }
   const key =
     normalizeSleepDateKey(dateMd, LEGACY_SLEEP_DATE_FALLBACK_YEAR) || String(dateMd).trim();
+  if (!key) {
+    return Promise.reject(new Error('Invalid sleep date for draft save.'));
+  }
   const patch = mapPartialDayToDraftPatch(partial || {});
   if (Object.keys(patch).length === 0) {
-    return Promise.resolve({ promoted: false, date_md: key || dateMd });
+    return Promise.resolve({ promoted: false, result_sleep_date: key, date_md: key });
   }
   const url = config.url.replace(/\/+$/, '') + '/rest/v1/rpc/promote_draft_if_complete';
   return fetch(url, {
     method: 'POST',
     headers: getSupabaseAuthHeaders(config, true),
     body: JSON.stringify({
-      p_date_md: key,
+      p_user_id: RESTORE_CLOUD_USER_ID,
+      p_sleep_date: key,
       p_patch: patch
     })
   }).then(function (res) {
@@ -1016,8 +1039,7 @@ function saveDraftAndMaybePromote(dateMd, partial) {
     return res.json();
   }).then(function (result) {
     clearSleepDataCache();
-    if (Array.isArray(result)) return result[0] || { promoted: false, date_md: key || dateMd };
-    return result || { promoted: false, date_md: key || dateMd };
+    return normalizePromoteDraftRpcResult(result, key);
   });
 }
 
