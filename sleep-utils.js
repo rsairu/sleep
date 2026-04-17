@@ -66,6 +66,8 @@ let sleepDataPendingPromise = null;
 
 let userSettingsCloudHydrateSucceeded = false;
 let userSettingsCloudHydratePromise = null;
+/** One-time guard: bulk fetch should not log per row if legacy rows lack sleep_date. */
+let warnedSleepDateMissingFromCloudRow = false;
 
 function isSleepDataForcedLocal() {
   return safeReadStorage(RESTORE_FORCE_LOCAL_SLEEP_DATA_KEY) === '1';
@@ -381,11 +383,18 @@ function updateDataSourceBadge(source) {
 function mapSupabaseRowToDay(row) {
   if (!row) return null;
   let canon = '';
-  if (row.sleep_date != null && String(row.sleep_date).trim() !== '') {
+  const hasSleepDate = row.sleep_date != null && String(row.sleep_date).trim() !== '';
+  if (hasSleepDate) {
     const s = String(row.sleep_date).trim().slice(0, 10);
     canon = normalizeSleepDateKey(s, LEGACY_SLEEP_DATE_FALLBACK_YEAR) || s;
   }
   if (!canon && row.date_md) {
+    if (!warnedSleepDateMissingFromCloudRow && typeof console !== 'undefined' && console.warn) {
+      warnedSleepDateMissingFromCloudRow = true;
+      console.warn(
+        'Restore: cloud row missing sleep_date; using date_md fallback. This should not occur after Phase 2 migration.'
+      );
+    }
     canon =
       normalizeSleepDateKey(row.date_md, LEGACY_SLEEP_DATE_FALLBACK_YEAR) || String(row.date_md).trim();
   }
@@ -1113,7 +1122,7 @@ function initSupabaseConfigForm() {
     const uid = encodeURIComponent(RESTORE_CLOUD_USER_ID);
     const endpoint =
       url.replace(/\/+$/, '') +
-      '/rest/v1/sleep_days?select=sleep_date&user_id=eq.' +
+      '/rest/v1/sleep_days?select=user_id,sleep_date&user_id=eq.' +
       uid +
       '&limit=1';
     fetch(endpoint, {

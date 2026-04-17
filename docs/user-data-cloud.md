@@ -28,8 +28,8 @@ This matches `loadSleepDataUsesSupabase(config)` in `sleep-utils.js`. If the use
 
 | Area | Storage | Notes |
 |------|---------|--------|
-| Sleep nights (completed rows) | `public.sleep_days` | Upsert via REST with `on_conflict=user_id,sleep_date`; rows scoped by `RESTORE_CLOUD_USER_ID` and native `sleep_date` (see `supabase/migrations/` phase 2). |
-| Incomplete night drafts | `public.sleep_day_drafts` + RPC `promote_draft_if_complete` | Same composite key; draft fetch filters `user_id` + `sleep_date`. |
+| Sleep nights (completed rows) | `public.sleep_days` | Upsert via REST with `on_conflict=user_id,sleep_date`; rows scoped by `RESTORE_CLOUD_USER_ID` and native `sleep_date` (see `supabase/migrations/` phase 2). Client mapping prefers `sleep_date`, then ISO `date_md` (`mapSupabaseRowToDay` in `sleep-utils.js`). |
+| Incomplete night drafts | `public.sleep_day_drafts` + RPC `promote_draft_if_complete` | Same composite key; draft fetch filters `user_id` + `sleep_date`. RPC args: `p_date_md` (ISO), `p_patch`. Optional SQL and UI checks: **Phase 3** in `docs/tmp-year-schema-plan.md`. |
 | User preferences (tracked columns) | `public.user_settings` + **localStorage mirror** | See mapping table below. |
 | Supabase URL / anon key | localStorage | Never sent as table data; `restore_supabase_*` keys. |
 | Dev/prod preset mode | localStorage `sleep-app-active-supabase-preset` | Optional: when `dev` or `prod`, credentials are driven by gitignored `local-supabase-presets.js` (see `docs/dev-banner.md`). Cleared when saving or clearing Supabase in Settings. |
