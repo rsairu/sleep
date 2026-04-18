@@ -524,16 +524,10 @@ function renderDashboardFromData(sleepData) {
   bindDashboardResponsiveRerender();
 
   const recentDays = dashboardCurrentDays.slice(0, Math.min(7, dashboardCurrentDays.length));
-  if (recentDays.length > 0 && typeof initDashboardTonightAdjuster === 'function' && typeof getRemainingWakeDisplayFromBasis === 'function' && typeof updateRemainingWakeNav === 'function') {
+  if (recentDays.length > 0 && typeof initDashboardTonightAdjuster === 'function' && typeof updateRemainingWakeNav === 'function' && typeof getRemainingWakeDisplayFromDays === 'function') {
     const recentAverages = calculateAverages(recentDays);
-    const baseWakeWindowMins = durationMinutes(recentAverages.avgSleepEnd, recentAverages.avgSleepStart);
-    initDashboardTonightAdjuster(recentAverages, function (projection) {
-      const basis = {
-        avgSleepStart: projection.sleepTarget,
-        avgSleepEnd: recentAverages.avgSleepEnd,
-        totalWakeMins: baseWakeWindowMins
-      };
-      updateRemainingWakeNav(getRemainingWakeDisplayFromBasis(basis, dashboardCurrentDays));
+    initDashboardTonightAdjuster(recentAverages, function () {
+      updateRemainingWakeNav(getRemainingWakeDisplayFromDays(dashboardCurrentDays));
     });
   }
 
