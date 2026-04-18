@@ -29,7 +29,8 @@ const SLEEP_DAY_LABEL_OPTIONS = [
   { emoji: '💼', title: 'Work' },
   { emoji: '☕', title: 'Caffeine' },
   { emoji: '🍝', title: 'Late/heavy meal' },
-  { emoji: '🤒', title: 'Illness' }
+  { emoji: '🤒', title: 'Illness' },
+  { emoji: '🔊', title: 'Loud/noise' }
 ];
 if (typeof window !== 'undefined') window.SLEEP_DAY_LABEL_OPTIONS = SLEEP_DAY_LABEL_OPTIONS;
 
