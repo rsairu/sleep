@@ -8,6 +8,7 @@ const vm = require('vm');
 function loadSleepUtils() {
   const filePath = path.join(__dirname, 'sleep-utils.js');
   const code = fs.readFileSync(filePath, 'utf8');
+  const lsStore = Object.create(null);
   const context = {
     console,
     Math,
@@ -15,7 +16,18 @@ function loadSleepUtils() {
     JSON,
     setInterval: () => {},
     clearInterval: () => {},
-    window: undefined
+    window: undefined,
+    localStorage: {
+      getItem(k) {
+        return Object.prototype.hasOwnProperty.call(lsStore, k) ? lsStore[k] : null;
+      },
+      setItem(k, v) {
+        lsStore[k] = String(v);
+      },
+      removeItem(k) {
+        delete lsStore[k];
+      }
+    }
   };
   vm.createContext(context);
   vm.runInContext(code, context, { filename: 'sleep-utils.js' });
@@ -146,6 +158,24 @@ function runTests() {
   expectEqual(basis.avgSleepEnd, 420, 'basis avg wake end');
   expectEqual(basis.totalWakeMins, 960, 'basis total wake minutes');
   expectEqual(u.wakePercentToClockMinutes(basis, 50), 900, 'wakePercentToClockMinutes 50 percent');
+
+  const defaultPhaseBasis = u.getTonightWakePhaseBasisFromDays(basisDays);
+  expectEqual(defaultPhaseBasis.avgSleepStart, 1380, 'getTonightWakePhaseBasisFromDays matches seven-day when no target');
+  expectEqual(defaultPhaseBasis.totalWakeMins, 960, 'getTonightWakePhaseBasisFromDays wake window without target');
+
+  u.localStorage.setItem('sleep-app-tonight-target-window', JSON.stringify({ sleep: 1320, wake: 420 }));
+  const withTarget = u.getTonightWakePhaseBasisFromDays(basisDays);
+  expectEqual(withTarget.avgSleepStart, 1320, 'saved Tonight target replaces sleep in phase basis');
+  expectEqual(withTarget.avgSleepEnd, 420, 'saved Tonight target preserves wake in phase basis');
+  expectEqual(withTarget.totalWakeMins, u.durationMinutes(420, 1320), 'saved Tonight target recomputes wake window');
+
+  u.localStorage.setItem('sleep-app-tonight-projection-adjustment', JSON.stringify({ sleep: 1350, wake: 400 }));
+  const withAdj = u.getTonightWakePhaseBasisFromDays(basisDays);
+  expectEqual(withAdj.avgSleepStart, 1350, 'session adjustment overlays sleep in phase basis');
+  expectEqual(withAdj.avgSleepEnd, 400, 'session adjustment overlays wake in phase basis');
+  expectEqual(withAdj.totalWakeMins, u.durationMinutes(400, 1350), 'session adjustment recomputes wake window');
+  u.localStorage.removeItem('sleep-app-tonight-projection-adjustment');
+  u.localStorage.removeItem('sleep-app-tonight-target-window');
 
   // Projection window wrap behavior near midnight
   const sleepTargetNearMidnight = 10; // 00:10

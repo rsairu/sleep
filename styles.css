@@ -2638,7 +2638,8 @@ body{
   gap: 10px;
 }
 
-.dashboard-tonight-adjust-reset {
+.dashboard-tonight-adjust-reset,
+.dashboard-tonight-adjust-save-target {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2656,8 +2657,14 @@ body{
   padding: 5px 10px;
 }
 
-.dashboard-tonight-adjust-reset:hover {
+.dashboard-tonight-adjust-reset:hover,
+.dashboard-tonight-adjust-save-target:hover:not(:disabled) {
   background: var(--hover-bg);
+}
+
+.dashboard-tonight-adjust-save-target:disabled {
+  cursor: default;
+  opacity: 0.45;
 }
 
 .dashboard-tonight-adjust-panel {
@@ -2679,6 +2686,8 @@ body{
   --tonight-mid-pct: 50%;
   --tonight-rec-start-pct: 42%;
   --tonight-rec-end-pct: 58%;
+  --tonight-committed-sleep-pct: 42%;
+  --tonight-committed-wake-pct: 58%;
   position: relative;
   width: 100%;
   padding: 14px 0 30px;
@@ -3003,17 +3012,18 @@ body{
 }
 
 .dashboard-tonight-adjust-baseline-label--sleep {
-  left: var(--tonight-rec-start-pct);
+  left: var(--tonight-committed-sleep-pct, var(--tonight-rec-start-pct));
   background: transparent;
 }
 
 .dashboard-tonight-adjust-baseline-label--wake {
-  left: var(--tonight-rec-end-pct);
+  left: var(--tonight-committed-wake-pct, var(--tonight-rec-end-pct));
   background: transparent;
 }
 
 .dashboard-tonight-adjust-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   gap: 8px;
   margin-top: 4px;

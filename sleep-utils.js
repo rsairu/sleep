@@ -544,7 +544,9 @@ function isSeedDefaultUserSettingsRow(row) {
     row.quality_palette === DEFAULT_QUALITY_PALETTE_ID &&
     Number(row.remaining_wake_open_min) === 35 &&
     Number(row.remaining_wake_winding_min) === 15 &&
-    Number(row.remaining_wake_phase_heads_up_mins) === 30
+    Number(row.remaining_wake_phase_heads_up_mins) === 30 &&
+    row.tonight_target_sleep_min == null &&
+    row.tonight_target_wake_min == null
   );
 }
 
@@ -569,6 +571,13 @@ function localUserSettingsToRow() {
   if (REMAINING_WAKE_PHASE_HEADS_UP_ALLOWED.indexOf(remaining_wake_phase_heads_up_mins) === -1) {
     remaining_wake_phase_heads_up_mins = DEFAULT_REMAINING_WAKE_PHASE_HEADS_UP_MINS;
   }
+  let tonight_target_sleep_min = null;
+  let tonight_target_wake_min = null;
+  const tw = getTonightTargetWindow();
+  if (tw && isValidClockMinute(tw.sleep) && isValidClockMinute(tw.wake) && modMinutes1440(tw.sleep) !== modMinutes1440(tw.wake)) {
+    tonight_target_sleep_min = modMinutes1440(tw.sleep);
+    tonight_target_wake_min = modMinutes1440(tw.wake);
+  }
   return {
     user_id: RESTORE_CLOUD_USER_ID,
     language: language === 'ja' ? 'ja' : 'en',
@@ -577,7 +586,9 @@ function localUserSettingsToRow() {
     quality_palette: quality_palette,
     remaining_wake_open_min: openMin,
     remaining_wake_winding_min: windingMin,
-    remaining_wake_phase_heads_up_mins: remaining_wake_phase_heads_up_mins
+    remaining_wake_phase_heads_up_mins: remaining_wake_phase_heads_up_mins,
+    tonight_target_sleep_min: tonight_target_sleep_min,
+    tonight_target_wake_min: tonight_target_wake_min
   };
 }
 
@@ -620,6 +631,24 @@ function userSettingsRowToLocalStorage(row) {
       localStorage.setItem(REMAINING_WAKE_PHASE_HEADS_UP_KEY, String(heads));
     } catch (_) {}
   }
+  try {
+    const ts = row.tonight_target_sleep_min;
+    const tw = row.tonight_target_wake_min;
+    if (ts != null && tw != null) {
+      const sm = parseInt(ts, 10);
+      const wm = parseInt(tw, 10);
+      if (isValidClockMinute(sm) && isValidClockMinute(wm) && modMinutes1440(sm) !== modMinutes1440(wm)) {
+        localStorage.setItem(
+          TONIGHT_TARGET_WINDOW_KEY,
+          JSON.stringify({ sleep: modMinutes1440(sm), wake: modMinutes1440(wm) })
+        );
+      } else {
+        localStorage.removeItem(TONIGHT_TARGET_WINDOW_KEY);
+      }
+    } else {
+      localStorage.removeItem(TONIGHT_TARGET_WINDOW_KEY);
+    }
+  } catch (_) {}
 }
 
 function fetchUserSettings(config) {
@@ -627,7 +656,7 @@ function fetchUserSettings(config) {
   const uid = encodeURIComponent(RESTORE_CLOUD_USER_ID);
   const url =
     config.url.replace(/\/+$/, '') +
-    '/rest/v1/user_settings?select=user_id,language,theme_override,clock_format,quality_palette,remaining_wake_open_min,remaining_wake_winding_min,remaining_wake_phase_heads_up_mins&user_id=eq.' +
+    '/rest/v1/user_settings?select=user_id,language,theme_override,clock_format,quality_palette,remaining_wake_open_min,remaining_wake_winding_min,remaining_wake_phase_heads_up_mins,tonight_target_sleep_min,tonight_target_wake_min&user_id=eq.' +
     uid +
     '&limit=1';
   return fetch(url, { headers: getSupabaseAuthHeaders(config, false) })
@@ -1624,6 +1653,7 @@ const DEFAULT_REMAINING_WAKE_PHASE_HEADS_UP_MINS = 30;
 const CLOCK_FORMAT_KEY = 'sleep-app-clock-format';
 const QUALITY_PALETTE_KEY = 'sleep-app-quality-palette';
 const TONIGHT_PROJECTION_ADJUSTMENT_KEY = 'sleep-app-tonight-projection-adjustment';
+const TONIGHT_TARGET_WINDOW_KEY = 'sleep-app-tonight-target-window';
 
 // Six-step ramps (best → worst). Tiers 4–6 map to severity flags (slight / moderate / severe); 1–3 reserved for future use.
 const QUALITY_PALETTES = {
@@ -2095,6 +2125,50 @@ function clearTonightProjectionAdjustment() {
   } catch (_) {}
 }
 
+/** @returns {{ sleep: number, wake: number } | null} wall-clock minutes 0–1439; both set or null. */
+function getTonightTargetWindow() {
+  try {
+    if (typeof localStorage === 'undefined') return null;
+    const raw = localStorage.getItem(TONIGHT_TARGET_WINDOW_KEY);
+    if (!raw) return null;
+    const o = JSON.parse(raw);
+    if (!o || typeof o !== 'object') return null;
+    const sleep = o.sleep;
+    const wake = o.wake;
+    if (!isValidClockMinute(sleep) || !isValidClockMinute(wake)) return null;
+    const s = modMinutes1440(sleep);
+    const w = modMinutes1440(wake);
+    if (s === w) return null;
+    return { sleep: s, wake: w };
+  } catch (_) {
+    return null;
+  }
+}
+
+function setTonightTargetWindow(sleep, wake) {
+  if (!isValidClockMinute(sleep) || !isValidClockMinute(wake)) return;
+  const s = modMinutes1440(sleep);
+  const w = modMinutes1440(wake);
+  if (s === w) return;
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(TONIGHT_TARGET_WINDOW_KEY, JSON.stringify({ sleep: s, wake: w }));
+    }
+  } catch (_) {}
+  syncUserSettingsRowToCloud();
+  updateDevBannerUserSettingsPanel();
+}
+
+function clearTonightTargetWindow() {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem(TONIGHT_TARGET_WINDOW_KEY);
+    }
+  } catch (_) {}
+  syncUserSettingsRowToCloud();
+  updateDevBannerUserSettingsPanel();
+}
+
 /** Same key as quick-actions / entry-modal night QA flags (bed, sleep, wake). */
 const RESTORE_QA_SLEEP_LOGGED_KEY = 'restore_qa_sleep_logged_v1';
 
@@ -2381,23 +2455,40 @@ function computeRecentSevenDayWakeBasis(days) {
   return { avgSleepStart, avgSleepEnd, totalWakeMins };
 }
 
-function applyTonightProjectionAdjustmentToBasis(basis, adjustment) {
-  if (!basis) return null;
-  if (!adjustment) return basis;
-  if (!isValidClockMinute(adjustment.sleep) || !isValidClockMinute(adjustment.wake)) return basis;
-  // Remaining wake countdown is anchored by current -> sleep target.
-  // Keep wake-window length from recent baseline so wake-only adjustments do not skew progress.
-  const avgSleepStart = modMinutes1440(adjustment.sleep);
+/**
+ * Canonical sleep/wake basis for remaining-wake nav, quick actions, and dashboard phase:
+ * recent seven-day averages, optional saved Tonight target pair, then optional session slider adjustment.
+ */
+function getTonightWakePhaseBasisFromDays(days) {
+  const liveDays = Array.isArray(days) ? days : [];
+  let basis = computeRecentSevenDayWakeBasis(liveDays);
+  if (!basis || !Number.isFinite(basis.avgSleepStart) || !Number.isFinite(basis.avgSleepEnd)) {
+    basis = getFallbackWakeBasis();
+  }
+  const tw = getTonightTargetWindow();
+  if (tw) {
+    const s = modMinutes1440(tw.sleep);
+    const w = modMinutes1440(tw.wake);
+    basis = {
+      avgSleepStart: s,
+      avgSleepEnd: w,
+      totalWakeMins: durationMinutes(w, s)
+    };
+  }
+  const adj = getTonightProjectionAdjustment();
+  if (!adj || !isValidClockMinute(adj.sleep) || !isValidClockMinute(adj.wake)) return basis;
+  const s = modMinutes1440(adj.sleep);
+  const w = modMinutes1440(adj.wake);
+  if (s === w) return basis;
   return {
-    avgSleepStart,
-    avgSleepEnd: basis.avgSleepEnd,
-    totalWakeMins: basis.totalWakeMins
+    avgSleepStart: s,
+    avgSleepEnd: w,
+    totalWakeMins: durationMinutes(w, s)
   };
 }
 
 function getEffectiveRemainingWakeBasis(days) {
-  const base = computeRecentSevenDayWakeBasis(days);
-  return applyTonightProjectionAdjustmentToBasis(base, getTonightProjectionAdjustment());
+  return getTonightWakePhaseBasisFromDays(days);
 }
 
 function getFallbackWakeBasis() {

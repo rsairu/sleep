@@ -35,7 +35,8 @@ This matches `loadSleepDataUsesSupabase(config)` in `sleep-utils.js`. If the use
 | Dev/prod preset mode | localStorage `sleep-app-active-supabase-preset` | Optional: when `dev` or `prod`, credentials are driven by gitignored `local-supabase-presets.js` (see `docs/dev-banner.md`). Cleared when saving or clearing Supabase in Settings. |
 | Preset definitions | `window.__RESTORE_SUPABASE_PRESETS__` (from optional `local-supabase-presets.js`) | Not persisted; loaded before `sleep-utils.js`. If missing or incomplete, Settings-only config applies. |
 | Sleep data cache | localStorage `restore_sleep_data_cache_v1` | Snapshot of last loaded sleep payload + cache key. |
-| Tonight projection tweak | localStorage only | Not in `user_settings`. |
+| Tonight session slider tweak | `sleep-app-tonight-projection-adjustment` (localStorage) | Optional overlay on top of averages or saved target; cleared when you **Save as target** on the dashboard. |
+| Tonight saved target (sleep / wake pair) | `public.user_settings` + `sleep-app-tonight-target-window` (localStorage mirror) | Nullable integer minutes 0–1439; both set or both null. Drives default Tonight thumbs and `getTonightWakePhaseBasisFromDays` before the session tweak. |
 | Dev banner, app-time simulation, QA flags | localStorage only | Not cloud-synced. |
 
 ---
@@ -51,8 +52,9 @@ This matches `loadSleepDataUsesSupabase(config)` in `sleep-utils.js`. If the use
 | `quality_palette` | `sleep-app-quality-palette`; `meadow` / `harbor` / `auto` (app and DB default: `auto`). |
 | `remaining_wake_open_min` / `remaining_wake_winding_min` | JSON in `sleep-app-remaining-wake-thresholds`; must satisfy `openMin > windingMin` (matches DB check). |
 | `remaining_wake_phase_heads_up_mins` | `sleep-app-remaining-wake-phase-heads-up-mins`; allowed 0, 15, 30, 45, 60. |
+| `tonight_target_sleep_min` / `tonight_target_wake_min` | `sleep-app-tonight-target-window` JSON `{ sleep, wake }` (minutes 0–1439); removed when both cleared. |
 
-Helpers: `localUserSettingsToRow`, `userSettingsRowToLocalStorage`, `fetchUserSettings`, `upsertUserSettings`.
+Helpers: `localUserSettingsToRow`, `userSettingsRowToLocalStorage`, `fetchUserSettings`, `upsertUserSettings`, `getTonightTargetWindow`, `setTonightTargetWindow`, `clearTonightTargetWindow`, `getTonightWakePhaseBasisFromDays`.
 
 ---
 

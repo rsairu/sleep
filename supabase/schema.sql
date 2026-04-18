@@ -45,6 +45,8 @@ create table if not exists public.user_settings (
   remaining_wake_open_min integer not null default 35 check (remaining_wake_open_min >= 0 and remaining_wake_open_min <= 100),
   remaining_wake_winding_min integer not null default 15 check (remaining_wake_winding_min >= 0 and remaining_wake_winding_min <= 100),
   remaining_wake_phase_heads_up_mins integer not null default 30 check (remaining_wake_phase_heads_up_mins in (0, 15, 30, 45, 60)),
+  tonight_target_sleep_min integer,
+  tonight_target_wake_min integer,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   check (remaining_wake_open_min > remaining_wake_winding_min)
@@ -84,7 +86,9 @@ insert into public.user_settings (
   quality_palette,
   remaining_wake_open_min,
   remaining_wake_winding_min,
-  remaining_wake_phase_heads_up_mins
+  remaining_wake_phase_heads_up_mins,
+  tonight_target_sleep_min,
+  tonight_target_wake_min
 )
 values (
   '00000000-0000-0000-0000-000000000001',
@@ -94,7 +98,9 @@ values (
   'auto',
   35,
   15,
-  30
+  30,
+  null,
+  null
 )
 on conflict (user_id) do update
 set

@@ -966,22 +966,49 @@ function normalizeClockMinutesNearReference(clockMinutes, referenceMinutes) {
 }
 
 function getTonightProjectionBaseState(recentAverages) {
-  const sleepTarget = recentAverages.avgSleepStart;
-  const wakeTarget = recentAverages.avgSleepEnd;
-  const sleepByLow = modMinutes1440(sleepTarget - PROJECTION_BAND_MINUTES);
-  const sleepByHigh = modMinutes1440(sleepTarget + PROJECTION_BAND_MINUTES);
-  const wakeByLow = modMinutes1440(wakeTarget - WAKE_PROJECTION_BAND_MINUTES);
-  const wakeByHigh = modMinutes1440(wakeTarget + WAKE_PROJECTION_BAND_MINUTES);
-  const recommendedDurationMins = durationMinutes(sleepTarget, wakeTarget);
+  const avgSleep = recentAverages.avgSleepStart;
+  const avgWake = recentAverages.avgSleepEnd;
+  const sleepByLow = modMinutes1440(avgSleep - PROJECTION_BAND_MINUTES);
+  const sleepByHigh = modMinutes1440(avgSleep + PROJECTION_BAND_MINUTES);
+  const wakeByLow = modMinutes1440(avgWake - WAKE_PROJECTION_BAND_MINUTES);
+  const wakeByHigh = modMinutes1440(avgWake + WAKE_PROJECTION_BAND_MINUTES);
+  const recommendedDurationMins = durationMinutes(avgSleep, avgWake);
 
-  const recommendedSleepNorm = normalizeTimeForAveraging(sleepTarget);
-  const recommendedWakeNorm = normalizeWakeTimeForAveraging(sleepTarget, wakeTarget);
-  const scopeStartNorm = recommendedSleepNorm - TONIGHT_ADJUST_SCOPE_PAD_MINUTES;
-  const scopeEndNorm = recommendedWakeNorm + TONIGHT_ADJUST_SCOPE_PAD_MINUTES;
+  const recommendedSleepNorm = normalizeTimeForAveraging(avgSleep);
+  const recommendedWakeNorm = normalizeWakeTimeForAveraging(avgSleep, avgWake);
+
+  let committedSleep = avgSleep;
+  let committedWake = avgWake;
+  const savedTw = typeof getTonightTargetWindow === 'function' ? getTonightTargetWindow() : null;
+  if (savedTw) {
+    committedSleep = modMinutes1440(savedTw.sleep);
+    committedWake = modMinutes1440(savedTw.wake);
+  }
+  const committedSleepNorm = normalizeTimeForAveraging(committedSleep);
+  const committedWakeNorm = normalizeWakeTimeForAveraging(committedSleep, committedWake);
+
+  let scopeStartNorm = Math.min(recommendedSleepNorm, committedSleepNorm) - TONIGHT_ADJUST_SCOPE_PAD_MINUTES;
+  let scopeEndNorm = Math.max(recommendedWakeNorm, committedWakeNorm) + TONIGHT_ADJUST_SCOPE_PAD_MINUTES;
+
+  const adj = typeof getTonightProjectionAdjustment === 'function' ? getTonightProjectionAdjustment() : null;
+  if (adj) {
+    let sn = normalizeClockMinutesNearReference(adj.sleep, committedSleepNorm);
+    let wn = normalizeClockMinutesNearReference(adj.wake, committedWakeNorm);
+    if (wn <= sn) wn += 1440;
+    scopeStartNorm = Math.min(scopeStartNorm, sn - TONIGHT_ADJUST_SCOPE_PAD_MINUTES);
+    scopeEndNorm = Math.max(scopeEndNorm, wn + TONIGHT_ADJUST_SCOPE_PAD_MINUTES);
+  }
 
   return {
-    sleepTarget,
-    wakeTarget,
+    avgSleepStart: avgSleep,
+    avgSleepEnd: avgWake,
+    sleepTarget: committedSleep,
+    wakeTarget: committedWake,
+    committedSleep,
+    committedWake,
+    committedSleepNorm,
+    committedWakeNorm,
+    hasSavedTonightTarget: Boolean(savedTw),
     sleepByLow,
     sleepByHigh,
     wakeByLow,
@@ -1044,8 +1071,8 @@ function getQuickAddInitialBedNorm(base, sleepNorm, recentDays) {
 
 function getQuickAddSliderProjection(recentAverages, recentDays) {
   const base = getTonightProjectionBaseState(recentAverages);
-  const sleepNorm = base.recommendedSleepNorm;
-  const wakeNorm = base.recommendedWakeNorm;
+  const sleepNorm = base.committedSleepNorm;
+  const wakeNorm = base.committedWakeNorm;
   const clamped = clampTonightProjectionNorms(base, sleepNorm, wakeNorm);
   const scopeSpan = base.scopeEndNorm - base.scopeStartNorm;
   const sleepPct = ((clamped.sleepNorm - base.scopeStartNorm) / scopeSpan) * 100;
@@ -1275,23 +1302,25 @@ function getTonightProjectionState(recentAverages) {
   const base = getTonightProjectionBaseState(recentAverages);
   const override = typeof getTonightProjectionAdjustment === 'function' ? getTonightProjectionAdjustment() : null;
 
-  let sleepNorm = base.recommendedSleepNorm;
-  let wakeNorm = base.recommendedWakeNorm;
+  let sleepNorm = base.committedSleepNorm;
+  let wakeNorm = base.committedWakeNorm;
   if (override) {
-    sleepNorm = normalizeClockMinutesNearReference(override.sleep, base.recommendedSleepNorm);
-    wakeNorm = normalizeClockMinutesNearReference(override.wake, base.recommendedWakeNorm);
+    sleepNorm = normalizeClockMinutesNearReference(override.sleep, base.committedSleepNorm);
+    wakeNorm = normalizeClockMinutesNearReference(override.wake, base.committedWakeNorm);
     if (wakeNorm <= sleepNorm) wakeNorm += 1440;
   }
 
   const clamped = clampTonightProjectionNorms(base, sleepNorm, wakeNorm);
   const sleepClock = modMinutes1440(clamped.sleepNorm);
   const wakeClock = modMinutes1440(clamped.wakeNorm);
-  const isAdjusted = sleepClock !== base.sleepTarget || wakeClock !== base.wakeTarget;
+  const isAdjusted = sleepClock !== base.committedSleep || wakeClock !== base.committedWake;
   const scopeSpan = base.scopeEndNorm - base.scopeStartNorm;
   const sleepPct = ((clamped.sleepNorm - base.scopeStartNorm) / scopeSpan) * 100;
   const wakePct = ((clamped.wakeNorm - base.scopeStartNorm) / scopeSpan) * 100;
   const recStartPct = ((base.recommendedSleepNorm - base.scopeStartNorm) / scopeSpan) * 100;
   const recEndPct = ((base.recommendedWakeNorm - base.scopeStartNorm) / scopeSpan) * 100;
+  const committedSleepPct = ((base.committedSleepNorm - base.scopeStartNorm) / scopeSpan) * 100;
+  const committedWakePct = ((base.committedWakeNorm - base.scopeStartNorm) / scopeSpan) * 100;
   return {
     base,
     scopeSpan,
@@ -1303,7 +1332,9 @@ function getTonightProjectionState(recentAverages) {
     sleepPct,
     wakePct,
     recStartPct,
-    recEndPct
+    recEndPct,
+    committedSleepPct,
+    committedWakePct
   };
 }
 
@@ -1313,14 +1344,14 @@ function renderDashboardProjection(recentAverages) {
   const durationMins = durationMinutes(projection.sleepClock, projection.wakeClock);
 
   return `
-    <div class="dashboard-projection" id="dashboard-tonight-projection" data-rec-sleep="${base.sleepTarget}" data-rec-wake="${base.wakeTarget}">
+    <div class="dashboard-projection" id="dashboard-tonight-projection" data-rec-sleep="${base.avgSleepStart}" data-rec-wake="${base.avgSleepEnd}">
       <h2 class="dashboard-projection-title">Tonight</h2>
       <div class="dashboard-tonight-adjust">
         <div class="dashboard-tonight-adjust-panel" id="dashboard-tonight-adjust-panel">
           <div
             class="dashboard-tonight-adjust-slider dashboard-tonight-adjust-slider--main"
             id="dashboard-tonight-adjust-slider"
-            style="--tonight-sleep-pct:${projection.sleepPct}%;--tonight-wake-pct:${projection.wakePct}%;--tonight-mid-pct:${(projection.sleepPct + projection.wakePct) / 2}%;--tonight-rec-start-pct:${projection.recStartPct}%;--tonight-rec-end-pct:${projection.recEndPct}%;">
+            style="--tonight-sleep-pct:${projection.sleepPct}%;--tonight-wake-pct:${projection.wakePct}%;--tonight-mid-pct:${(projection.sleepPct + projection.wakePct) / 2}%;--tonight-rec-start-pct:${projection.recStartPct}%;--tonight-rec-end-pct:${projection.recEndPct}%;--tonight-committed-sleep-pct:${projection.committedSleepPct}%;--tonight-committed-wake-pct:${projection.committedWakePct}%;">
             <div class="dashboard-tonight-adjust-pole-row" aria-hidden="true">
               <div class="dashboard-tonight-adjust-pole-label dashboard-tonight-adjust-pole-label--sleep">
                 <span class="proj-keyword proj-sleep">🌙 Sleep</span>
@@ -1339,8 +1370,8 @@ function renderDashboardProjection(recentAverages) {
               <input type="range" id="dashboard-tonight-sleep-slider" min="${base.scopeStartNorm}" max="${base.scopeEndNorm}" step="1" value="${projection.sleepNorm}" aria-label="Tonight sleep target">
               <input type="range" id="dashboard-tonight-wake-slider" min="${base.scopeStartNorm}" max="${base.scopeEndNorm}" step="1" value="${projection.wakeNorm}" aria-label="Tomorrow wake target">
               <div class="dashboard-tonight-adjust-overlay" id="dashboard-tonight-adjust-overlay" aria-hidden="true"></div>
-              <div class="dashboard-tonight-adjust-baseline-label dashboard-tonight-adjust-baseline-label--sleep dashboard-tonight-adjust-baseline-label--hidden" id="dashboard-tonight-sleep-baseline-label">${formatTime(base.sleepTarget)}</div>
-              <div class="dashboard-tonight-adjust-baseline-label dashboard-tonight-adjust-baseline-label--wake dashboard-tonight-adjust-baseline-label--hidden" id="dashboard-tonight-wake-baseline-label">${formatTime(base.wakeTarget)}</div>
+              <div class="dashboard-tonight-adjust-baseline-label dashboard-tonight-adjust-baseline-label--sleep dashboard-tonight-adjust-baseline-label--hidden" id="dashboard-tonight-sleep-baseline-label">${formatTime(base.committedSleep)}</div>
+              <div class="dashboard-tonight-adjust-baseline-label dashboard-tonight-adjust-baseline-label--wake dashboard-tonight-adjust-baseline-label--hidden" id="dashboard-tonight-wake-baseline-label">${formatTime(base.committedWake)}</div>
               <div class="dashboard-tonight-adjust-thumb-label dashboard-tonight-adjust-thumb-label--sleep" id="dashboard-tonight-sleep-thumb-label">${formatTime(projection.sleepClock)}</div>
               <div class="dashboard-tonight-adjust-thumb-label dashboard-tonight-adjust-thumb-label--wake" id="dashboard-tonight-wake-thumb-label">${formatTime(projection.wakeClock)}</div>
             </div>
@@ -1349,6 +1380,7 @@ function renderDashboardProjection(recentAverages) {
             </div>
           </div>
           <div class="dashboard-tonight-adjust-actions">
+            <button type="button" class="dashboard-tonight-adjust-save-target" id="dashboard-tonight-adjust-save-target">Save as target</button>
             <button type="button" class="dashboard-tonight-adjust-reset" id="dashboard-tonight-adjust-reset">Use recent average</button>
           </div>
         </div>
@@ -1369,21 +1401,53 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
   const centerDurationEl = document.getElementById('dashboard-tonight-slider-duration');
   const sleepBaselineLabelEl = document.getElementById('dashboard-tonight-sleep-baseline-label');
   const wakeBaselineLabelEl = document.getElementById('dashboard-tonight-wake-baseline-label');
+  const saveTargetButton = document.getElementById('dashboard-tonight-adjust-save-target');
   const resetButton = document.getElementById('dashboard-tonight-adjust-reset');
-  if (!root || !panel || !sliderWrap || !sliderOverlay || !sleepSlider || !wakeSlider || !sleepLabel || !wakeLabel || !sleepBaselineLabelEl || !wakeBaselineLabelEl || !resetButton) {
+  if (
+    !root ||
+    !panel ||
+    !sliderWrap ||
+    !sliderOverlay ||
+    !sleepSlider ||
+    !wakeSlider ||
+    !sleepLabel ||
+    !wakeLabel ||
+    !sleepBaselineLabelEl ||
+    !wakeBaselineLabelEl ||
+    !saveTargetButton ||
+    !resetButton
+  ) {
     return;
   }
 
-  const base = getTonightProjectionBaseState(recentAverages);
+  let base = getTonightProjectionBaseState(recentAverages);
   let state = getTonightProjectionState(recentAverages);
 
+  function applySliderBoundsFromBase() {
+    sleepSlider.min = String(base.scopeStartNorm);
+    sleepSlider.max = String(base.scopeEndNorm);
+    wakeSlider.min = String(base.scopeStartNorm);
+    wakeSlider.max = String(base.scopeEndNorm);
+  }
+
   function updateVisualState(persistOverride) {
-    const sleepPct = ((state.sleepNorm - base.scopeStartNorm) / (base.scopeEndNorm - base.scopeStartNorm)) * 100;
-    const wakePct = ((state.wakeNorm - base.scopeStartNorm) / (base.scopeEndNorm - base.scopeStartNorm)) * 100;
+    const scopeSpan = base.scopeEndNorm - base.scopeStartNorm;
+    const sleepPct = ((state.sleepNorm - base.scopeStartNorm) / scopeSpan) * 100;
+    const wakePct = ((state.wakeNorm - base.scopeStartNorm) / scopeSpan) * 100;
     const midPct = (sleepPct + wakePct) / 2;
     sliderWrap.style.setProperty('--tonight-sleep-pct', `${sleepPct}%`);
     sliderWrap.style.setProperty('--tonight-wake-pct', `${wakePct}%`);
     sliderWrap.style.setProperty('--tonight-mid-pct', `${midPct}%`);
+
+    const recStartPct = ((base.recommendedSleepNorm - base.scopeStartNorm) / scopeSpan) * 100;
+    const recEndPct = ((base.recommendedWakeNorm - base.scopeStartNorm) / scopeSpan) * 100;
+    sliderWrap.style.setProperty('--tonight-rec-start-pct', `${recStartPct}%`);
+    sliderWrap.style.setProperty('--tonight-rec-end-pct', `${recEndPct}%`);
+
+    const committedSleepPct = ((base.committedSleepNorm - base.scopeStartNorm) / scopeSpan) * 100;
+    const committedWakePct = ((base.committedWakeNorm - base.scopeStartNorm) / scopeSpan) * 100;
+    sliderWrap.style.setProperty('--tonight-committed-sleep-pct', `${committedSleepPct}%`);
+    sliderWrap.style.setProperty('--tonight-committed-wake-pct', `${committedWakePct}%`);
 
     sleepSlider.value = String(state.sleepNorm);
     wakeSlider.value = String(state.wakeNorm);
@@ -1391,16 +1455,27 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
     sleepLabel.textContent = formatTime(state.sleepClock);
     wakeLabel.textContent = formatTime(state.wakeClock);
 
+    sleepBaselineLabelEl.textContent = formatTime(base.committedSleep);
+    wakeBaselineLabelEl.textContent = formatTime(base.committedWake);
+
     const duration = durationMinutes(state.sleepClock, state.wakeClock);
     if (centerDurationEl) {
       centerDurationEl.textContent = `~${formatDuration(duration)} sleep`;
     }
 
-    const sleepAdjusted = state.sleepClock !== base.sleepTarget;
-    const wakeAdjusted = state.wakeClock !== base.wakeTarget;
+    const sleepAdjusted = state.sleepClock !== base.committedSleep;
+    const wakeAdjusted = state.wakeClock !== base.committedWake;
     sleepBaselineLabelEl.classList.toggle('dashboard-tonight-adjust-baseline-label--hidden', !sleepAdjusted);
     wakeBaselineLabelEl.classList.toggle('dashboard-tonight-adjust-baseline-label--hidden', !wakeAdjusted);
     root.classList.toggle('dashboard-tonight-projection--adjusted', state.isAdjusted);
+
+    const tw = typeof getTonightTargetWindow === 'function' ? getTonightTargetWindow() : null;
+    const saveDisabled =
+      Boolean(tw) &&
+      modMinutes1440(tw.sleep) === state.sleepClock &&
+      modMinutes1440(tw.wake) === state.wakeClock &&
+      !state.isAdjusted;
+    saveTargetButton.disabled = saveDisabled;
 
     if (persistOverride && typeof setTonightProjectionAdjustment === 'function' && typeof clearTonightProjectionAdjustment === 'function') {
       if (state.isAdjusted) {
@@ -1433,7 +1508,7 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
       sleepClock: modMinutes1440(clamped.sleepNorm),
       wakeClock: modMinutes1440(clamped.wakeNorm)
     };
-    state.isAdjusted = state.sleepClock !== base.sleepTarget || state.wakeClock !== base.wakeTarget;
+    state.isAdjusted = state.sleepClock !== base.committedSleep || state.wakeClock !== base.committedWake;
     updateVisualState(true);
   }
 
@@ -1526,17 +1601,28 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
   });
 
   resetButton.addEventListener('click', function () {
-    state = {
-      ...state,
-      sleepNorm: base.recommendedSleepNorm,
-      wakeNorm: base.recommendedWakeNorm,
-      sleepClock: base.sleepTarget,
-      wakeClock: base.wakeTarget,
-      isAdjusted: false
-    };
+    const hadSavedTarget = typeof getTonightTargetWindow === 'function' && Boolean(getTonightTargetWindow());
+    if (typeof clearTonightTargetWindow === 'function') clearTonightTargetWindow();
     if (typeof clearTonightProjectionAdjustment === 'function') clearTonightProjectionAdjustment();
+    base = getTonightProjectionBaseState(recentAverages);
+    state = getTonightProjectionState(recentAverages);
+    applySliderBoundsFromBase();
     updateVisualState(false);
-    showAppToast('Using recent average sleep and wake times');
+    showAppToast(
+      hadSavedTarget ? 'Using recent average; saved Tonight target cleared' : 'Using recent average sleep and wake times'
+    );
+  });
+
+  saveTargetButton.addEventListener('click', function () {
+    if (typeof setTonightTargetWindow === 'function') {
+      setTonightTargetWindow(state.sleepClock, state.wakeClock);
+    }
+    if (typeof clearTonightProjectionAdjustment === 'function') clearTonightProjectionAdjustment();
+    base = getTonightProjectionBaseState(recentAverages);
+    state = getTonightProjectionState(recentAverages);
+    applySliderBoundsFromBase();
+    updateVisualState(false);
+    showAppToast('Tonight target saved');
   });
 
   sliderOverlay.addEventListener('mousedown', onPointerDown);
@@ -1547,6 +1633,7 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
   document.addEventListener('touchend', onPointerUp);
   document.addEventListener('touchcancel', onPointerUp);
 
+  applySliderBoundsFromBase();
   updateVisualState(false);
 }
 
