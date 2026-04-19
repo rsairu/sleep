@@ -234,6 +234,35 @@ function setActiveGraphRangeButton(rangeKey) {
 let graphPageAllPoints = [];
 let graphPageRangeKey = 'all';
 let graphPageTogglesBound = false;
+/** Incremented each time chart render finishes; used to scroll to `location.hash` only on first paint (layout is stable). */
+let graphPageChartRenderGeneration = 0;
+
+/** Scroll to `document.location.hash` target after layout (see graph.html post-nav pass). */
+function syncGraphPageHashScroll() {
+  if (typeof window === 'undefined' || !window.location.hash || window.location.hash.length <= 1) return;
+  const id = decodeURIComponent(window.location.hash.slice(1));
+  const el = document.getElementById(id);
+  if (!el) return;
+  requestAnimationFrame(function () {
+    requestAnimationFrame(function () {
+      el.scrollIntoView({ block: 'start', behavior: 'auto' });
+    });
+  });
+}
+
+function maybeScrollGraphPageHashAfterFirstChartRender() {
+  graphPageChartRenderGeneration += 1;
+  if (graphPageChartRenderGeneration === 1) syncGraphPageHashScroll();
+}
+
+let graphPageHashScrollAfterNavDone = false;
+
+/** Re-scroll after nav mounts so fixed chrome / reserved layout does not leave `#hash` at y=0. */
+function scrollGraphPageHashAfterNavOnce() {
+  if (graphPageHashScrollAfterNavDone) return;
+  graphPageHashScrollAfterNavDone = true;
+  syncGraphPageHashScroll();
+}
 
 // Load and render graph
 loadSleepData()
@@ -316,6 +345,7 @@ function renderGraphPageCharts() {
         msg.className = 'chart-error';
         msg.textContent = 'No nights in this range.';
         document.getElementById('graph-container').appendChild(msg);
+        maybeScrollGraphPageHashAfterFirstChartRender();
         return;
     }
 
@@ -1971,4 +2001,6 @@ function renderGraphPageCharts() {
       errorDiv.textContent = 'SOL chart error: ' + solChartError.message;
       document.getElementById('sol-chart-container').appendChild(errorDiv);
     }
+
+    maybeScrollGraphPageHashAfterFirstChartRender();
 }

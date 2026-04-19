@@ -809,7 +809,9 @@ function calendarSquareTooltip(dayCell) {
 }
 
 // Render a single month block (for heatmap). large: true adds --large class for 2x size on dashboard.
-function renderMonthBlock(month, large) {
+/** @param {{ dashboardQualityTitleLink?: boolean }} [options] */
+function renderMonthBlock(month, large, options) {
+  const qualityTitleLink = Boolean(options && options.dashboardQualityTitleLink);
   const flagSlots = [
     { emoji: '😴', count: month.flagCounts['😴'] },
     { emoji: '⌛', count: month.flagCounts['⌛'] },
@@ -819,10 +821,16 @@ function renderMonthBlock(month, large) {
   const flagHtml = flagSlots.map(f => `<span class="calendar-flag-slot"><span class="calendar-flag-emoji">${f.emoji}</span><span class="calendar-flag-num">${f.count}</span></span>`).join('');
   const weekdayLabels = ['Su', 'M', 'T', 'W', 'R', 'F', 'Sa'].map(w => `<div class="calendar-weekday-label">${w}</div>`).join('');
   const blockClass = 'calendar-month-block' + (large ? ' calendar-month-block--large' : '');
+  const monthTitleHtml = qualityTitleLink
+    ? `<a href="quality.html" class="calendar-month-cta calendar-month-cta--dashboard-quality">
+        <span class="calendar-month-cta__quality"><span aria-hidden="true">💜</span> Sleep quality</span>
+        <span class="calendar-month-cta__month">${month.name}</span>
+      </a>`
+    : `<div class="calendar-month-name">${month.name}</div>`;
   return `
     <div class="${blockClass}">
       <div class="calendar-month-header">
-        <div class="calendar-month-name">${month.name}</div>
+        ${monthTitleHtml}
         <div class="calendar-month-flag-counter">${flagHtml}</div>
       </div>
       <div class="calendar-weekday-cells calendar-weekday-cells--in-block">${weekdayLabels}</div>
@@ -904,7 +912,7 @@ function renderCalendarCurrentMonthOnlyBlock(year, flagMap, latestDataDate) {
   const now = getAppDate();
   const isCurrentYear = year === now.getFullYear();
   const currentMonthIndex = isCurrentYear ? now.getMonth() : null;
-  const currentMonthBlock = currentMonthIndex !== null ? renderMonthBlock(months[currentMonthIndex], true) : '';
+  const currentMonthBlock = currentMonthIndex !== null ? renderMonthBlock(months[currentMonthIndex], true, { dashboardQualityTitleLink: true }) : '';
   if (!currentMonthBlock) return '';
   return `
     <div class="calendar-heatmap calendar-heatmap--inline">
@@ -1343,9 +1351,13 @@ function renderDashboardProjection(recentAverages) {
   const base = projection.base;
   const durationMins = durationMinutes(projection.sleepClock, projection.wakeClock);
 
+  const targetIndicatorHidden = base.hasSavedTonightTarget ? '' : ' hidden';
   return `
     <div class="dashboard-projection" id="dashboard-tonight-projection" data-rec-sleep="${base.avgSleepStart}" data-rec-wake="${base.avgSleepEnd}">
       <h2 class="dashboard-projection-title">Tonight</h2>
+      <div class="dashboard-tonight-target-indicator-wrap"${targetIndicatorHidden} id="dashboard-tonight-target-indicator-wrap">
+        <span class="dashboard-tonight-target-indicator" role="img" aria-label="Using target" title="Using target">🎯</span>
+      </div>
       <div class="dashboard-tonight-adjust">
         <div class="dashboard-tonight-adjust-panel" id="dashboard-tonight-adjust-panel">
           <div
@@ -1359,6 +1371,9 @@ function renderDashboardProjection(recentAverages) {
               <div class="dashboard-tonight-adjust-pole-label dashboard-tonight-adjust-pole-label--wake">
                 <span class="proj-keyword proj-wake">🌅 Wake</span>
               </div>
+            </div>
+            <div class="dashboard-tonight-adjust-duration-row dashboard-tonight-adjust-duration-row--above-bar">
+              <span class="dashboard-tonight-adjust-center-duration" id="dashboard-tonight-slider-duration">~${formatDuration(durationMins)} sleep</span>
             </div>
             <div class="dashboard-tonight-adjust-slider-core">
               <div class="dashboard-tonight-adjust-track">
@@ -1375,9 +1390,9 @@ function renderDashboardProjection(recentAverages) {
               <div class="dashboard-tonight-adjust-thumb-label dashboard-tonight-adjust-thumb-label--sleep" id="dashboard-tonight-sleep-thumb-label">${formatTime(projection.sleepClock)}</div>
               <div class="dashboard-tonight-adjust-thumb-label dashboard-tonight-adjust-thumb-label--wake" id="dashboard-tonight-wake-thumb-label">${formatTime(projection.wakeClock)}</div>
             </div>
-            <div class="dashboard-tonight-adjust-duration-row">
-              <span class="dashboard-tonight-adjust-center-duration" id="dashboard-tonight-slider-duration">~${formatDuration(durationMins)} sleep</span>
-            </div>
+          </div>
+          <div class="dashboard-tonight-adjust-undo-row" id="dashboard-tonight-adjust-undo-row">
+            <button type="button" class="dashboard-tonight-adjust-undo" id="dashboard-tonight-adjust-undo">Undo</button>
           </div>
           <div class="dashboard-tonight-adjust-actions">
             <button type="button" class="dashboard-tonight-adjust-save-target" id="dashboard-tonight-adjust-save-target">Save as target</button>
@@ -1385,6 +1400,16 @@ function renderDashboardProjection(recentAverages) {
           </div>
         </div>
       </div>
+      <dialog class="dashboard-tonight-clear-target-dialog" id="dashboard-tonight-clear-target-dialog" aria-labelledby="dashboard-tonight-confirm-dialog-title">
+        <div class="dashboard-tonight-clear-target-dialog-inner">
+          <p class="dashboard-tonight-clear-target-dialog-message" id="dashboard-tonight-confirm-dialog-title"></p>
+          <div class="dashboard-tonight-confirm-dialog-skp" id="dashboard-tonight-confirm-dialog-skp" hidden></div>
+          <div class="dashboard-tonight-clear-target-dialog-actions">
+            <button type="button" class="about-theme-option dashboard-tonight-confirm-dialog-btn-primary" id="dashboard-tonight-clear-target-confirm"></button>
+            <button type="button" class="about-theme-option" id="dashboard-tonight-clear-target-cancel"></button>
+          </div>
+        </div>
+      </dialog>
     </div>
   `;
 }
@@ -1403,6 +1428,14 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
   const wakeBaselineLabelEl = document.getElementById('dashboard-tonight-wake-baseline-label');
   const saveTargetButton = document.getElementById('dashboard-tonight-adjust-save-target');
   const resetButton = document.getElementById('dashboard-tonight-adjust-reset');
+  const undoRow = document.getElementById('dashboard-tonight-adjust-undo-row');
+  const undoButton = document.getElementById('dashboard-tonight-adjust-undo');
+  const targetIndicatorWrap = document.getElementById('dashboard-tonight-target-indicator-wrap');
+  const clearTargetDialog = document.getElementById('dashboard-tonight-clear-target-dialog');
+  const clearTargetConfirm = document.getElementById('dashboard-tonight-clear-target-confirm');
+  const clearTargetCancel = document.getElementById('dashboard-tonight-clear-target-cancel');
+  const confirmDialogTitle = document.getElementById('dashboard-tonight-confirm-dialog-title');
+  const confirmDialogSkp = document.getElementById('dashboard-tonight-confirm-dialog-skp');
   if (
     !root ||
     !panel ||
@@ -1415,13 +1448,24 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
     !sleepBaselineLabelEl ||
     !wakeBaselineLabelEl ||
     !saveTargetButton ||
-    !resetButton
+    !resetButton ||
+    !undoRow ||
+    !undoButton ||
+    !clearTargetDialog ||
+    !clearTargetConfirm ||
+    !clearTargetCancel ||
+    !confirmDialogTitle ||
+    !confirmDialogSkp
   ) {
     return;
   }
 
   let base = getTonightProjectionBaseState(recentAverages);
   let state = getTonightProjectionState(recentAverages);
+  /** @type {'save'|'update'|'clear'} */
+  let primaryAction = 'save';
+  /** @type {'clearTarget'|'switchToAverage'|null} */
+  let pendingConfirmKind = null;
 
   function applySliderBoundsFromBase() {
     sleepSlider.min = String(base.scopeStartNorm);
@@ -1469,13 +1513,25 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
     wakeBaselineLabelEl.classList.toggle('dashboard-tonight-adjust-baseline-label--hidden', !wakeAdjusted);
     root.classList.toggle('dashboard-tonight-projection--adjusted', state.isAdjusted);
 
-    const tw = typeof getTonightTargetWindow === 'function' ? getTonightTargetWindow() : null;
-    const saveDisabled =
-      Boolean(tw) &&
-      modMinutes1440(tw.sleep) === state.sleepClock &&
-      modMinutes1440(tw.wake) === state.wakeClock &&
-      !state.isAdjusted;
-    saveTargetButton.disabled = saveDisabled;
+    if (targetIndicatorWrap) {
+      targetIndicatorWrap.toggleAttribute('hidden', !base.hasSavedTonightTarget);
+    }
+
+    undoRow.classList.toggle('dashboard-tonight-adjust-undo-row--visible', state.isAdjusted);
+
+    const hasTarget = base.hasSavedTonightTarget;
+    const moved = state.isAdjusted;
+    if (!hasTarget) {
+      primaryAction = 'save';
+      saveTargetButton.textContent = 'Save as target';
+    } else if (moved) {
+      primaryAction = 'update';
+      saveTargetButton.textContent = 'Update target';
+    } else {
+      primaryAction = 'clear';
+      saveTargetButton.textContent = 'Clear target';
+    }
+    saveTargetButton.disabled = false;
 
     if (persistOverride && typeof setTonightProjectionAdjustment === 'function' && typeof clearTonightProjectionAdjustment === 'function') {
       if (state.isAdjusted) {
@@ -1600,20 +1656,96 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
     updateFromSliders('wake');
   });
 
-  resetButton.addEventListener('click', function () {
-    const hadSavedTarget = typeof getTonightTargetWindow === 'function' && Boolean(getTonightTargetWindow());
+  function revertToCommitted() {
+    if (typeof clearTonightProjectionAdjustment === 'function') clearTonightProjectionAdjustment();
+    const clamped = clampTonightProjectionNorms(base, base.committedSleepNorm, base.committedWakeNorm);
+    state = {
+      ...state,
+      sleepNorm: clamped.sleepNorm,
+      wakeNorm: clamped.wakeNorm,
+      sleepClock: modMinutes1440(clamped.sleepNorm),
+      wakeClock: modMinutes1440(clamped.wakeNorm)
+    };
+    state.isAdjusted = false;
+    updateVisualState(false);
+  }
+
+  function performClearTargetConfirmed() {
     if (typeof clearTonightTargetWindow === 'function') clearTonightTargetWindow();
     if (typeof clearTonightProjectionAdjustment === 'function') clearTonightProjectionAdjustment();
     base = getTonightProjectionBaseState(recentAverages);
     state = getTonightProjectionState(recentAverages);
     applySliderBoundsFromBase();
     updateVisualState(false);
-    showAppToast(
-      hadSavedTarget ? 'Using recent average; saved Tonight target cleared' : 'Using recent average sleep and wake times'
-    );
+    showAppToast('Tonight target cleared');
+  }
+
+  function performSwitchToAverageConfirmed() {
+    if (typeof clearTonightTargetWindow === 'function') clearTonightTargetWindow();
+    if (typeof clearTonightProjectionAdjustment === 'function') clearTonightProjectionAdjustment();
+    base = getTonightProjectionBaseState(recentAverages);
+    state = getTonightProjectionState(recentAverages);
+    applySliderBoundsFromBase();
+    updateVisualState(false);
+    showAppToast('Using recent average; saved Tonight target cleared');
+  }
+
+  function openTonightConfirmDialog(kind) {
+    pendingConfirmKind = kind;
+    if (kind === 'clearTarget') {
+      confirmDialogTitle.textContent = 'Are you sure you want to clear your target?';
+      confirmDialogSkp.hidden = true;
+      confirmDialogSkp.innerHTML = '';
+      clearTargetConfirm.textContent = 'Yes, clear my target time.';
+      clearTargetCancel.textContent = 'No, leave my target.';
+    } else {
+      confirmDialogTitle.textContent =
+        'This clears your saved Tonight target and moves the sliders to your recent average.';
+      confirmDialogSkp.hidden = false;
+      confirmDialogSkp.innerHTML =
+        '<span class="dashboard-tonight-confirm-dialog-skp-lead">Update time to </span>' +
+        '<span class="proj-keyword proj-sleep">Sleep: ' +
+        formatTime(recentAverages.avgSleepStart) +
+        '</span>' +
+        '<span class="dashboard-tonight-confirm-dialog-skp-gap"> </span>' +
+        '<span class="proj-keyword proj-wake">Wake: ' +
+        formatTime(recentAverages.avgSleepEnd) +
+        '</span>' +
+        '<span class="dashboard-tonight-confirm-dialog-skp-q">?</span>';
+      clearTargetConfirm.textContent = 'Yes, use these times';
+      clearTargetCancel.textContent = 'No, keep my saved target';
+    }
+    clearTargetDialog.showModal();
+  }
+
+  clearTargetDialog.addEventListener('close', function () {
+    pendingConfirmKind = null;
+  });
+
+  resetButton.addEventListener('click', function () {
+    const hadSavedTarget = typeof getTonightTargetWindow === 'function' && Boolean(getTonightTargetWindow());
+    if (hadSavedTarget) {
+      openTonightConfirmDialog('switchToAverage');
+      return;
+    }
+    if (typeof clearTonightProjectionAdjustment === 'function') clearTonightProjectionAdjustment();
+    base = getTonightProjectionBaseState(recentAverages);
+    state = getTonightProjectionState(recentAverages);
+    applySliderBoundsFromBase();
+    updateVisualState(false);
+    showAppToast('Using recent average sleep and wake times');
+  });
+
+  undoButton.addEventListener('click', function () {
+    revertToCommitted();
   });
 
   saveTargetButton.addEventListener('click', function () {
+    if (primaryAction === 'clear') {
+      openTonightConfirmDialog('clearTarget');
+      return;
+    }
+    const toastWasUpdate = primaryAction === 'update';
     if (typeof setTonightTargetWindow === 'function') {
       setTonightTargetWindow(state.sleepClock, state.wakeClock);
     }
@@ -1622,7 +1754,25 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
     state = getTonightProjectionState(recentAverages);
     applySliderBoundsFromBase();
     updateVisualState(false);
-    showAppToast('Tonight target saved');
+    showAppToast(toastWasUpdate ? 'Tonight target updated' : 'Tonight target saved');
+  });
+
+  clearTargetConfirm.addEventListener('click', function () {
+    const kind = pendingConfirmKind;
+    if (!kind) return;
+    if (kind === 'clearTarget') {
+      performClearTargetConfirmed();
+      clearTargetDialog.close();
+      saveTargetButton.focus();
+    } else if (kind === 'switchToAverage') {
+      performSwitchToAverageConfirmed();
+      clearTargetDialog.close();
+      resetButton.focus();
+    }
+  });
+
+  clearTargetCancel.addEventListener('click', function () {
+    clearTargetDialog.close();
   });
 
   sliderOverlay.addEventListener('mousedown', onPointerDown);
@@ -1660,7 +1810,7 @@ function renderDashboardContent(days) {
   const recentNightsCount = Math.min(3, days.length);
   const recentNightsHtml = recentNightsCount > 0
     ? `
-    <h2 class="dashboard-section-title">Recent nights</h2>
+    <h2 class="dashboard-section-title"><a class="dashboard-section-title__link" href="daily.html"><span class="dashboard-section-title__emoji" aria-hidden="true">📅</span> Recent nights</a></h2>
     <section class="dashboard-past-nights">
       <div class="week-days">
         ${Array.from({ length: recentNightsCount }, (_, i) => renderDay(days[i], days, i, { showTicks: true })).join('')}
@@ -1675,17 +1825,23 @@ function renderDashboardContent(days) {
       <div class="dashboard-7d-col">
         <div class="dashboard-7d-time-stack">
           <div>
-            <h3 class="dashboard-7d-subtitle">Bed &amp; sleep start</h3>
+            <h3 class="dashboard-7d-subtitle dashboard-7d-subtitle--skp-time">
+              <a class="dashboard-7d-subtitle__link" href="graph.html#chart-bed-asleep-wake">Bed &amp; sleep start</a>
+            </h3>
             <div class="dashboard-7d-graph-container" id="dashboard-7d-bed-sleep-graph"></div>
           </div>
           <div>
-            <h3 class="dashboard-7d-subtitle">Wake time</h3>
+            <h3 class="dashboard-7d-subtitle dashboard-7d-subtitle--skp-wake">
+              <a class="dashboard-7d-subtitle__link" href="graph.html#chart-bed-asleep-wake">Wake time</a>
+            </h3>
             <div class="dashboard-7d-graph-container" id="dashboard-7d-wake-graph"></div>
           </div>
         </div>
       </div>
       <div class="dashboard-7d-col">
-        <h3 class="dashboard-7d-subtitle">Total sleep time</h3>
+        <h3 class="dashboard-7d-subtitle dashboard-7d-subtitle--skp-sleep">
+          <a class="dashboard-7d-subtitle__link" href="graph.html#chart-sleep-duration">Total sleep time</a>
+        </h3>
         <div class="dashboard-7d-graph-container" id="dashboard-7d-duration-graph"></div>
       </div>
     </div>
