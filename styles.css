@@ -2101,6 +2101,11 @@ body{
   gap: var(--space-5);
 }
 
+/* Tighter than default section gap: quick actions → Tonight / calendar row */
+.dashboard-content > .dashboard-top-row {
+  margin-top: calc(var(--space-3) - var(--space-5));
+}
+
 .nav-remaining-wake-link {
   display: inline-flex;
   flex-direction: column;
@@ -2317,8 +2322,17 @@ body{
 .dashboard-7d-subtitle {
   font-size: 0.9rem;
   font-weight: 600;
-  margin: 0 0 8px 4px;
+  margin: 0 0 8px 0;
   opacity: 0.8;
+}
+
+.dashboard-7d-subtitle__link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.dashboard-7d-subtitle__link:hover {
+  text-decoration: underline;
 }
 
 .dashboard-7d-graph-container {
@@ -2440,9 +2454,11 @@ body{
   flex-direction: column;
   align-items: center;
   text-align: center;
+  gap: 2px;
 }
 
-.dashboard-top-col--calendar .calendar-month-block--large .calendar-month-name {
+.dashboard-top-col--calendar .calendar-month-block--large .calendar-month-name,
+.dashboard-top-col--calendar .calendar-month-block--large .calendar-month-cta--dashboard-quality {
   text-align: center;
 }
 
@@ -2507,13 +2523,17 @@ body{
   text-align: center;
 }
 
+#dashboard-tonight-projection.dashboard-projection {
+  padding: 12px 12px 14px;
+}
+
 #dashboard-tonight-projection .dashboard-projection-title {
-  margin-bottom: 2px;
+  margin-bottom: 0;
 }
 
 #dashboard-tonight-projection .dashboard-tonight-adjust {
-  margin-top: 6px;
-  gap: 6px;
+  margin-top: 2px;
+  gap: 4px;
 }
 
 .dashboard-projection-copy {
@@ -2630,12 +2650,30 @@ body{
   text-shadow: 0 0 8px color-mix(in srgb, var(--color-sunrise) 35%, transparent);
 }
 
+.dashboard-tonight-target-indicator-wrap {
+  display: flex;
+  justify-content: center;
+  margin: 0;
+  min-height: 1.15rem;
+}
+
+.dashboard-tonight-target-indicator-wrap[hidden] {
+  display: none;
+}
+
+.dashboard-tonight-target-indicator {
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: default;
+  user-select: none;
+}
+
 .dashboard-tonight-adjust {
-  margin-top: 12px;
+  margin-top: 8px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .dashboard-tonight-adjust-reset,
@@ -2654,7 +2692,11 @@ body{
   letter-spacing: 0.01em;
   cursor: pointer;
   transition: background 0.2s, border-color 0.2s;
-  padding: 5px 10px;
+  padding: 6px 10px;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  white-space: nowrap;
 }
 
 .dashboard-tonight-adjust-reset:hover,
@@ -2669,7 +2711,7 @@ body{
 
 .dashboard-tonight-adjust-panel {
   width: min(620px, 100%);
-  padding: 10px 0 4px;
+  padding: 4px 0 2px;
   border: none;
   border-radius: 0;
   background: transparent;
@@ -2695,7 +2737,7 @@ body{
 
 /* Dashboard Tonight: Sleep/Wake row above bar, thick track, ruler below (quick-add unchanged) */
 .dashboard-tonight-adjust-slider--main {
-  padding: 0 0 6px;
+  padding: 0 0 2px;
 }
 
 .dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-pole-row {
@@ -2726,7 +2768,7 @@ body{
 
 .dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-slider-core {
   position: relative;
-  padding: 0 0 40px;
+  padding: 0 0 56px;
 }
 
 .dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-track {
@@ -2802,14 +2844,33 @@ body{
   height: 28px;
 }
 
+/* Live knob times directly under the track; committed “ghost” times fixed below (no vertical jump). */
 .dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-thumb-label {
-  top: calc(24px + 14px);
+  top: calc(24px + 4px);
+  z-index: 6;
   font-size: 0.95rem;
   font-weight: 600;
 }
 
 .dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-baseline-label {
-  display: none;
+  top: calc(24px + 26px);
+  z-index: 6;
+  font-size: 0.72rem;
+  font-weight: 500;
+  opacity: 0.72;
+}
+
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-baseline-label--sleep {
+  color: color-mix(in srgb, var(--color-sleep) 58%, var(--text) 42%);
+}
+
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-baseline-label--wake {
+  color: color-mix(in srgb, var(--color-up) 58%, var(--text) 42%);
+}
+
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-duration-row--above-bar {
+  margin-top: 0;
+  margin-bottom: 8px;
 }
 
 .dashboard-tonight-adjust-duration-row {
@@ -3021,12 +3082,146 @@ body{
   background: transparent;
 }
 
-.dashboard-tonight-adjust-actions {
+.dashboard-tonight-adjust-undo-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: min(100%, 22.5rem);
+  margin-left: auto;
+  margin-right: auto;
+  min-height: 32px;
+  margin-top: 0;
+  margin-bottom: 0;
+  box-sizing: border-box;
+}
+
+.dashboard-tonight-adjust-undo-row .dashboard-tonight-adjust-undo {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.dashboard-tonight-adjust-undo-row.dashboard-tonight-adjust-undo-row--visible .dashboard-tonight-adjust-undo {
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.dashboard-tonight-adjust-undo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(50% - 4px);
+  max-width: calc(13rem - 4px);
+  border: 1px solid var(--panel-border-color);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: var(--panel-shadow);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+  padding: 4px 12px;
+  box-sizing: border-box;
+}
+
+.dashboard-tonight-adjust-undo-row.dashboard-tonight-adjust-undo-row--visible .dashboard-tonight-adjust-undo:hover {
+  background: var(--hover-bg);
+}
+
+.dashboard-tonight-clear-target-dialog {
+  border: 1px solid var(--panel-border-color);
+  border-radius: 12px;
+  padding: 0;
+  margin: auto;
+  max-width: min(380px, calc(100vw - 32px));
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: var(--panel-shadow);
+}
+
+.dashboard-tonight-clear-target-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.38);
+}
+
+.dashboard-tonight-clear-target-dialog-inner {
+  padding: 16px 18px 14px;
+}
+
+.dashboard-tonight-clear-target-dialog-message {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.dashboard-tonight-confirm-dialog-skp {
   display: flex;
   flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2em 0.45em;
+  margin: 12px 0 0;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-tonight-confirm-dialog-skp-lead {
+  color: color-mix(in srgb, var(--text) 88%, transparent);
+}
+
+.dashboard-tonight-confirm-dialog-skp-gap {
+  display: inline-block;
+  width: 0.35em;
+}
+
+.dashboard-tonight-confirm-dialog-skp-q {
+  color: color-mix(in srgb, var(--text) 88%, transparent);
+  margin-left: 0.15em;
+}
+
+.dashboard-tonight-clear-target-dialog-actions {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.dashboard-tonight-clear-target-dialog-actions .about-theme-option {
+  width: 100%;
   justify-content: center;
+  text-align: center;
+}
+
+.dashboard-tonight-confirm-dialog-btn-primary {
+  border-color: color-mix(in srgb, var(--color-sleep) 45%, var(--panel-border-color));
+}
+
+.dashboard-tonight-adjust-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: stretch;
   gap: 8px;
-  margin-top: 4px;
+  width: 100%;
+  max-width: min(100%, 22.5rem);
+  margin-top: 0;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+}
+
+@media (max-width: 380px) {
+  .dashboard-tonight-adjust-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-tonight-adjust-undo {
+    width: 100%;
+    max-width: 100%;
+  }
 }
 
 .app-toast-host {
@@ -4067,6 +4262,19 @@ body{
   opacity: 0.9;
 }
 
+.dashboard-section-title__link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.dashboard-section-title__link:hover {
+  text-decoration: underline;
+}
+
+.dashboard-section-title__emoji {
+  margin-right: 0.35em;
+}
+
 h1,
 .page-title {
   margin-bottom: var(--space-5);
@@ -4125,7 +4333,8 @@ h1,
   font-size: 1.05rem;
   font-weight: 600;
   margin: var(--space-6) 0 var(--space-3);
-  scroll-margin-top: 12px;
+  /* Hash / in-page jumps: leave room for stacked nav + optional dev banner above the chart title. */
+  scroll-margin-top: 80px;
   color: var(--text);
 }
 
@@ -4163,7 +4372,10 @@ h1,
 .graph-chart-heading--skp-time,
 .graph-chart-heading--skp-sleep,
 .graph-chart-heading--skp-wake,
-.graph-chart-heading--skp-bed {
+.graph-chart-heading--skp-bed,
+.dashboard-7d-subtitle--skp-time,
+.dashboard-7d-subtitle--skp-sleep,
+.dashboard-7d-subtitle--skp-wake {
   position: relative;
   padding-left: 14px;
 }
@@ -4171,7 +4383,10 @@ h1,
 .graph-chart-heading--skp-time::before,
 .graph-chart-heading--skp-sleep::before,
 .graph-chart-heading--skp-wake::before,
-.graph-chart-heading--skp-bed::before {
+.graph-chart-heading--skp-bed::before,
+.dashboard-7d-subtitle--skp-time::before,
+.dashboard-7d-subtitle--skp-sleep::before,
+.dashboard-7d-subtitle--skp-wake::before {
   content: '';
   position: absolute;
   left: 0;
@@ -4181,15 +4396,18 @@ h1,
   border-radius: 2px;
 }
 
-.graph-chart-heading--skp-time::before {
+.graph-chart-heading--skp-time::before,
+.dashboard-7d-subtitle--skp-time::before {
   background: linear-gradient(180deg, var(--color-bed), var(--color-sleep) 50%, var(--color-up));
 }
 
-.graph-chart-heading--skp-sleep::before {
+.graph-chart-heading--skp-sleep::before,
+.dashboard-7d-subtitle--skp-sleep::before {
   background: var(--color-sleep);
 }
 
-.graph-chart-heading--skp-wake::before {
+.graph-chart-heading--skp-wake::before,
+.dashboard-7d-subtitle--skp-wake::before {
   background: var(--color-up);
 }
 
@@ -5222,7 +5440,9 @@ body.page-stats .stats-page-shell .container {
   margin-bottom: 8px;
 }
 
-.calendar-month-block--large .calendar-month-name {
+.calendar-month-block--large .calendar-month-name,
+.calendar-month-block--large .calendar-month-cta__month,
+.calendar-month-block--large .calendar-month-cta__quality {
   font-size: 22px;
 }
 
@@ -5371,6 +5591,32 @@ body.page-stats .stats-page-shell .container {
   color: var(--text);
   opacity: 0.9;
   font-weight: 600;
+}
+
+/* Dashboard current month: linked “Sleep quality” header, then month above flag row / calendar (see daily.js). */
+.calendar-month-cta--dashboard-quality {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.calendar-month-cta--dashboard-quality:hover .calendar-month-cta__quality {
+  text-decoration: underline;
+}
+
+.calendar-month-cta__month {
+  font-size: 11px;
+  opacity: 0.95;
+}
+
+.calendar-month-cta__quality {
+  font-size: 11px;
+  opacity: 0.95;
 }
 
 .calendar-month-flag-counter {
@@ -6615,7 +6861,7 @@ body.page-stats .stats-page-shell .container {
 
 /* Dashboard: compact strip (replaces pull-down log drawer) */
 .dashboard-quick-actions {
-  margin: 0 0 var(--space-3) 0;
+  margin: 0 0 var(--space-2) 0;
 }
 
 .dashboard-quick-actions-inner {

@@ -176,6 +176,11 @@
       document.getElementById('nav-container').innerHTML = renderNavBar('graph');
       initDayNightTheme();
       initRemainingWakeNav();
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          if (typeof scrollGraphPageHashAfterNavOnce === 'function') scrollGraphPageHashAfterNavOnce();
+        });
+      });
     })();
   </script>
 </body>
