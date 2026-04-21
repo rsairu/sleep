@@ -1405,8 +1405,20 @@ function renderDashboardProjection(recentAverages) {
   return `
     <div class="dashboard-projection" id="dashboard-tonight-projection" data-rec-sleep="${base.avgSleepStart}" data-rec-wake="${base.avgSleepEnd}">
       <h2 class="dashboard-projection-title">Tonight</h2>
-      <div class="dashboard-tonight-target-indicator-wrap"${targetIndicatorHidden} id="dashboard-tonight-target-indicator-wrap">
-        <span class="dashboard-tonight-target-indicator" role="img" aria-label="Using target" title="Using target">🎯</span>
+      <div class="dashboard-tonight-basis-below-title">
+        <div class="dashboard-tonight-indicator-line dashboard-tonight-basis-indicator-line">
+          <span class="dashboard-tonight-target-indicator-wrap"${targetIndicatorHidden} id="dashboard-tonight-target-indicator-wrap">
+            <span class="dashboard-tonight-indicator-chip">
+              <span class="dashboard-tonight-target-indicator" aria-hidden="true">🎯</span>
+              <span class="dashboard-tonight-indicator-caption">using target</span>
+            </span>
+          </span>
+          <span class="dashboard-tonight-indicator-chip dashboard-tonight-indicator-chip--guidance-beta" role="group" aria-label="Using guidance (beta)">
+            <span class="dashboard-tonight-guidance-indicator" aria-hidden="true">🧭</span>
+            <span class="dashboard-tonight-indicator-caption">using guidance</span>
+            <span class="dashboard-tonight-indicator-beta-pill" aria-hidden="true">beta</span>
+          </span>
+        </div>
       </div>
       <div class="dashboard-tonight-adjust">
         <div class="dashboard-tonight-adjust-panel" id="dashboard-tonight-adjust-panel">
@@ -1837,7 +1849,7 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
   updateVisualState(false);
 }
 
-// Render dashboard content: projection, recent average, lifetime average, recent nights (timeline rows), sleep quality history.
+// Render dashboard content: projection, recent average, lifetime average, recent nightlies (timeline rows), sleep quality history.
 // Used by dashboard.html; kept here to share calculation/render helpers.
 function renderDashboardContent(days) {
   const quickActionsHtml = renderQuickActionsSection();
@@ -1860,7 +1872,7 @@ function renderDashboardContent(days) {
   const recentNightsCount = Math.min(3, days.length);
   const recentNightsHtml = recentNightsCount > 0
     ? `
-    <h2 class="dashboard-section-title"><a class="dashboard-section-title__link" href="daily.html"><span class="dashboard-section-title__emoji" aria-hidden="true">📅</span> Recent nights</a></h2>
+    <h2 class="dashboard-section-title"><a class="dashboard-section-title__link" href="daily.html"><span class="dashboard-section-title__emoji" aria-hidden="true">📅</span> Recent nightlies</a></h2>
     <section class="dashboard-past-nights">
       <div class="week-days">
         ${Array.from({ length: recentNightsCount }, (_, i) => renderDay(days[i], days, i, { showTicks: true })).join('')}
@@ -1870,7 +1882,7 @@ function renderDashboardContent(days) {
     : '';
 
   const sevenDaySectionHtml = `
-    <h2 class="dashboard-section-title">Past Week</h2>
+    <h2 class="dashboard-section-title"><a class="dashboard-section-title__link" href="graph.html"><span class="dashboard-section-title__emoji" aria-hidden="true">📊</span> Weekly charts</a></h2>
     <div class="dashboard-7d-row">
       <div class="dashboard-7d-col">
         <div class="dashboard-7d-time-stack">

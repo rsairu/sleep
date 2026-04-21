@@ -2415,7 +2415,7 @@ body{
 }
 
 /* Dashboard mobile layout:
-   Tonight -> Month -> Past Week (bed/sleep, wake, duration) -> Recent nights */
+   Tonight -> Month -> Weekly charts (bed/sleep, wake, duration) -> Recent nightlies */
 @media (max-width: 900px) {
   .dashboard-top-row,
   .dashboard-7d-row {
@@ -2721,22 +2721,67 @@ body{
   text-shadow: 0 0 8px color-mix(in srgb, var(--color-sunrise) 35%, transparent);
 }
 
-.dashboard-tonight-target-indicator-wrap {
-  display: flex;
-  justify-content: center;
+.dashboard-tonight-basis-below-title {
   margin: 0;
   min-height: 1.15rem;
+}
+
+.dashboard-tonight-basis-indicator-line {
+  margin: 0;
+}
+
+.dashboard-tonight-target-indicator-wrap {
+  display: inline-flex;
+  align-items: baseline;
 }
 
 .dashboard-tonight-target-indicator-wrap[hidden] {
   display: none;
 }
 
-.dashboard-tonight-target-indicator {
-  font-size: 1.1rem;
-  line-height: 1;
+.dashboard-tonight-indicator-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.65rem 1rem;
+}
+
+.dashboard-tonight-indicator-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.2rem;
   cursor: default;
   user-select: none;
+}
+
+.dashboard-tonight-target-indicator,
+.dashboard-tonight-guidance-indicator {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.dashboard-tonight-indicator-caption {
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  color: var(--text);
+  opacity: 0.42;
+}
+
+.dashboard-tonight-indicator-beta-pill {
+  font-size: 0.52rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1;
+  margin-left: 0.15rem;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--text) 22%, transparent);
+  color: var(--text);
+  opacity: 0.38;
 }
 
 .dashboard-tonight-adjust {

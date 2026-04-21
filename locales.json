@@ -8,8 +8,8 @@
         "dashboard": "Dashboard",
         "log": "Log",
         "quality": "Quality",
-        "daily": "Daily",
-        "graphs": "Graphs",
+        "daily": "Nightly",
+        "graphs": "Charts",
         "stats": "Stats"
       },
       "menu": {
@@ -160,8 +160,8 @@
         "dashboard": "ダッシュボード",
         "log": "記録",
         "quality": "睡眠の質",
-        "daily": "日別",
-        "graphs": "グラフ",
+        "daily": "ナイトリー",
+        "graphs": "チャート",
         "stats": "統計"
       },
       "menu": {

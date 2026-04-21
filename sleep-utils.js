@@ -3921,15 +3921,12 @@ function renderNavBar(currentPage) {
     { id: 'dashboard', key: 'nav.tabs.dashboard', defaultName: 'Dashboard', url: 'dashboard.html', icon: '🛌' },
     { id: 'log', key: 'nav.tabs.log', defaultName: 'Log', url: 'log.html', icon: '✏️' },
     { id: 'quality', key: 'nav.tabs.quality', defaultName: 'Quality', url: 'quality.html', icon: '💜' },
-    { id: 'timeline', key: 'nav.tabs.daily', defaultName: 'Daily', url: 'daily.html', icon: '📅' },
-    { id: 'graph', key: 'nav.tabs.graphs', defaultName: 'Graphs', url: 'graph.html', icon: '📊' },
+    { id: 'timeline', key: 'nav.tabs.daily', defaultName: 'Nightly', url: 'daily.html', icon: '📅' },
+    { id: 'graph', key: 'nav.tabs.graphs', defaultName: 'Charts', url: 'graph.html', icon: '📊' },
     { id: 'stats', key: 'nav.tabs.stats', defaultName: 'Stats', url: 'stats.html', icon: '🔢' }
   ];
 
-  const tabPages = pages.filter(function (p) {
-    return p.id !== 'dashboard';
-  });
-  const navItems = tabPages.map(page => {
+  const navItems = pages.map(page => {
     const isActive = page.id === currentPage;
     const name = t(page.key, page.defaultName);
     return `<a href="${page.url}" class="nav-tab ${isActive ? 'active' : ''}" aria-label="${name}"><span class="nav-icon">${page.icon}</span><span class="nav-tab-label">${name}</span></a>`;
