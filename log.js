@@ -36,7 +36,8 @@
         initQuickAddEntryModal({
           onSaved: function () {
             return loadLogPageData();
-          }
+          },
+          daysForDefaultDate: days
         });
       } else if (typeof wireQuickAddDrawerSliders === 'function') {
         wireQuickAddDrawerSliders();

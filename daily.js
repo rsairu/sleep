@@ -1115,6 +1115,13 @@ function renderQuickAddDrawer(recentAverages, recentDays, layout = 'drawer') {
   const bedVal = formatMinutesTo24hString(proj.bedClock);
   const sleepVal = formatMinutesTo24hString(proj.sleepClock);
   const wakeVal = formatMinutesTo24hString(proj.wakeClock);
+  const isPage = layout === 'page';
+  const mainBedVal = isPage ? '' : bedVal;
+  const mainSleepVal = isPage ? '' : sleepVal;
+  const mainWakeVal = isPage ? '' : wakeVal;
+  const initialBedAttr = isPage ? '' : bedVal;
+  const initialSleepAttr = isPage ? '' : sleepVal;
+  const initialWakeAttr = isPage ? '' : wakeVal;
 
   const mainTimeSpin = (suffix) =>
     `<div class="quick-add-time-spin">
@@ -1122,44 +1129,51 @@ function renderQuickAddDrawer(recentAverages, recentDays, layout = 'drawer') {
                           <button type="button" class="quick-add-time-spin-btn quick-add-time-spin-btn--down" aria-label="${suffix} one minute earlier">▼</button>
                         </div>`;
 
+  const bathAlarmActions = isPage
+    ? `<div class="quick-add-time-inline-actions">
+                      <button type="button" class="quick-add-time-add-btn" id="quick-add-bathroom-add" data-i18n-aria-label="log.addTimeAria" aria-label="Add time">+</button>
+                    </div>`
+    : `<button type="button" class="quick-add-time-add-btn" id="quick-add-bathroom-add" data-i18n-aria-label="log.addTimeAria" aria-label="Add time">+</button>`;
+
+  const alarmActions = isPage
+    ? `<div class="quick-add-time-inline-actions">
+                      <button type="button" class="quick-add-time-add-btn" id="quick-add-alarm-add" data-i18n-aria-label="log.addTimeAria" aria-label="Add time">+</button>
+                    </div>`
+    : `<button type="button" class="quick-add-time-add-btn" id="quick-add-alarm-add" data-i18n-aria-label="log.addTimeAria" aria-label="Add time">+</button>`;
+
   const advancedBlocks = `
                 <div class="quick-add-advanced-blocks">
                   <div class="quick-add-adv-row quick-add-log-pair">
-                    <span class="quick-add-label quick-add-label--emoji-line quick-add-label--bathroom" id="quick-add-bathroom-legend"><span class="quick-add-log-emoji" aria-hidden="true">🧻</span><span class="quick-add-label-text" data-i18n="log.bathroom">Bathroom</span></span>
-                    <div class="quick-add-log-pair__right quick-add-log-pair__right--with-add">
+                    <button type="button" class="quick-add-label quick-add-label--emoji-line quick-add-label--bathroom quick-add-label-hit" id="quick-add-bathroom-legend" data-i18n-aria-label="log.bathroomLabelNowAria" aria-label="Add bathroom time now"><span class="quick-add-log-emoji" aria-hidden="true">🧻</span><span class="quick-add-label-text" data-i18n="log.bathroom">Bathroom</span></button>
+                    <div class="quick-add-log-pair__right quick-add-log-pair__right--with-add${isPage ? ' quick-add-log-pair__right--inline-actions' : ''}">
                       <div class="quick-add-time-list" id="quick-add-bathroom-list" aria-labelledby="quick-add-bathroom-legend"></div>
-                      <button type="button" class="quick-add-time-add-btn" id="quick-add-bathroom-add" data-i18n-aria-label="log.addTimeAria" aria-label="Add time">+</button>
+                      ${bathAlarmActions}
                     </div>
                   </div>
                   <div class="quick-add-adv-row quick-add-log-pair">
-                    <span class="quick-add-label quick-add-label--emoji-line quick-add-label--alarm" id="quick-add-alarm-legend"><span class="quick-add-log-emoji" aria-hidden="true">🕐</span><span class="quick-add-label-text" data-i18n="log.alarms">Alarm(s)</span></span>
-                    <div class="quick-add-log-pair__right quick-add-log-pair__right--with-add">
+                    <button type="button" class="quick-add-label quick-add-label--emoji-line quick-add-label--alarm quick-add-label-hit" id="quick-add-alarm-legend" data-i18n-aria-label="log.alarmLabelNowAria" aria-label="Add alarm time now"><span class="quick-add-log-emoji" aria-hidden="true">🕐</span><span class="quick-add-label-text" data-i18n="log.alarms">Alarm(s)</span></button>
+                    <div class="quick-add-log-pair__right quick-add-log-pair__right--with-add${isPage ? ' quick-add-log-pair__right--inline-actions' : ''}">
                       <div class="quick-add-time-list" id="quick-add-alarm-list" aria-labelledby="quick-add-alarm-legend"></div>
-                      <button type="button" class="quick-add-time-add-btn" id="quick-add-alarm-add" data-i18n-aria-label="log.addTimeAria" aria-label="Add time">+</button>
+                      ${alarmActions}
                     </div>
                   </div>
                   <div class="quick-add-adv-row quick-add-log-pair">
-                    <span class="quick-add-label quick-add-label--emoji-line quick-add-label--nap" id="quick-add-nap-legend"><span class="quick-add-log-emoji" aria-hidden="true">😴</span><span class="quick-add-label-text" data-i18n="log.nap">Nap</span></span>
-                    <div class="quick-add-nap-pair">
-                      <div>
-                        <span class="quick-add-sublabel"><span data-i18n="log.napStart">Start</span></span>
-                        <div class="quick-add-time-row quick-add-time-row--nap">
-                          <input class="quick-add-input quick-add-time-native" id="quick-add-nap-start" type="time" step="60" value="" aria-labelledby="quick-add-nap-legend" data-i18n-aria-label="log.napStartAria" aria-label="Nap start">
-                          <div class="quick-add-time-spin">
-                            <button type="button" class="quick-add-time-spin-btn quick-add-time-spin-btn--up" data-i18n-aria-label="log.napStartLaterAria" aria-label="Nap start one minute later">▲</button>
-                            <button type="button" class="quick-add-time-spin-btn quick-add-time-spin-btn--down" data-i18n-aria-label="log.napStartEarlierAria" aria-label="Nap start one minute earlier">▼</button>
-                          </div>
-                        </div>
+                    <button type="button" class="quick-add-label quick-add-label--emoji-line quick-add-label--nap quick-add-label-hit" id="quick-add-nap-start-legend" data-i18n-aria-label="log.napStartNowAria" aria-label="Set nap start to current time"><span class="quick-add-log-emoji" aria-hidden="true">😴</span><span class="quick-add-label-text" data-i18n="log.napStartLine">Nap start</span></button>
+                    <div class="quick-add-time-row quick-add-time-row--nap">
+                      <input class="quick-add-input quick-add-time-native" id="quick-add-nap-start" type="time" step="60" value="" aria-labelledby="quick-add-nap-start-legend" data-i18n-aria-label="log.napStartAria" aria-label="Nap start">
+                      <div class="quick-add-time-spin">
+                        <button type="button" class="quick-add-time-spin-btn quick-add-time-spin-btn--up" data-i18n-aria-label="log.napStartLaterAria" aria-label="Nap start one minute later">▲</button>
+                        <button type="button" class="quick-add-time-spin-btn quick-add-time-spin-btn--down" data-i18n-aria-label="log.napStartEarlierAria" aria-label="Nap start one minute earlier">▼</button>
                       </div>
-                      <div>
-                        <span class="quick-add-sublabel"><span data-i18n="log.napEnd">End</span></span>
-                        <div class="quick-add-time-row quick-add-time-row--nap">
-                          <input class="quick-add-input quick-add-time-native" id="quick-add-nap-end" type="time" step="60" value="" aria-labelledby="quick-add-nap-legend" data-i18n-aria-label="log.napEndAria" aria-label="Nap end">
-                          <div class="quick-add-time-spin">
-                            <button type="button" class="quick-add-time-spin-btn quick-add-time-spin-btn--up" data-i18n-aria-label="log.napEndLaterAria" aria-label="Nap end one minute later">▲</button>
-                            <button type="button" class="quick-add-time-spin-btn quick-add-time-spin-btn--down" data-i18n-aria-label="log.napEndEarlierAria" aria-label="Nap end one minute earlier">▼</button>
-                          </div>
-                        </div>
+                    </div>
+                  </div>
+                  <div class="quick-add-adv-row quick-add-log-pair">
+                    <button type="button" class="quick-add-label quick-add-label--emoji-line quick-add-label--nap quick-add-label--nap-end quick-add-label-hit" id="quick-add-nap-end-legend" data-i18n-aria-label="log.napEndNowAria" aria-label="Set nap end to current time"><span class="quick-add-log-emoji" aria-hidden="true">🥱</span><span class="quick-add-label-text" data-i18n="log.napEndLine">Nap end</span></button>
+                    <div class="quick-add-time-row quick-add-time-row--nap">
+                      <input class="quick-add-input quick-add-time-native" id="quick-add-nap-end" type="time" step="60" value="" aria-labelledby="quick-add-nap-end-legend" data-i18n-aria-label="log.napEndAria" aria-label="Nap end">
+                      <div class="quick-add-time-spin">
+                        <button type="button" class="quick-add-time-spin-btn quick-add-time-spin-btn--up" data-i18n-aria-label="log.napEndLaterAria" aria-label="Nap end one minute later">▲</button>
+                        <button type="button" class="quick-add-time-spin-btn quick-add-time-spin-btn--down" data-i18n-aria-label="log.napEndEarlierAria" aria-label="Nap end one minute earlier">▼</button>
                       </div>
                     </div>
                   </div>
@@ -1175,7 +1189,9 @@ function renderQuickAddDrawer(recentAverages, recentDays, layout = 'drawer') {
                   </div>
                   <div class="quick-add-adv-row quick-add-labels-row quick-add-log-pair">
                     <span class="quick-add-label quick-add-label--emoji-line" id="quick-add-labels-legend"><span class="quick-add-log-emoji" aria-hidden="true">🏷️</span><span class="quick-add-label-text" data-i18n="log.nightLabels">Night notes</span></span>
-                    <div class="quick-add-label-chips" id="quick-add-label-chips" role="group" aria-labelledby="quick-add-labels-legend" data-i18n-aria-label="log.nightLabelsAria" aria-label="Optional emoji labels for this night"></div>
+                    <div class="quick-add-label-chips-wrap">
+                      <div class="quick-add-label-chips" id="quick-add-label-chips" role="group" aria-labelledby="quick-add-labels-legend" data-i18n-aria-label="log.nightLabelsAria" aria-label="Optional emoji labels for this night"></div>
+                    </div>
                   </div>
                 </div>`;
   const advancedSection =
@@ -1188,60 +1204,93 @@ function renderQuickAddDrawer(recentAverages, recentDays, layout = 'drawer') {
                 ${advancedBlocks}
               </div>`;
 
-  const clearAllBtn =
-    '<button type="button" class="about-theme-option" id="quick-add-clear-all" data-i18n="log.clearAll">Clear all</button>';
-  const pageTopToolbar = layout === 'page' ? `<div class="quick-add-page-toolbar">${clearAllBtn}</div>` : '';
+  const undoConfirmDialog = `<dialog class="dashboard-tonight-clear-target-dialog" id="quick-add-undo-confirm-dialog" aria-labelledby="quick-add-undo-confirm-title">
+      <div class="dashboard-tonight-clear-target-dialog-inner">
+        <p class="dashboard-tonight-clear-target-dialog-message" id="quick-add-undo-confirm-title" data-i18n="log.undoConfirmTitle">Discard your unsaved changes?</p>
+        <div class="dashboard-tonight-clear-target-dialog-actions">
+          <button type="button" class="about-theme-option dashboard-tonight-confirm-dialog-btn-primary" id="quick-add-undo-confirm-yes" data-i18n="log.undoConfirmYes">Discard</button>
+          <button type="button" class="about-theme-option" id="quick-add-undo-confirm-no" data-i18n="log.undoConfirmNo">Keep editing</button>
+        </div>
+      </div>
+    </dialog>`;
+
+  const pageTopToolbar = layout === 'page'
+    ? `<div class="quick-add-page-toolbar">
+              <div class="quick-add-page-toolbar__bar" id="quick-add-toolbar-bar" data-i18n-aria-label="log.commitBarAria" aria-label="Save, undo, or review changes">
+                <div class="quick-add-toolbar-changes-head" data-i18n-aria-label="log.changesPanelAria" aria-label="Unsaved edits">
+                  <p class="quick-add-changes-caption" data-i18n="log.changesCaption">Changes</p>
+                  <p class="quick-add-save-dirty-hint" id="quick-add-save-dirty-hint" aria-live="polite" data-i18n-aria-label="log.dirtyHintAria" aria-label="Which parts of the form have unsaved edits"></p>
+                </div>
+                <div class="quick-add-page-toolbar__commit">
+                  <button type="button" class="quick-add-toolbar-btn quick-add-toolbar-btn--undo" id="quick-add-cancel" data-i18n="log.undoCancel" data-i18n-title="log.cancelHint" title="Restore the default night and clear your edits.">Undo / Cancel</button>
+                  <button type="submit" class="quick-add-toolbar-btn quick-add-toolbar-btn--save" id="quick-add-save" data-i18n="log.save">Save</button>
+                </div>
+              </div>
+            </div>`
+    : '';
   const actionsInner =
     layout === 'page'
-      ? `
-                <button type="button" class="about-theme-option" id="quick-add-cancel" data-i18n="log.cancel">Cancel</button>
-                <button type="submit" class="about-theme-option" id="quick-add-save" data-i18n="log.save">Save</button>`
+      ? ''
       : `
-                ${clearAllBtn}
-                <button type="button" class="about-theme-option" id="quick-add-cancel" data-i18n="log.cancel">Cancel</button>
-                <button type="submit" class="about-theme-option" id="quick-add-save" data-i18n="log.save">Save</button>`;
+                <button type="submit" class="about-theme-option" id="quick-add-save" data-i18n="log.save">Save</button>
+                <button type="button" class="about-theme-option" id="quick-add-cancel" data-i18n="log.undoCancel">Undo / Cancel</button>`;
 
-  const formHtml = `
-            <form id="quick-add-form" class="quick-add-form" data-initial-bed="${bedVal}" data-initial-sleep="${sleepVal}" data-initial-wake="${wakeVal}">
-              ${pageTopToolbar}
-              <div class="quick-add-field-compact quick-add-log-pair">
+  const dateFieldRow = isPage
+    ? `<div class="quick-add-date-row quick-add-date-row--page" role="group" data-i18n-aria-label="log.dateRowAria" aria-label="Sleep night date">
+                <div class="quick-add-date-controls">
+                  <button type="button" class="quick-add-date-step quick-add-date-step--prev" id="quick-add-date-prev" data-i18n-aria-label="log.datePrevAria" aria-label="Previous day">◀</button>
+                  <input class="quick-add-input quick-add-input--date" id="quick-add-date" type="date" aria-label="Date">
+                  <button type="button" class="quick-add-date-step quick-add-date-step--next" id="quick-add-date-next" data-i18n-aria-label="log.dateNextAria" aria-label="Next day">▶</button>
+                </div>
+              </div>`
+    : `<div class="quick-add-field-compact quick-add-log-pair">
                 <label class="quick-add-label" for="quick-add-date"><span data-i18n="log.date">Date</span></label>
                 <input class="quick-add-input quick-add-input--date" id="quick-add-date" type="date">
-              </div>
+              </div>`;
+
+  const formActionsRow = isPage
+    ? ''
+    : `<div class="quick-add-actions">
+                ${actionsInner}
+              </div>`;
+
+  const formHtml = `
+            <form id="quick-add-form" class="quick-add-form" data-initial-bed="${initialBedAttr}" data-initial-sleep="${initialSleepAttr}" data-initial-wake="${initialWakeAttr}">
+              ${pageTopToolbar}
+              ${dateFieldRow}
               <div class="quick-add-main-times" role="group" data-i18n-aria-label="log.mainTimesAria" aria-label="Bed, sleep, and wake">
                 <div class="quick-add-adv-row quick-add-log-pair">
-                  <span class="quick-add-label quick-add-label--emoji-line quick-add-label--bed" id="quick-add-bed-legend"><span class="quick-add-log-emoji" aria-hidden="true">🛏️</span><span class="quick-add-label-text" data-i18n="log.bed">Bed</span></span>
+                  <button type="button" class="quick-add-label quick-add-label--emoji-line quick-add-label--bed quick-add-label-hit" id="quick-add-bed-legend" data-i18n-aria-label="log.bedNowAria" aria-label="Set bed time to current time"><span class="quick-add-log-emoji" aria-hidden="true">🛏️</span><span class="quick-add-label-text" data-i18n="log.bed">Bed</span></button>
                   <div class="quick-add-time-row quick-add-time-row--nap">
-                    <input class="quick-add-input quick-add-time-native" id="quick-add-bed" type="time" step="60" value="${bedVal}" aria-labelledby="quick-add-bed-legend" aria-label="Bed time">
+                    <input class="quick-add-input quick-add-time-native" id="quick-add-bed" type="time" step="60" value="${mainBedVal}" aria-labelledby="quick-add-bed-legend" aria-label="Bed time">
                     ${mainTimeSpin('Bed time')}
                   </div>
                 </div>
                 <div class="quick-add-adv-row quick-add-log-pair">
-                  <span class="quick-add-label quick-add-label--emoji-line quick-add-label--sleep" id="quick-add-sleep-legend"><span class="quick-add-log-emoji" aria-hidden="true">🌙</span><span class="quick-add-label-text" data-i18n="log.sleep">Sleep</span></span>
+                  <button type="button" class="quick-add-label quick-add-label--emoji-line quick-add-label--sleep quick-add-label-hit" id="quick-add-sleep-legend" data-i18n-aria-label="log.sleepNowAria" aria-label="Set sleep time to current time"><span class="quick-add-log-emoji" aria-hidden="true">🌙</span><span class="quick-add-label-text" data-i18n="log.sleep">Sleep</span></button>
                   <div class="quick-add-time-row quick-add-time-row--nap">
-                    <input class="quick-add-input quick-add-time-native" id="quick-add-sleep" type="time" step="60" value="${sleepVal}" aria-labelledby="quick-add-sleep-legend" aria-label="Fell asleep">
+                    <input class="quick-add-input quick-add-time-native" id="quick-add-sleep" type="time" step="60" value="${mainSleepVal}" aria-labelledby="quick-add-sleep-legend" aria-label="Fell asleep">
                     ${mainTimeSpin('Fell asleep')}
                   </div>
                 </div>
                 <div class="quick-add-adv-row quick-add-log-pair">
-                  <span class="quick-add-label quick-add-label--emoji-line quick-add-label--wake" id="quick-add-wake-legend"><span class="quick-add-log-emoji" aria-hidden="true">🌅</span><span class="quick-add-label-text" data-i18n="log.wake">Wake</span></span>
+                  <button type="button" class="quick-add-label quick-add-label--emoji-line quick-add-label--wake quick-add-label-hit" id="quick-add-wake-legend" data-i18n-aria-label="log.wakeNowAria" aria-label="Set wake time to current time"><span class="quick-add-log-emoji" aria-hidden="true">🌅</span><span class="quick-add-label-text" data-i18n="log.wake">Wake</span></button>
                   <div class="quick-add-time-row quick-add-time-row--nap">
-                    <input class="quick-add-input quick-add-time-native" id="quick-add-wake" type="time" step="60" value="${wakeVal}" aria-labelledby="quick-add-wake-legend" aria-label="Wake up">
+                    <input class="quick-add-input quick-add-time-native" id="quick-add-wake" type="time" step="60" value="${mainWakeVal}" aria-labelledby="quick-add-wake-legend" aria-label="Wake up">
                     ${mainTimeSpin('Wake up')}
                   </div>
                 </div>
               </div>
               ${advancedSection}
               <p class="quick-add-status" id="quick-add-status"></p>
-              <div class="quick-add-actions">
-                ${actionsInner}
-              </div>
+              ${formActionsRow}
             </form>`;
 
   if (layout === 'page') {
     return `
     <div class="quick-add-drawer quick-add-drawer--page" id="quick-add-drawer">
       <div class="quick-add-drawer-body-inner quick-add-drawer-body-inner--page">
+        ${undoConfirmDialog}
         ${formHtml}
       </div>
     </div>`;
@@ -1257,6 +1306,7 @@ function renderQuickAddDrawer(recentAverages, recentDays, layout = 'drawer') {
         </button>
         <div class="quick-add-drawer-body" id="quick-add-drawer-body">
           <div class="quick-add-drawer-body-inner">
+            ${undoConfirmDialog}
             ${formHtml}
           </div>
         </div>

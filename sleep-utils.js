@@ -974,6 +974,109 @@ function getSleepDraftByDate(dateMd) {
   });
 }
 
+/** Advance ISO sleep night key by whole local calendar days (±). */
+function addCalendarDaysToSleepDateKey(isoKey, deltaDays) {
+  const iso = normalizeSleepDateKey(isoKey);
+  if (!iso || !Number.isFinite(deltaDays)) return '';
+  const d = parseIsoLocalDate(iso);
+  if (!d) return '';
+  d.setDate(d.getDate() + deltaDays);
+  return formatIsoDateFromLocalDate(d);
+}
+
+function draftRowTrim(s) {
+  return s == null ? '' : String(s).trim();
+}
+
+function draftRowPromotionCompleteRaw(row) {
+  if (!row) return false;
+  const b = draftRowTrim(row.bed);
+  const ss = draftRowTrim(row.sleep_start);
+  const se = draftRowTrim(row.sleep_end);
+  return b !== '' && ss !== '' && se !== '';
+}
+
+function draftRowHasUserContentRaw(row) {
+  if (!row) return false;
+  if (draftRowTrim(row.bed) !== '') return true;
+  if (draftRowTrim(row.sleep_start) !== '') return true;
+  if (draftRowTrim(row.sleep_end) !== '') return true;
+  if (draftRowTrim(row.nap_start) !== '') return true;
+  if (draftRowTrim(row.nap_end) !== '') return true;
+  const bath = row.bathroom;
+  if (Array.isArray(bath) && bath.length > 0) return true;
+  const alarm = row.alarm;
+  if (Array.isArray(alarm) && alarm.length > 0) return true;
+  const labels = row.labels;
+  if (Array.isArray(labels) && labels.length > 0) return true;
+  const waso = row.waso;
+  return Number.isFinite(waso) && waso > 0;
+}
+
+/**
+ * Most recently updated incomplete cloud draft (`sleep_date` key), or null.
+ * Incomplete = not all three main times; ignores rows with no user content (empty placeholders).
+ */
+function getPreferredIncompleteSleepDraftDateKey() {
+  const config = getSupabaseConfig();
+  if (!config.enabled) return Promise.resolve(null);
+  const uid = encodeURIComponent(RESTORE_CLOUD_USER_ID);
+  const select =
+    'sleep_date,bed,sleep_start,sleep_end,nap_start,nap_end,bathroom,alarm,labels,waso,updated_at';
+  const url =
+    config.url.replace(/\/+$/, '') +
+    '/rest/v1/sleep_day_drafts?select=' +
+    select +
+    '&user_id=eq.' +
+    uid +
+    '&order=updated_at.desc' +
+    '&limit=40';
+  return fetch(url, {
+    headers: getSupabaseAuthHeaders(config, false)
+  }).then(function (res) {
+    if (!res.ok) return null;
+    return res.json();
+  }).then(function (rows) {
+    if (!Array.isArray(rows)) return null;
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      if (draftRowPromotionCompleteRaw(row)) continue;
+      if (!draftRowHasUserContentRaw(row)) continue;
+      const s = row.sleep_date != null ? String(row.sleep_date).trim().slice(0, 10) : '';
+      const key = normalizeSleepDateKey(s);
+      if (key) return key;
+    }
+    return null;
+  }).catch(function () {
+    return null;
+  });
+}
+
+/**
+ * Default wake-day key for the log quick-add form: incomplete draft first, else remaining-wake phase.
+ * @param {Array} days — loaded sleep days (may be empty)
+ * @returns {Promise<string>}
+ */
+function resolveDefaultQuickAddNightDateMd(days) {
+  return getPreferredIncompleteSleepDraftDateKey().then(function (draftKey) {
+    if (draftKey) return draftKey;
+    const liveDays = Array.isArray(days) ? days : [];
+    const basis = getEffectiveRemainingWakeBasis(liveDays) || getFallbackWakeBasis();
+    if (!basis || !Number.isFinite(basis.avgSleepEnd)) {
+      const fb = getFallbackWakeBasis();
+      return recordDateMdForSleepPeriod(getAppDate(), fb.avgSleepEnd);
+    }
+    const display = getRemainingWakeDisplayFromBasis(basis, liveDays);
+    const phase = display && display.phase ? display.phase : 'open';
+    const openNight = recordDateMdForSleepPeriod(getAppDate(), basis.avgSleepEnd);
+    if (phase === 'winding' || phase === 'presleep' || phase === 'sleep') {
+      const next = addCalendarDaysToSleepDateKey(openNight, 1);
+      return next || openNight;
+    }
+    return openNight;
+  });
+}
+
 function upsertSleepDraftPartial(dateMd, partial) {
   const config = getSupabaseConfig();
   if (!config.enabled) {
