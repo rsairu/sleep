@@ -5,6 +5,8 @@
   let quickAddDateLoadSeq = 0;
   /** Last loaded main times per dateMd for QA flags (bed / sleep / wake) after save. */
   let quickAddInitialSnapshot = null;
+  /** Serialized DOM snapshot after load for log-page dirty detection. */
+  let quickAddBaseline = null;
 
   /** `YYYY-MM-DD` for `<input type="date">` from stored sleep key (ISO only). */
   function sleepDateKeyToDateInputValue(key) {
@@ -35,6 +37,141 @@
 
   function quickAddPresetDateInputValue() {
     return formatIsoDateFromLocalDate(getQuickAddDefaultNightDate());
+  }
+
+  function isQuickAddLogPage() {
+    const drawer = document.getElementById('quick-add-drawer');
+    return Boolean(drawer && drawer.classList.contains('quick-add-drawer--page'));
+  }
+
+  function setQuickAddTimeInputToAppNow(inputEl) {
+    if (!inputEl) return;
+    const now = typeof getAppDate === 'function' ? getAppDate() : new Date();
+    const mins = now.getHours() * 60 + now.getMinutes();
+    if (typeof formatMinutesTo24hString === 'function') {
+      inputEl.value = formatMinutesTo24hString(mins);
+    } else {
+      inputEl.value =
+        String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+    }
+  }
+
+  function shiftQuickAddDateByDays(delta) {
+    const dateInput = document.getElementById('quick-add-date');
+    if (!dateInput || !dateInput.value) return;
+    const key = dateInputValueToSleepDateKey(dateInput.value);
+    if (!key || typeof addCalendarDaysToSleepDateKey !== 'function') return;
+    const next = addCalendarDaysToSleepDateKey(key, delta);
+    if (!next) return;
+    dateInput.value = sleepDateKeyToDateInputValue(next);
+    loadQuickAddFormForDate(next);
+  }
+
+  function hydrateQuickAddDefaultDateForLogPage() {
+    const dateInput = document.getElementById('quick-add-date');
+    if (!dateInput) return Promise.resolve();
+    const days = (quickAddOptions && quickAddOptions.daysForDefaultDate) || [];
+    if (typeof resolveDefaultQuickAddNightDateMd !== 'function') {
+      dateInput.value = quickAddPresetDateInputValue();
+      const md = dateInputValueToSleepDateKey(dateInput.value);
+      return md ? loadQuickAddFormForDate(md) : Promise.resolve();
+    }
+    return resolveDefaultQuickAddNightDateMd(days).then(function (md) {
+      if (!md) {
+        dateInput.value = quickAddPresetDateInputValue();
+        const fb = dateInputValueToSleepDateKey(dateInput.value);
+        return fb ? loadQuickAddFormForDate(fb) : null;
+      }
+      dateInput.value = sleepDateKeyToDateInputValue(md);
+      return loadQuickAddFormForDate(md);
+    });
+  }
+
+  function snapshotQuickAddFormState() {
+    const dateInput = document.getElementById('quick-add-date');
+    const dateVal = dateInput ? dateInput.value : '';
+    const nightKey = dateInputValueToSleepDateKey(dateVal);
+    return {
+      nightKey: nightKey,
+      dateVal: dateVal,
+      bed: (document.getElementById('quick-add-bed') || {}).value || '',
+      sleep: (document.getElementById('quick-add-sleep') || {}).value || '',
+      wake: (document.getElementById('quick-add-wake') || {}).value || '',
+      bath: JSON.stringify(collectNormalizedTimesFromList(document.getElementById('quick-add-bathroom-list'))),
+      alarm: JSON.stringify(collectNormalizedTimesFromList(document.getElementById('quick-add-alarm-list'))),
+      napS: (document.getElementById('quick-add-nap-start') || {}).value || '',
+      napE: (document.getElementById('quick-add-nap-end') || {}).value || '',
+      waso: (document.getElementById('quick-add-waso') || {}).value || '',
+      labels: collectQuickAddLabelsFromDom()
+        .slice()
+        .sort()
+        .join('|')
+    };
+  }
+
+  function captureQuickAddBaseline() {
+    quickAddBaseline = snapshotQuickAddFormState();
+    refreshQuickAddSaveHud();
+  }
+
+  function isQuickAddDirty() {
+    if (!quickAddBaseline) return false;
+    const b = quickAddBaseline;
+    const cur = snapshotQuickAddFormState();
+    return (
+      cur.dateVal !== b.dateVal ||
+      cur.bed !== b.bed ||
+      cur.sleep !== b.sleep ||
+      cur.wake !== b.wake ||
+      cur.bath !== b.bath ||
+      cur.alarm !== b.alarm ||
+      cur.napS !== b.napS ||
+      cur.napE !== b.napE ||
+      cur.waso !== b.waso ||
+      cur.labels !== b.labels
+    );
+  }
+
+  function refreshQuickAddSaveHud() {
+    const saveBtn = document.getElementById('quick-add-save');
+    const hint = document.getElementById('quick-add-save-dirty-hint');
+    const bar = document.getElementById('quick-add-toolbar-bar');
+    if (!quickAddBaseline) {
+      if (hint) hint.textContent = '';
+      if (saveBtn) saveBtn.classList.remove('quick-add-toolbar-btn--dirty');
+      if (bar) bar.classList.remove('quick-add-page-toolbar__bar--dirty');
+      return;
+    }
+    const b = quickAddBaseline;
+    const cur = snapshotQuickAddFormState();
+    const emojis = [];
+    if (cur.dateVal !== b.dateVal) emojis.push('📅');
+    if (cur.bed !== b.bed) emojis.push('🛏️');
+    if (cur.sleep !== b.sleep) emojis.push('🌙');
+    if (cur.wake !== b.wake) emojis.push('🌅');
+    if (cur.bath !== b.bath) emojis.push('🧻');
+    if (cur.alarm !== b.alarm) emojis.push('🕐');
+    if (cur.napS !== b.napS) emojis.push('😴');
+    if (cur.napE !== b.napE) emojis.push('🥱');
+    if (cur.waso !== b.waso) emojis.push('👁️');
+    if (cur.labels !== b.labels) emojis.push('🏷️');
+    const dirty = emojis.length > 0;
+    if (bar) bar.classList.toggle('quick-add-page-toolbar__bar--dirty', dirty);
+    if (!isQuickAddLogPage()) return;
+    if (!saveBtn || !hint) return;
+    saveBtn.classList.toggle('quick-add-toolbar-btn--dirty', dirty);
+    hint.textContent = dirty ? emojis.join(' ') : '';
+  }
+
+  function appendListTimeNow(listId) {
+    const list = document.getElementById(listId);
+    if (!list) return;
+    appendQuickAddTimeRow(list);
+    const rows = list.querySelectorAll('.quick-add-time-row');
+    const last = rows[rows.length - 1];
+    const inp = last && last.querySelector('.quick-add-time-native');
+    setQuickAddTimeInputToAppNow(inp);
+    refreshQuickAddSaveHud();
   }
 
   function normalizeTime(value) {
@@ -159,10 +296,16 @@
   }
 
   function resetQuickAddFormToDefaults() {
-    const dateInput = document.getElementById('quick-add-date');
-    if (dateInput) dateInput.value = quickAddPresetDateInputValue();
     initQuickAddDynamicTimeLists();
-    applyInitialMainTimesFromFormDataset();
+    if (isQuickAddLogPage()) {
+      hydrateQuickAddDefaultDateForLogPage().then(function () {
+        captureQuickAddBaseline();
+      });
+    } else {
+      const dateInput = document.getElementById('quick-add-date');
+      if (dateInput) dateInput.value = quickAddPresetDateInputValue();
+      applyInitialMainTimesFromFormDataset();
+    }
 
     const napS = document.getElementById('quick-add-nap-start');
     const napE = document.getElementById('quick-add-nap-end');
@@ -172,26 +315,13 @@
     if (waso) waso.value = '0';
     syncQuickAddLabelToggles([]);
     setQuickAddStatus('', false);
-  }
 
-  function clearQuickAddFormEntirely() {
-    const dateInput = document.getElementById('quick-add-date');
-    if (dateInput) dateInput.value = quickAddPresetDateInputValue();
-    const bedEl = document.getElementById('quick-add-bed');
-    const sleepEl = document.getElementById('quick-add-sleep');
-    const wakeEl = document.getElementById('quick-add-wake');
-    if (bedEl) bedEl.value = '';
-    if (sleepEl) sleepEl.value = '';
-    if (wakeEl) wakeEl.value = '';
-    initQuickAddDynamicTimeLists();
-    const napS = document.getElementById('quick-add-nap-start');
-    const napE = document.getElementById('quick-add-nap-end');
-    if (napS) napS.value = '';
-    if (napE) napE.value = '';
-    const waso = document.getElementById('quick-add-waso');
-    if (waso) waso.value = '';
-    syncQuickAddLabelToggles([]);
-    setQuickAddStatus('', false);
+    if (!isQuickAddLogPage()) {
+      const dateInput = document.getElementById('quick-add-date');
+      const md = dateInput && dateInputValueToSleepDateKey(dateInput.value);
+      if (md) loadQuickAddFormForDate(md);
+      else captureQuickAddBaseline();
+    }
   }
 
   function closeQuickAddDrawer() {
@@ -266,7 +396,9 @@
     if (!form || !document.getElementById('quick-add-bed')) return;
 
     const dateInput = document.getElementById('quick-add-date');
-    if (dateInput) dateInput.value = quickAddPresetDateInputValue();
+    if (dateInput && !isQuickAddLogPage()) {
+      dateInput.value = quickAddPresetDateInputValue();
+    }
     initQuickAddDynamicTimeLists();
     ensureQuickAddLabelChipsRendered();
 
@@ -329,7 +461,12 @@
 
     if (!record) {
       initQuickAddDynamicTimeLists();
-      applyInitialMainTimesFromFormDataset();
+      if (bedEl) bedEl.value = '';
+      if (sleepEl) sleepEl.value = '';
+      if (wakeEl) wakeEl.value = '';
+      if (!isQuickAddLogPage()) {
+        applyInitialMainTimesFromFormDataset();
+      }
       if (napS) napS.value = '';
       if (napE) napE.value = '';
       if (waso) waso.value = '0';
@@ -377,10 +514,12 @@
       const canonical = results[0];
       const draft = results[1];
       applyRecordToQuickAddForm(dateMd, canonical || draft || null);
+      captureQuickAddBaseline();
       return null;
     }).catch(function () {
       if (seq !== quickAddDateLoadSeq) return null;
       applyRecordToQuickAddForm(dateMd, null);
+      captureQuickAddBaseline();
       return null;
     });
   }
@@ -488,6 +627,8 @@
         const isLogPage = drawerEl && drawerEl.classList.contains('quick-add-drawer--page');
         if (!isLogPage) {
           closeQuickAddDrawer();
+        } else {
+          loadQuickAddFormForDate(dateMd);
         }
         if (quickAddOptions && typeof quickAddOptions.onSaved === 'function') {
           return quickAddOptions.onSaved();
@@ -510,23 +651,46 @@
       const t = e.target;
       if (t && t.id === 'quick-add-form') handleSubmit(e);
     });
+    document.addEventListener('input', function (e) {
+      const t = e.target;
+      if (!t || !t.closest || !t.closest('#quick-add-form')) return;
+      refreshQuickAddSaveHud();
+    });
+    document.addEventListener('change', function (e) {
+      const t = e.target;
+      if (!t || !t.closest || !t.closest('#quick-add-form')) return;
+      refreshQuickAddSaveHud();
+    });
     document.addEventListener('click', function (e) {
       const t = e.target;
       if (!t) return;
+
+      const undoYes = t.closest && t.closest('#quick-add-undo-confirm-yes');
+      if (undoYes) {
+        e.preventDefault();
+        const dlg = document.getElementById('quick-add-undo-confirm-dialog');
+        if (dlg && typeof dlg.close === 'function') dlg.close();
+        closeQuickAddDrawer();
+        return;
+      }
+      const undoNo = t.closest && t.closest('#quick-add-undo-confirm-no');
+      if (undoNo) {
+        e.preventDefault();
+        const dlg = document.getElementById('quick-add-undo-confirm-dialog');
+        if (dlg && typeof dlg.close === 'function') dlg.close();
+        return;
+      }
+
       const form = t.closest && t.closest('#quick-add-form');
       if (!form) return;
 
       const cancelBtn = t.closest && t.closest('#quick-add-cancel');
       if (cancelBtn && form.contains(cancelBtn)) {
         e.preventDefault();
-        closeQuickAddDrawer();
-        return;
-      }
-
-      const clearAllBtn = t.closest && t.closest('#quick-add-clear-all');
-      if (clearAllBtn && form.contains(clearAllBtn)) {
-        e.preventDefault();
-        clearQuickAddFormEntirely();
+        if (!isQuickAddDirty()) return;
+        const dlg = document.getElementById('quick-add-undo-confirm-dialog');
+        if (dlg && typeof dlg.showModal === 'function') dlg.showModal();
+        else closeQuickAddDrawer();
         return;
       }
 
@@ -534,6 +698,7 @@
       if (bathAdd && form.contains(bathAdd)) {
         e.preventDefault();
         appendQuickAddTimeRow(document.getElementById('quick-add-bathroom-list'));
+        refreshQuickAddSaveHud();
         return;
       }
 
@@ -541,6 +706,30 @@
       if (alarmAdd && form.contains(alarmAdd)) {
         e.preventDefault();
         appendQuickAddTimeRow(document.getElementById('quick-add-alarm-list'));
+        refreshQuickAddSaveHud();
+        return;
+      }
+
+      const quickNowHit = t.closest && t.closest('.quick-add-label-hit');
+      if (quickNowHit && form.contains(quickNowHit)) {
+        e.preventDefault();
+        const hid = quickNowHit.id;
+        if (hid === 'quick-add-bed-legend') {
+          setQuickAddTimeInputToAppNow(document.getElementById('quick-add-bed'));
+        } else if (hid === 'quick-add-sleep-legend') {
+          setQuickAddTimeInputToAppNow(document.getElementById('quick-add-sleep'));
+        } else if (hid === 'quick-add-wake-legend') {
+          setQuickAddTimeInputToAppNow(document.getElementById('quick-add-wake'));
+        } else if (hid === 'quick-add-bathroom-legend') {
+          appendListTimeNow('quick-add-bathroom-list');
+        } else if (hid === 'quick-add-alarm-legend') {
+          appendListTimeNow('quick-add-alarm-list');
+        } else if (hid === 'quick-add-nap-start-legend') {
+          setQuickAddTimeInputToAppNow(document.getElementById('quick-add-nap-start'));
+        } else if (hid === 'quick-add-nap-end-legend') {
+          setQuickAddTimeInputToAppNow(document.getElementById('quick-add-nap-end'));
+        }
+        refreshQuickAddSaveHud();
         return;
       }
 
@@ -548,6 +737,7 @@
       if (rm && form.contains(rm)) {
         e.preventDefault();
         onQuickAddRemoveTimeRow(rm);
+        refreshQuickAddSaveHud();
         return;
       }
 
@@ -556,6 +746,20 @@
         e.preventDefault();
         const nowOn = labelBtn.classList.toggle('is-pressed');
         labelBtn.setAttribute('aria-pressed', nowOn ? 'true' : 'false');
+        refreshQuickAddSaveHud();
+        return;
+      }
+
+      const datePrev = t.closest && t.closest('#quick-add-date-prev');
+      if (datePrev && form.contains(datePrev)) {
+        e.preventDefault();
+        shiftQuickAddDateByDays(-1);
+        return;
+      }
+      const dateNext = t.closest && t.closest('#quick-add-date-next');
+      if (dateNext && form.contains(dateNext)) {
+        e.preventDefault();
+        shiftQuickAddDateByDays(1);
         return;
       }
 
@@ -570,6 +774,7 @@
           const up = spinBtn.classList.contains('quick-add-time-spin-btn--up');
           v = Math.max(0, v + (up ? 1 : -1));
           inp.value = String(v);
+          refreshQuickAddSaveHud();
           return;
         }
         const row = spinBtn.closest('.quick-add-time-row');
@@ -578,6 +783,8 @@
           const up = spinBtn.classList.contains('quick-add-time-spin-btn--up');
           quickAddStepTimeMinutes(inp, up ? 1 : -1);
         }
+        refreshQuickAddSaveHud();
+        return;
       }
     });
     document.addEventListener('change', function (e) {
@@ -601,6 +808,10 @@
     quickAddOptions = options || {};
     bindQuickAddHostOnce();
     wireQuickAddDrawerSliders();
+    if (isQuickAddLogPage()) {
+      hydrateQuickAddDefaultDateForLogPage();
+      return;
+    }
     const dateInput = document.getElementById('quick-add-date');
     const dateMd = dateInputValueToSleepDateKey(dateInput && dateInput.value);
     if (dateMd) loadQuickAddFormForDate(dateMd);
