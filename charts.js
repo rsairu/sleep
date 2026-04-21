@@ -27,6 +27,20 @@ function graphNaturalWakeMarkersOn() {
   return !el || el.checked;
 }
 
+function formatWakeDelayChartTooltipLabel(minutes) {
+  if (minutes === null || minutes === undefined || !Number.isFinite(minutes)) return '';
+  if (minutes < 0) return '−' + formatDuration(-minutes);
+  return formatDuration(minutes);
+}
+
+function wakeDelayAxisTickText(tick) {
+  if (!Number.isFinite(tick)) return '';
+  if (tick !== 0 && tick % 60 === 0) return `${tick / 60}h`;
+  if (tick < 0) return '−' + formatDuration(-tick);
+  if (tick % 60 === 0) return `${tick / 60}h`;
+  return `${tick}m`;
+}
+
 const GRAPH_CHART_MODE_STORAGE_KEYS = {
   sleepDuration: 'graphChartMode_sleepDuration',
   wakeDelay: 'graphChartMode_wakeDelay',
@@ -237,7 +251,7 @@ let graphPageTogglesBound = false;
 /** Incremented each time chart render finishes; used to scroll to `location.hash` only on first paint (layout is stable). */
 let graphPageChartRenderGeneration = 0;
 
-/** Scroll to `document.location.hash` target after layout (see graph.html post-nav pass). */
+/** Scroll to `document.location.hash` target after layout (see charts.html post-nav pass). */
 function syncGraphPageHashScroll() {
   if (typeof window === 'undefined' || !window.location.hash || window.location.hash.length <= 1) return;
   const id = decodeURIComponent(window.location.hash.slice(1));
@@ -309,7 +323,7 @@ loadSleepData()
         sleepDelayMinutes: calculateSleepDelay(day),
         firstAlarm: day.alarm && day.alarm.length > 0 ? day.alarm[0] : null,
         fragmentation: normalizeFragmentationLevel(day),
-        naturalWake: isNaturalWakeDay(day)
+        naturalWake: isNoAlarmWakeDay(day)
       };
     });
 
@@ -1433,7 +1447,7 @@ function renderGraphPageCharts() {
       document.getElementById('bar-chart-container').appendChild(errorDiv);
     }
 
-    // ===== WAKE DELAY CHART: first alarm → get up (positive bars only) =====
+    // ===== WAKE DELAY CHART: signed first alarm → get up (bars above/below zero) =====
     try {
       if (typeof xScale === 'undefined' || typeof dayWidth === 'undefined' || typeof monthNames === 'undefined' || !points) {
         throw new Error('Required variables not available for wake delay chart');
@@ -1456,21 +1470,28 @@ function renderGraphPageCharts() {
       wakeChartG.setAttribute('transform', `translate(${wakeChartMargin.left},${wakeChartMargin.top})`);
       wakeChartSvg.appendChild(wakeChartG);
 
-      const wakeVals = points.map((p) => p.wakeDelayMinutes).filter((v) => v != null && v > 0);
+      const wakeDelayFinite = points
+        .map((p) => p.wakeDelayMinutes)
+        .filter((v) => v != null && v !== undefined && Number.isFinite(v));
+      const wakePosVals = wakeDelayFinite.filter((v) => v > 0);
+      const wakeNegVals = wakeDelayFinite.filter((v) => v < 0);
       const wakeDotR = 4;
-      const wakeMaxData = wakeVals.length ? Math.max(...wakeVals) : 0;
+      const wakeMaxData = wakePosVals.length ? Math.max(...wakePosVals) : 0;
       const wakeYMax = Math.max(180, Math.ceil(wakeMaxData / 60) * 60);
-
+      const minNeg = wakeNegVals.length ? Math.min(...wakeNegVals) : 0;
+      const wakeYMin = minNeg < 0 ? Math.min(-30, Math.floor(minNeg / 15) * 15) : -30;
+      const wakeSpan = wakeYMax - wakeYMin;
       const wakeYScale = (minutes) =>
-        wakeChartGraphHeight - (minutes / wakeYMax) * wakeChartGraphHeight;
+        wakeChartGraphHeight - ((minutes - wakeYMin) / wakeSpan) * wakeChartGraphHeight;
 
+      const wakeTickStep = wakeYMin < -30 || wakeYMax - wakeYMin > 240 ? 60 : 30;
       const wakeYTicks = [];
-      const wakeTickStep = wakeYMax <= 120 ? 30 : 60;
-      for (let m = 0; m <= wakeYMax; m += wakeTickStep) {
-        wakeYTicks.push(m);
-      }
-      if (wakeYTicks[wakeYTicks.length - 1] !== wakeYMax) {
-        wakeYTicks.push(wakeYMax);
+      for (
+        let m = Math.floor(wakeYMin / wakeTickStep) * wakeTickStep;
+        m <= wakeYMax + 1e-9;
+        m += wakeTickStep
+      ) {
+        wakeYTicks.push(Math.round(m));
       }
 
       wakeYTicks.forEach((tick) => {
@@ -1524,7 +1545,7 @@ function renderGraphPageCharts() {
         label.setAttribute('y', y + 4);
         label.setAttribute('class', 'axis-label');
         label.setAttribute('text-anchor', 'end');
-        label.textContent = tick % 60 === 0 ? `${tick / 60}h` : `${tick}m`;
+        label.textContent = wakeDelayAxisTickText(tick);
         wakeChartG.appendChild(label);
       });
 
@@ -1584,7 +1605,7 @@ function renderGraphPageCharts() {
         label.setAttribute('y', y + 4);
         label.setAttribute('class', 'axis-label');
         label.setAttribute('text-anchor', 'start');
-        label.textContent = tick % 60 === 0 ? `${tick / 60}h` : `${tick}m`;
+        label.textContent = wakeDelayAxisTickText(tick);
         wakeChartG.appendChild(label);
       });
 
@@ -1602,20 +1623,24 @@ function renderGraphPageCharts() {
       if (wakeDelayMode === 'bar') {
         points.forEach((point) => {
           const x = xScale(point.date);
-          if (point.wakeDelayMinutes !== null && point.wakeDelayMinutes !== undefined && point.wakeDelayMinutes > 0) {
-            const wakeDelayBarY = wakeYScale(point.wakeDelayMinutes);
-            const wakeDelayBarHeight = wakeChartGraphHeight - wakeDelayBarY;
+          const v = point.wakeDelayMinutes;
+          if (v === null || v === undefined || !Number.isFinite(v)) return;
+          const y0 = wakeYScale(0);
+          if (v > 0) {
+            const yTop = wakeYScale(v);
+            const yBar = Math.min(y0, yTop);
+            const wakeDelayBarHeight = Math.abs(y0 - yTop);
             if (wakeDelayBarHeight > 0 && !isNaN(wakeDelayBarHeight)) {
               const wakeDelayRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
               wakeDelayRect.setAttribute('x', x - wakeBarWidth / 2);
-              wakeDelayRect.setAttribute('y', wakeDelayBarY);
+              wakeDelayRect.setAttribute('y', yBar);
               wakeDelayRect.setAttribute('width', wakeBarWidth);
               wakeDelayRect.setAttribute('height', wakeDelayBarHeight);
               wakeDelayRect.setAttribute('class', 'sleep-bar wake-delay-bar');
 
               wakeDelayRect.addEventListener('mouseenter', () => {
                 const alarmText = point.firstAlarm ? ` (alarm ${point.firstAlarm} → get up ${point.getUpString})` : '';
-                tooltip.textContent = `${formatSleepDateMonthDay(point.dateString)}: ${formatDuration(point.wakeDelayMinutes)} wake delay${alarmText}`;
+                tooltip.textContent = `${formatSleepDateMonthDay(point.dateString)}: ${formatWakeDelayChartTooltipLabel(v)} wake delay${alarmText}`;
                 tooltip.classList.add('visible');
               });
               wakeDelayRect.addEventListener('mousemove', (e) => {
@@ -1627,7 +1652,33 @@ function renderGraphPageCharts() {
               });
               wakeChartG.appendChild(wakeDelayRect);
             }
-          } else if (point.wakeDelayMinutes === 0) {
+          } else if (v < 0) {
+            const yVal = wakeYScale(v);
+            const yBar = Math.min(y0, yVal);
+            const wakeDelayBarHeight = Math.abs(y0 - yVal);
+            if (wakeDelayBarHeight > 0 && !isNaN(wakeDelayBarHeight)) {
+              const wakeDelayRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+              wakeDelayRect.setAttribute('x', x - wakeBarWidth / 2);
+              wakeDelayRect.setAttribute('y', yBar);
+              wakeDelayRect.setAttribute('width', wakeBarWidth);
+              wakeDelayRect.setAttribute('height', wakeDelayBarHeight);
+              wakeDelayRect.setAttribute('class', 'sleep-bar wake-delay-bar wake-delay-bar--negative');
+
+              wakeDelayRect.addEventListener('mouseenter', () => {
+                const alarmText = point.firstAlarm ? ` (alarm ${point.firstAlarm} → get up ${point.getUpString})` : '';
+                tooltip.textContent = `${formatSleepDateMonthDay(point.dateString)}: ${formatWakeDelayChartTooltipLabel(v)} wake delay${alarmText}`;
+                tooltip.classList.add('visible');
+              });
+              wakeDelayRect.addEventListener('mousemove', (e) => {
+                tooltip.style.left = (e.clientX + 10) + 'px';
+                tooltip.style.top = (e.clientY - 10) + 'px';
+              });
+              wakeDelayRect.addEventListener('mouseleave', () => {
+                tooltip.classList.remove('visible');
+              });
+              wakeChartG.appendChild(wakeDelayRect);
+            }
+          } else if (v === 0) {
             const rawY = wakeYScale(0);
             const cy = Math.min(Math.max(wakeDotR, rawY), wakeChartGraphHeight - wakeDotR);
             const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
@@ -1637,7 +1688,7 @@ function renderGraphPageCharts() {
             circle.setAttribute('class', 'graph-metric-dot graph-wake-delay-dot graph-wake-delay-dot--baseline');
             circle.addEventListener('mouseenter', () => {
               const alarmText = point.firstAlarm ? ` (alarm ${point.firstAlarm} → get up ${point.getUpString})` : '';
-              tooltip.textContent = `${formatSleepDateMonthDay(point.dateString)}: ${formatDuration(0)} wake delay${alarmText}`;
+              tooltip.textContent = `${formatSleepDateMonthDay(point.dateString)}: ${formatWakeDelayChartTooltipLabel(0)} wake delay${alarmText}`;
               tooltip.classList.add('visible');
             });
             circle.addEventListener('mousemove', (e) => {
@@ -1652,24 +1703,28 @@ function renderGraphPageCharts() {
         });
       } else {
         points.forEach((point) => {
-          if (point.wakeDelayMinutes === null || point.wakeDelayMinutes === undefined || point.wakeDelayMinutes < 0) {
-            return;
-          }
+          const v = point.wakeDelayMinutes;
+          if (v === null || v === undefined || !Number.isFinite(v)) return;
           const x = xScale(point.date);
-          const rawY = wakeYScale(point.wakeDelayMinutes);
+          const rawY = wakeYScale(v);
           const cy = Math.min(Math.max(wakeDotR, rawY), wakeChartGraphHeight - wakeDotR);
           const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
           circle.setAttribute('cx', String(x));
           circle.setAttribute('cy', String(cy));
           circle.setAttribute('r', String(wakeDotR));
-          circle.setAttribute('class', 'graph-metric-dot graph-wake-delay-dot');
+          circle.setAttribute(
+            'class',
+            v === 0
+              ? 'graph-metric-dot graph-wake-delay-dot graph-wake-delay-dot--baseline'
+              : 'graph-metric-dot graph-wake-delay-dot'
+          );
           circle.style.pointerEvents = 'none';
           wakeChartG.appendChild(circle);
         });
       }
 
       const wakeDelayPoints = points.filter(
-        (p) => p.wakeDelayMinutes !== null && p.wakeDelayMinutes !== undefined && p.wakeDelayMinutes >= 0
+        (p) => p.wakeDelayMinutes !== null && p.wakeDelayMinutes !== undefined && Number.isFinite(p.wakeDelayMinutes)
       );
       if (wakeDelayPoints.length > 0) {
         const wakeDelayXValues = wakeDelayPoints.map((point) => points.indexOf(point));
@@ -1684,9 +1739,8 @@ function renderGraphPageCharts() {
         let wakeDelayTrendPathData = '';
         for (let i = 0; i < points.length; i++) {
           const predictedValue = evaluatePolynomial(wakeDelayRegression, i);
-          const displayMinutes = Math.max(0, predictedValue);
           const x = xScale(points[i].date);
-          const y = wakeYScale(displayMinutes);
+          const y = wakeYScale(predictedValue);
           const clampedY = Math.min(Math.max(wakeDotR, y), wakeChartGraphHeight - wakeDotR);
           wakeDelayTrendPathData += wakeDelayTrendPathData ? ` L ${x} ${clampedY}` : `M ${x} ${clampedY}`;
         }

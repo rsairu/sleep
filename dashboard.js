@@ -1,5 +1,5 @@
 // Dashboard: recent average, lifetime average, recent nights (timeline rows), sleep quality history.
-// Uses renderDashboardContent() and shared helpers from daily.js.
+// Uses renderDashboardContent() and shared helpers from nightly.js.
 // Includes 7-day graphs: bed/sleep-start and wake time (left column), duration chart (right).
 // Requires: sleep-utils.js (timeToMinutes, getDateFromString, calculateTotalSleep, formatDuration, formatTime)
 
@@ -68,7 +68,7 @@ function buildPoints(days) {
       mainSleepMinutes: mainSleep,
       napMinutes: napDuration,
       fragmentation: normalizeFragmentationLevel(day),
-      naturalWake: isNaturalWakeDay(day)
+      naturalWake: isNoAlarmWakeDay(day)
     };
   });
 }
@@ -188,7 +188,7 @@ function render7DayTimeGraph(container, points, seriesKeys) {
     g.appendChild(pathEl);
   });
 
-  // Match graph page behavior: break get-up line behind natural wake bullseye markers.
+  // Match charts page behavior: break get-up line behind no-alarm wake bullseye markers.
   if (keys.includes('getUpMinutes')) {
     const breakMasksG = ns('g');
     breakMasksG.setAttribute('class', 'getup-line-break-masks');
@@ -270,7 +270,7 @@ function render7DayTimeGraph(container, points, seriesKeys) {
     });
   });
 
-  // Invisible tap/click areas per day: tap a day to show daily values popup (same as graph.js)
+  // Invisible tap/click areas per day: tap a day to show daily values popup (same as charts.js)
   const dayWidth = graphWidth / Math.max(1, points.length);
   points.forEach((point, index) => {
     const x = xScale(point.date);

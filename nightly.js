@@ -478,11 +478,29 @@ function renderDay(day, days, dayIndex, options) {
     : '';
   const userLabelsBlock = sleepDayUserLabelsMarkup(day);
   const dayFlagsRow = `<div class="day-flags-row"><div class="day-flags-content">${deviationWarnings}${userLabelsBlock}</div></div>`;
-  const naturalWakeSuffix =
-    typeof isNaturalWakeDay === 'function' && isNaturalWakeDay(day)
-      ? ' (<span class="stat-natural-wake-emoji" role="img" aria-label="Natural wake" title="Natural wake">🌄</span>)'
-      : '';
-  
+  const hasAlarms = day.alarm && day.alarm.length > 0;
+  let wakeValueSuffix = '';
+  if (!hasAlarms) {
+    wakeValueSuffix =
+      ' <span class="stat-natural-wake-emoji" role="img" aria-label="Natural wake" title="Natural wake">🌄</span>';
+  } else if (firstAlarmToWake !== null && firstAlarmToWake < 0) {
+    const earlyBy = formatDuration(-firstAlarmToWake);
+    const parenInner = `⏰-${earlyBy}`;
+    const parenTitle = `Before alarm by ${earlyBy}`;
+    wakeValueSuffix =
+      ' <span class="stat-natural-wake-emoji" role="img" aria-label="Woke before alarm" title="Woke before alarm">🌄</span>' +
+      ` <span class="stat-wake-before-alarm-paren" role="img" aria-label="${escapeHtmlAttr(parenTitle)}" title="${escapeHtmlAttr(parenTitle)}">(${parenInner})</span>`;
+  } else if (firstAlarmToWake !== null && firstAlarmToWake >= 0) {
+    const delayWarn =
+      firstAlarmToWake > ALARM_TO_WAKE_WARNING_THRESHOLD ? ' stat-warning' : '';
+    wakeValueSuffix =
+      ' <span class="stat-wake-alarm-emoji" role="img" aria-label="Alarm wake" title="Alarm wake">⏰</span>' +
+      `<span class="stat-wake-after-alarm-delay${delayWarn}">+${formatDuration(firstAlarmToWake)}</span>`;
+  } else {
+    wakeValueSuffix =
+      ' <span class="stat-wake-alarm-emoji" role="img" aria-label="Alarm set" title="Alarm">⏰</span>';
+  }
+
   // Convert times to timeline positions
   const sleepStartPos = timeToTimelinePosition(sleepStart);
   const sleepEndPos = timeToTimelinePosition(sleepEnd);
@@ -493,16 +511,6 @@ function renderDay(day, days, dayIndex, options) {
   const tickLabels = [21, 0, 4, 8, 12, 16, 21];
   const barClass = 'bar' + (showTicks ? ' show-ticks' : '');
   
-  const alarmToWakeDisplay =
-    firstAlarmToWake !== null
-      ? firstAlarmToWake < 0
-        ? '-' + formatDuration(-firstAlarmToWake)
-        : formatDuration(firstAlarmToWake)
-      : formatDuration(0);
-  const alarmToWakeWarning =
-    firstAlarmToWake !== null && firstAlarmToWake > ALARM_TO_WAKE_WARNING_THRESHOLD ? 'stat-warning' : '';
-  const alarmToWakeRow = `<div class="stat-row stat-row--nowrap"><span class="stat-label">${highlightKeyword('alarm to wake:', ['alarm', 'wake'])}</span><span class="stat-value ${alarmToWakeWarning}">${alarmToWakeDisplay}</span></div>`;
-
   let html = `
     <div class="day ${dayClasses.join(' ')}">
       <div class="day-content">
@@ -513,10 +521,9 @@ function renderDay(day, days, dayIndex, options) {
             <div class="day-metrics-phases day-stats">
               <div class="stat-row"><span class="stat-label">${highlightKeyword('bed:', 'bed')}</span><span class="stat-value">${day.bed}</span></div>
               <div class="stat-row"><span class="stat-label">${highlightKeyword('asleep:', 'asleep')}</span><span class="stat-value">${day.sleepStart}</span></div>
-              <div class="stat-row"><span class="stat-label">${highlightKeyword('wake:', 'wake')}</span><span class="stat-value">${day.sleepEnd}${naturalWakeSuffix}</span></div>
+              <div class="stat-row"><span class="stat-label">${highlightKeyword('wake:', 'wake')}</span><span class="stat-value">${day.sleepEnd}${wakeValueSuffix}</span></div>
             </div>
             <div class="day-metrics-calcs day-stats">
-              ${alarmToWakeRow}
               <div class="stat-row"><span class="stat-label">${highlightKeyword('duration:', 'duration')}</span><span class="stat-value">${formatDuration(sleepDuration)}</span></div>
               <div class="stat-row"><span class="stat-label">uninterrupted:</span><span class="stat-value">${formatDuration(longestUninterrupted)}</span></div>
             </div>
@@ -547,7 +554,7 @@ function renderDay(day, days, dayIndex, options) {
   
   html += `<div class="event bed" style="--m:${bedPos}" data-tooltip="${day.bed} bed"></div>`;
   
-  day.alarm.forEach(time => {
+  (day.alarm || []).forEach(time => {
     const minutes = timeToTimelinePosition(timeToMinutes(time));
     html += `<div class="event alarm" style="--m:${minutes}" data-tooltip="${time} alarm"></div>`;
   });
@@ -607,7 +614,7 @@ function renderAveragesStats(averages) {
         <div class="stat-row"><span class="stat-label">${highlightKeyword('asleep:', 'asleep')}</span><span class="stat-value">${formatTime(averages.avgSleepStart)}</span></div>
     <div class="stat-row"><span class="stat-label">${highlightKeyword('duration:', 'duration')}</span><span class="stat-value">${formatDuration(averages.avgSleepDuration)}</span></div>
     <div class="stat-row"><span class="stat-label">uninterrupted:</span><span class="stat-value">${formatDuration(averages.avgLongestUninterrupted)}</span></div>
-    ${averages.avgFirstAlarmToWake !== null ? `<div class="stat-row"><span class="stat-label">${highlightKeyword('alarm to wake:', ['alarm', 'wake'])}</span><span class="stat-value ${averages.avgFirstAlarmToWake > ALARM_TO_WAKE_WARNING_THRESHOLD ? 'stat-warning' : ''}">${averages.avgFirstAlarmToWake < 0 ? '-' + formatDuration(-averages.avgFirstAlarmToWake) : formatDuration(averages.avgFirstAlarmToWake)}</span></div>` : ''}
+    ${averages.avgFirstAlarmToWake !== null ? `<div class="stat-row"><span class="stat-label">${highlightKeyword('Wake delay (avg):', 'wake')}</span><span class="stat-value ${averages.avgFirstAlarmToWake > ALARM_TO_WAKE_WARNING_THRESHOLD ? 'stat-warning' : ''}">${averages.avgFirstAlarmToWake < 0 ? '−' + formatDuration(-averages.avgFirstAlarmToWake) : formatDuration(averages.avgFirstAlarmToWake)}</span></div>` : ''}
   `;
 }
 
@@ -1872,7 +1879,7 @@ function renderDashboardContent(days) {
   const recentNightsCount = Math.min(3, days.length);
   const recentNightsHtml = recentNightsCount > 0
     ? `
-    <h2 class="dashboard-section-title"><a class="dashboard-section-title__link" href="daily.html"><span class="dashboard-section-title__emoji" aria-hidden="true">📅</span> Recent nightlies</a></h2>
+    <h2 class="dashboard-section-title"><a class="dashboard-section-title__link" href="nightly.html"><span class="dashboard-section-title__emoji" aria-hidden="true">📅</span> Recent nightlies</a></h2>
     <section class="dashboard-past-nights">
       <div class="week-days">
         ${Array.from({ length: recentNightsCount }, (_, i) => renderDay(days[i], days, i, { showTicks: true })).join('')}
@@ -1882,19 +1889,19 @@ function renderDashboardContent(days) {
     : '';
 
   const sevenDaySectionHtml = `
-    <h2 class="dashboard-section-title"><a class="dashboard-section-title__link" href="graph.html"><span class="dashboard-section-title__emoji" aria-hidden="true">📊</span> Weekly charts</a></h2>
+    <h2 class="dashboard-section-title"><a class="dashboard-section-title__link" href="charts.html"><span class="dashboard-section-title__emoji" aria-hidden="true">📊</span> Weekly charts</a></h2>
     <div class="dashboard-7d-row">
       <div class="dashboard-7d-col">
         <div class="dashboard-7d-time-stack">
           <div>
             <h3 class="dashboard-7d-subtitle dashboard-7d-subtitle--skp-time">
-              <a class="dashboard-7d-subtitle__link" href="graph.html#chart-bed-asleep-wake">Bed &amp; sleep start</a>
+              <a class="dashboard-7d-subtitle__link" href="charts.html#chart-bed-asleep-wake">Bed &amp; sleep start</a>
             </h3>
             <div class="dashboard-7d-graph-container" id="dashboard-7d-bed-sleep-graph"></div>
           </div>
           <div>
             <h3 class="dashboard-7d-subtitle dashboard-7d-subtitle--skp-wake">
-              <a class="dashboard-7d-subtitle__link" href="graph.html#chart-bed-asleep-wake">Wake time</a>
+              <a class="dashboard-7d-subtitle__link" href="charts.html#chart-bed-asleep-wake">Wake time</a>
             </h3>
             <div class="dashboard-7d-graph-container" id="dashboard-7d-wake-graph"></div>
           </div>
@@ -1902,7 +1909,7 @@ function renderDashboardContent(days) {
       </div>
       <div class="dashboard-7d-col">
         <h3 class="dashboard-7d-subtitle dashboard-7d-subtitle--skp-sleep">
-          <a class="dashboard-7d-subtitle__link" href="graph.html#chart-sleep-duration">Total sleep time</a>
+          <a class="dashboard-7d-subtitle__link" href="charts.html#chart-sleep-duration">Total sleep time</a>
         </h3>
         <div class="dashboard-7d-graph-container" id="dashboard-7d-duration-graph"></div>
       </div>

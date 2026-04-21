@@ -21,6 +21,8 @@ All SKP variables are defined on `:root` and overridden for light UI on `[data-t
 
 Related non-keyword UI tokens (`--panel`, `--text`, `--grid`, etc.) live in the same file but are not “keyword-colored” series.
 
+**Nightly companion:** `--stat-wake-before-alarm-cool` — cool teal for the “woke before first alarm” parenthetical `(⏰-…m)`; intentionally **not** `--color-bed` (sky) so it reads apart from bed and from warm `--color-warning` on after-alarm `+…` delays.
+
 ## Usage rules
 
 1. **New UI** that colors bed / sleep / wake (or other keywords above) should use SKP variables in CSS, or `currentColor` / inherited color from a parent that sets `color: var(--color-…)`.

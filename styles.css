@@ -23,7 +23,9 @@
   --color-warning: #c2410c;
   --color-default-event: #e5e7eb;
   --color-hover-blue: #93c5fd;
-  
+  /* Nightly: woke before first alarm — cool teal (not --color-bed sky blue) vs warm +delay */
+  --stat-wake-before-alarm-cool: #2dd4bf;
+
   /* Common overlays */
   --hover-bg: rgba(255, 255, 255, 0.05);
   --tooltip-bg: rgba(0, 0, 0, 0.9);
@@ -130,6 +132,7 @@
   --color-warning: #9a3412;
   --color-default-event: #475569;
   --color-hover-blue: #2563eb;
+  --stat-wake-before-alarm-cool: #0d9488;
   --tick-line: rgba(0, 0, 0, 0.22);
   --tick-label: rgba(15, 23, 42, 0.65);
   /* Darker rose-red ramp on deep purple sleep fill */
@@ -3943,6 +3946,26 @@ body{
   white-space: nowrap;
 }
 
+.stat-wake-alarm-emoji{
+  cursor: help;
+  margin-left: 0.15em;
+  white-space: nowrap;
+}
+
+/* Alarm wake: signed delay after wake time (SKP warning tone) */
+.stat-wake-after-alarm-delay{
+  margin-left: 0.15em;
+  color: var(--color-warning);
+  white-space: nowrap;
+}
+
+.stat-wake-before-alarm-paren{
+  margin-left: 0.15em;
+  color: var(--stat-wake-before-alarm-cool);
+  font-size: 0.95em;
+  white-space: nowrap;
+}
+
 .quick-add-labels-row.quick-add-log-pair > .quick-add-label-chips-wrap {
   justify-self: end;
   width: 100%;
@@ -4076,6 +4099,7 @@ body{
 }
 
 .day-stats .stat-label .keyword.alarm,
+.day-stats .stat-value .keyword.alarm,
 .averages .stat-label .keyword.alarm,
 .stats-table .stat-label .keyword.alarm,
 .stats-table .stat-value .keyword.alarm {
@@ -5033,6 +5057,10 @@ svg {
   fill: var(--color-up); /* Green hue for wake delay (matches get up time) */
 }
 
+.sleep-bar.wake-delay-bar--negative {
+  fill: color-mix(in srgb, var(--color-up) 55%, var(--color-warning) 45%);
+}
+
 .sleep-bar:hover {
   opacity: 1;
 }
@@ -5716,7 +5744,7 @@ body.page-stats .stats-page-shell .container {
   font-weight: 600;
 }
 
-/* Dashboard current month: linked “Sleep quality” header, then month above flag row / calendar (see daily.js). */
+/* Dashboard current month: linked “Sleep quality” header, then month above flag row / calendar (see nightly.js). */
 .calendar-month-cta--dashboard-quality {
   display: flex;
   flex-direction: column;
