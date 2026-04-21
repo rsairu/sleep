@@ -145,7 +145,7 @@ Values match `sleep-utils.js` (and inline `120` where noted). Update this table 
 | Button definitions | `QUICK_ACTIONS_BY_PHASE`, `renderQuickActions` — `quick-actions.js` |
 | Wake-day key / wake correction | `recordDateMdForSleepPeriod`, `resolveRecordDateMdForWake`, `nightRowAwaitingWake` — `sleep-utils.js` |
 | QA flags (bed / sleep / wake) | `readNightQaSleepFlagMap`, `markNightQaSleepFlag` — `sleep-utils.js` |
-| Seven-day basis vs dashboard averages | `getTonightWakePhaseBasisFromDays`, `computeRecentSevenDayWakeBasis` vs `getAveragesFromDays` / `calculateAverages` — `sleep-utils.js` / `quick-actions.js` / `daily.js` |
+| Seven-day basis vs dashboard averages | `getTonightWakePhaseBasisFromDays`, `computeRecentSevenDayWakeBasis` vs `getAveragesFromDays` / `calculateAverages` — `sleep-utils.js` / `quick-actions.js` / `nightly.js` |
 
 ---
 

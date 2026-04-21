@@ -97,7 +97,7 @@ function runTests() {
 
   const negativeSignedAlarmDay = { alarm: ['07:05'], sleepEnd: '07:04' };
   expectEqual(u.calculateFirstAlarmToWake(negativeSignedAlarmDay), -1, 'signed alarm delta negative preserved');
-  expectEqual(u.calculateWakeDelay(negativeSignedAlarmDay), null, 'wake delay rejects negative morning ordering');
+  expectEqual(u.calculateWakeDelay(negativeSignedAlarmDay), -1, 'wake delay preserves negative morning ordering');
 
   const eveningAlarmRollDay = { alarm: ['23:50'], sleepEnd: '00:20' };
   expectEqual(u.calculateFirstAlarmToWake(eveningAlarmRollDay), -1410, 'signed alarm delta raw overnight');
@@ -124,6 +124,9 @@ function runTests() {
   expectEqual(u.isNaturalWakeDay({ alarm: ['07:00'], sleepEnd: '07:00' }), false, 'isNaturalWakeDay wake at alarm (delta 0)');
   expectEqual(u.isNaturalWakeDay(interruptionsDay), false, 'isNaturalWakeDay multi-alarm');
   expectEqual(u.isNaturalWakeDay(eveningAlarmRollDay), true, 'isNaturalWakeDay single alarm negative delta overnight');
+
+  expectEqual(u.isNoAlarmWakeDay({ alarm: [], sleepEnd: '07:00' }), true, 'isNoAlarmWakeDay empty alarms');
+  expectEqual(u.isNoAlarmWakeDay({ alarm: ['07:00'], sleepEnd: '07:00' }), false, 'isNoAlarmWakeDay with alarm');
 
   // Averaging normalization around midnight
   const normalizedAvg = Math.round(
@@ -274,8 +277,8 @@ function runTests() {
     }
     days.forEach((d, idx) => {
       const wakeDelay = u.calculateWakeDelay(d);
-      if (wakeDelay !== null && wakeDelay < 0) {
-        failures.push(`dataset invariant day ${idx} (${d.date}): wakeDelay must be >= 0 or null`);
+      if (wakeDelay !== null && !Number.isFinite(wakeDelay)) {
+        failures.push(`dataset invariant day ${idx} (${d.date}): wakeDelay must be finite or null`);
       } else {
         passed += 1;
       }

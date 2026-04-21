@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sleep Graph</title>
+<title>Sleep charts</title>
 <link rel="stylesheet" href="theme-toggle.css">
 <link rel="stylesheet" href="styles.css">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
@@ -13,7 +13,7 @@
   <div id="nav-container"></div>
   <div class="container">
     <div class="graph-page-header">
-      <h1 class="page-title">Sleep Graph</h1>
+      <h1 class="page-title">Sleep charts</h1>
       <nav class="graph-chart-toc" aria-label="Jump to a chart">
         <a href="#chart-bed-asleep-wake">Bed, asleep, and wake times</a>
         <a href="#chart-sleep-duration">Sleep duration</a>
@@ -109,10 +109,10 @@
                   <span class="graph-sh-legend-wake-type-sample graph-sh-legend-wake-type-sample--alarm" aria-hidden="true"></span>
                   <span class="graph-sh-wake-paren">(alarm wake)</span>
                 </label>
-                <label class="time-toggle graph-sh-toggle-label graph-sh-toggle-label--wake-points" aria-label="Natural wake markers">
+                <label class="time-toggle graph-sh-toggle-label graph-sh-toggle-label--wake-points" aria-label="No-alarm wake markers">
                   <input type="checkbox" id="show-natural-wake-markers" checked>
                   <span class="graph-sh-legend-wake-type-sample" aria-hidden="true"><span class="graph-sh-legend-natural-bullseye"></span></span>
-                  <span class="graph-sh-wake-paren">(natural wake)</span>
+                  <span class="graph-sh-wake-paren">(no alarm)</span>
                 </label>
               </div>
             </div>
@@ -169,11 +169,11 @@
   <script src="dev-git-branch.js"></script>
   <script src="local-supabase-presets.js"></script>
   <script src="sleep-utils.js"></script>
-  <script src="graph.js"></script>
+  <script src="charts.js"></script>
   <script>
     (async function initGraphPage() {
       await initI18n(document);
-      document.getElementById('nav-container').innerHTML = renderNavBar('graph');
+      document.getElementById('nav-container').innerHTML = renderNavBar('charts');
       initDayNightTheme();
       initRemainingWakeNav();
       requestAnimationFrame(function () {

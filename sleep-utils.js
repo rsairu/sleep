@@ -1642,6 +1642,12 @@ function isNaturalWakeDay(day) {
   return delta !== null && delta < 0;
 }
 
+/** True when no alarm times are recorded (chart “natural wake” markers only; analytics still use {@link isNaturalWakeDay}). */
+function isNoAlarmWakeDay(day) {
+  const alarms = day && day.alarm;
+  return !alarms || alarms.length === 0;
+}
+
 // Calculate delay from bed time to falling asleep
 function calculateSleepDelay(day) {
   const bedTime = timeToMinutes(day.bed);
@@ -1660,7 +1666,6 @@ function calculateWakeDelay(day) {
   if (delay < 0 && firstAlarm >= 1080) {
     delay = (wakeTime + 1440) - firstAlarm;
   }
-  if (delay < 0) return null;
   return delay;
 }
 
@@ -3921,8 +3926,8 @@ function renderNavBar(currentPage) {
     { id: 'dashboard', key: 'nav.tabs.dashboard', defaultName: 'Dashboard', url: 'dashboard.html', icon: '🛌' },
     { id: 'log', key: 'nav.tabs.log', defaultName: 'Log', url: 'log.html', icon: '✏️' },
     { id: 'quality', key: 'nav.tabs.quality', defaultName: 'Quality', url: 'quality.html', icon: '💜' },
-    { id: 'timeline', key: 'nav.tabs.daily', defaultName: 'Nightly', url: 'daily.html', icon: '📅' },
-    { id: 'graph', key: 'nav.tabs.graphs', defaultName: 'Charts', url: 'graph.html', icon: '📊' },
+    { id: 'timeline', key: 'nav.tabs.daily', defaultName: 'Nightly', url: 'nightly.html', icon: '📅' },
+    { id: 'charts', key: 'nav.tabs.graphs', defaultName: 'Charts', url: 'charts.html', icon: '📊' },
     { id: 'stats', key: 'nav.tabs.stats', defaultName: 'Stats', url: 'stats.html', icon: '🔢' }
   ];
 
@@ -4407,7 +4412,7 @@ function getRemainingWakeDisplayFromBasis(basis, days) {
   return { phase, icon, timeLabel, percentRemaining, phaseHeadsUp };
 }
 
-/** Returns { phase, icon, timeLabel, percentRemaining } from raw days (used when daily.js not loaded).
+/** Returns { phase, icon, timeLabel, percentRemaining } from raw days (used when nightly.js not loaded).
  * Recent 7 days: average get-up and fell-asleep; phase uses minutes-until-sleep vs that wake-window length. */
 function getRemainingWakeDisplayFromDays(days) {
   if (!days || days.length === 0) return null;
