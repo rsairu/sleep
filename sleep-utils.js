@@ -3923,7 +3923,7 @@ function renderNavBar(currentPage) {
   }
   if (devBannerOnMaster) {
     devBannerWarnings +=
-      '<p class="nav-dev-banner-prod-warning">⚠️ You are on the master branch — use a feature branch for development and testing.</p>';
+      '<p class="nav-dev-banner-prod-warning">⚠️ You are on the master branch.</p>';
   }
   const devDrawerCollapsed = readDevBannerDrawerCollapsed();
   const devBannerCollapsedClass = devDrawerCollapsed ? ' nav-dev-banner--collapsed' : '';
