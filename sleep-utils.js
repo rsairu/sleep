@@ -3087,12 +3087,20 @@ function initDevClockControl() {
     const realBtn = document.getElementById('nav-dev-banner-clock-mode-real');
     const simBtn = document.getElementById('nav-dev-banner-clock-mode-sim');
     const panel = document.getElementById('nav-dev-banner-clock-sim-panel');
+    const clockRoot = document.getElementById('nav-dev-banner-clock');
+    const headingEl = document.getElementById('nav-dev-banner-clock-heading');
     if (!realBtn || !simBtn || !panel) return;
     realBtn.classList.toggle('nav-dev-banner-clock-mode-btn--active', realTimeActive);
     simBtn.classList.toggle('nav-dev-banner-clock-mode-btn--active', !realTimeActive);
     realBtn.setAttribute('aria-pressed', realTimeActive ? 'true' : 'false');
     simBtn.setAttribute('aria-pressed', realTimeActive ? 'false' : 'true');
     panel.hidden = realTimeActive;
+    if (clockRoot) {
+      clockRoot.classList.toggle('nav-dev-banner-clock--sim-active', !realTimeActive);
+    }
+    if (headingEl) {
+      headingEl.textContent = realTimeActive ? 'App time controls' : 'Using simulated time';
+    }
   }
 
   function persistDevClockMs(ms) {
@@ -3495,6 +3503,19 @@ function updateDevBannerUserSettingsPanel() {
 
   const heads = document.getElementById('nav-dev-banner-rw-heads-up');
   if (heads) heads.value = String(getRemainingWakePhaseHeadsUpMinutes());
+
+  const tw = getTonightTargetWindow();
+  const sleepIn = document.getElementById('nav-dev-banner-tonight-sleep');
+  const wakeIn = document.getElementById('nav-dev-banner-tonight-wake');
+  if (sleepIn && wakeIn) {
+    if (tw) {
+      sleepIn.value = formatMinutesTo24hString(tw.sleep);
+      wakeIn.value = formatMinutesTo24hString(tw.wake);
+    } else {
+      sleepIn.value = '';
+      wakeIn.value = '';
+    }
+  }
 }
 
 /** Resets dev-banner user settings (and mirrored prefs) to app defaults; dev build only (Use defaults). */
@@ -3515,6 +3536,7 @@ function applyDevBannerUserSettingsDefaults() {
   );
   setRemainingWakeThresholds(DEFAULT_REMAINING_WAKE_OPEN_MIN, DEFAULT_REMAINING_WAKE_WINDING_MIN);
   setRemainingWakePhaseHeadsUpMinutes(DEFAULT_REMAINING_WAKE_PHASE_HEADS_UP_MINS);
+  clearTonightTargetWindow();
   if (typeof applyRemainingWakeThresholdsUI === 'function') {
     applyRemainingWakeThresholdsUI(
       100 - DEFAULT_REMAINING_WAKE_OPEN_MIN,
@@ -3630,6 +3652,51 @@ function initDevBannerUserSettingsPanel() {
       useDefaultBtn.addEventListener('click', function () {
         applyDevBannerUserSettingsDefaults();
       });
+    }
+
+    function persistTonightTargetFromDevBannerIfComplete() {
+      const sleepEl = document.getElementById('nav-dev-banner-tonight-sleep');
+      const wakeEl = document.getElementById('nav-dev-banner-tonight-wake');
+      if (!sleepEl || !wakeEl) return;
+      const sv = sleepEl.value;
+      const wv = wakeEl.value;
+      if (!sv && !wv) {
+        if (getTonightTargetWindow() !== null) clearTonightTargetWindow();
+        requestAnimationFrame(function () {
+          syncDevBannerFixedLayout();
+        });
+        return;
+      }
+      if (!sv || !wv) return;
+      const sleep = parseWallClockToMinutes(sv);
+      const wake = parseWallClockToMinutes(wv);
+      if (!Number.isFinite(sleep) || !Number.isFinite(wake)) return;
+      setTonightTargetWindow(sleep, wake);
+      requestAnimationFrame(function () {
+        syncDevBannerFixedLayout();
+      });
+    }
+
+    function revertTonightTargetDevBannerIfPartial() {
+      const sleepEl = document.getElementById('nav-dev-banner-tonight-sleep');
+      const wakeEl = document.getElementById('nav-dev-banner-tonight-wake');
+      if (!sleepEl || !wakeEl) return;
+      const sv = sleepEl.value;
+      const wv = wakeEl.value;
+      if ((!sv || !wv) && getTonightTargetWindow() !== null) {
+        updateDevBannerUserSettingsPanel();
+      }
+    }
+
+    const sleepTargetIn = document.getElementById('nav-dev-banner-tonight-sleep');
+    const wakeTargetIn = document.getElementById('nav-dev-banner-tonight-wake');
+    if (sleepTargetIn) {
+      sleepTargetIn.addEventListener('change', persistTonightTargetFromDevBannerIfComplete);
+      sleepTargetIn.addEventListener('blur', revertTonightTargetDevBannerIfPartial);
+    }
+    if (wakeTargetIn) {
+      wakeTargetIn.addEventListener('change', persistTonightTargetFromDevBannerIfComplete);
+      wakeTargetIn.addEventListener('blur', revertTonightTargetDevBannerIfPartial);
     }
 
     updateDevBannerUserSettingsPanel();
@@ -4042,9 +4109,15 @@ function renderNavBar(currentPage) {
   const clockRealActive = !clockOverrideActive;
   const clockRealClass = clockRealActive ? ' nav-dev-banner-clock-mode-btn--active' : '';
   const clockSimClass = clockOverrideActive ? ' nav-dev-banner-clock-mode-btn--active' : '';
+  const clockRootSimClass = clockOverrideActive ? ' nav-dev-banner-clock--sim-active' : '';
+  const clockHeadingText = clockOverrideActive ? 'Using simulated time' : 'App time controls';
   const devClockBlock =
-    '<div class="nav-dev-banner-clock" role="group" aria-label="App time controls: real time or simulated override for app logic (development only)">' +
-    '<span class="nav-dev-banner-clock-heading">App time controls</span>' +
+    '<div id="nav-dev-banner-clock" class="nav-dev-banner-clock' +
+    clockRootSimClass +
+    '" role="group" aria-label="App time controls: real time or simulated override for app logic (development only)">' +
+    '<span id="nav-dev-banner-clock-heading" class="nav-dev-banner-clock-heading" role="status" aria-live="polite">' +
+    escapeHtmlBannerText(clockHeadingText) +
+    '</span>' +
     '<div class="nav-dev-banner-clock-mode" role="group" aria-label="App time source">' +
     '<button type="button" class="nav-dev-banner-clock-mode-btn' +
     clockRealClass +
@@ -4111,7 +4184,7 @@ function renderNavBar(currentPage) {
     '</span>' +
     '</div>' +
     '<div class="nav-dev-banner-user-settings" role="group" aria-label="User settings (dev; mirrors Settings and user_settings)">' +
-    '<div class="nav-dev-banner-user-settings-row nav-dev-banner-user-settings-row--prefs-grid" role="group" aria-label="Display, quality, and remaining time">' +
+    '<div class="nav-dev-banner-user-settings-row nav-dev-banner-user-settings-row--prefs-grid" role="group" aria-label="Display, quality, tonight target, and remaining time">' +
     '<div class="nav-dev-banner-user-defaults-slot">' +
     '<button type="button" class="nav-dev-banner-user-defaults-btn" id="nav-dev-banner-user-use-default"' +
     ' aria-label="Reset user settings to app defaults">Use defaults</button>' +
@@ -4145,6 +4218,14 @@ function renderNavBar(currentPage) {
     '<option value="harbor">Harbor</option>' +
     '<option value="auto">Auto</option>' +
     '</select>' +
+    '</div>' +
+    '<div class="nav-dev-banner-user-field nav-dev-banner-user-field--col nav-dev-banner-user-field--pref">' +
+    '<span class="nav-dev-banner-user-label">Target sleep</span>' +
+    '<input type="time" id="nav-dev-banner-tonight-sleep" class="nav-dev-banner-user-input-time" step="60" title="Target sleep and target wake: set both to save; clear both to remove" aria-label="Target sleep time (tonight)" />' +
+    '</div>' +
+    '<div class="nav-dev-banner-user-field nav-dev-banner-user-field--col nav-dev-banner-user-field--pref">' +
+    '<span class="nav-dev-banner-user-label">Target wake</span>' +
+    '<input type="time" id="nav-dev-banner-tonight-wake" class="nav-dev-banner-user-input-time" step="60" title="Target sleep and target wake: set both to save; clear both to remove" aria-label="Target wake time (tomorrow)" />' +
     '</div>' +
     '<div class="nav-dev-banner-user-remaining-time" role="group" aria-labelledby="nav-dev-banner-remaining-time-heading">' +
     '<span class="nav-dev-banner-user-remaining-time-heading" id="nav-dev-banner-remaining-time-heading">Remaining time</span>' +
