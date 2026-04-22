@@ -172,6 +172,26 @@ function runTests() {
   expectEqual(withTarget.avgSleepEnd, 420, 'saved Tonight target preserves wake in phase basis');
   expectEqual(withTarget.totalWakeMins, u.durationMinutes(420, 1320), 'saved Tonight target recomputes wake window');
 
+  expectEqual(u.shortestSignedClockDelta(60, 120), 60, 'shortestSignedClockDelta forward');
+  expectEqual(u.shortestSignedClockDelta(120, 60), -60, 'shortestSignedClockDelta backward');
+  const rOff = u.resolveTonightScheduledWindow(1380, 420, { sleep: 1320, wake: 420 });
+  expectEqual(rOff.mode, 'target', 'resolveTonightScheduledWindow guidance off uses target');
+  expectEqual(rOff.sleep, 1320, 'resolve target sleep');
+  u.localStorage.setItem('sleep-app-tonight-guidance-enabled', '1');
+  u.localStorage.setItem('sleep-app-tonight-guidance-pace', 'normal');
+  const rOn = u.resolveTonightScheduledWindow(1380, 420, { sleep: 1320, wake: 420 });
+  expectEqual(rOn.mode, 'guided', 'resolveTonightScheduledWindow guidance on uses guided when gap');
+  expectEqual(rOn.sleep, 1371, 'normal pace nudges sleep 9m toward earlier target');
+  expectEqual(rOn.wake, 420, 'wake unchanged when already at target');
+  const guidedBasis = u.getTonightWakePhaseBasisFromDays(basisDays);
+  expectEqual(guidedBasis.avgSleepStart, 1371, 'getTonightWakePhaseBasisFromDays uses guided sleep');
+  expectEqual(guidedBasis.avgSleepEnd, 420, 'guided basis wake');
+  u.localStorage.removeItem('sleep-app-tonight-guidance-pace');
+  const rGentleDefault = u.resolveTonightScheduledWindow(1380, 420, { sleep: 1320, wake: 420 });
+  expectEqual(rGentleDefault.sleep, 1374, 'default gentle pace nudges sleep 6m toward earlier target');
+  u.localStorage.removeItem('sleep-app-tonight-guidance-enabled');
+  u.localStorage.removeItem('sleep-app-tonight-guidance-pace');
+
   u.localStorage.setItem('sleep-app-tonight-projection-adjustment', JSON.stringify({ sleep: 1350, wake: 400 }));
   const withAdj = u.getTonightWakePhaseBasisFromDays(basisDays);
   expectEqual(withAdj.avgSleepStart, 1350, 'session adjustment overlays sleep in phase basis');
@@ -179,6 +199,68 @@ function runTests() {
   expectEqual(withAdj.totalWakeMins, u.durationMinutes(400, 1350), 'session adjustment recomputes wake window');
   u.localStorage.removeItem('sleep-app-tonight-projection-adjustment');
   u.localStorage.removeItem('sleep-app-tonight-target-window');
+
+  u.localStorage.setItem('sleep-app-tonight-target-window', JSON.stringify({ sleep: null, wake: 420 }));
+  const wakeOnly = u.getTonightTargetWindow();
+  expectTruthy(wakeOnly && wakeOnly.wake === 420 && wakeOnly.sleep == null, 'getTonightTargetWindow wake-only');
+  const rWakeOnly = u.resolveTonightScheduledWindow(1380, 420, wakeOnly);
+  expectEqual(rWakeOnly.wake, 420, 'resolve wake-only keeps saved wake');
+  expectEqual(rWakeOnly.sleep, 1380, 'resolve wake-only uses avg sleep');
+  u.localStorage.setItem('sleep-app-tonight-guidance-enabled', '1');
+  u.localStorage.setItem('sleep-app-tonight-guidance-pace', 'gentle');
+  const rWakeOnlyG = u.resolveTonightScheduledWindow(1380, 440, wakeOnly);
+  expectEqual(rWakeOnlyG.mode, 'guided', 'wake-only with guidance guided when wake gap exceeds snap band');
+  u.localStorage.removeItem('sleep-app-tonight-guidance-enabled');
+  u.localStorage.removeItem('sleep-app-tonight-guidance-pace');
+  u.localStorage.removeItem('sleep-app-tonight-target-window');
+
+  u.mergeTonightTargetWindow({ sleep: 1320 });
+  const tw1 = u.getTonightTargetWindow();
+  expectTruthy(tw1 && tw1.sleep === 1320 && tw1.wake == null, 'mergeTonightTargetWindow sleep-only');
+  u.mergeTonightTargetWindow({ wake: 400 });
+  const tw2 = u.getTonightTargetWindow();
+  expectTruthy(tw2 && tw2.sleep === 1320 && tw2.wake === 400, 'mergeTonightTargetWindow adds wake');
+
+  u.userSettingsRowToLocalStorage({
+    language: 'en',
+    clock_format: '24h',
+    quality_palette: 'auto',
+    remaining_wake_open_min: 35,
+    remaining_wake_winding_min: 15,
+    remaining_wake_phase_heads_up_mins: 30,
+    tonight_target_sleep_min: null,
+    tonight_target_wake_min: null,
+    tonight_guidance_enabled: false,
+    tonight_guidance_pace: 'gentle'
+  });
+  const twAfterNullServer = u.getTonightTargetWindow();
+  expectTruthy(
+    twAfterNullServer && twAfterNullServer.sleep === 1320 && twAfterNullServer.wake === 400,
+    'userSettingsRowToLocalStorage does not wipe local Tonight target when server has both null'
+  );
+
+  u.userSettingsRowToLocalStorage({
+    language: 'en',
+    clock_format: '24h',
+    quality_palette: 'auto',
+    remaining_wake_open_min: 35,
+    remaining_wake_winding_min: 15,
+    remaining_wake_phase_heads_up_mins: 30,
+    tonight_target_sleep_min: 1320,
+    tonight_target_wake_min: null,
+    tonight_guidance_enabled: false,
+    tonight_guidance_pace: 'gentle'
+  });
+  const twMergedWake = u.getTonightTargetWindow();
+  expectTruthy(
+    twMergedWake && twMergedWake.sleep === 1320 && twMergedWake.wake === 400,
+    'userSettingsRowToLocalStorage fills missing wake from local when server sends sleep only'
+  );
+
+  u.clearTonightTargetPole('sleep');
+  const tw3 = u.getTonightTargetWindow();
+  expectTruthy(tw3 && tw3.wake === 400 && tw3.sleep == null, 'clearTonightTargetPole sleep');
+  u.clearTonightTargetWindow();
 
   // Projection window wrap behavior near midnight
   const sleepTargetNearMidnight = 10; // 00:10

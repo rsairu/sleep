@@ -47,10 +47,16 @@ create table if not exists public.user_settings (
   remaining_wake_phase_heads_up_mins integer not null default 30 check (remaining_wake_phase_heads_up_mins in (0, 15, 30, 45, 60)),
   tonight_target_sleep_min integer,
   tonight_target_wake_min integer,
+  tonight_guidance_enabled boolean not null default false,
+  tonight_guidance_pace text not null default 'gentle' check (tonight_guidance_pace in ('gentle', 'normal', 'steady')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   check (remaining_wake_open_min > remaining_wake_winding_min)
 );
+
+-- Older DBs: add guidance columns when user_settings already existed without them.
+alter table public.user_settings add column if not exists tonight_guidance_enabled boolean not null default false;
+alter table public.user_settings add column if not exists tonight_guidance_pace text not null default 'gentle';
 
 -- PostgREST: allow MVP anon sync (same pattern as other public tables; tighten with RLS when auth lands)
 grant select, insert, update on public.user_settings to anon, authenticated;
@@ -88,7 +94,9 @@ insert into public.user_settings (
   remaining_wake_winding_min,
   remaining_wake_phase_heads_up_mins,
   tonight_target_sleep_min,
-  tonight_target_wake_min
+  tonight_target_wake_min,
+  tonight_guidance_enabled,
+  tonight_guidance_pace
 )
 values (
   '00000000-0000-0000-0000-000000000001',
@@ -100,7 +108,9 @@ values (
   15,
   30,
   null,
-  null
+  null,
+  false,
+  'gentle'
 )
 on conflict (user_id) do update
 set

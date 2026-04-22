@@ -78,6 +78,58 @@
       </div>
     </div>
 
+    <div id="config-tonight-guidance-section">
+      <h2 class="section-title" id="tonight-guidance" data-i18n="config.tonightGuidance.title">Tonight guidance</h2>
+      <p class="section-intro" data-i18n="config.tonightGuidance.intro">
+        When you have a saved Tonight target, guidance moves your schedule gradually from your recent average toward that target (see About). Turn it off to use the full target immediately.
+      </p>
+      <p class="section-intro">
+        <a href="about.html#tonight-guidance" class="content-link" data-i18n="config.tonightGuidance.link">More about Tonight guidance</a>
+      </p>
+      <div id="config-tonight-guidance" class="about-theme" role="group" aria-label="Tonight guidance on or off" data-i18n-aria-label="config.tonightGuidance.toggleAria">
+        <button type="button" class="about-theme-option" data-tonight-guidance-on="0" aria-pressed="true">
+          <span data-i18n="config.tonightGuidance.off">Off</span>
+        </button>
+        <button type="button" class="about-theme-option" data-tonight-guidance-on="1" aria-pressed="false">
+          <span data-i18n="config.tonightGuidance.on">On</span>
+        </button>
+      </div>
+      <h3 class="section-subtitle" id="config-tonight-guidance-pace-title" data-i18n="config.tonightGuidance.paceTitle">Guided pace</h3>
+      <p class="section-intro" data-i18n="config.tonightGuidance.paceIntro">How many minutes per day the schedule may shift toward your target (each of sleep and wake).</p>
+      <div id="config-tonight-guidance-pace" class="config-tonight-guidance-pace-wrap" role="group" aria-label="Tonight guidance pace" data-i18n-aria-label="config.tonightGuidance.paceAria">
+        <div class="config-rw-heads-up-slider-wrap">
+          <div class="config-rw-heads-up-slider-endpoints" aria-hidden="true">
+            <span class="config-rw-heads-up-slider-end config-rw-heads-up-slider-end--left config-tonight-guidance-pace-end--stack">
+              <span class="config-tonight-guidance-pace-end-emoji" aria-hidden="true">🐢</span>
+              <span data-i18n="config.tonightGuidance.paceSliderGentler">Gentler drift</span>
+            </span>
+            <span class="config-rw-heads-up-slider-end config-rw-heads-up-slider-end--right config-tonight-guidance-pace-end--stack">
+              <span class="config-tonight-guidance-pace-end-emoji" aria-hidden="true">🐇</span>
+              <span data-i18n="config.tonightGuidance.paceSliderSteadier">Steadier drift</span>
+            </span>
+          </div>
+          <div class="config-rw-heads-up-slider-padded">
+            <div class="config-rw-heads-up-slider-track-outer">
+              <div class="config-rw-heads-up-slider-track-bg" aria-hidden="true"></div>
+              <input type="range" id="config-tonight-guidance-pace-range" class="config-rw-heads-up-range" min="0" max="2" step="1" value="0" aria-labelledby="config-tonight-guidance-pace-title" />
+            </div>
+            <div class="config-rw-heads-up-slider-tick-labels config-tonight-guidance-pace-ticks" aria-hidden="true">
+              <span class="config-rw-heads-up-slider-tick-label config-rw-heads-up-slider-tick-label--with-default">
+                <span class="config-rw-heads-up-slider-tick-main" data-i18n="config.tonightGuidance.paceTick6">6m</span>
+                <span class="config-default-pill" data-i18n="config.tonightGuidance.defaultPill">Default</span>
+              </span>
+              <span class="config-rw-heads-up-slider-tick-label">
+                <span class="config-rw-heads-up-slider-tick-main" data-i18n="config.tonightGuidance.paceTick9">9m</span>
+              </span>
+              <span class="config-rw-heads-up-slider-tick-label">
+                <span class="config-rw-heads-up-slider-tick-main" data-i18n="config.tonightGuidance.paceTick12">12m</span>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <h2 class="section-title" id="remaining-wake" data-i18n="config.remainingWake.title">Remaining wake time</h2>
     <p class="section-intro" data-i18n="config.remainingWake.intro">Set when the app transitions between Active, Winding Down, and Pre-Sleep modes. Percentages represent your share of wake time remaining; the sample times shown are based on your 7-day average.</p>
     <p class="section-intro">
@@ -95,13 +147,15 @@
   <script>
     (async function initConfigPage() {
       await initI18n(document);
-      document.getElementById('nav-container').innerHTML = renderNavBar('config');
+      applyTranslations(document.querySelector('.container--config'));
+      document.getElementById('nav-container').innerHTML = renderNavBar('settings');
       applyTranslations(document.getElementById('nav-container'));
       initDayNightTheme();
       initClockFormatSelector();
       initLanguageSelector();
       initConfigThemeSelector();
       initQualityPaletteSelector();
+      initTonightGuidanceConfigControls();
       document.getElementById('remaining-wake-mount').innerHTML =
         getRemainingWakeThresholdsControlHTML('remaining-wake');
       initRemainingWakeNav();

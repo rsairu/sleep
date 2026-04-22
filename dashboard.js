@@ -519,6 +519,7 @@ const dashboardContainer = document.getElementById('dashboard-container');
 function renderDashboardFromData(sleepData) {
   dashboardCurrentDays = Array.isArray(sleepData.days) ? sleepData.days : [];
   dashboardContainer.innerHTML = renderDashboardContent(dashboardCurrentDays);
+  if (typeof applyTranslations === 'function') applyTranslations(dashboardContainer);
   if (typeof initDeviationFlagChips === 'function') initDeviationFlagChips();
   renderDashboard7DayGraphs(dashboardCurrentDays);
   bindDashboardResponsiveRerender();
@@ -558,4 +559,7 @@ function loadDashboardData() {
 
 if (dashboardContainer) {
   loadDashboardData();
+  window.addEventListener('tonight-guidance-changed', function () {
+    if (typeof loadDashboardData === 'function') void loadDashboardData();
+  });
 }

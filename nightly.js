@@ -995,15 +995,48 @@ function getTonightProjectionBaseState(recentAverages) {
   let committedSleep = avgSleep;
   let committedWake = avgWake;
   const savedTw = typeof getTonightTargetWindow === 'function' ? getTonightTargetWindow() : null;
+  /** @type {'none'|'target'|'guided'} */
+  let tonightGuidanceMode = 'none';
+  let savedTargetSleep = null;
+  let savedTargetWake = null;
+  let savedTargetSleepNorm = null;
+  let savedTargetWakeNorm = null;
   if (savedTw) {
-    committedSleep = modMinutes1440(savedTw.sleep);
-    committedWake = modMinutes1440(savedTw.wake);
+    if (savedTw.sleep != null && typeof isValidClockMinute === 'function' && isValidClockMinute(savedTw.sleep)) {
+      savedTargetSleep = modMinutes1440(savedTw.sleep);
+    }
+    if (savedTw.wake != null && typeof isValidClockMinute === 'function' && isValidClockMinute(savedTw.wake)) {
+      savedTargetWake = modMinutes1440(savedTw.wake);
+    }
+    const resolved =
+      typeof resolveTonightScheduledWindow === 'function'
+        ? resolveTonightScheduledWindow(avgSleep, avgWake, savedTw)
+        : {
+            sleep: savedTargetSleep != null ? savedTargetSleep : avgSleep,
+            wake: savedTargetWake != null ? savedTargetWake : avgWake,
+            mode: 'target'
+          };
+    committedSleep = resolved.sleep;
+    committedWake = resolved.wake;
+    if (resolved.mode === 'guided') tonightGuidanceMode = 'guided';
+    else if (resolved.mode === 'target') tonightGuidanceMode = 'target';
+    else tonightGuidanceMode = 'none';
   }
   const committedSleepNorm = normalizeTimeForAveraging(committedSleep);
   const committedWakeNorm = normalizeWakeTimeForAveraging(committedSleep, committedWake);
 
   let scopeStartNorm = Math.min(recommendedSleepNorm, committedSleepNorm) - TONIGHT_ADJUST_SCOPE_PAD_MINUTES;
   let scopeEndNorm = Math.max(recommendedWakeNorm, committedWakeNorm) + TONIGHT_ADJUST_SCOPE_PAD_MINUTES;
+  if (savedTw) {
+    if (savedTargetSleep != null) {
+      savedTargetSleepNorm = normalizeTimeForAveraging(savedTargetSleep);
+      scopeStartNorm = Math.min(scopeStartNorm, savedTargetSleepNorm - TONIGHT_ADJUST_SCOPE_PAD_MINUTES);
+    }
+    if (savedTargetWake != null) {
+      savedTargetWakeNorm = normalizeWakeTimeForAveraging(committedSleep, savedTargetWake);
+      scopeEndNorm = Math.max(scopeEndNorm, savedTargetWakeNorm + TONIGHT_ADJUST_SCOPE_PAD_MINUTES);
+    }
+  }
 
   const adj = typeof getTonightProjectionAdjustment === 'function' ? getTonightProjectionAdjustment() : null;
   if (adj) {
@@ -1032,7 +1065,12 @@ function getTonightProjectionBaseState(recentAverages) {
     recommendedSleepNorm,
     recommendedWakeNorm,
     scopeStartNorm,
-    scopeEndNorm
+    scopeEndNorm,
+    tonightGuidanceMode,
+    savedTargetSleep,
+    savedTargetWake,
+    savedTargetSleepNorm,
+    savedTargetWakeNorm
   };
 }
 
@@ -1386,6 +1424,16 @@ function getTonightProjectionState(recentAverages) {
   const recEndPct = ((base.recommendedWakeNorm - base.scopeStartNorm) / scopeSpan) * 100;
   const committedSleepPct = ((base.committedSleepNorm - base.scopeStartNorm) / scopeSpan) * 100;
   const committedWakePct = ((base.committedWakeNorm - base.scopeStartNorm) / scopeSpan) * 100;
+  let savedTargetSleepPct = null;
+  let savedTargetWakePct = null;
+  if (base.hasSavedTonightTarget) {
+    if (base.savedTargetSleepNorm != null) {
+      savedTargetSleepPct = ((base.savedTargetSleepNorm - base.scopeStartNorm) / scopeSpan) * 100;
+    }
+    if (base.savedTargetWakeNorm != null) {
+      savedTargetWakePct = ((base.savedTargetWakeNorm - base.scopeStartNorm) / scopeSpan) * 100;
+    }
+  }
   return {
     base,
     scopeSpan,
@@ -1399,7 +1447,9 @@ function getTonightProjectionState(recentAverages) {
     recStartPct,
     recEndPct,
     committedSleepPct,
-    committedWakePct
+    committedWakePct,
+    savedTargetSleepPct,
+    savedTargetWakePct
   };
 }
 
@@ -1407,32 +1457,28 @@ function renderDashboardProjection(recentAverages) {
   const projection = getTonightProjectionState(recentAverages);
   const base = projection.base;
   const durationMins = durationMinutes(projection.sleepClock, projection.wakeClock);
-
-  const targetIndicatorHidden = base.hasSavedTonightTarget ? '' : ' hidden';
+  const savedSleepPct =
+    projection.savedTargetSleepPct != null ? `${projection.savedTargetSleepPct}%` : `${projection.committedSleepPct}%`;
+  const savedWakePct =
+    projection.savedTargetWakePct != null ? `${projection.savedTargetWakePct}%` : `${projection.committedWakePct}%`;
+  const tonightAria =
+    base.tonightGuidanceMode === 'guided'
+      ? 'Tonight sleep and wake schedule. Compass shows tonight’s guided time; target below shows your saved goal.'
+      : 'Tonight sleep and wake schedule.';
+  const naturalGhostHiddenClass = base.hasSavedTonightTarget
+    ? ' dashboard-tonight-adjust-natural-ghost--hidden'
+    : '';
   return `
     <div class="dashboard-projection" id="dashboard-tonight-projection" data-rec-sleep="${base.avgSleepStart}" data-rec-wake="${base.avgSleepEnd}">
       <h2 class="dashboard-projection-title">Tonight</h2>
-      <div class="dashboard-tonight-basis-below-title">
-        <div class="dashboard-tonight-indicator-line dashboard-tonight-basis-indicator-line">
-          <span class="dashboard-tonight-target-indicator-wrap"${targetIndicatorHidden} id="dashboard-tonight-target-indicator-wrap">
-            <span class="dashboard-tonight-indicator-chip">
-              <span class="dashboard-tonight-target-indicator" aria-hidden="true">🎯</span>
-              <span class="dashboard-tonight-indicator-caption">using target</span>
-            </span>
-          </span>
-          <span class="dashboard-tonight-indicator-chip dashboard-tonight-indicator-chip--guidance-beta" role="group" aria-label="Using guidance (beta)">
-            <span class="dashboard-tonight-guidance-indicator" aria-hidden="true">🧭</span>
-            <span class="dashboard-tonight-indicator-caption">using guidance</span>
-            <span class="dashboard-tonight-indicator-beta-pill" aria-hidden="true">beta</span>
-          </span>
-        </div>
-      </div>
       <div class="dashboard-tonight-adjust">
         <div class="dashboard-tonight-adjust-panel" id="dashboard-tonight-adjust-panel">
           <div
             class="dashboard-tonight-adjust-slider dashboard-tonight-adjust-slider--main"
             id="dashboard-tonight-adjust-slider"
-            style="--tonight-sleep-pct:${projection.sleepPct}%;--tonight-wake-pct:${projection.wakePct}%;--tonight-mid-pct:${(projection.sleepPct + projection.wakePct) / 2}%;--tonight-rec-start-pct:${projection.recStartPct}%;--tonight-rec-end-pct:${projection.recEndPct}%;--tonight-committed-sleep-pct:${projection.committedSleepPct}%;--tonight-committed-wake-pct:${projection.committedWakePct}%;">
+            role="group"
+            aria-label="${tonightAria}"
+            style="--tonight-sleep-pct:${projection.sleepPct}%;--tonight-wake-pct:${projection.wakePct}%;--tonight-mid-pct:${(projection.sleepPct + projection.wakePct) / 2}%;--tonight-rec-start-pct:${projection.recStartPct}%;--tonight-rec-end-pct:${projection.recEndPct}%;--tonight-committed-sleep-pct:${projection.committedSleepPct}%;--tonight-committed-wake-pct:${projection.committedWakePct}%;--tonight-saved-target-sleep-pct:${savedSleepPct};--tonight-saved-target-wake-pct:${savedWakePct};">
             <div class="dashboard-tonight-adjust-pole-row" aria-hidden="true">
               <div class="dashboard-tonight-adjust-pole-label dashboard-tonight-adjust-pole-label--sleep">
                 <span class="proj-keyword proj-sleep">🌙 Sleep</span>
@@ -1456,16 +1502,52 @@ function renderDashboardProjection(recentAverages) {
               <div class="dashboard-tonight-adjust-overlay" id="dashboard-tonight-adjust-overlay" aria-hidden="true"></div>
               <div class="dashboard-tonight-adjust-baseline-label dashboard-tonight-adjust-baseline-label--sleep dashboard-tonight-adjust-baseline-label--hidden" id="dashboard-tonight-sleep-baseline-label">${formatTime(base.committedSleep)}</div>
               <div class="dashboard-tonight-adjust-baseline-label dashboard-tonight-adjust-baseline-label--wake dashboard-tonight-adjust-baseline-label--hidden" id="dashboard-tonight-wake-baseline-label">${formatTime(base.committedWake)}</div>
+              <div class="dashboard-tonight-adjust-saved-target-ghost dashboard-tonight-adjust-saved-target-ghost--sleep dashboard-tonight-adjust-saved-target-ghost--hidden" id="dashboard-tonight-saved-target-sleep-ghost" aria-hidden="true"></div>
+              <div class="dashboard-tonight-adjust-saved-target-ghost dashboard-tonight-adjust-saved-target-ghost--wake dashboard-tonight-adjust-saved-target-ghost--hidden" id="dashboard-tonight-saved-target-wake-ghost" aria-hidden="true"></div>
+              <div
+                class="dashboard-tonight-adjust-natural-ghost${naturalGhostHiddenClass}"
+                id="dashboard-tonight-natural-ghost"
+                role="status"
+                data-i18n-aria-label="dashboard.tonight.naturalAverageAria"
+                aria-label="Tonight follows your recent average; no saved target">
+                <span aria-hidden="true">🍃 </span><span data-i18n="dashboard.tonight.naturalAveragePill">Natural average</span>
+              </div>
               <div class="dashboard-tonight-adjust-thumb-label dashboard-tonight-adjust-thumb-label--sleep" id="dashboard-tonight-sleep-thumb-label">${formatTime(projection.sleepClock)}</div>
               <div class="dashboard-tonight-adjust-thumb-label dashboard-tonight-adjust-thumb-label--wake" id="dashboard-tonight-wake-thumb-label">${formatTime(projection.wakeClock)}</div>
             </div>
           </div>
-          <div class="dashboard-tonight-adjust-undo-row" id="dashboard-tonight-adjust-undo-row">
-            <button type="button" class="dashboard-tonight-adjust-undo" id="dashboard-tonight-adjust-undo">Undo</button>
-          </div>
           <div class="dashboard-tonight-adjust-actions">
-            <button type="button" class="dashboard-tonight-adjust-save-target" id="dashboard-tonight-adjust-save-target">Save as target</button>
-            <button type="button" class="dashboard-tonight-adjust-reset" id="dashboard-tonight-adjust-reset">Use recent average</button>
+            <div class="quick-add-page-toolbar dashboard-tonight-adjust-toolbar">
+              <div
+                class="quick-add-page-toolbar__bar"
+                id="dashboard-tonight-toolbar-bar"
+                data-i18n-aria-label="log.commitBarAria"
+                aria-label="Save, undo, or review changes">
+                <div
+                  class="quick-add-toolbar-changes-head"
+                  data-i18n-aria-label="log.changesPanelAria"
+                  aria-label="Unsaved edits">
+                  <p class="quick-add-changes-caption" data-i18n="log.changesCaption">Changes</p>
+                  <p
+                    class="quick-add-save-dirty-hint"
+                    id="dashboard-tonight-adjust-dirty-hint"
+                    aria-live="polite"
+                    data-i18n-aria-label="log.dirtyHintAria"
+                    aria-label="Which parts of the form have unsaved edits"></p>
+                </div>
+                <div class="quick-add-page-toolbar__commit">
+                  <button
+                    type="button"
+                    class="quick-add-toolbar-btn quick-add-toolbar-btn--undo"
+                    id="dashboard-tonight-adjust-undo"
+                    data-i18n="dashboard.tonight.undo">Undo</button>
+                  <button
+                    type="button"
+                    class="quick-add-toolbar-btn quick-add-toolbar-btn--save"
+                    id="dashboard-tonight-adjust-save-target"></button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1473,8 +1555,10 @@ function renderDashboardProjection(recentAverages) {
         <div class="dashboard-tonight-clear-target-dialog-inner">
           <p class="dashboard-tonight-clear-target-dialog-message" id="dashboard-tonight-confirm-dialog-title"></p>
           <div class="dashboard-tonight-confirm-dialog-skp" id="dashboard-tonight-confirm-dialog-skp" hidden></div>
-          <div class="dashboard-tonight-clear-target-dialog-actions">
-            <button type="button" class="about-theme-option dashboard-tonight-confirm-dialog-btn-primary" id="dashboard-tonight-clear-target-confirm"></button>
+          <div class="dashboard-tonight-clear-target-dialog-actions dashboard-tonight-clear-target-dialog-actions--stack" id="dashboard-tonight-clear-target-actions">
+            <button type="button" class="about-theme-option dashboard-tonight-confirm-dialog-btn-primary dashboard-tonight-clear-pole--wake" id="dashboard-tonight-clear-target-wake" hidden></button>
+            <button type="button" class="about-theme-option dashboard-tonight-confirm-dialog-btn-primary dashboard-tonight-clear-pole--sleep" id="dashboard-tonight-clear-target-sleep" hidden></button>
+            <button type="button" class="about-theme-option dashboard-tonight-confirm-dialog-btn-primary" id="dashboard-tonight-clear-target-both"></button>
             <button type="button" class="about-theme-option" id="dashboard-tonight-clear-target-cancel"></button>
           </div>
         </div>
@@ -1484,6 +1568,10 @@ function renderDashboardProjection(recentAverages) {
 }
 
 function initDashboardTonightAdjuster(recentAverages, onChange) {
+  function tdT(key, fallback) {
+    return typeof t === 'function' ? t(key, fallback) : fallback;
+  }
+
   const root = document.getElementById('dashboard-tonight-projection');
   const panel = document.getElementById('dashboard-tonight-adjust-panel');
   const sliderWrap = document.getElementById('dashboard-tonight-adjust-slider');
@@ -1495,13 +1583,17 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
   const centerDurationEl = document.getElementById('dashboard-tonight-slider-duration');
   const sleepBaselineLabelEl = document.getElementById('dashboard-tonight-sleep-baseline-label');
   const wakeBaselineLabelEl = document.getElementById('dashboard-tonight-wake-baseline-label');
+  const toolbarBar = document.getElementById('dashboard-tonight-toolbar-bar');
+  const dirtyHintEl = document.getElementById('dashboard-tonight-adjust-dirty-hint');
   const saveTargetButton = document.getElementById('dashboard-tonight-adjust-save-target');
-  const resetButton = document.getElementById('dashboard-tonight-adjust-reset');
-  const undoRow = document.getElementById('dashboard-tonight-adjust-undo-row');
+  const naturalAverageGhost = document.getElementById('dashboard-tonight-natural-ghost');
   const undoButton = document.getElementById('dashboard-tonight-adjust-undo');
-  const targetIndicatorWrap = document.getElementById('dashboard-tonight-target-indicator-wrap');
+  const savedTargetSleepGhost = document.getElementById('dashboard-tonight-saved-target-sleep-ghost');
+  const savedTargetWakeGhost = document.getElementById('dashboard-tonight-saved-target-wake-ghost');
   const clearTargetDialog = document.getElementById('dashboard-tonight-clear-target-dialog');
-  const clearTargetConfirm = document.getElementById('dashboard-tonight-clear-target-confirm');
+  const clearTargetWakeBtn = document.getElementById('dashboard-tonight-clear-target-wake');
+  const clearTargetSleepBtn = document.getElementById('dashboard-tonight-clear-target-sleep');
+  const clearTargetBothBtn = document.getElementById('dashboard-tonight-clear-target-both');
   const clearTargetCancel = document.getElementById('dashboard-tonight-clear-target-cancel');
   const confirmDialogTitle = document.getElementById('dashboard-tonight-confirm-dialog-title');
   const confirmDialogSkp = document.getElementById('dashboard-tonight-confirm-dialog-skp');
@@ -1516,12 +1608,15 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
     !wakeLabel ||
     !sleepBaselineLabelEl ||
     !wakeBaselineLabelEl ||
+    !toolbarBar ||
+    !dirtyHintEl ||
     !saveTargetButton ||
-    !resetButton ||
-    !undoRow ||
+    !naturalAverageGhost ||
     !undoButton ||
     !clearTargetDialog ||
-    !clearTargetConfirm ||
+    !clearTargetWakeBtn ||
+    !clearTargetSleepBtn ||
+    !clearTargetBothBtn ||
     !clearTargetCancel ||
     !confirmDialogTitle ||
     !confirmDialogSkp
@@ -1533,7 +1628,7 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
   let state = getTonightProjectionState(recentAverages);
   /** @type {'save'|'update'|'clear'} */
   let primaryAction = 'save';
-  /** @type {'clearTarget'|'switchToAverage'|null} */
+  /** @type {'clearTarget'|null} */
   let pendingConfirmKind = null;
 
   function applySliderBoundsFromBase() {
@@ -1562,11 +1657,37 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
     sliderWrap.style.setProperty('--tonight-committed-sleep-pct', `${committedSleepPct}%`);
     sliderWrap.style.setProperty('--tonight-committed-wake-pct', `${committedWakePct}%`);
 
+    if (base.savedTargetSleepNorm != null) {
+      const stSp = ((base.savedTargetSleepNorm - base.scopeStartNorm) / scopeSpan) * 100;
+      sliderWrap.style.setProperty('--tonight-saved-target-sleep-pct', `${stSp}%`);
+    } else {
+      sliderWrap.style.setProperty('--tonight-saved-target-sleep-pct', `${sleepPct}%`);
+    }
+    if (base.savedTargetWakeNorm != null) {
+      const stWp = ((base.savedTargetWakeNorm - base.scopeStartNorm) / scopeSpan) * 100;
+      sliderWrap.style.setProperty('--tonight-saved-target-wake-pct', `${stWp}%`);
+    } else {
+      sliderWrap.style.setProperty('--tonight-saved-target-wake-pct', `${wakePct}%`);
+    }
+
     sleepSlider.value = String(state.sleepNorm);
     wakeSlider.value = String(state.wakeNorm);
 
-    sleepLabel.textContent = formatTime(state.sleepClock);
-    wakeLabel.textContent = formatTime(state.wakeClock);
+    const sleepAdjusted = state.sleepClock !== base.committedSleep;
+    const wakeAdjusted = state.wakeClock !== base.committedWake;
+    const guided = base.tonightGuidanceMode === 'guided';
+    const sleepPoleGuided =
+      guided &&
+      base.savedTargetSleep != null &&
+      modMinutes1440(base.committedSleep) !== modMinutes1440(base.savedTargetSleep);
+    const wakePoleGuided =
+      guided &&
+      base.savedTargetWake != null &&
+      modMinutes1440(base.committedWake) !== modMinutes1440(base.savedTargetWake);
+    const sleepTxt = formatTime(state.sleepClock);
+    const wakeTxt = formatTime(state.wakeClock);
+    sleepLabel.textContent = sleepPoleGuided && !sleepAdjusted ? '🧭 ' + sleepTxt : sleepTxt;
+    wakeLabel.textContent = wakePoleGuided && !wakeAdjusted ? '🧭 ' + wakeTxt : wakeTxt;
 
     sleepBaselineLabelEl.textContent = formatTime(base.committedSleep);
     wakeBaselineLabelEl.textContent = formatTime(base.committedWake);
@@ -1576,31 +1697,57 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
       centerDurationEl.textContent = `~${formatDuration(duration)} sleep`;
     }
 
-    const sleepAdjusted = state.sleepClock !== base.committedSleep;
-    const wakeAdjusted = state.wakeClock !== base.committedWake;
-    sleepBaselineLabelEl.classList.toggle('dashboard-tonight-adjust-baseline-label--hidden', !sleepAdjusted);
-    wakeBaselineLabelEl.classList.toggle('dashboard-tonight-adjust-baseline-label--hidden', !wakeAdjusted);
+    const hideBaselinesGuided = guided;
+    sleepBaselineLabelEl.classList.toggle(
+      'dashboard-tonight-adjust-baseline-label--hidden',
+      hideBaselinesGuided || !sleepAdjusted
+    );
+    wakeBaselineLabelEl.classList.toggle(
+      'dashboard-tonight-adjust-baseline-label--hidden',
+      hideBaselinesGuided || !wakeAdjusted
+    );
     root.classList.toggle('dashboard-tonight-projection--adjusted', state.isAdjusted);
 
-    if (targetIndicatorWrap) {
-      targetIndicatorWrap.toggleAttribute('hidden', !base.hasSavedTonightTarget);
+    if (savedTargetSleepGhost && savedTargetWakeGhost) {
+      const showSleepGhost = base.savedTargetSleep != null;
+      const showWakeGhost = base.savedTargetWake != null;
+      savedTargetSleepGhost.textContent = showSleepGhost ? '🎯 ' + formatTime(base.savedTargetSleep) : '';
+      savedTargetWakeGhost.textContent = showWakeGhost ? '🎯 ' + formatTime(base.savedTargetWake) : '';
+      savedTargetSleepGhost.classList.toggle('dashboard-tonight-adjust-saved-target-ghost--hidden', !showSleepGhost);
+      savedTargetWakeGhost.classList.toggle('dashboard-tonight-adjust-saved-target-ghost--hidden', !showWakeGhost);
     }
 
-    undoRow.classList.toggle('dashboard-tonight-adjust-undo-row--visible', state.isAdjusted);
+    undoButton.disabled = !state.isAdjusted;
 
     const hasTarget = base.hasSavedTonightTarget;
-    const moved = state.isAdjusted;
-    if (!hasTarget) {
-      primaryAction = 'save';
-      saveTargetButton.textContent = 'Save as target';
-    } else if (moved) {
-      primaryAction = 'update';
-      saveTargetButton.textContent = 'Update target';
-    } else {
+    const sleepMergeDirty = modMinutes1440(state.sleepClock) !== modMinutes1440(base.committedSleep);
+    const wakeMergeDirty = modMinutes1440(state.wakeClock) !== modMinutes1440(base.committedWake);
+    const mergeDirty = sleepMergeDirty || wakeMergeDirty;
+
+    const hintEmojis = [];
+    if (sleepMergeDirty) hintEmojis.push('🌙');
+    if (wakeMergeDirty) hintEmojis.push('🌅');
+    dirtyHintEl.textContent = mergeDirty ? hintEmojis.join(' ') : '';
+    toolbarBar.classList.toggle('quick-add-page-toolbar__bar--dirty', mergeDirty);
+    saveTargetButton.classList.toggle('quick-add-toolbar-btn--dirty', mergeDirty);
+
+    if (mergeDirty) {
+      primaryAction = hasTarget ? 'update' : 'save';
+      saveTargetButton.textContent = hasTarget
+        ? tdT('dashboard.tonight.saveUpdates', 'Save updates')
+        : tdT('dashboard.tonight.saveAsTarget', 'Save as target');
+      saveTargetButton.disabled = false;
+    } else if (hasTarget) {
       primaryAction = 'clear';
-      saveTargetButton.textContent = 'Clear target';
+      saveTargetButton.textContent = tdT('dashboard.tonight.clearTarget', 'Clear target');
+      saveTargetButton.disabled = false;
+    } else {
+      primaryAction = 'save';
+      saveTargetButton.textContent = tdT('dashboard.tonight.saveAsTarget', 'Save as target');
+      saveTargetButton.disabled = true;
     }
-    saveTargetButton.disabled = false;
+
+    naturalAverageGhost.classList.toggle('dashboard-tonight-adjust-natural-ghost--hidden', hasTarget);
 
     if (persistOverride && typeof setTonightProjectionAdjustment === 'function' && typeof clearTonightProjectionAdjustment === 'function') {
       if (state.isAdjusted) {
@@ -1739,51 +1886,46 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
     updateVisualState(false);
   }
 
-  function performClearTargetConfirmed() {
-    if (typeof clearTonightTargetWindow === 'function') clearTonightTargetWindow();
+  function refreshAfterTonightStorageChange() {
     if (typeof clearTonightProjectionAdjustment === 'function') clearTonightProjectionAdjustment();
     base = getTonightProjectionBaseState(recentAverages);
     state = getTonightProjectionState(recentAverages);
     applySliderBoundsFromBase();
     updateVisualState(false);
-    showAppToast('Tonight target cleared');
   }
 
-  function performSwitchToAverageConfirmed() {
-    if (typeof clearTonightTargetWindow === 'function') clearTonightTargetWindow();
-    if (typeof clearTonightProjectionAdjustment === 'function') clearTonightProjectionAdjustment();
-    base = getTonightProjectionBaseState(recentAverages);
-    state = getTonightProjectionState(recentAverages);
-    applySliderBoundsFromBase();
-    updateVisualState(false);
-    showAppToast('Using recent average; saved Tonight target cleared');
+  function performClearPole(pole) {
+    if (pole === 'both' && typeof clearTonightTargetWindow === 'function') clearTonightTargetWindow();
+    else if (pole === 'sleep' && typeof clearTonightTargetPole === 'function') clearTonightTargetPole('sleep');
+    else if (pole === 'wake' && typeof clearTonightTargetPole === 'function') clearTonightTargetPole('wake');
+    refreshAfterTonightStorageChange();
+    showAppToast(tdT('dashboard.tonight.toastCleared', 'Tonight target cleared'));
   }
 
   function openTonightConfirmDialog(kind) {
     pendingConfirmKind = kind;
-    if (kind === 'clearTarget') {
-      confirmDialogTitle.textContent = 'Are you sure you want to clear your target?';
-      confirmDialogSkp.hidden = true;
-      confirmDialogSkp.innerHTML = '';
-      clearTargetConfirm.textContent = 'Yes, clear my target time.';
-      clearTargetCancel.textContent = 'No, leave my target.';
-    } else {
-      confirmDialogTitle.textContent =
-        'This clears your saved Tonight target and moves the sliders to your recent average.';
-      confirmDialogSkp.hidden = false;
-      confirmDialogSkp.innerHTML =
-        '<span class="dashboard-tonight-confirm-dialog-skp-lead">Update time to </span>' +
-        '<span class="proj-keyword proj-sleep">Sleep: ' +
-        formatTime(recentAverages.avgSleepStart) +
-        '</span>' +
-        '<span class="dashboard-tonight-confirm-dialog-skp-gap"> </span>' +
-        '<span class="proj-keyword proj-wake">Wake: ' +
-        formatTime(recentAverages.avgSleepEnd) +
-        '</span>' +
-        '<span class="dashboard-tonight-confirm-dialog-skp-q">?</span>';
-      clearTargetConfirm.textContent = 'Yes, use these times';
-      clearTargetCancel.textContent = 'No, keep my saved target';
-    }
+    if (kind !== 'clearTarget') return;
+    confirmDialogTitle.textContent = tdT(
+      'dashboard.tonight.clearTitle',
+      'Are you sure you want to clear your target?'
+    );
+    confirmDialogSkp.hidden = true;
+    confirmDialogSkp.innerHTML = '';
+    const hs = base.savedTargetSleep != null;
+    const hw = base.savedTargetWake != null;
+    clearTargetWakeBtn.hidden = !hw;
+    clearTargetSleepBtn.hidden = !hs;
+    clearTargetBothBtn.hidden = !(hs && hw);
+    clearTargetWakeBtn.innerHTML =
+      '<span class="proj-keyword proj-wake" data-i18n="dashboard.tonight.clearWakeHtml">' +
+      tdT('dashboard.tonight.clearWakeHtml', '🌅 Yes, clear my wake target') +
+      '</span>';
+    clearTargetSleepBtn.innerHTML =
+      '<span class="proj-keyword proj-sleep" data-i18n="dashboard.tonight.clearSleepHtml">' +
+      tdT('dashboard.tonight.clearSleepHtml', '🌙 Yes, clear my sleep target') +
+      '</span>';
+    clearTargetBothBtn.textContent = tdT('dashboard.tonight.clearBoth', 'Yes, clear both targets');
+    clearTargetCancel.textContent = tdT('dashboard.tonight.clearLeave', 'No, leave my targets');
     clearTargetDialog.showModal();
   }
 
@@ -1791,53 +1933,66 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
     pendingConfirmKind = null;
   });
 
-  resetButton.addEventListener('click', function () {
-    const hadSavedTarget = typeof getTonightTargetWindow === 'function' && Boolean(getTonightTargetWindow());
-    if (hadSavedTarget) {
-      openTonightConfirmDialog('switchToAverage');
-      return;
-    }
-    if (typeof clearTonightProjectionAdjustment === 'function') clearTonightProjectionAdjustment();
-    base = getTonightProjectionBaseState(recentAverages);
-    state = getTonightProjectionState(recentAverages);
-    applySliderBoundsFromBase();
-    updateVisualState(false);
-    showAppToast('Using recent average sleep and wake times');
-  });
-
   undoButton.addEventListener('click', function () {
     revertToCommitted();
   });
+
+  function finishTonightSave(toastKey, toastFallback) {
+    refreshAfterTonightStorageChange();
+    showAppToast(tdT(toastKey, toastFallback));
+  }
+
+  function runTonightMergeSave(sleepPole, wakePole) {
+    const partial = {};
+    if (sleepPole) partial.sleep = state.sleepClock;
+    if (wakePole) partial.wake = state.wakeClock;
+    if (typeof mergeTonightTargetWindow === 'function') {
+      mergeTonightTargetWindow(partial);
+    } else if (typeof setTonightTargetWindow === 'function' && sleepPole && wakePole) {
+      setTonightTargetWindow(state.sleepClock, state.wakeClock);
+    }
+    const hadTarget = base.hasSavedTonightTarget;
+    const isUpdate = hadTarget && (sleepPole || wakePole);
+    finishTonightSave(
+      isUpdate ? 'dashboard.tonight.toastUpdated' : 'dashboard.tonight.toastSaved',
+      isUpdate ? 'Tonight target updated' : 'Tonight target saved'
+    );
+  }
 
   saveTargetButton.addEventListener('click', function () {
     if (primaryAction === 'clear') {
       openTonightConfirmDialog('clearTarget');
       return;
     }
-    const toastWasUpdate = primaryAction === 'update';
-    if (typeof setTonightTargetWindow === 'function') {
-      setTonightTargetWindow(state.sleepClock, state.wakeClock);
+    if (primaryAction === 'save' || primaryAction === 'update') {
+      const sleepMergeDirty = modMinutes1440(state.sleepClock) !== modMinutes1440(base.committedSleep);
+      const wakeMergeDirty = modMinutes1440(state.wakeClock) !== modMinutes1440(base.committedWake);
+      runTonightMergeSave(sleepMergeDirty, wakeMergeDirty);
     }
-    if (typeof clearTonightProjectionAdjustment === 'function') clearTonightProjectionAdjustment();
-    base = getTonightProjectionBaseState(recentAverages);
-    state = getTonightProjectionState(recentAverages);
-    applySliderBoundsFromBase();
-    updateVisualState(false);
-    showAppToast(toastWasUpdate ? 'Tonight target updated' : 'Tonight target saved');
   });
 
-  clearTargetConfirm.addEventListener('click', function () {
+  clearTargetWakeBtn.addEventListener('click', function () {
     const kind = pendingConfirmKind;
-    if (!kind) return;
-    if (kind === 'clearTarget') {
-      performClearTargetConfirmed();
+    if (kind === 'clearTarget' && !clearTargetWakeBtn.hidden) {
+      performClearPole('wake');
       clearTargetDialog.close();
       saveTargetButton.focus();
-    } else if (kind === 'switchToAverage') {
-      performSwitchToAverageConfirmed();
-      clearTargetDialog.close();
-      resetButton.focus();
     }
+  });
+  clearTargetSleepBtn.addEventListener('click', function () {
+    const kind = pendingConfirmKind;
+    if (kind === 'clearTarget' && !clearTargetSleepBtn.hidden) {
+      performClearPole('sleep');
+      clearTargetDialog.close();
+      saveTargetButton.focus();
+    }
+  });
+  clearTargetBothBtn.addEventListener('click', function () {
+    const kind = pendingConfirmKind;
+    if (kind !== 'clearTarget') return;
+    performClearPole('both');
+    clearTargetDialog.close();
+    saveTargetButton.focus();
   });
 
   clearTargetCancel.addEventListener('click', function () {
