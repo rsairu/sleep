@@ -7,7 +7,7 @@ Restore is a lightweight sleep tracking web app for logging and visualizing slee
 ## Cloud Sync + Direct Entry (MVP)
 
 - Add nights directly in the app from the Dashboard via the `+ Night` button.
-- Configure Supabase in `Settings` (`config.html`) under **Cloud sync**.
+- Configure Supabase in `Settings` (`settings.html`) under **Cloud sync**.
 - The top nav now shows a source badge (`☁️ Cloud` or `💾 Local`) so you can see at a glance where data is coming from.
 - If Supabase is not configured (or unreachable), pages read from local `data/sleep-data.json` as fallback.
 - One-time import from JSON to Supabase: create the table with `supabase/schema.sql`, then load rows with your own tool or the Supabase dashboard (no npm script in this repo).
@@ -132,7 +132,7 @@ Time is normalized as **minutes from midnight** (0–1440) everywhere, with expl
 |------|------|
 | `index.html` | Redirects to `dashboard.html` (entry point) |
 | `dashboard.html`, `quality.html`, `daily.html`, `graph.html`, `stats.html` | Main app pages (see **Pages & Responsibilities**) |
-| `config.html` | Settings (themes, Supabase cloud sync) |
+| `settings.html` | Settings (themes, Supabase cloud sync) |
 | `about.html` | About / project meta |
 | `data/sleep-data.json` | Local fallback dataset (`{ days: [...] }`); gitignored |
 | `data/backup/` | Manual restore exports (e.g. CSV); gitignored |

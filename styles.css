@@ -787,7 +787,7 @@ body{
   display: inline-flex;
   flex-direction: row;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   gap: 0.5em;
   max-width: 100%;
   box-sizing: border-box;
@@ -833,22 +833,6 @@ body{
   vertical-align: baseline;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
-}
-
-.nav-dev-banner-user-defaults-slot {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  justify-content: flex-end;
-  flex: 0 0 auto;
-  align-self: stretch;
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-.nav-dev-banner-user-defaults-slot .nav-dev-banner-user-defaults-btn {
-  flex-shrink: 0;
 }
 
 .nav-dev-banner-user-settings {
@@ -923,10 +907,56 @@ body{
   max-width: none;
 }
 
-.nav-dev-banner-user-settings-row--prefs-grid > .nav-dev-banner-user-remaining-time {
-  flex: 0 0 auto;
+.nav-dev-banner-user-settings-row--prefs-grid.nav-dev-banner-user-settings-row--night-grid {
+  flex-wrap: wrap;
+  overflow-x: visible;
+  align-content: flex-start;
+}
+
+.nav-dev-banner-user-chunks-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px 12px;
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
-  max-width: none;
+  box-sizing: border-box;
+}
+
+.nav-dev-banner-user-chunks-row > .nav-dev-banner-user-chunk {
+  flex: 1 1 11rem;
+  min-width: min(100%, 10.5rem);
+  width: auto;
+  max-width: 100%;
+}
+
+.nav-dev-banner-user-chunk {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.nav-dev-banner-user-chunk-heading {
+  font-weight: 500;
+  font-size: inherit;
+  line-height: 1.25;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: rgba(255, 255, 255, 0.88);
+  width: 100%;
+  text-align: center;
+  box-sizing: border-box;
+  padding: 0 2px 5px;
+  margin: 0;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.48);
 }
 
 .nav-dev-banner-user-settings-row--prefs-grid .nav-dev-banner-user-field--pref.nav-dev-banner-user-field--col > .nav-dev-banner-user-select--field {
@@ -958,10 +988,11 @@ body{
   box-sizing: border-box;
 }
 
-.nav-dev-banner-user-settings-row--prefs-grid .nav-dev-banner-user-defaults-btn {
+.nav-dev-banner-user-panel-header .nav-dev-banner-user-defaults-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   min-height: 1.5rem;
   box-sizing: border-box;
 }
@@ -1684,6 +1715,31 @@ body{
   width: 100%;
   font: inherit;
   cursor: pointer;
+}
+
+.about-theme-option.about-theme-option--stacked {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.28rem;
+  text-align: center;
+}
+
+/* Matches dev “Use defaults” chip look; used for Tonight guidance default pace (non-interactive span inside option). */
+.config-default-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.12rem 0.5rem;
+  border: 1px solid var(--panel-border-color);
+  border-radius: 999px;
+  background: var(--panel);
+  box-shadow: var(--panel-shadow);
+  color: var(--text);
+  font-size: 0.65rem;
+  font-weight: 600;
+  line-height: 1.2;
+  pointer-events: none;
 }
 
 .nav-menu-item-icon-wrap,
@@ -2605,6 +2661,26 @@ body{
   margin-bottom: 0;
 }
 
+/* Tonight: “natural average” cue when no saved target (same band as 🎯 saved-target ghosts, centered) */
+.dashboard-tonight-adjust-natural-ghost {
+  position: absolute;
+  top: 56px;
+  left: var(--tonight-mid-pct, 50%);
+  transform: translateX(-50%);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0.72;
+  color: color-mix(in srgb, var(--color-sleep) 68%, var(--text));
+  text-align: center;
+}
+
+.dashboard-tonight-adjust-natural-ghost--hidden {
+  display: none;
+}
+
 #dashboard-tonight-projection .dashboard-tonight-adjust {
   margin-top: 2px;
   gap: 4px;
@@ -2724,108 +2800,24 @@ body{
   text-shadow: 0 0 8px color-mix(in srgb, var(--color-sunrise) 35%, transparent);
 }
 
-.dashboard-tonight-basis-below-title {
-  margin: 0;
-  min-height: 1.15rem;
-}
-
-.dashboard-tonight-basis-indicator-line {
-  margin: 0;
-}
-
-.dashboard-tonight-target-indicator-wrap {
-  display: inline-flex;
-  align-items: baseline;
-}
-
-.dashboard-tonight-target-indicator-wrap[hidden] {
-  display: none;
-}
-
-.dashboard-tonight-indicator-line {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: center;
-  gap: 0.65rem 1rem;
-}
-
-.dashboard-tonight-indicator-chip {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.2rem;
-  cursor: default;
-  user-select: none;
-}
-
-.dashboard-tonight-target-indicator,
-.dashboard-tonight-guidance-indicator {
-  font-size: 1.1rem;
-  line-height: 1;
-}
-
-.dashboard-tonight-indicator-caption {
-  font-size: 0.62rem;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  line-height: 1;
-  color: var(--text);
-  opacity: 0.42;
-}
-
-.dashboard-tonight-indicator-beta-pill {
-  font-size: 0.52rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  line-height: 1;
-  margin-left: 0.15rem;
-  padding: 0.1em 0.35em;
-  border-radius: 4px;
-  border: 1px solid color-mix(in srgb, var(--text) 22%, transparent);
-  color: var(--text);
-  opacity: 0.38;
-}
-
 .dashboard-tonight-adjust {
-  margin-top: 8px;
+  margin-top: 10px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 8px;
 }
 
-.dashboard-tonight-adjust-reset,
-.dashboard-tonight-adjust-save-target {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--panel-border-color);
-  border-radius: 10px;
-  background: var(--panel);
-  color: var(--text);
-  box-shadow: var(--panel-shadow);
-  font: inherit;
-  font-size: 0.84rem;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  cursor: pointer;
-  transition: background 0.2s, border-color 0.2s;
-  padding: 6px 10px;
-  box-sizing: border-box;
+.dashboard-tonight-adjust-toolbar.quick-add-page-toolbar {
+  margin-bottom: 0;
+  max-width: 100%;
   width: 100%;
-  min-width: 0;
-  white-space: nowrap;
 }
 
-.dashboard-tonight-adjust-reset:hover,
-.dashboard-tonight-adjust-save-target:hover:not(:disabled) {
-  background: var(--hover-bg);
-}
-
-.dashboard-tonight-adjust-save-target:disabled {
-  cursor: default;
+.dashboard-tonight-adjust-toolbar .quick-add-toolbar-btn--undo:disabled {
   opacity: 0.45;
+  cursor: default;
+  pointer-events: none;
 }
 
 .dashboard-tonight-adjust-panel {
@@ -2849,6 +2841,8 @@ body{
   --tonight-rec-end-pct: 58%;
   --tonight-committed-sleep-pct: 42%;
   --tonight-committed-wake-pct: 58%;
+  --tonight-saved-target-sleep-pct: 0%;
+  --tonight-saved-target-wake-pct: 0%;
   position: relative;
   width: 100%;
   padding: 14px 0 30px;
@@ -2887,7 +2881,7 @@ body{
 
 .dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-slider-core {
   position: relative;
-  padding: 0 0 56px;
+  padding: 0 0 72px;
 }
 
 .dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-track {
@@ -3201,53 +3195,31 @@ body{
   background: transparent;
 }
 
-.dashboard-tonight-adjust-undo-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  max-width: min(100%, 22.5rem);
-  margin-left: auto;
-  margin-right: auto;
-  min-height: 32px;
-  margin-top: 0;
-  margin-bottom: 0;
-  box-sizing: border-box;
-}
-
-.dashboard-tonight-adjust-undo-row .dashboard-tonight-adjust-undo {
-  visibility: hidden;
+/* Saved Tonight target (🎯) when guidance shows a different scheduled time than your stored target */
+.dashboard-tonight-adjust-saved-target-ghost {
+  position: absolute;
+  top: 56px;
+  transform: translateX(-50%);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  white-space: nowrap;
   pointer-events: none;
+  opacity: 0.72;
 }
 
-.dashboard-tonight-adjust-undo-row.dashboard-tonight-adjust-undo-row--visible .dashboard-tonight-adjust-undo {
-  visibility: visible;
-  pointer-events: auto;
+.dashboard-tonight-adjust-saved-target-ghost--hidden {
+  display: none;
 }
 
-.dashboard-tonight-adjust-undo {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: calc(50% - 4px);
-  max-width: calc(13rem - 4px);
-  border: 1px solid var(--panel-border-color);
-  border-radius: 10px;
-  background: var(--panel);
-  color: var(--text);
-  box-shadow: var(--panel-shadow);
-  font: inherit;
-  font-size: 0.8rem;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  cursor: pointer;
-  transition: background 0.2s, border-color 0.2s;
-  padding: 4px 12px;
-  box-sizing: border-box;
+.dashboard-tonight-adjust-saved-target-ghost--sleep {
+  left: var(--tonight-saved-target-sleep-pct, 0%);
+  color: color-mix(in srgb, var(--color-sleep) 72%, var(--text));
 }
 
-.dashboard-tonight-adjust-undo-row.dashboard-tonight-adjust-undo-row--visible .dashboard-tonight-adjust-undo:hover {
-  background: var(--hover-bg);
+.dashboard-tonight-adjust-saved-target-ghost--wake {
+  left: var(--tonight-saved-target-wake-pct, 0%);
+  color: color-mix(in srgb, var(--color-up) 72%, var(--text));
 }
 
 .dashboard-tonight-clear-target-dialog {
@@ -3320,27 +3292,16 @@ body{
 }
 
 .dashboard-tonight-adjust-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
   align-items: stretch;
   gap: 8px;
   width: 100%;
-  max-width: min(100%, 22.5rem);
+  max-width: min(620px, 100%);
   margin-top: 0;
   margin-left: auto;
   margin-right: auto;
   box-sizing: border-box;
-}
-
-@media (max-width: 380px) {
-  .dashboard-tonight-adjust-actions {
-    grid-template-columns: 1fr;
-  }
-
-  .dashboard-tonight-adjust-undo {
-    width: 100%;
-    max-width: 100%;
-  }
 }
 
 .app-toast-host {
@@ -5943,6 +5904,66 @@ body.page-stats .stats-page-shell .container {
   border-bottom-color: var(--tooltip-bg);
 }
 
+.about-tonight-guided-figure {
+  margin: 0.35rem auto 1rem;
+  text-align: center;
+  max-width: 100%;
+}
+
+.about-tonight-guided-img {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  height: auto;
+  width: auto;
+  max-height: min(42vh, 360px);
+  border-radius: 12px;
+}
+
+.config-tonight-guidance-pace-wrap {
+  margin-top: 0.35rem;
+}
+
+.config-tonight-guidance-pace-wrap .config-rw-heads-up-slider-wrap {
+  max-width: min(50%, 22rem);
+  margin: 0;
+}
+
+/* Align endpoint labels with the padded range track (thumb inset) */
+.config-tonight-guidance-pace-wrap .config-rw-heads-up-slider-endpoints {
+  box-sizing: border-box;
+  padding: 0 11px;
+}
+
+.config-tonight-guidance-pace-wrap .config-rw-heads-up-slider-end.config-tonight-guidance-pace-end--stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+}
+
+.config-tonight-guidance-pace-wrap .config-rw-heads-up-slider-end.config-tonight-guidance-pace-end--stack.config-rw-heads-up-slider-end--right {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.config-tonight-guidance-pace-wrap .config-rw-heads-up-slider-end.config-tonight-guidance-pace-end--stack.config-rw-heads-up-slider-end--left {
+  text-align: left;
+}
+
+.config-tonight-guidance-pace-end-emoji {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.config-tonight-guidance-pace-ticks .config-rw-heads-up-slider-tick-label--with-default {
+  align-items: flex-start;
+}
+
+.config-tonight-guidance-pace-ticks .config-rw-heads-up-slider-tick-label:last-child {
+  align-items: flex-end;
+}
+
 /* About page — Theme selector. Row 1: Light / Dark (same toggle as hamburger). Row 2: Auto (time-based). No surrounding box. */
 .about-theme {
   display: flex;
@@ -6244,6 +6265,24 @@ body.page-stats .stats-page-shell .container {
     );
 }
 
+/* Guided pace: three discrete stops only — no track tick marks (avoids 25%/75% marks from day theme override) */
+.config-tonight-guidance-pace-wrap .config-rw-heads-up-slider-track-bg {
+  background-image: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--text) 22%, transparent),
+    color-mix(in srgb, var(--text) 6%, transparent)
+  );
+}
+
+[data-theme="day"] .config-tonight-guidance-pace-wrap .config-rw-heads-up-slider-track-bg {
+  background-image: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--text) 18%, transparent),
+    color-mix(in srgb, var(--text) 5%, transparent)
+  );
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 12%, transparent);
+}
+
 .config-rw-heads-up-slider-tick-labels {
   display: flex;
   justify-content: space-between;
@@ -6273,6 +6312,28 @@ body.page-stats .stats-page-shell .container {
 
 .config-rw-heads-up-slider-tick-label:last-child {
   text-align: right;
+}
+
+.config-rw-heads-up-slider-tick-label--with-default {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.35rem;
+}
+
+.config-rw-heads-up-slider-tick-main {
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+}
+
+.config-rw-defaults-button--compact-pill {
+  padding: 0.12rem 0.5rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  border-radius: 999px;
+  line-height: 1.2;
 }
 
 .config-rw-heads-up-range {
