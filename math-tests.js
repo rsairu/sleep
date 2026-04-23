@@ -177,10 +177,11 @@ function runTests() {
   const rOff = u.resolveTonightScheduledWindow(1380, 420, { sleep: 1320, wake: 420 });
   expectEqual(rOff.mode, 'target', 'resolveTonightScheduledWindow guidance off uses target');
   expectEqual(rOff.sleep, 1320, 'resolve target sleep');
-  u.localStorage.setItem('sleep-app-tonight-guidance-enabled', '1');
+  u.localStorage.setItem('sleep-app-tonight-guidance-sleep-enabled', '1');
+  u.localStorage.setItem('sleep-app-tonight-guidance-wake-enabled', '1');
   u.localStorage.setItem('sleep-app-tonight-guidance-pace', 'normal');
   const rOn = u.resolveTonightScheduledWindow(1380, 420, { sleep: 1320, wake: 420 });
-  expectEqual(rOn.mode, 'guided', 'resolveTonightScheduledWindow guidance on uses guided when gap');
+  expectEqual(rOn.mode, 'guided', 'resolveTonightScheduledWindow both poles guided when gap');
   expectEqual(rOn.sleep, 1371, 'normal pace nudges sleep 9m toward earlier target');
   expectEqual(rOn.wake, 420, 'wake unchanged when already at target');
   const guidedBasis = u.getTonightWakePhaseBasisFromDays(basisDays);
@@ -189,7 +190,8 @@ function runTests() {
   u.localStorage.removeItem('sleep-app-tonight-guidance-pace');
   const rGentleDefault = u.resolveTonightScheduledWindow(1380, 420, { sleep: 1320, wake: 420 });
   expectEqual(rGentleDefault.sleep, 1374, 'default gentle pace nudges sleep 6m toward earlier target');
-  u.localStorage.removeItem('sleep-app-tonight-guidance-enabled');
+  u.localStorage.removeItem('sleep-app-tonight-guidance-sleep-enabled');
+  u.localStorage.removeItem('sleep-app-tonight-guidance-wake-enabled');
   u.localStorage.removeItem('sleep-app-tonight-guidance-pace');
 
   u.localStorage.setItem('sleep-app-tonight-projection-adjustment', JSON.stringify({ sleep: 1350, wake: 400 }));
@@ -206,11 +208,12 @@ function runTests() {
   const rWakeOnly = u.resolveTonightScheduledWindow(1380, 420, wakeOnly);
   expectEqual(rWakeOnly.wake, 420, 'resolve wake-only keeps saved wake');
   expectEqual(rWakeOnly.sleep, 1380, 'resolve wake-only uses avg sleep');
-  u.localStorage.setItem('sleep-app-tonight-guidance-enabled', '1');
+  u.localStorage.setItem('sleep-app-tonight-guidance-wake-enabled', '1');
+  u.localStorage.removeItem('sleep-app-tonight-guidance-sleep-enabled');
   u.localStorage.setItem('sleep-app-tonight-guidance-pace', 'gentle');
   const rWakeOnlyG = u.resolveTonightScheduledWindow(1380, 440, wakeOnly);
-  expectEqual(rWakeOnlyG.mode, 'guided', 'wake-only with guidance guided when wake gap exceeds snap band');
-  u.localStorage.removeItem('sleep-app-tonight-guidance-enabled');
+  expectEqual(rWakeOnlyG.mode, 'guided', 'wake-only with wake guidance on when wake gap exceeds snap band');
+  u.localStorage.removeItem('sleep-app-tonight-guidance-wake-enabled');
   u.localStorage.removeItem('sleep-app-tonight-guidance-pace');
   u.localStorage.removeItem('sleep-app-tonight-target-window');
 
@@ -230,7 +233,8 @@ function runTests() {
     remaining_wake_phase_heads_up_mins: 30,
     tonight_target_sleep_min: null,
     tonight_target_wake_min: null,
-    tonight_guidance_enabled: false,
+    tonight_guidance_sleep_enabled: false,
+    tonight_guidance_wake_enabled: false,
     tonight_guidance_pace: 'gentle'
   });
   const twAfterNullServer = u.getTonightTargetWindow();
@@ -248,7 +252,8 @@ function runTests() {
     remaining_wake_phase_heads_up_mins: 30,
     tonight_target_sleep_min: 1320,
     tonight_target_wake_min: null,
-    tonight_guidance_enabled: false,
+    tonight_guidance_sleep_enabled: false,
+    tonight_guidance_wake_enabled: false,
     tonight_guidance_pace: 'gentle'
   });
   const twMergedWake = u.getTonightTargetWindow();

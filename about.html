@@ -94,14 +94,65 @@
       </li>
     </ul>
     <p class="section-intro">You don&rsquo;t need to tap anything in order. If you already logged that you&rsquo;re <span class="about-qa-word about-qa-word--bed">in bed</span>, that button quietly steps aside. The shortcuts are meant to reflect what&rsquo;s actually likely next for you, so you&rsquo;re not hunting through a list to find the relevant action.</p>
+    <div class="about-hint-dismiss-wrap" id="about-hint-dismiss-wrap-quick" data-hint-dismiss="quick-actions">
+      <div class="about-hint-dismiss-block" id="about-hint-dismiss-block-quick">
+        <label class="about-hint-dismiss-check-row">
+          <input type="checkbox" id="about-dismiss-hint-quick-actions-cb" class="about-hint-dismiss-checkbox" />
+          <span class="about-hint-dismiss-gotit" data-i18n="about.dashboardHints.gotItLabel">Got it</span>
+          <span class="about-hint-done" id="about-hint-done-quick" data-i18n="about.dashboardHints.doneLabel" hidden aria-hidden="true">Done</span>
+        </label>
+        <p class="about-hint-dismiss-followup" id="about-hint-dismiss-followup-quick" hidden>
+          <span data-i18n="about.dashboardHints.bringBackLead">You can bring it back in</span>
+          <a href="settings.html#in-app-tips" class="content-link content-link--dotted" data-i18n="about.dashboardHints.bringBackSettings">Settings</a><span data-i18n="about.dashboardHints.bringBackTrail">.</span>
+        </p>
+      </div>
+    </div>
 
     <hr class="about-section-rule" />
     <h2 class="section-title" id="tonight-guidance">Tonight target and guidance</h2>
     <p class="about-tonight-guided-figure">
       <img src="assets/slumby_guided.png" alt="" class="about-tonight-guided-img" width="640" height="360" decoding="async" />
     </p>
-    <p class="section-intro">On the <strong>Dashboard</strong>, <strong>Tonight</strong> can follow your <strong>recent average</strong> or <strong>saved targets</strong> for sleep, wake, or both. A full target pair is ideal when you are already close to the schedule you want (small night-to-night nudges). If your habit is far from that goal, turning on <strong>guidance</strong> (in <a class="content-link" href="settings.html#tonight-guidance">Settings</a>) moves the <strong>scheduled</strong> times gradually: each day, sleep and wake each shift toward your saved target by at most a few minutes (gentle, moderate, or steady pace), until your rolling average is close enough; then the app uses the target directly.</p>
-    <p class="section-intro">That steady pace helps with <strong>drift</strong> (averages slowly creeping) and with <strong>big schedule changes</strong> without asking for an impossible jump overnight. On the Tonight bar, <strong>🧭</strong> marks the guided &ldquo;tonight&rdquo; time on the main labels when guidance is narrowing the gap; <strong>🎯</strong> appears as a lighter &ldquo;ghost&rdquo; under the bar for each pole where your <strong>saved target</strong> for that pole still differs from that schedule.</p>
+    <p class="section-intro">On the <strong>Dashboard</strong>, <strong>Tonight</strong> can follow your <strong>recent average</strong> or <strong>saved targets</strong> for sleep, wake, or both. A full target pair is ideal when you are already close to the schedule you want (small night-to-night nudges). If your habit is far from that goal, you can turn on <strong>guidance</strong> per pole in <a class="content-link" href="settings.html#tonight-guidance">Settings</a> (sleep and wake independently): for each pole where guidance is on, the <strong>scheduled</strong> time shifts gradually toward your saved target by at most a few minutes per day (one shared gentle, moderate, or steady pace), until your rolling average is close enough; then the app uses that target directly for that pole.</p>
+    <p class="section-intro">That steady pace helps with <strong>drift</strong> (averages slowly creeping) and with <strong>big schedule changes</strong> without asking for an impossible jump overnight.</p>
+    <p class="section-intro"><strong>A note on pace:</strong> Guided times don&rsquo;t always move in a straight line toward your target. Because the schedule is built from a rolling average of your recent nights, a single new night only shifts that average by a fraction &mdash; and whatever night drops out of the window can tug it the other way. So you may see the guided time move earlier for a few days, then tick later again, even while the long-run trend is heading where you want. Closing a gap of an hour or so can take several weeks at the gentle pace; that&rsquo;s a property of the smoothing, not a verdict on what&rsquo;s biologically &ldquo;best.&rdquo; A gradual shift is often easier to stick with, but if you need to move faster, switching to a quicker pace will tighten things up.</p>
+    <h3 class="section-subtitle" id="tonight-bar-symbols" data-i18n="about.tonightSymbols.heading">What the icons mean on Tonight</h3>
+    <ul class="about-phase-list about-tonight-symbol-list" data-i18n-aria-label="about.tonightSymbols.listAria" aria-label="Tonight bar symbols">
+      <li class="about-phase-item">
+        <span class="about-phase-icon" aria-hidden="true">🧭</span>
+        <div class="about-phase-body">
+          <span class="about-phase-name" data-i18n="about.tonightSymbols.compassName">Guided time</span>
+          <span class="about-phase-range" data-i18n="about.tonightSymbols.compassDesc">On the main sleep or wake time when guidance is on and that pole is still easing toward your saved target.</span>
+        </div>
+      </li>
+      <li class="about-phase-item">
+        <span class="about-phase-icon" aria-hidden="true">🎯</span>
+        <div class="about-phase-body">
+          <span class="about-phase-name" data-i18n="about.tonightSymbols.targetName">Saved target</span>
+          <span class="about-phase-range" data-i18n="about.tonightSymbols.targetDesc">A marker above the bar for each pole where you have a saved goal and it still differs from the schedule Tonight is using. Tap the marker to clear that target.</span>
+        </div>
+      </li>
+      <li class="about-phase-item">
+        <span class="about-phase-icon" aria-hidden="true">🍃</span>
+        <div class="about-phase-body">
+          <span class="about-phase-name" data-i18n="about.tonightSymbols.leafName">Recent average for that pole</span>
+          <span class="about-phase-range" data-i18n="about.tonightSymbols.leafDesc">On the main time when you have not saved a target for that pole (sleep, wake, or both). You can have 🍃 on one pole and 🎯 on the other.</span>
+        </div>
+      </li>
+    </ul>
+    <div class="about-hint-dismiss-wrap" id="about-hint-dismiss-wrap-tonight" data-hint-dismiss="tonight">
+      <div class="about-hint-dismiss-block" id="about-hint-dismiss-block-tonight">
+        <label class="about-hint-dismiss-check-row">
+          <input type="checkbox" id="about-dismiss-hint-tonight-cb" class="about-hint-dismiss-checkbox" />
+          <span class="about-hint-dismiss-gotit" data-i18n="about.dashboardHints.gotItLabel">Got it</span>
+          <span class="about-hint-done" id="about-hint-done-tonight" data-i18n="about.dashboardHints.doneLabel" hidden aria-hidden="true">Done</span>
+        </label>
+        <p class="about-hint-dismiss-followup" id="about-hint-dismiss-followup-tonight" hidden>
+          <span data-i18n="about.dashboardHints.bringBackLead">You can bring it back in</span>
+          <a href="settings.html#in-app-tips" class="content-link content-link--dotted" data-i18n="about.dashboardHints.bringBackSettings">Settings</a><span data-i18n="about.dashboardHints.bringBackTrail">.</span>
+        </p>
+      </div>
+    </div>
 
     <hr class="about-section-rule" />
     <h2 class="section-title" id="remaining-wake-time">Remaining Wake Time</h2>
@@ -179,11 +230,18 @@
     (async function initAboutPage() {
       await initI18n(document);
       document.getElementById('nav-container').innerHTML = renderNavBar('about');
+      if (typeof applyTranslations === 'function') {
+        const mainEl = document.querySelector('.container.container--config');
+        if (mainEl) applyTranslations(mainEl);
+        const navEl = document.getElementById('nav-container');
+        if (navEl) applyTranslations(navEl);
+      }
       initDayNightTheme();
       initRemainingWakeNav();
       document.getElementById('about-remaining-wake-mount').innerHTML =
         getRemainingWakeThresholdsControlHTML('about-remaining-wake-thresholds');
       initRemainingWakeThresholdsConfig();
+      initAboutDashboardHintDismissButtons();
     })();
   </script>
 </body>

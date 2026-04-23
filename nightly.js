@@ -972,6 +972,8 @@ const PROJECTION_BAND_MINUTES = 30;
 const WAKE_PROJECTION_BAND_MINUTES = 15;
 const TONIGHT_ADJUST_SCOPE_PAD_MINUTES = 180;
 const TONIGHT_ADJUST_MIN_GAP_MINUTES = 1;
+/** Painted width of Tonight emoji knobs (px); must match CSS range thumb width for fill inset math. */
+const TONIGHT_KNOB_OUTER_PX = 40;
 
 function normalizeClockMinutesNearReference(clockMinutes, referenceMinutes) {
   let value = modMinutes1440(clockMinutes);
@@ -1361,12 +1363,17 @@ function renderQuickAddDrawer(recentAverages, recentDays, layout = 'drawer') {
 }
 
 function renderQuickActionsSection() {
+  const showHint =
+    typeof getHintQuickActionsAbout === 'function' ? getHintQuickActionsAbout() : true;
+  const quickActionsInfoHtml = showHint
+    ? `<a class="dashboard-quick-actions-info-link content-link" href="about.html#quick-actions" data-i18n-aria-label="dashboard.quickActions.aboutAria" aria-label="About quick actions"><span class="dashboard-quick-actions-info-letter" aria-hidden="true">i</span></a>`
+    : '';
   return `
     <div class="dashboard-quick-actions quick-add-drawer" aria-label="Quick actions">
       <div class="dashboard-quick-actions-inner">
         <div class="dashboard-quick-actions-label-row">
           <p class="dashboard-quick-actions-label"><span class="dashboard-quick-actions-label-sparkle" aria-hidden="true">✨</span> Quick actions</p>
-          <a class="dashboard-quick-actions-info-link content-link" href="about.html#quick-actions" aria-label="About quick actions"><span class="dashboard-quick-actions-info-letter" aria-hidden="true">i</span></a>
+          ${quickActionsInfoHtml}
         </div>
         <div class="dashboard-quick-actions-row" id="dashboard-quick-actions-buttons" role="group" aria-label="Suggested actions"></div>
       </div>
@@ -1461,104 +1468,124 @@ function renderDashboardProjection(recentAverages) {
     projection.savedTargetSleepPct != null ? `${projection.savedTargetSleepPct}%` : `${projection.committedSleepPct}%`;
   const savedWakePct =
     projection.savedTargetWakePct != null ? `${projection.savedTargetWakePct}%` : `${projection.committedWakePct}%`;
-  const tonightAria =
-    base.tonightGuidanceMode === 'guided'
-      ? 'Tonight sleep and wake schedule. Compass shows tonight’s guided time; target below shows your saved goal.'
-      : 'Tonight sleep and wake schedule.';
-  const naturalGhostHiddenClass = base.hasSavedTonightTarget
-    ? ' dashboard-tonight-adjust-natural-ghost--hidden'
+  const showTonightHint = typeof getHintTonightAbout === 'function' ? getHintTonightAbout() : true;
+  const tonightInfoHtml = showTonightHint
+    ? `<a class="dashboard-quick-actions-info-link content-link" href="about.html#tonight-bar-symbols" data-i18n-aria-label="dashboard.tonight.aboutSectionAria" aria-label="About Tonight on the Dashboard"><span class="dashboard-quick-actions-info-letter" aria-hidden="true">i</span></a>`
     : '';
   return `
     <div class="dashboard-projection" id="dashboard-tonight-projection" data-rec-sleep="${base.avgSleepStart}" data-rec-wake="${base.avgSleepEnd}">
-      <h2 class="dashboard-projection-title">Tonight</h2>
+      <div class="dashboard-projection-title-row">
+        <h2 class="dashboard-projection-title">Tonight</h2>
+        ${tonightInfoHtml}
+      </div>
       <div class="dashboard-tonight-adjust">
         <div class="dashboard-tonight-adjust-panel" id="dashboard-tonight-adjust-panel">
           <div
             class="dashboard-tonight-adjust-slider dashboard-tonight-adjust-slider--main"
             id="dashboard-tonight-adjust-slider"
             role="group"
-            aria-label="${tonightAria}"
+            aria-label="Tonight sleep and wake schedule."
             style="--tonight-sleep-pct:${projection.sleepPct}%;--tonight-wake-pct:${projection.wakePct}%;--tonight-mid-pct:${(projection.sleepPct + projection.wakePct) / 2}%;--tonight-rec-start-pct:${projection.recStartPct}%;--tonight-rec-end-pct:${projection.recEndPct}%;--tonight-committed-sleep-pct:${projection.committedSleepPct}%;--tonight-committed-wake-pct:${projection.committedWakePct}%;--tonight-saved-target-sleep-pct:${savedSleepPct};--tonight-saved-target-wake-pct:${savedWakePct};">
-            <div class="dashboard-tonight-adjust-pole-row" aria-hidden="true">
-              <div class="dashboard-tonight-adjust-pole-label dashboard-tonight-adjust-pole-label--sleep">
-                <span class="proj-keyword proj-sleep">🌙 Sleep</span>
-              </div>
-              <div class="dashboard-tonight-adjust-pole-label dashboard-tonight-adjust-pole-label--wake">
-                <span class="proj-keyword proj-wake">🌅 Wake</span>
-              </div>
-            </div>
-            <div class="dashboard-tonight-adjust-duration-row dashboard-tonight-adjust-duration-row--above-bar">
-              <span class="dashboard-tonight-adjust-center-duration" id="dashboard-tonight-slider-duration">~${formatDuration(durationMins)} sleep</span>
+            <div class="dashboard-tonight-adjust-top-band">
+              <div
+                class="dashboard-tonight-adjust-committed-ghost dashboard-tonight-adjust-committed-ghost--sleep dashboard-tonight-adjust-committed-ghost--hidden"
+                id="dashboard-tonight-committed-sleep-top"></div>
+              <div
+                class="dashboard-tonight-adjust-committed-ghost dashboard-tonight-adjust-committed-ghost--wake dashboard-tonight-adjust-committed-ghost--hidden"
+                id="dashboard-tonight-committed-wake-top"></div>
+              <button
+                type="button"
+                class="dashboard-tonight-saved-target-btn dashboard-tonight-saved-target-btn--sleep dashboard-tonight-saved-target-btn--hidden"
+                id="dashboard-tonight-saved-target-sleep-btn"
+                data-i18n-aria-label="dashboard.tonight.savedTargetSleepAria"
+                aria-label="Saved sleep target. Tap to clear."></button>
+              <button
+                type="button"
+                class="dashboard-tonight-saved-target-btn dashboard-tonight-saved-target-btn--wake dashboard-tonight-saved-target-btn--hidden"
+                id="dashboard-tonight-saved-target-wake-btn"
+                data-i18n-aria-label="dashboard.tonight.savedTargetWakeAria"
+                aria-label="Saved wake target. Tap to clear."></button>
             </div>
             <div class="dashboard-tonight-adjust-slider-core">
               <div class="dashboard-tonight-adjust-track">
                 <div class="dashboard-tonight-adjust-range-fill" aria-hidden="true"></div>
                 <div class="dashboard-tonight-adjust-recommended-window" aria-hidden="true">
-                  <span class="dashboard-tonight-adjust-recommended-text dashboard-tonight-adjust-recommended-text--main">recent average</span>
+                  <span class="dashboard-tonight-adjust-recommended-text dashboard-tonight-adjust-recommended-text--main" id="dashboard-tonight-recommended-duration">~${formatDuration(durationMins)}</span>
                 </div>
               </div>
-              <input type="range" id="dashboard-tonight-sleep-slider" min="${base.scopeStartNorm}" max="${base.scopeEndNorm}" step="1" value="${projection.sleepNorm}" aria-label="Tonight sleep target">
-              <input type="range" id="dashboard-tonight-wake-slider" min="${base.scopeStartNorm}" max="${base.scopeEndNorm}" step="1" value="${projection.wakeNorm}" aria-label="Tomorrow wake target">
+              <input type="range" id="dashboard-tonight-sleep-slider" min="${base.scopeStartNorm}" max="${base.scopeEndNorm}" step="1" value="${projection.sleepNorm}" aria-label="Tonight sleep target" title="Sleep" data-i18n-title="dashboard.tonight.sleepKnobTooltip">
+              <input type="range" id="dashboard-tonight-wake-slider" min="${base.scopeStartNorm}" max="${base.scopeEndNorm}" step="1" value="${projection.wakeNorm}" aria-label="Tomorrow wake target" title="Wake" data-i18n-title="dashboard.tonight.wakeKnobTooltip">
               <div class="dashboard-tonight-adjust-overlay" id="dashboard-tonight-adjust-overlay" aria-hidden="true"></div>
-              <div class="dashboard-tonight-adjust-baseline-label dashboard-tonight-adjust-baseline-label--sleep dashboard-tonight-adjust-baseline-label--hidden" id="dashboard-tonight-sleep-baseline-label">${formatTime(base.committedSleep)}</div>
-              <div class="dashboard-tonight-adjust-baseline-label dashboard-tonight-adjust-baseline-label--wake dashboard-tonight-adjust-baseline-label--hidden" id="dashboard-tonight-wake-baseline-label">${formatTime(base.committedWake)}</div>
-              <div class="dashboard-tonight-adjust-saved-target-ghost dashboard-tonight-adjust-saved-target-ghost--sleep dashboard-tonight-adjust-saved-target-ghost--hidden" id="dashboard-tonight-saved-target-sleep-ghost" aria-hidden="true"></div>
-              <div class="dashboard-tonight-adjust-saved-target-ghost dashboard-tonight-adjust-saved-target-ghost--wake dashboard-tonight-adjust-saved-target-ghost--hidden" id="dashboard-tonight-saved-target-wake-ghost" aria-hidden="true"></div>
-              <div
-                class="dashboard-tonight-adjust-natural-ghost${naturalGhostHiddenClass}"
-                id="dashboard-tonight-natural-ghost"
-                role="status"
-                data-i18n-aria-label="dashboard.tonight.naturalAverageAria"
-                aria-label="Tonight follows your recent average; no saved target">
-                <span aria-hidden="true">🍃 </span><span data-i18n="dashboard.tonight.naturalAveragePill">Natural average</span>
+              <svg class="dashboard-tonight-goal-links" id="dashboard-tonight-goal-links-svg" width="100%" height="100%" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+                <path class="dashboard-tonight-goal-path-outline dashboard-tonight-goal-path-outline--sleep" id="dashboard-tonight-goal-path-sleep-outline" fill="none" />
+                <path class="dashboard-tonight-goal-path-outline dashboard-tonight-goal-path-outline--wake" id="dashboard-tonight-goal-path-wake-outline" fill="none" />
+                <path class="dashboard-tonight-goal-path dashboard-tonight-goal-path--sleep" id="dashboard-tonight-goal-path-sleep" fill="none" />
+                <path class="dashboard-tonight-goal-path dashboard-tonight-goal-path--wake" id="dashboard-tonight-goal-path-wake" fill="none" />
+                <polygon class="dashboard-tonight-goal-arrow dashboard-tonight-goal-arrow--sleep" id="dashboard-tonight-goal-arrow-sleep" />
+                <polygon class="dashboard-tonight-goal-arrow dashboard-tonight-goal-arrow--wake" id="dashboard-tonight-goal-arrow-wake" />
+              </svg>
+              <div class="dashboard-tonight-adjust-thumb-pack dashboard-tonight-adjust-thumb-pack--sleep" id="dashboard-tonight-sleep-thumb-pack">
+                <button
+                  type="button"
+                  class="dashboard-tonight-adjust-minute-step"
+                  id="dashboard-tonight-sleep-minus"
+                  data-i18n-aria-label="dashboard.tonight.sleepMinuteEarlierAria"
+                  aria-label="Sleep time one minute earlier"
+                >
+                  ‹
+                </button>
+                <div class="dashboard-tonight-adjust-thumb-label dashboard-tonight-adjust-thumb-label--sleep" id="dashboard-tonight-sleep-thumb-label">${formatTime(projection.sleepClock)}</div>
+                <button
+                  type="button"
+                  class="dashboard-tonight-adjust-minute-step"
+                  id="dashboard-tonight-sleep-plus"
+                  data-i18n-aria-label="dashboard.tonight.sleepMinuteLaterAria"
+                  aria-label="Sleep time one minute later"
+                >
+                  ›
+                </button>
               </div>
-              <div class="dashboard-tonight-adjust-thumb-label dashboard-tonight-adjust-thumb-label--sleep" id="dashboard-tonight-sleep-thumb-label">${formatTime(projection.sleepClock)}</div>
-              <div class="dashboard-tonight-adjust-thumb-label dashboard-tonight-adjust-thumb-label--wake" id="dashboard-tonight-wake-thumb-label">${formatTime(projection.wakeClock)}</div>
-            </div>
-          </div>
-          <div class="dashboard-tonight-adjust-actions">
-            <div class="quick-add-page-toolbar dashboard-tonight-adjust-toolbar">
-              <div
-                class="quick-add-page-toolbar__bar"
-                id="dashboard-tonight-toolbar-bar"
-                data-i18n-aria-label="log.commitBarAria"
-                aria-label="Save, undo, or review changes">
-                <div
-                  class="quick-add-toolbar-changes-head"
-                  data-i18n-aria-label="log.changesPanelAria"
-                  aria-label="Unsaved edits">
-                  <p class="quick-add-changes-caption" data-i18n="log.changesCaption">Changes</p>
-                  <p
-                    class="quick-add-save-dirty-hint"
-                    id="dashboard-tonight-adjust-dirty-hint"
-                    aria-live="polite"
-                    data-i18n-aria-label="log.dirtyHintAria"
-                    aria-label="Which parts of the form have unsaved edits"></p>
-                </div>
-                <div class="quick-add-page-toolbar__commit">
-                  <button
-                    type="button"
-                    class="quick-add-toolbar-btn quick-add-toolbar-btn--undo"
-                    id="dashboard-tonight-adjust-undo"
-                    data-i18n="dashboard.tonight.undo">Undo</button>
-                  <button
-                    type="button"
-                    class="quick-add-toolbar-btn quick-add-toolbar-btn--save"
-                    id="dashboard-tonight-adjust-save-target"></button>
-                </div>
+              <div class="dashboard-tonight-adjust-thumb-pack dashboard-tonight-adjust-thumb-pack--wake" id="dashboard-tonight-wake-thumb-pack">
+                <button
+                  type="button"
+                  class="dashboard-tonight-adjust-minute-step"
+                  id="dashboard-tonight-wake-minus"
+                  data-i18n-aria-label="dashboard.tonight.wakeMinuteEarlierAria"
+                  aria-label="Wake time one minute earlier"
+                >
+                  ‹
+                </button>
+                <div class="dashboard-tonight-adjust-thumb-label dashboard-tonight-adjust-thumb-label--wake" id="dashboard-tonight-wake-thumb-label">${formatTime(projection.wakeClock)}</div>
+                <button
+                  type="button"
+                  class="dashboard-tonight-adjust-minute-step"
+                  id="dashboard-tonight-wake-plus"
+                  data-i18n-aria-label="dashboard.tonight.wakeMinuteLaterAria"
+                  aria-label="Wake time one minute later"
+                >
+                  ›
+                </button>
+              </div>
+              <div class="dashboard-tonight-knob-actions dashboard-tonight-knob-actions--sleep" id="dashboard-tonight-knob-actions-sleep">
+                <button type="button" class="dashboard-tonight-knob-action-btn dashboard-tonight-knob-save-inline" id="dashboard-tonight-sleep-save-target" data-i18n="dashboard.tonight.saveTargetInline">🎯 Set target</button>
+                <button type="button" class="dashboard-tonight-knob-action-btn dashboard-tonight-knob-save-inline dashboard-tonight-knob-save-guided" id="dashboard-tonight-sleep-save-guided" data-i18n="dashboard.tonight.saveGuidedInline">🧭 Set guided target</button>
+                <button type="button" class="dashboard-tonight-knob-action-btn dashboard-tonight-knob-undo-pole" id="dashboard-tonight-sleep-undo" data-i18n="dashboard.tonight.undoPlain">Undo</button>
+              </div>
+              <div class="dashboard-tonight-knob-actions dashboard-tonight-knob-actions--wake" id="dashboard-tonight-knob-actions-wake">
+                <button type="button" class="dashboard-tonight-knob-action-btn dashboard-tonight-knob-save-inline" id="dashboard-tonight-wake-save-target" data-i18n="dashboard.tonight.saveTargetInline">🎯 Set target</button>
+                <button type="button" class="dashboard-tonight-knob-action-btn dashboard-tonight-knob-save-inline dashboard-tonight-knob-save-guided" id="dashboard-tonight-wake-save-guided" data-i18n="dashboard.tonight.saveGuidedInline">🧭 Set guided target</button>
+                <button type="button" class="dashboard-tonight-knob-action-btn dashboard-tonight-knob-undo-pole" id="dashboard-tonight-wake-undo" data-i18n="dashboard.tonight.undoPlain">Undo</button>
               </div>
             </div>
           </div>
         </div>
       </div>
       <dialog class="dashboard-tonight-clear-target-dialog" id="dashboard-tonight-clear-target-dialog" aria-labelledby="dashboard-tonight-confirm-dialog-title">
-        <div class="dashboard-tonight-clear-target-dialog-inner">
+        <div class="dashboard-tonight-clear-target-dialog-inner" id="dashboard-tonight-clear-target-dialog-inner">
           <p class="dashboard-tonight-clear-target-dialog-message" id="dashboard-tonight-confirm-dialog-title"></p>
           <div class="dashboard-tonight-confirm-dialog-skp" id="dashboard-tonight-confirm-dialog-skp" hidden></div>
           <div class="dashboard-tonight-clear-target-dialog-actions dashboard-tonight-clear-target-dialog-actions--stack" id="dashboard-tonight-clear-target-actions">
-            <button type="button" class="about-theme-option dashboard-tonight-confirm-dialog-btn-primary dashboard-tonight-clear-pole--wake" id="dashboard-tonight-clear-target-wake" hidden></button>
-            <button type="button" class="about-theme-option dashboard-tonight-confirm-dialog-btn-primary dashboard-tonight-clear-pole--sleep" id="dashboard-tonight-clear-target-sleep" hidden></button>
-            <button type="button" class="about-theme-option dashboard-tonight-confirm-dialog-btn-primary" id="dashboard-tonight-clear-target-both"></button>
+            <button type="button" class="about-theme-option dashboard-tonight-confirm-dialog-btn-primary" id="dashboard-tonight-dlg-clear-yes" hidden></button>
             <button type="button" class="about-theme-option" id="dashboard-tonight-clear-target-cancel"></button>
           </div>
         </div>
@@ -1580,23 +1607,38 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
   const wakeSlider = document.getElementById('dashboard-tonight-wake-slider');
   const sleepLabel = document.getElementById('dashboard-tonight-sleep-thumb-label');
   const wakeLabel = document.getElementById('dashboard-tonight-wake-thumb-label');
-  const centerDurationEl = document.getElementById('dashboard-tonight-slider-duration');
-  const sleepBaselineLabelEl = document.getElementById('dashboard-tonight-sleep-baseline-label');
-  const wakeBaselineLabelEl = document.getElementById('dashboard-tonight-wake-baseline-label');
-  const toolbarBar = document.getElementById('dashboard-tonight-toolbar-bar');
-  const dirtyHintEl = document.getElementById('dashboard-tonight-adjust-dirty-hint');
-  const saveTargetButton = document.getElementById('dashboard-tonight-adjust-save-target');
-  const naturalAverageGhost = document.getElementById('dashboard-tonight-natural-ghost');
-  const undoButton = document.getElementById('dashboard-tonight-adjust-undo');
-  const savedTargetSleepGhost = document.getElementById('dashboard-tonight-saved-target-sleep-ghost');
-  const savedTargetWakeGhost = document.getElementById('dashboard-tonight-saved-target-wake-ghost');
+  const sleepThumbPack = document.getElementById('dashboard-tonight-sleep-thumb-pack');
+  const wakeThumbPack = document.getElementById('dashboard-tonight-wake-thumb-pack');
+  const sleepMinusBtn = document.getElementById('dashboard-tonight-sleep-minus');
+  const sleepPlusBtn = document.getElementById('dashboard-tonight-sleep-plus');
+  const wakeMinusBtn = document.getElementById('dashboard-tonight-wake-minus');
+  const wakePlusBtn = document.getElementById('dashboard-tonight-wake-plus');
+  const recommendedDurationEl = document.getElementById('dashboard-tonight-recommended-duration');
+  const knobActionsSleep = document.getElementById('dashboard-tonight-knob-actions-sleep');
+  const knobActionsWake = document.getElementById('dashboard-tonight-knob-actions-wake');
+  const sleepSaveTargetBtn = document.getElementById('dashboard-tonight-sleep-save-target');
+  const sleepSaveGuidedBtn = document.getElementById('dashboard-tonight-sleep-save-guided');
+  const sleepUndoBtn = document.getElementById('dashboard-tonight-sleep-undo');
+  const wakeSaveTargetBtn = document.getElementById('dashboard-tonight-wake-save-target');
+  const wakeSaveGuidedBtn = document.getElementById('dashboard-tonight-wake-save-guided');
+  const wakeUndoBtn = document.getElementById('dashboard-tonight-wake-undo');
+  const clearTargetDialogInner = document.getElementById('dashboard-tonight-clear-target-dialog-inner');
+  const committedSleepTop = document.getElementById('dashboard-tonight-committed-sleep-top');
+  const committedWakeTop = document.getElementById('dashboard-tonight-committed-wake-top');
+  const savedTargetSleepBtn = document.getElementById('dashboard-tonight-saved-target-sleep-btn');
+  const savedTargetWakeBtn = document.getElementById('dashboard-tonight-saved-target-wake-btn');
   const clearTargetDialog = document.getElementById('dashboard-tonight-clear-target-dialog');
-  const clearTargetWakeBtn = document.getElementById('dashboard-tonight-clear-target-wake');
-  const clearTargetSleepBtn = document.getElementById('dashboard-tonight-clear-target-sleep');
-  const clearTargetBothBtn = document.getElementById('dashboard-tonight-clear-target-both');
+  const dlgClearYes = document.getElementById('dashboard-tonight-dlg-clear-yes');
   const clearTargetCancel = document.getElementById('dashboard-tonight-clear-target-cancel');
   const confirmDialogTitle = document.getElementById('dashboard-tonight-confirm-dialog-title');
   const confirmDialogSkp = document.getElementById('dashboard-tonight-confirm-dialog-skp');
+  const goalLinksSvg = document.getElementById('dashboard-tonight-goal-links-svg');
+  const goalPathSleepOutline = document.getElementById('dashboard-tonight-goal-path-sleep-outline');
+  const goalPathWakeOutline = document.getElementById('dashboard-tonight-goal-path-wake-outline');
+  const goalPathSleep = document.getElementById('dashboard-tonight-goal-path-sleep');
+  const goalPathWake = document.getElementById('dashboard-tonight-goal-path-wake');
+  const goalArrowSleep = document.getElementById('dashboard-tonight-goal-arrow-sleep');
+  const goalArrowWake = document.getElementById('dashboard-tonight-goal-arrow-wake');
   if (
     !root ||
     !panel ||
@@ -1606,17 +1648,26 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
     !wakeSlider ||
     !sleepLabel ||
     !wakeLabel ||
-    !sleepBaselineLabelEl ||
-    !wakeBaselineLabelEl ||
-    !toolbarBar ||
-    !dirtyHintEl ||
-    !saveTargetButton ||
-    !naturalAverageGhost ||
-    !undoButton ||
+    !sleepThumbPack ||
+    !wakeThumbPack ||
+    !sleepMinusBtn ||
+    !sleepPlusBtn ||
+    !wakeMinusBtn ||
+    !wakePlusBtn ||
+    !knobActionsSleep ||
+    !knobActionsWake ||
+    !sleepSaveTargetBtn ||
+    !sleepSaveGuidedBtn ||
+    !sleepUndoBtn ||
+    !wakeSaveTargetBtn ||
+    !wakeSaveGuidedBtn ||
+    !wakeUndoBtn ||
+    !committedSleepTop ||
+    !committedWakeTop ||
+    !savedTargetSleepBtn ||
+    !savedTargetWakeBtn ||
     !clearTargetDialog ||
-    !clearTargetWakeBtn ||
-    !clearTargetSleepBtn ||
-    !clearTargetBothBtn ||
+    !dlgClearYes ||
     !clearTargetCancel ||
     !confirmDialogTitle ||
     !confirmDialogSkp
@@ -1626,10 +1677,24 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
 
   let base = getTonightProjectionBaseState(recentAverages);
   let state = getTonightProjectionState(recentAverages);
-  /** @type {'save'|'update'|'clear'} */
-  let primaryAction = 'save';
-  /** @type {'clearTarget'|null} */
+  /** @type {'clearPole'|null} */
   let pendingConfirmKind = null;
+  /** @type {'sleep'|'wake'|null} */
+  let pendingClearPole = null;
+
+  function previewPoleMinuteChange(pole, delta) {
+    let sleepNorm = state.sleepNorm;
+    let wakeNorm = state.wakeNorm;
+    if (pole === 'sleep') sleepNorm += delta;
+    else wakeNorm += delta;
+    if (pole === 'sleep' && sleepNorm >= wakeNorm) {
+      sleepNorm = wakeNorm - TONIGHT_ADJUST_MIN_GAP_MINUTES;
+    } else if (pole === 'wake' && wakeNorm <= sleepNorm) {
+      wakeNorm = sleepNorm + TONIGHT_ADJUST_MIN_GAP_MINUTES;
+    }
+    const clamped = clampTonightProjectionNorms(base, sleepNorm, wakeNorm);
+    return pole === 'sleep' ? clamped.sleepNorm !== state.sleepNorm : clamped.wakeNorm !== state.wakeNorm;
+  }
 
   function applySliderBoundsFromBase() {
     sleepSlider.min = String(base.scopeStartNorm);
@@ -1647,10 +1712,37 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
     sliderWrap.style.setProperty('--tonight-wake-pct', `${wakePct}%`);
     sliderWrap.style.setProperty('--tonight-mid-pct', `${midPct}%`);
 
-    const recStartPct = ((base.recommendedSleepNorm - base.scopeStartNorm) / scopeSpan) * 100;
-    const recEndPct = ((base.recommendedWakeNorm - base.scopeStartNorm) / scopeSpan) * 100;
-    sliderWrap.style.setProperty('--tonight-rec-start-pct', `${recStartPct}%`);
-    sliderWrap.style.setProperty('--tonight-rec-end-pct', `${recEndPct}%`);
+    const wrapW = sliderWrap.getBoundingClientRect().width;
+    const loPct = Math.min(sleepPct, wakePct);
+    const hiPct = Math.max(sleepPct, wakePct);
+    let fillStartPct = loPct;
+    let fillEndPct = hiPct;
+    const recStartRaw = ((base.recommendedSleepNorm - base.scopeStartNorm) / scopeSpan) * 100;
+    const recEndRaw = ((base.recommendedWakeNorm - base.scopeStartNorm) / scopeSpan) * 100;
+    let recLo = Math.min(recStartRaw, recEndRaw);
+    let recHi = Math.max(recStartRaw, recEndRaw);
+    if (wrapW > 0) {
+      const insetPct = (TONIGHT_KNOB_OUTER_PX / 2 / wrapW) * 100;
+      const spanPct = hiPct - loPct;
+      const half = spanPct / 2;
+      const eps = 0.02;
+      const insetLeft = Math.min(insetPct, Math.max(0, half - eps));
+      const insetRight = Math.min(insetPct, Math.max(0, half - eps));
+      if (spanPct > 0) {
+        fillStartPct = loPct + insetLeft;
+        fillEndPct = hiPct - insetRight;
+        recLo = Math.max(recLo, fillStartPct);
+        recHi = Math.min(recHi, fillEndPct);
+        if (recLo >= recHi) {
+          recHi = recLo + 0.05;
+        }
+      }
+    }
+    sliderWrap.style.setProperty('--tonight-fill-start-pct', `${fillStartPct}%`);
+    sliderWrap.style.setProperty('--tonight-fill-end-pct', `${fillEndPct}%`);
+
+    sliderWrap.style.setProperty('--tonight-rec-start-pct', `${recLo}%`);
+    sliderWrap.style.setProperty('--tonight-rec-end-pct', `${recHi}%`);
 
     const committedSleepPct = ((base.committedSleepNorm - base.scopeStartNorm) / scopeSpan) * 100;
     const committedWakePct = ((base.committedWakeNorm - base.scopeStartNorm) / scopeSpan) * 100;
@@ -1675,79 +1767,253 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
 
     const sleepAdjusted = state.sleepClock !== base.committedSleep;
     const wakeAdjusted = state.wakeClock !== base.committedWake;
-    const guided = base.tonightGuidanceMode === 'guided';
+    const sleepGuidanceOn =
+      typeof getTonightGuidanceSleepEnabled === 'function' ? getTonightGuidanceSleepEnabled() : false;
+    const wakeGuidanceOn =
+      typeof getTonightGuidanceWakeEnabled === 'function' ? getTonightGuidanceWakeEnabled() : false;
     const sleepPoleGuided =
-      guided &&
+      sleepGuidanceOn &&
       base.savedTargetSleep != null &&
       modMinutes1440(base.committedSleep) !== modMinutes1440(base.savedTargetSleep);
     const wakePoleGuided =
-      guided &&
+      wakeGuidanceOn &&
       base.savedTargetWake != null &&
       modMinutes1440(base.committedWake) !== modMinutes1440(base.savedTargetWake);
     const sleepTxt = formatTime(state.sleepClock);
     const wakeTxt = formatTime(state.wakeClock);
-    sleepLabel.textContent = sleepPoleGuided && !sleepAdjusted ? '🧭 ' + sleepTxt : sleepTxt;
-    wakeLabel.textContent = wakePoleGuided && !wakeAdjusted ? '🧭 ' + wakeTxt : wakeTxt;
+    const sleepFromAverage = base.savedTargetSleep == null;
+    const wakeFromAverage = base.savedTargetWake == null;
+    sleepLabel.textContent =
+      sleepPoleGuided && !sleepAdjusted
+        ? '🧭 ' + sleepTxt
+        : sleepFromAverage && !sleepAdjusted
+          ? '🍃 ' + sleepTxt
+          : sleepTxt;
+    wakeLabel.textContent =
+      wakePoleGuided && !wakeAdjusted
+        ? '🧭 ' + wakeTxt
+        : wakeFromAverage && !wakeAdjusted
+          ? '🍃 ' + wakeTxt
+          : wakeTxt;
 
-    sleepBaselineLabelEl.textContent = formatTime(base.committedSleep);
-    wakeBaselineLabelEl.textContent = formatTime(base.committedWake);
+    let scheduleAria = tdT('dashboard.tonight.ariaScheduleBase', 'Tonight sleep and wake schedule.');
+    if (base.tonightGuidanceMode === 'guided') {
+      scheduleAria +=
+        ' ' +
+        tdT(
+          'dashboard.tonight.ariaGuidedHint',
+          'Compass on a time is tonight’s guided schedule. Lighter markers above the bar show saved targets where they still differ.'
+        );
+    }
+    if (sleepFromAverage || wakeFromAverage) {
+      const naturalBits = [];
+      if (sleepFromAverage) {
+        naturalBits.push(
+          tdT('dashboard.tonight.ariaSleepFromAverage', 'Sleep time follows your recent average (no saved sleep target).')
+        );
+      }
+      if (wakeFromAverage) {
+        naturalBits.push(
+          tdT('dashboard.tonight.ariaWakeFromAverage', 'Wake time follows your recent average (no saved wake target).')
+        );
+      }
+      if (naturalBits.length) scheduleAria += ' ' + naturalBits.join(' ');
+    }
+    sliderWrap.setAttribute('aria-label', scheduleAria);
 
     const duration = durationMinutes(state.sleepClock, state.wakeClock);
-    if (centerDurationEl) {
-      centerDurationEl.textContent = `~${formatDuration(duration)} sleep`;
+    const durationLabel = `~${formatDuration(duration)}`;
+    if (recommendedDurationEl) {
+      recommendedDurationEl.textContent = durationLabel;
     }
 
-    const hideBaselinesGuided = guided;
-    sleepBaselineLabelEl.classList.toggle(
-      'dashboard-tonight-adjust-baseline-label--hidden',
-      hideBaselinesGuided || !sleepAdjusted
-    );
-    wakeBaselineLabelEl.classList.toggle(
-      'dashboard-tonight-adjust-baseline-label--hidden',
-      hideBaselinesGuided || !wakeAdjusted
-    );
     root.classList.toggle('dashboard-tonight-projection--adjusted', state.isAdjusted);
 
-    if (savedTargetSleepGhost && savedTargetWakeGhost) {
-      const showSleepGhost = base.savedTargetSleep != null;
-      const showWakeGhost = base.savedTargetWake != null;
-      savedTargetSleepGhost.textContent = showSleepGhost ? '🎯 ' + formatTime(base.savedTargetSleep) : '';
-      savedTargetWakeGhost.textContent = showWakeGhost ? '🎯 ' + formatTime(base.savedTargetWake) : '';
-      savedTargetSleepGhost.classList.toggle('dashboard-tonight-adjust-saved-target-ghost--hidden', !showSleepGhost);
-      savedTargetWakeGhost.classList.toggle('dashboard-tonight-adjust-saved-target-ghost--hidden', !showWakeGhost);
-    }
-
-    undoButton.disabled = !state.isAdjusted;
-
-    const hasTarget = base.hasSavedTonightTarget;
     const sleepMergeDirty = modMinutes1440(state.sleepClock) !== modMinutes1440(base.committedSleep);
     const wakeMergeDirty = modMinutes1440(state.wakeClock) !== modMinutes1440(base.committedWake);
     const mergeDirty = sleepMergeDirty || wakeMergeDirty;
 
-    const hintEmojis = [];
-    if (sleepMergeDirty) hintEmojis.push('🌙');
-    if (wakeMergeDirty) hintEmojis.push('🌅');
-    dirtyHintEl.textContent = mergeDirty ? hintEmojis.join(' ') : '';
-    toolbarBar.classList.toggle('quick-add-page-toolbar__bar--dirty', mergeDirty);
-    saveTargetButton.classList.toggle('quick-add-toolbar-btn--dirty', mergeDirty);
-
-    if (mergeDirty) {
-      primaryAction = hasTarget ? 'update' : 'save';
-      saveTargetButton.textContent = hasTarget
-        ? tdT('dashboard.tonight.saveUpdates', 'Save updates')
-        : tdT('dashboard.tonight.saveAsTarget', 'Save as target');
-      saveTargetButton.disabled = false;
-    } else if (hasTarget) {
-      primaryAction = 'clear';
-      saveTargetButton.textContent = tdT('dashboard.tonight.clearTarget', 'Clear target');
-      saveTargetButton.disabled = false;
-    } else {
-      primaryAction = 'save';
-      saveTargetButton.textContent = tdT('dashboard.tonight.saveAsTarget', 'Save as target');
-      saveTargetButton.disabled = true;
+    if (committedSleepTop && committedWakeTop) {
+      const showSleepCommittedGhost = sleepMergeDirty && base.savedTargetSleep == null;
+      const showWakeCommittedGhost = wakeMergeDirty && base.savedTargetWake == null;
+      committedSleepTop.innerHTML = showSleepCommittedGhost
+        ? '<span class="dashboard-tonight-committed-ghost-time">' + formatTime(base.committedSleep) + '</span>'
+        : '';
+      committedWakeTop.innerHTML = showWakeCommittedGhost
+        ? '<span class="dashboard-tonight-committed-ghost-time">' + formatTime(base.committedWake) + '</span>'
+        : '';
+      committedSleepTop.classList.toggle('dashboard-tonight-adjust-committed-ghost--hidden', !showSleepCommittedGhost);
+      committedWakeTop.classList.toggle('dashboard-tonight-adjust-committed-ghost--hidden', !showWakeCommittedGhost);
     }
 
-    naturalAverageGhost.classList.toggle('dashboard-tonight-adjust-natural-ghost--hidden', hasTarget);
+    const canTapTargets = !state.isAdjusted;
+    const showSleepSavedBtn = base.savedTargetSleep != null;
+    const showWakeSavedBtn = base.savedTargetWake != null;
+    if (savedTargetSleepBtn && savedTargetWakeBtn) {
+      savedTargetSleepBtn.innerHTML = showSleepSavedBtn
+        ? '<span class="dashboard-tonight-saved-target-ico" aria-hidden="true">🎯</span><span class="dashboard-tonight-saved-target-time">' +
+          formatTime(base.savedTargetSleep) +
+          '</span>'
+        : '';
+      savedTargetWakeBtn.innerHTML = showWakeSavedBtn
+        ? '<span class="dashboard-tonight-saved-target-ico" aria-hidden="true">🎯</span><span class="dashboard-tonight-saved-target-time">' +
+          formatTime(base.savedTargetWake) +
+          '</span>'
+        : '';
+      savedTargetSleepBtn.classList.toggle('dashboard-tonight-saved-target-btn--hidden', !showSleepSavedBtn);
+      savedTargetWakeBtn.classList.toggle('dashboard-tonight-saved-target-btn--hidden', !showWakeSavedBtn);
+      savedTargetSleepBtn.disabled = !canTapTargets;
+      savedTargetWakeBtn.disabled = !canTapTargets;
+      savedTargetSleepBtn.classList.toggle('dashboard-tonight-saved-target-btn--dim', !canTapTargets && showSleepSavedBtn);
+      savedTargetWakeBtn.classList.toggle('dashboard-tonight-saved-target-btn--dim', !canTapTargets && showWakeSavedBtn);
+    }
+
+    knobActionsSleep.classList.toggle('dashboard-tonight-knob-actions--visible', sleepMergeDirty);
+    knobActionsWake.classList.toggle('dashboard-tonight-knob-actions--visible', wakeMergeDirty);
+    if (sleepMergeDirty) knobActionsSleep.removeAttribute('inert');
+    else knobActionsSleep.setAttribute('inert', '');
+    if (wakeMergeDirty) knobActionsWake.removeAttribute('inert');
+    else knobActionsWake.setAttribute('inert', '');
+    sleepUndoBtn.disabled = !sleepMergeDirty;
+    wakeUndoBtn.disabled = !wakeMergeDirty;
+
+    sleepThumbPack.classList.toggle('dashboard-tonight-adjust-thumb-pack--dirty', sleepMergeDirty);
+    wakeThumbPack.classList.toggle('dashboard-tonight-adjust-thumb-pack--dirty', wakeMergeDirty);
+    sleepMinusBtn.disabled = !sleepMergeDirty || !previewPoleMinuteChange('sleep', -1);
+    sleepPlusBtn.disabled = !sleepMergeDirty || !previewPoleMinuteChange('sleep', 1);
+    wakeMinusBtn.disabled = !wakeMergeDirty || !previewPoleMinuteChange('wake', -1);
+    wakePlusBtn.disabled = !wakeMergeDirty || !previewPoleMinuteChange('wake', 1);
+
+    sleepSaveGuidedBtn.hidden = sleepGuidanceOn;
+    wakeSaveGuidedBtn.hidden = wakeGuidanceOn;
+    if (sleepGuidanceOn) sleepSaveGuidedBtn.setAttribute('inert', '');
+    else sleepSaveGuidedBtn.removeAttribute('inert');
+    if (wakeGuidanceOn) wakeSaveGuidedBtn.setAttribute('inert', '');
+    else wakeSaveGuidedBtn.removeAttribute('inert');
+
+    if (goalLinksSvg && goalPathSleep && goalPathWake && goalArrowSleep && goalArrowWake) {
+      requestAnimationFrame(function updateTonightGoalLinks() {
+        if (!goalLinksSvg || !goalPathSleep || !goalPathWake || !goalArrowSleep || !goalArrowWake || !sliderWrap) return;
+        const svgRect = goalLinksSvg.getBoundingClientRect();
+        if (svgRect.width < 1 || svgRect.height < 1) return;
+
+        function thumbCenterToSvg(sliderEl) {
+          const r = sliderEl.getBoundingClientRect();
+          const min = parseFloat(sliderEl.min, 10);
+          const max = parseFloat(sliderEl.max, 10);
+          const val = parseFloat(sliderEl.value, 10);
+          const span = max - min || 1;
+          const t = (val - min) / span;
+          return {
+            x: r.left + t * r.width - svgRect.left,
+            y: r.top + r.height / 2 - svgRect.top
+          };
+        }
+
+        function ghostTimeVisible(el) {
+          return (
+            el &&
+            !el.classList.contains('dashboard-tonight-adjust-committed-ghost--hidden') &&
+            String(el.textContent || '').trim() !== ''
+          );
+        }
+
+        function chipTimeRect(hostEl) {
+          if (!hostEl) return null;
+          const span = hostEl.querySelector('.dashboard-tonight-saved-target-time, .dashboard-tonight-committed-ghost-time');
+          const el = span || hostEl;
+          return el.getBoundingClientRect();
+        }
+
+        /**
+         * Vertical arrow aims at the rendered clock string (not chip center). Dotted arc: duplicate outline path
+         * for a thin halo; leaves knob horizontally then sweeps up to the arrow base.
+         */
+        function setGoalLink(pathOutline, path, arrow, mergeDirty, poleGuided, savedNorm, sliderEl, targetBtn, ghostEl) {
+          const btnOk =
+            targetBtn && savedNorm != null && !targetBtn.classList.contains('dashboard-tonight-saved-target-btn--hidden');
+          const show = !mergeDirty && poleGuided && btnOk;
+          if (!show) {
+            path.setAttribute('d', '');
+            path.setAttribute('opacity', '0');
+            if (pathOutline) {
+              pathOutline.setAttribute('d', '');
+              pathOutline.setAttribute('opacity', '0');
+            }
+            arrow.setAttribute('points', '');
+            arrow.setAttribute('opacity', '0');
+            return;
+          }
+          const K = thumbCenterToSvg(sliderEl);
+          const arEl = ghostTimeVisible(ghostEl) ? ghostEl : targetBtn;
+          const tr = chipTimeRect(arEl);
+          if (!tr || tr.width < 1) {
+            path.setAttribute('d', '');
+            path.setAttribute('opacity', '0');
+            if (pathOutline) {
+              pathOutline.setAttribute('d', '');
+              pathOutline.setAttribute('opacity', '0');
+            }
+            arrow.setAttribute('points', '');
+            arrow.setAttribute('opacity', '0');
+            return;
+          }
+          const arrowLen = 9;
+          const halfW = 5.5;
+          const inset = 0.75;
+
+          const mx = tr.left + tr.width / 2 - svgRect.left;
+          const tipY = tr.bottom - svgRect.top - inset;
+          const T = { x: mx, y: tipY };
+          const B = { x: mx, y: tipY + arrowLen };
+          const arrowPoints = `${T.x},${T.y} ${T.x - halfW},${B.y} ${T.x + halfW},${B.y}`;
+
+          const arcMidSvg = tr.left + tr.width / 2 - svgRect.left;
+          const leaveLeft = arcMidSvg <= K.x;
+          const sideSign = leaveLeft ? -1 : 1;
+          const dist = Math.hypot(B.x - K.x, B.y - K.y) || 1;
+          const horizontalLead = Math.min(56, Math.max(22, dist * 0.32));
+          const verticalLead = Math.min(52, Math.max(18, dist * 0.28));
+          const c1x = K.x + sideSign * horizontalLead;
+          const c1y = K.y;
+          const c2x = B.x;
+          const c2y = B.y + verticalLead;
+
+          const dPath = `M ${K.x} ${K.y} C ${c1x} ${c1y} ${c2x} ${c2y} ${B.x} ${B.y}`;
+          path.setAttribute('d', dPath);
+          path.setAttribute('opacity', '0.7');
+          if (pathOutline) {
+            pathOutline.setAttribute('d', '');
+            pathOutline.setAttribute('opacity', '0');
+          }
+          arrow.setAttribute('points', arrowPoints);
+          arrow.setAttribute('opacity', '0.85');
+        }
+
+        setGoalLink(
+          goalPathSleepOutline,
+          goalPathSleep,
+          goalArrowSleep,
+          sleepMergeDirty,
+          sleepPoleGuided,
+          base.savedTargetSleep,
+          sleepSlider,
+          savedTargetSleepBtn,
+          committedSleepTop
+        );
+        setGoalLink(
+          goalPathWakeOutline,
+          goalPathWake,
+          goalArrowWake,
+          wakeMergeDirty,
+          wakePoleGuided,
+          base.savedTargetWake,
+          wakeSlider,
+          savedTargetWakeBtn,
+          committedWakeTop
+        );
+      });
+    }
 
     if (persistOverride && typeof setTonightProjectionAdjustment === 'function' && typeof clearTonightProjectionAdjustment === 'function') {
       if (state.isAdjusted) {
@@ -1781,6 +2047,30 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
       wakeClock: modMinutes1440(clamped.wakeNorm)
     };
     state.isAdjusted = state.sleepClock !== base.committedSleep || state.wakeClock !== base.committedWake;
+    updateVisualState(true);
+  }
+
+  function applyPoleMinuteDelta(pole, delta) {
+    let sleepNorm = state.sleepNorm;
+    let wakeNorm = state.wakeNorm;
+    if (pole === 'sleep') sleepNorm += delta;
+    else wakeNorm += delta;
+    if (pole === 'sleep' && sleepNorm >= wakeNorm) {
+      sleepNorm = wakeNorm - TONIGHT_ADJUST_MIN_GAP_MINUTES;
+    } else if (pole === 'wake' && wakeNorm <= sleepNorm) {
+      wakeNorm = sleepNorm + TONIGHT_ADJUST_MIN_GAP_MINUTES;
+    }
+    const clamped = clampTonightProjectionNorms(base, sleepNorm, wakeNorm);
+    state = {
+      ...state,
+      sleepNorm: clamped.sleepNorm,
+      wakeNorm: clamped.wakeNorm,
+      sleepClock: modMinutes1440(clamped.sleepNorm),
+      wakeClock: modMinutes1440(clamped.wakeNorm)
+    };
+    state.isAdjusted = state.sleepClock !== base.committedSleep || state.wakeClock !== base.committedWake;
+    sleepSlider.value = String(state.sleepNorm);
+    wakeSlider.value = String(state.wakeNorm);
     updateVisualState(true);
   }
 
@@ -1872,9 +2162,11 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
     updateFromSliders('wake');
   });
 
-  function revertToCommitted() {
+  function revertPoleToCommitted(pole) {
     if (typeof clearTonightProjectionAdjustment === 'function') clearTonightProjectionAdjustment();
-    const clamped = clampTonightProjectionNorms(base, base.committedSleepNorm, base.committedWakeNorm);
+    const sleepNorm = pole === 'sleep' ? base.committedSleepNorm : state.sleepNorm;
+    const wakeNorm = pole === 'wake' ? base.committedWakeNorm : state.wakeNorm;
+    const clamped = clampTonightProjectionNorms(base, sleepNorm, wakeNorm);
     state = {
       ...state,
       sleepNorm: clamped.sleepNorm,
@@ -1882,8 +2174,31 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
       sleepClock: modMinutes1440(clamped.sleepNorm),
       wakeClock: modMinutes1440(clamped.wakeNorm)
     };
-    state.isAdjusted = false;
-    updateVisualState(false);
+    state.isAdjusted = state.sleepClock !== base.committedSleep || state.wakeClock !== base.committedWake;
+    updateVisualState(true);
+  }
+
+  function saveTonightDirtyAdjustments(mode) {
+    const sleepMergeDirty = modMinutes1440(state.sleepClock) !== modMinutes1440(base.committedSleep);
+    const wakeMergeDirty = modMinutes1440(state.wakeClock) !== modMinutes1440(base.committedWake);
+    if (!sleepMergeDirty && !wakeMergeDirty) return;
+    const prevSleepG =
+      typeof getTonightGuidanceSleepEnabled === 'function' ? getTonightGuidanceSleepEnabled() : false;
+    const prevWakeG =
+      typeof getTonightGuidanceWakeEnabled === 'function' ? getTonightGuidanceWakeEnabled() : false;
+    if (mode === 'enable') {
+      if (sleepMergeDirty && typeof setTonightGuidanceSleepEnabled === 'function') setTonightGuidanceSleepEnabled(true);
+      if (wakeMergeDirty && typeof setTonightGuidanceWakeEnabled === 'function') setTonightGuidanceWakeEnabled(true);
+    }
+    runTonightMergeSave(sleepMergeDirty, wakeMergeDirty);
+    if (mode === 'preserve') {
+      if (sleepMergeDirty && typeof setTonightGuidanceSleepEnabled === 'function') setTonightGuidanceSleepEnabled(prevSleepG);
+      if (wakeMergeDirty && typeof setTonightGuidanceWakeEnabled === 'function') setTonightGuidanceWakeEnabled(prevWakeG);
+    }
+    requestAnimationFrame(function () {
+      updateVisualState(false);
+    });
+    sleepSlider.focus();
   }
 
   function refreshAfterTonightStorageChange() {
@@ -1895,46 +2210,45 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
   }
 
   function performClearPole(pole) {
-    if (pole === 'both' && typeof clearTonightTargetWindow === 'function') clearTonightTargetWindow();
-    else if (pole === 'sleep' && typeof clearTonightTargetPole === 'function') clearTonightTargetPole('sleep');
+    if (pole === 'sleep' && typeof clearTonightTargetPole === 'function') clearTonightTargetPole('sleep');
     else if (pole === 'wake' && typeof clearTonightTargetPole === 'function') clearTonightTargetPole('wake');
     refreshAfterTonightStorageChange();
     showAppToast(tdT('dashboard.tonight.toastCleared', 'Tonight target cleared'));
   }
 
-  function openTonightConfirmDialog(kind) {
-    pendingConfirmKind = kind;
-    if (kind !== 'clearTarget') return;
-    confirmDialogTitle.textContent = tdT(
-      'dashboard.tonight.clearTitle',
-      'Are you sure you want to clear your target?'
-    );
+  function hideAllDialogActions() {
+    dlgClearYes.hidden = true;
+    if (clearTargetDialogInner) clearTargetDialogInner.classList.remove('dashboard-tonight-clear-target-dialog-inner--save-menu');
+  }
+
+  function openTonightClearPoleDialog(pole) {
+    pendingConfirmKind = 'clearPole';
+    pendingClearPole = pole;
+    hideAllDialogActions();
     confirmDialogSkp.hidden = true;
     confirmDialogSkp.innerHTML = '';
-    const hs = base.savedTargetSleep != null;
-    const hw = base.savedTargetWake != null;
-    clearTargetWakeBtn.hidden = !hw;
-    clearTargetSleepBtn.hidden = !hs;
-    clearTargetBothBtn.hidden = !(hs && hw);
-    clearTargetWakeBtn.innerHTML =
-      '<span class="proj-keyword proj-wake" data-i18n="dashboard.tonight.clearWakeHtml">' +
-      tdT('dashboard.tonight.clearWakeHtml', '🌅 Yes, clear my wake target') +
-      '</span>';
-    clearTargetSleepBtn.innerHTML =
-      '<span class="proj-keyword proj-sleep" data-i18n="dashboard.tonight.clearSleepHtml">' +
-      tdT('dashboard.tonight.clearSleepHtml', '🌙 Yes, clear my sleep target') +
-      '</span>';
-    clearTargetBothBtn.textContent = tdT('dashboard.tonight.clearBoth', 'Yes, clear both targets');
-    clearTargetCancel.textContent = tdT('dashboard.tonight.clearLeave', 'No, leave my targets');
+    while (confirmDialogTitle.firstChild) confirmDialogTitle.removeChild(confirmDialogTitle.firstChild);
+    const lead = tdT('dashboard.tonight.clearPoleLead', 'Clear your ');
+    confirmDialogTitle.appendChild(document.createTextNode(lead));
+    const skpSpan = document.createElement('span');
+    skpSpan.className = pole === 'sleep' ? 'proj-keyword proj-sleep' : 'proj-keyword proj-wake';
+    skpSpan.textContent =
+      pole === 'sleep' ? tdT('dashboard.tonight.sleepTargetSkp', '🌙 Sleep') : tdT('dashboard.tonight.wakeTargetSkp', '🌅 Wake');
+    confirmDialogTitle.appendChild(skpSpan);
+    confirmDialogTitle.appendChild(document.createTextNode(tdT('dashboard.tonight.clearPoleTrail', ' target?')));
+    dlgClearYes.hidden = false;
+    dlgClearYes.textContent = tdT('dashboard.tonight.clearTargetYesShort', 'Yes, clear my target');
+    clearTargetCancel.textContent = tdT('dashboard.tonight.clearLeaveSingle', 'No, leave my target');
+    clearTargetDialog.removeAttribute('aria-label');
+    clearTargetDialog.setAttribute('aria-labelledby', 'dashboard-tonight-confirm-dialog-title');
     clearTargetDialog.showModal();
   }
 
   clearTargetDialog.addEventListener('close', function () {
     pendingConfirmKind = null;
-  });
-
-  undoButton.addEventListener('click', function () {
-    revertToCommitted();
+    pendingClearPole = null;
+    clearTargetDialog.removeAttribute('aria-label');
+    clearTargetDialog.setAttribute('aria-labelledby', 'dashboard-tonight-confirm-dialog-title');
   });
 
   function finishTonightSave(toastKey, toastFallback) {
@@ -1959,45 +2273,112 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
     );
   }
 
-  saveTargetButton.addEventListener('click', function () {
-    if (primaryAction === 'clear') {
-      openTonightConfirmDialog('clearTarget');
-      return;
-    }
-    if (primaryAction === 'save' || primaryAction === 'update') {
-      const sleepMergeDirty = modMinutes1440(state.sleepClock) !== modMinutes1440(base.committedSleep);
-      const wakeMergeDirty = modMinutes1440(state.wakeClock) !== modMinutes1440(base.committedWake);
-      runTonightMergeSave(sleepMergeDirty, wakeMergeDirty);
-    }
-  });
-
-  clearTargetWakeBtn.addEventListener('click', function () {
-    const kind = pendingConfirmKind;
-    if (kind === 'clearTarget' && !clearTargetWakeBtn.hidden) {
-      performClearPole('wake');
-      clearTargetDialog.close();
-      saveTargetButton.focus();
-    }
-  });
-  clearTargetSleepBtn.addEventListener('click', function () {
-    const kind = pendingConfirmKind;
-    if (kind === 'clearTarget' && !clearTargetSleepBtn.hidden) {
-      performClearPole('sleep');
-      clearTargetDialog.close();
-      saveTargetButton.focus();
-    }
-  });
-  clearTargetBothBtn.addEventListener('click', function () {
-    const kind = pendingConfirmKind;
-    if (kind !== 'clearTarget') return;
-    performClearPole('both');
+  dlgClearYes.addEventListener('click', function () {
+    if (pendingConfirmKind !== 'clearPole' || !pendingClearPole) return;
+    const pole = pendingClearPole;
+    performClearPole(pole);
     clearTargetDialog.close();
-    saveTargetButton.focus();
+    if (pole === 'sleep' && savedTargetSleepBtn) savedTargetSleepBtn.focus();
+    else if (savedTargetWakeBtn) savedTargetWakeBtn.focus();
   });
 
   clearTargetCancel.addEventListener('click', function () {
     clearTargetDialog.close();
   });
+
+  function bindTargetClearClick(btn, pole) {
+    function tryOpenClear(e) {
+      if (state.isAdjusted) return;
+      if (pole === 'sleep' && base.savedTargetSleep == null) return;
+      if (pole === 'wake' && base.savedTargetWake == null) return;
+      if (e.type === 'keydown') e.preventDefault();
+      openTonightClearPoleDialog(pole);
+    }
+    btn.addEventListener('click', tryOpenClear);
+    btn.addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      tryOpenClear(e);
+    });
+  }
+  if (!savedTargetSleepBtn.dataset.tonightClearClickBound) {
+    savedTargetSleepBtn.dataset.tonightClearClickBound = '1';
+    bindTargetClearClick(savedTargetSleepBtn, 'sleep');
+  }
+  if (!savedTargetWakeBtn.dataset.tonightClearClickBound) {
+    savedTargetWakeBtn.dataset.tonightClearClickBound = '1';
+    bindTargetClearClick(savedTargetWakeBtn, 'wake');
+  }
+
+  sleepSaveTargetBtn.addEventListener('click', function () {
+    saveTonightDirtyAdjustments('preserve');
+  });
+  sleepSaveTargetBtn.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    saveTonightDirtyAdjustments('preserve');
+  });
+  sleepSaveGuidedBtn.addEventListener('click', function () {
+    if (typeof getTonightGuidanceSleepEnabled === 'function' && getTonightGuidanceSleepEnabled()) return;
+    saveTonightDirtyAdjustments('enable');
+  });
+  sleepSaveGuidedBtn.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    if (typeof getTonightGuidanceSleepEnabled === 'function' && getTonightGuidanceSleepEnabled()) return;
+    saveTonightDirtyAdjustments('enable');
+  });
+  sleepUndoBtn.addEventListener('click', function () {
+    revertPoleToCommitted('sleep');
+  });
+  sleepUndoBtn.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    revertPoleToCommitted('sleep');
+  });
+  wakeSaveTargetBtn.addEventListener('click', function () {
+    saveTonightDirtyAdjustments('preserve');
+  });
+  wakeSaveTargetBtn.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    saveTonightDirtyAdjustments('preserve');
+  });
+  wakeSaveGuidedBtn.addEventListener('click', function () {
+    if (typeof getTonightGuidanceWakeEnabled === 'function' && getTonightGuidanceWakeEnabled()) return;
+    saveTonightDirtyAdjustments('enable');
+  });
+  wakeSaveGuidedBtn.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    if (typeof getTonightGuidanceWakeEnabled === 'function' && getTonightGuidanceWakeEnabled()) return;
+    saveTonightDirtyAdjustments('enable');
+  });
+  wakeUndoBtn.addEventListener('click', function () {
+    revertPoleToCommitted('wake');
+  });
+  wakeUndoBtn.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    revertPoleToCommitted('wake');
+  });
+
+  function bindMinuteStep(btn, pole, delta) {
+    btn.addEventListener('mousedown', function (e) {
+      e.stopPropagation();
+    });
+    btn.addEventListener('click', function () {
+      const mergeDirty =
+        pole === 'sleep'
+          ? modMinutes1440(state.sleepClock) !== modMinutes1440(base.committedSleep)
+          : modMinutes1440(state.wakeClock) !== modMinutes1440(base.committedWake);
+      if (!mergeDirty) return;
+      applyPoleMinuteDelta(pole, delta);
+    });
+  }
+  bindMinuteStep(sleepMinusBtn, 'sleep', -1);
+  bindMinuteStep(sleepPlusBtn, 'sleep', 1);
+  bindMinuteStep(wakeMinusBtn, 'wake', -1);
+  bindMinuteStep(wakePlusBtn, 'wake', 1);
 
   sliderOverlay.addEventListener('mousedown', onPointerDown);
   sliderOverlay.addEventListener('touchstart', onPointerDown, { passive: false });
@@ -2009,6 +2390,9 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
 
   applySliderBoundsFromBase();
   updateVisualState(false);
+  requestAnimationFrame(function () {
+    updateVisualState(false);
+  });
 }
 
 // Render dashboard content: projection, recent average, lifetime average, recent nightlies (timeline rows), sleep quality history.

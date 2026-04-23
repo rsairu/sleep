@@ -37,6 +37,7 @@ This matches `loadSleepDataUsesSupabase(config)` in `sleep-utils.js`. If the use
 | Sleep data cache | localStorage `restore_sleep_data_cache_v1` | Snapshot of last loaded sleep payload + cache key. |
 | Tonight session slider tweak | `sleep-app-tonight-projection-adjustment` (localStorage) | Optional overlay on top of averages or saved target; cleared when you **save** Tonight targets on the dashboard. |
 | Tonight saved targets (sleep and/or wake) | `public.user_settings` + `sleep-app-tonight-target-window` (localStorage mirror) | Nullable integer minutes 0–1439 per column; JSON may set one or both poles (`null` omits a pole). Removed when both cleared. Drives Tonight thumbs and `getTonightWakePhaseBasisFromDays` before the session tweak. |
+| In-app tips (Dashboard “i” for Quick actions / Tonight) | `public.user_settings` `hint_quick_actions_about`, `hint_tonight_about` + localStorage mirrors | Booleans default `true`; dismissed state mirrored with `'0'` keys (see mapping table). |
 | Dev banner, app-time simulation, QA flags | localStorage only | Not cloud-synced. |
 
 ---
@@ -52,11 +53,14 @@ This matches `loadSleepDataUsesSupabase(config)` in `sleep-utils.js`. If the use
 | `quality_palette` | `sleep-app-quality-palette`; `meadow` / `harbor` / `auto` (app and DB default: `auto`). |
 | `remaining_wake_open_min` / `remaining_wake_winding_min` | JSON in `sleep-app-remaining-wake-thresholds`; must satisfy `openMin > windingMin` (matches DB check). |
 | `remaining_wake_phase_heads_up_mins` | `sleep-app-remaining-wake-phase-heads-up-mins`; allowed 0, 15, 30, 45, 60. |
-| `tonight_target_sleep_min` / `tonight_target_wake_min` | `sleep-app-tonight-target-window` JSON `{ sleep, wake }` (each optional `null`; minutes 0–1439); removed when both poles cleared. |
-| `tonight_guidance_enabled` | `sleep-app-tonight-guidance-enabled`; `'1'` when on, key absent when off. |
-| `tonight_guidance_pace` | `sleep-app-tonight-guidance-pace`; `'gentle'` / `'normal'` / `'steady'` (default `gentle`). |
+| `tonight_target_sleep_min` / `tonight_target_wake_min` | `sleep-app-tonight-target-window` JSON `{ sleep, wake }` (each optional `null`; minutes 0–1439); removed when both poles cleared. Older Supabase DBs may have `user_settings_tonight_target_pair_ck` (both null or both non-null); apply `supabase/migrations/20260424_user_settings_tonight_target_partial.sql` so single-pole targets can sync. When both columns are set, they must still differ (`user_settings_tonight_target_wake_neq_sleep_ck`). |
+| `tonight_guidance_sleep_enabled` | `sleep-app-tonight-guidance-sleep-enabled`; `'1'` when sleep-target guidance is on, key absent when off. |
+| `tonight_guidance_wake_enabled` | `sleep-app-tonight-guidance-wake-enabled`; `'1'` when wake-target guidance is on, key absent when off. |
+| `tonight_guidance_pace` | `sleep-app-tonight-guidance-pace`; `'gentle'` / `'normal'` / `'steady'` (default `gentle`; shared cap when either pole is guided). |
+| `hint_quick_actions_about` | `sleep-app-hint-quick-actions-about`; `'0'` when the user dismissed the Dashboard Quick actions “i” link; key absent = show hint (matches DB default `true`). |
+| `hint_tonight_about` | `sleep-app-hint-tonight-about`; `'0'` when dismissed; key absent = show hint (DB default `true`). |
 
-Helpers: `localUserSettingsToRow`, `userSettingsRowToLocalStorage`, `fetchUserSettings`, `upsertUserSettings`, `getTonightTargetWindow`, `setTonightTargetWindow`, `mergeTonightTargetWindow`, `clearTonightTargetWindow`, `clearTonightTargetPole`, `getTonightGuidanceEnabled`, `setTonightGuidanceEnabled`, `getTonightGuidancePaceId`, `setTonightGuidancePaceId`, `resolveTonightScheduledWindow`, `getTonightWakePhaseBasisFromDays`.
+Helpers: `localUserSettingsToRow`, `userSettingsRowToLocalStorage`, `fetchUserSettings`, `upsertUserSettings`, `getTonightTargetWindow`, `setTonightTargetWindow`, `mergeTonightTargetWindow`, `clearTonightTargetWindow`, `clearTonightTargetPole`, `getTonightGuidanceSleepEnabled`, `setTonightGuidanceSleepEnabled`, `getTonightGuidanceWakeEnabled`, `setTonightGuidanceWakeEnabled`, `getTonightGuidancePaceId`, `setTonightGuidancePaceId`, `getHintQuickActionsAbout`, `getHintTonightAbout`, `setHintQuickActionsAboutVisible`, `setHintTonightAboutVisible`, `initDashboardHintsSettingsControls`, `initAboutDashboardHintDismissButtons`, `resolveTonightScheduledWindow`, `getTonightWakePhaseBasisFromDays`.
 
 ---
 

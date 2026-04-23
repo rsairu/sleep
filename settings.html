@@ -86,7 +86,19 @@
       <p class="section-intro">
         <a href="about.html#tonight-guidance" class="content-link" data-i18n="config.tonightGuidance.link">More about Tonight guidance</a>
       </p>
-      <div id="config-tonight-guidance" class="about-theme" role="group" aria-label="Tonight guidance on or off" data-i18n-aria-label="config.tonightGuidance.toggleAria">
+      <h3 class="section-subtitle" id="config-tonight-guidance-sleep-title" data-i18n="config.tonightGuidance.sleepGuidanceTitle">Sleep target guidance</h3>
+      <p class="section-intro" data-i18n="config.tonightGuidance.sleepGuidanceIntro">When on, your scheduled sleep time eases from your recent average toward a saved sleep target (shared pace below).</p>
+      <div id="config-tonight-guidance-sleep" class="about-theme" role="group" aria-label="Tonight sleep target guidance on or off" data-i18n-aria-label="config.tonightGuidance.sleepToggleAria">
+        <button type="button" class="about-theme-option" data-tonight-guidance-on="0" aria-pressed="true">
+          <span data-i18n="config.tonightGuidance.off">Off</span>
+        </button>
+        <button type="button" class="about-theme-option" data-tonight-guidance-on="1" aria-pressed="false">
+          <span data-i18n="config.tonightGuidance.on">On</span>
+        </button>
+      </div>
+      <h3 class="section-subtitle" id="config-tonight-guidance-wake-title" data-i18n="config.tonightGuidance.wakeGuidanceTitle">Wake target guidance</h3>
+      <p class="section-intro" data-i18n="config.tonightGuidance.wakeGuidanceIntro">When on, your scheduled wake time eases from your recent average toward a saved wake target (shared pace below).</p>
+      <div id="config-tonight-guidance-wake" class="about-theme" role="group" aria-label="Tonight wake target guidance on or off" data-i18n-aria-label="config.tonightGuidance.wakeToggleAria">
         <button type="button" class="about-theme-option" data-tonight-guidance-on="0" aria-pressed="true">
           <span data-i18n="config.tonightGuidance.off">Off</span>
         </button>
@@ -95,7 +107,7 @@
         </button>
       </div>
       <h3 class="section-subtitle" id="config-tonight-guidance-pace-title" data-i18n="config.tonightGuidance.paceTitle">Guided pace</h3>
-      <p class="section-intro" data-i18n="config.tonightGuidance.paceIntro">How many minutes per day the schedule may shift toward your target (each of sleep and wake).</p>
+      <p class="section-intro" data-i18n="config.tonightGuidance.paceIntro">How many minutes per day each guided pole may shift toward its saved target.</p>
       <div id="config-tonight-guidance-pace" class="config-tonight-guidance-pace-wrap" role="group" aria-label="Tonight guidance pace" data-i18n-aria-label="config.tonightGuidance.paceAria">
         <div class="config-rw-heads-up-slider-wrap">
           <div class="config-rw-heads-up-slider-endpoints" aria-hidden="true">
@@ -137,6 +149,28 @@
     </p>
     <div id="remaining-wake-mount"></div>
 
+    <div id="config-in-app-tips-section">
+      <h2 class="section-title" id="in-app-tips" data-i18n="config.inAppTips.title">In-app tips</h2>
+      <p class="section-intro" data-i18n="config.inAppTips.intro">
+        The small “i” next to Quick actions or Tonight on the Dashboard jumps to the matching section in About. Use the eye control for each line to show or hide that tip on the Dashboard.
+      </p>
+      <ul class="config-in-app-tips-list" role="list" data-i18n-aria-label="config.inAppTips.listAria" aria-label="In-app tips visibility">
+        <li class="config-in-app-tips-list__row">
+          <span class="config-in-app-tips-list__label" data-i18n="config.inAppTips.rowQuick">Quick actions tip</span>
+          <button type="button" class="config-in-app-tip-eye-btn" id="config-in-app-tip-eye-quick" aria-pressed="true"></button>
+        </li>
+        <li class="config-in-app-tips-list__row">
+          <span class="config-in-app-tips-list__label" data-i18n="config.inAppTips.rowTonight">Tonight section tip</span>
+          <button type="button" class="config-in-app-tip-eye-btn" id="config-in-app-tip-eye-tonight" aria-pressed="true"></button>
+        </li>
+        <li class="config-in-app-tips-list__row config-in-app-tips-list__row--all">
+          <span class="config-in-app-tips-list__label" data-i18n="config.inAppTips.rowAll">All tips</span>
+          <button type="button" class="config-in-app-tip-eye-btn" id="config-in-app-tip-eye-all" aria-pressed="true"></button>
+        </li>
+      </ul>
+      <p class="section-intro config-in-app-tips-feedback" id="config-in-app-tips-feedback" role="status" aria-live="polite" hidden></p>
+    </div>
+
     <h2 class="section-title" id="cloud-sync" data-i18n="config.cloudSync.title">Data source</h2>
     <div id="supabase-config-mount"></div>
   </div>
@@ -160,6 +194,7 @@
         getRemainingWakeThresholdsControlHTML('remaining-wake');
       initRemainingWakeNav();
       initRemainingWakeThresholdsConfig();
+      initDashboardHintsSettingsControls();
       initSupabaseConfigForm();
       // Hash scroll runs before late-mounted sections (e.g. remaining wake); re-apply after layout.
       if (window.location.hash.length > 1) {
