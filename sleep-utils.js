@@ -548,7 +548,8 @@ function isSeedDefaultUserSettingsRow(row) {
     Number(row.remaining_wake_phase_heads_up_mins) === 30 &&
     row.tonight_target_sleep_min == null &&
     row.tonight_target_wake_min == null &&
-    row.tonight_guidance_enabled !== true &&
+    row.tonight_guidance_sleep_enabled !== true &&
+    row.tonight_guidance_wake_enabled !== true &&
     (row.tonight_guidance_pace == null || row.tonight_guidance_pace === '' || row.tonight_guidance_pace === DEFAULT_TONIGHT_GUIDANCE_PACE_ID)
   );
 }
@@ -596,8 +597,11 @@ function localUserSettingsToRow() {
     remaining_wake_phase_heads_up_mins: remaining_wake_phase_heads_up_mins,
     tonight_target_sleep_min: tonight_target_sleep_min,
     tonight_target_wake_min: tonight_target_wake_min,
-    tonight_guidance_enabled: getTonightGuidanceEnabled(),
-    tonight_guidance_pace: getTonightGuidancePaceId()
+    tonight_guidance_sleep_enabled: getTonightGuidanceSleepEnabled(),
+    tonight_guidance_wake_enabled: getTonightGuidanceWakeEnabled(),
+    tonight_guidance_pace: getTonightGuidancePaceId(),
+    hint_quick_actions_about: getHintQuickActionsAbout(),
+    hint_tonight_about: getHintTonightAbout()
   };
 }
 
@@ -607,6 +611,7 @@ function localUserSettingsDiffersFromSeedDefaults() {
 
 function userSettingsRowToLocalStorage(row) {
   if (!row || typeof row !== 'object') return;
+  migrateTonightGuidanceLocalStorageFromLegacy();
   const localTonightSnapshot =
     typeof getTonightTargetWindow === 'function' ? getTonightTargetWindow() : null;
   safeWriteStorage(LANGUAGE_KEY, row.language === 'ja' ? 'ja' : 'en');
@@ -697,11 +702,20 @@ function userSettingsRowToLocalStorage(row) {
     }
   } catch (_) {}
   try {
-    if (row.tonight_guidance_enabled === true || row.tonight_guidance_enabled === 'true' || row.tonight_guidance_enabled === 1 || row.tonight_guidance_enabled === '1') {
-      localStorage.setItem(TONIGHT_GUIDANCE_ENABLED_KEY, '1');
-    } else {
-      localStorage.removeItem(TONIGHT_GUIDANCE_ENABLED_KEY);
-    }
+    const sleepG =
+      row.tonight_guidance_sleep_enabled === true ||
+      row.tonight_guidance_sleep_enabled === 'true' ||
+      row.tonight_guidance_sleep_enabled === 1 ||
+      row.tonight_guidance_sleep_enabled === '1';
+    const wakeG =
+      row.tonight_guidance_wake_enabled === true ||
+      row.tonight_guidance_wake_enabled === 'true' ||
+      row.tonight_guidance_wake_enabled === 1 ||
+      row.tonight_guidance_wake_enabled === '1';
+    if (sleepG) localStorage.setItem(TONIGHT_GUIDANCE_SLEEP_ENABLED_KEY, '1');
+    else localStorage.removeItem(TONIGHT_GUIDANCE_SLEEP_ENABLED_KEY);
+    if (wakeG) localStorage.setItem(TONIGHT_GUIDANCE_WAKE_ENABLED_KEY, '1');
+    else localStorage.removeItem(TONIGHT_GUIDANCE_WAKE_ENABLED_KEY);
   } catch (_) {}
   try {
     const pace = row.tonight_guidance_pace;
@@ -711,6 +725,22 @@ function userSettingsRowToLocalStorage(row) {
       localStorage.removeItem(TONIGHT_GUIDANCE_PACE_KEY);
     }
   } catch (_) {}
+  try {
+    const hqa = row.hint_quick_actions_about;
+    if (hqa === false || hqa === 'false' || hqa === 0 || hqa === '0') {
+      localStorage.setItem(HINT_QUICK_ACTIONS_ABOUT_KEY, '0');
+    } else {
+      localStorage.removeItem(HINT_QUICK_ACTIONS_ABOUT_KEY);
+    }
+  } catch (_) {}
+  try {
+    const hta = row.hint_tonight_about;
+    if (hta === false || hta === 'false' || hta === 0 || hta === '0') {
+      localStorage.setItem(HINT_TONIGHT_ABOUT_KEY, '0');
+    } else {
+      localStorage.removeItem(HINT_TONIGHT_ABOUT_KEY);
+    }
+  } catch (_) {}
 }
 
 function fetchUserSettings(config) {
@@ -718,7 +748,7 @@ function fetchUserSettings(config) {
   const uid = encodeURIComponent(RESTORE_CLOUD_USER_ID);
   const url =
     config.url.replace(/\/+$/, '') +
-    '/rest/v1/user_settings?select=user_id,language,theme_override,clock_format,quality_palette,remaining_wake_open_min,remaining_wake_winding_min,remaining_wake_phase_heads_up_mins,tonight_target_sleep_min,tonight_target_wake_min,tonight_guidance_enabled,tonight_guidance_pace&user_id=eq.' +
+    '/rest/v1/user_settings?select=user_id,language,theme_override,clock_format,quality_palette,remaining_wake_open_min,remaining_wake_winding_min,remaining_wake_phase_heads_up_mins,tonight_target_sleep_min,tonight_target_wake_min,tonight_guidance_sleep_enabled,tonight_guidance_wake_enabled,tonight_guidance_pace,hint_quick_actions_about,hint_tonight_about&user_id=eq.' +
     uid +
     '&limit=1';
   return fetch(url, { headers: getSupabaseAuthHeaders(config, false) })
@@ -810,6 +840,7 @@ function refreshUiAfterUserSettingsHydrate() {
     headsUpRange.setAttribute('aria-valuetext', getRemainingWakePhaseHeadsUpStopAriaLabel(mins));
   }
   syncTonightGuidanceConfigControls();
+  syncInAppTipsSettingsEyeButtonsFromState();
   updateDevBannerUserSettingsPanel();
 }
 
@@ -1825,8 +1856,20 @@ const CLOCK_FORMAT_KEY = 'sleep-app-clock-format';
 const QUALITY_PALETTE_KEY = 'sleep-app-quality-palette';
 const TONIGHT_PROJECTION_ADJUSTMENT_KEY = 'sleep-app-tonight-projection-adjustment';
 const TONIGHT_TARGET_WINDOW_KEY = 'sleep-app-tonight-target-window';
-const TONIGHT_GUIDANCE_ENABLED_KEY = 'sleep-app-tonight-guidance-enabled';
+const TONIGHT_GUIDANCE_SLEEP_ENABLED_KEY = 'sleep-app-tonight-guidance-sleep-enabled';
+const TONIGHT_GUIDANCE_WAKE_ENABLED_KEY = 'sleep-app-tonight-guidance-wake-enabled';
+/** @deprecated removed after per-pole guidance; read only for one-time local migration */
+const TONIGHT_GUIDANCE_LEGACY_ENABLED_KEY = 'sleep-app-tonight-guidance-enabled';
 const TONIGHT_GUIDANCE_PACE_KEY = 'sleep-app-tonight-guidance-pace';
+/** `'0'` in localStorage = hint dismissed; key absent = show hint (matches DB default true). */
+const HINT_QUICK_ACTIONS_ABOUT_KEY = 'sleep-app-hint-quick-actions-about';
+const HINT_TONIGHT_ABOUT_KEY = 'sleep-app-hint-tonight-about';
+
+/** Inline SVG for Settings / dev banner tip visibility (eye = tip shown on Dashboard). */
+const INAPP_TIP_SVG_EYE =
+  '<svg class="in-app-tip-eye-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+const INAPP_TIP_SVG_EYE_OFF =
+  '<svg class="in-app-tip-eye-svg in-app-tip-eye-svg--off" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a21.77 21.77 0 015.06-7.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a21.5 21.5 0 01-4.7 5.8M1 1l22 22"/></svg>';
 /** Minutes per day cap toward saved target (shortest clock arc). */
 const TONIGHT_GUIDANCE_PACE_MAX_MINUTES = { gentle: 6, normal: 9, steady: 12 };
 const TONIGHT_GUIDANCE_PACE_IDS = ['gentle', 'normal', 'steady'];
@@ -2078,15 +2121,20 @@ function tonightGuidancePaceIdFromSliderIndex(idx) {
 }
 
 function syncTonightGuidanceConfigControls() {
-  const onBtn = document.querySelector('#config-tonight-guidance [data-tonight-guidance-on="1"]');
-  const offBtn = document.querySelector('#config-tonight-guidance [data-tonight-guidance-on="0"]');
-  if (onBtn && offBtn) {
-    const en = getTonightGuidanceEnabled();
-    onBtn.classList.toggle('active', en);
-    onBtn.setAttribute('aria-pressed', en ? 'true' : 'false');
-    offBtn.classList.toggle('active', !en);
-    offBtn.setAttribute('aria-pressed', en ? 'false' : 'true');
+  function syncPoleToggle(wrapId, enabled) {
+    const wrap = document.getElementById(wrapId);
+    if (!wrap) return;
+    const onBtn = wrap.querySelector('[data-tonight-guidance-on="1"]');
+    const offBtn = wrap.querySelector('[data-tonight-guidance-on="0"]');
+    if (onBtn && offBtn) {
+      onBtn.classList.toggle('active', enabled);
+      onBtn.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+      offBtn.classList.toggle('active', !enabled);
+      offBtn.setAttribute('aria-pressed', enabled ? 'false' : 'true');
+    }
   }
+  syncPoleToggle('config-tonight-guidance-sleep', getTonightGuidanceSleepEnabled());
+  syncPoleToggle('config-tonight-guidance-wake', getTonightGuidanceWakeEnabled());
   const paceRange = document.getElementById('config-tonight-guidance-pace-range');
   if (paceRange) {
     paceRange.value = String(tonightGuidancePaceIndexFromId(getTonightGuidancePaceId()));
@@ -2098,17 +2146,20 @@ function initTonightGuidanceConfigControls() {
   if (!root || root.dataset.bound === '1') return;
   root.dataset.bound = '1';
   syncTonightGuidanceConfigControls();
-  const wrap = document.getElementById('config-tonight-guidance');
-  if (wrap) {
+  function bindPoleWrap(wrapId, setter) {
+    const wrap = document.getElementById(wrapId);
+    if (!wrap) return;
     wrap.addEventListener('click', function (e) {
       const btn = e.target.closest('[data-tonight-guidance-on]');
       if (!btn) return;
       const v = btn.getAttribute('data-tonight-guidance-on');
       if (v !== '0' && v !== '1') return;
-      setTonightGuidanceEnabled(v === '1');
+      setter(v === '1');
       syncTonightGuidanceConfigControls();
     });
   }
+  bindPoleWrap('config-tonight-guidance-sleep', setTonightGuidanceSleepEnabled);
+  bindPoleWrap('config-tonight-guidance-wake', setTonightGuidanceWakeEnabled);
   const paceRange = document.getElementById('config-tonight-guidance-pace-range');
   if (paceRange && paceRange.dataset.bound !== '1') {
     paceRange.dataset.bound = '1';
@@ -2119,6 +2170,96 @@ function initTonightGuidanceConfigControls() {
     }
     paceRange.addEventListener('input', onPaceRange);
     paceRange.addEventListener('change', onPaceRange);
+  }
+}
+
+function wireAboutHintDismissRow(scope) {
+  const isQuick = scope === 'quick';
+  const wrap = document.getElementById(isQuick ? 'about-hint-dismiss-wrap-quick' : 'about-hint-dismiss-wrap-tonight');
+  const cb = document.getElementById(isQuick ? 'about-dismiss-hint-quick-actions-cb' : 'about-dismiss-hint-tonight-cb');
+  const block = document.getElementById(isQuick ? 'about-hint-dismiss-block-quick' : 'about-hint-dismiss-block-tonight');
+  const done = document.getElementById(isQuick ? 'about-hint-done-quick' : 'about-hint-done-tonight');
+  const follow = document.getElementById(isQuick ? 'about-hint-dismiss-followup-quick' : 'about-hint-dismiss-followup-tonight');
+  const visibleGetter = isQuick ? getHintQuickActionsAbout : getHintTonightAbout;
+  const setter = isQuick ? setHintQuickActionsAboutVisible : setHintTonightAboutVisible;
+  if (!wrap || !cb || !block || !done || !follow) return;
+  if (wrap.dataset.hintDismissBound === '1') return;
+  wrap.dataset.hintDismissBound = '1';
+  if (!visibleGetter()) {
+    wrap.hidden = true;
+    return;
+  }
+  let fadeTimer = null;
+  cb.addEventListener('change', function () {
+    if (!cb.checked) {
+      cb.checked = true;
+      return;
+    }
+    setter(false);
+    done.hidden = false;
+    done.setAttribute('aria-hidden', 'false');
+    void done.offsetWidth;
+    block.classList.add('about-hint-dismiss-block--done');
+    follow.hidden = false;
+    if (fadeTimer) window.clearTimeout(fadeTimer);
+    fadeTimer = window.setTimeout(function () {
+      wrap.classList.add('about-hint-dismiss-wrap--fading');
+      window.setTimeout(function () {
+        wrap.hidden = true;
+      }, 480);
+    }, 4800);
+  });
+}
+
+function initAboutDashboardHintDismissButtons() {
+  wireAboutHintDismissRow('quick');
+  wireAboutHintDismissRow('tonight');
+}
+
+function initDashboardHintsSettingsControls() {
+  const root = document.getElementById('config-in-app-tips-section');
+  if (!root || root.dataset.bound === '1') return;
+  root.dataset.bound = '1';
+  const feedback = document.getElementById('config-in-app-tips-feedback');
+  let feedbackTimer = 0;
+  function showFeedback(message) {
+    if (!feedback) return;
+    feedback.textContent = message;
+    feedback.hidden = false;
+    if (feedbackTimer) window.clearTimeout(feedbackTimer);
+    feedbackTimer = window.setTimeout(function () {
+      feedback.hidden = true;
+      feedbackTimer = 0;
+    }, 3200);
+  }
+  function td(key, fallback) {
+    return typeof t === 'function' ? t(key, fallback) : fallback;
+  }
+  syncInAppTipsSettingsEyeButtonsFromState();
+  const eyeQ = document.getElementById('config-in-app-tip-eye-quick');
+  if (eyeQ) {
+    eyeQ.addEventListener('click', function () {
+      setHintQuickActionsAboutVisible(!getHintQuickActionsAbout());
+      syncInAppTipsSettingsEyeButtonsFromState();
+      showFeedback(td('config.inAppTips.feedbackApplied', 'Saved.'));
+    });
+  }
+  const eyeT = document.getElementById('config-in-app-tip-eye-tonight');
+  if (eyeT) {
+    eyeT.addEventListener('click', function () {
+      setHintTonightAboutVisible(!getHintTonightAbout());
+      syncInAppTipsSettingsEyeButtonsFromState();
+      showFeedback(td('config.inAppTips.feedbackApplied', 'Saved.'));
+    });
+  }
+  const eyeA = document.getElementById('config-in-app-tip-eye-all');
+  if (eyeA) {
+    eyeA.addEventListener('click', function () {
+      const bothOn = getHintQuickActionsAbout() && getHintTonightAbout();
+      setInAppTipsBothVisible(!bothOn);
+      syncInAppTipsSettingsEyeButtonsFromState();
+      showFeedback(td('config.inAppTips.feedbackApplied', 'Saved.'));
+    });
   }
 }
 
@@ -2400,12 +2541,19 @@ function persistTonightTargetWindowToStorage(tw) {
     if (typeof localStorage === 'undefined') return;
     if (!norm) {
       localStorage.removeItem(TONIGHT_TARGET_WINDOW_KEY);
+      localStorage.removeItem(TONIGHT_GUIDANCE_SLEEP_ENABLED_KEY);
+      localStorage.removeItem(TONIGHT_GUIDANCE_WAKE_ENABLED_KEY);
     } else {
       localStorage.setItem(TONIGHT_TARGET_WINDOW_KEY, JSON.stringify({ sleep: norm.sleep, wake: norm.wake }));
     }
   } catch (_) {}
   syncUserSettingsRowToCloud();
   updateDevBannerUserSettingsPanel();
+  if (!norm) {
+    try {
+      document.dispatchEvent(new CustomEvent('tonight-guidance-changed'));
+    } catch (_) {}
+  }
 }
 
 /** Full pair replace (both poles). */
@@ -2450,6 +2598,8 @@ function clearTonightTargetPole(pole) {
   if (pole === 'sleep') next.sleep = null;
   else if (pole === 'wake') next.wake = null;
   else return;
+  if (pole === 'sleep') setTonightGuidanceSleepEnabled(false);
+  else setTonightGuidanceWakeEnabled(false);
   persistTonightTargetWindowToStorage(next);
 }
 
@@ -2457,10 +2607,15 @@ function clearTonightTargetWindow() {
   try {
     if (typeof localStorage !== 'undefined') {
       localStorage.removeItem(TONIGHT_TARGET_WINDOW_KEY);
+      localStorage.removeItem(TONIGHT_GUIDANCE_SLEEP_ENABLED_KEY);
+      localStorage.removeItem(TONIGHT_GUIDANCE_WAKE_ENABLED_KEY);
     }
   } catch (_) {}
   syncUserSettingsRowToCloud();
   updateDevBannerUserSettingsPanel();
+  try {
+    document.dispatchEvent(new CustomEvent('tonight-guidance-changed'));
+  } catch (_) {}
 }
 
 /** Shortest signed difference `to − from` on the 24h circle, in [-720, 720]. */
@@ -2485,20 +2640,62 @@ function getTonightGuidancePaceMaxMinutes() {
   return Number.isFinite(n) ? n : TONIGHT_GUIDANCE_PACE_MAX_MINUTES.normal;
 }
 
-function getTonightGuidanceEnabled() {
+/** One-time: legacy single key -> both per-pole keys, then remove legacy key. */
+function migrateTonightGuidanceLocalStorageFromLegacy() {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    const legacy = localStorage.getItem(TONIGHT_GUIDANCE_LEGACY_ENABLED_KEY);
+    if (legacy === null || legacy === '') return;
+    const hasNew =
+      localStorage.getItem(TONIGHT_GUIDANCE_SLEEP_ENABLED_KEY) === '1' ||
+      localStorage.getItem(TONIGHT_GUIDANCE_WAKE_ENABLED_KEY) === '1';
+    if (legacy === '1' && !hasNew) {
+      localStorage.setItem(TONIGHT_GUIDANCE_SLEEP_ENABLED_KEY, '1');
+      localStorage.setItem(TONIGHT_GUIDANCE_WAKE_ENABLED_KEY, '1');
+    }
+    localStorage.removeItem(TONIGHT_GUIDANCE_LEGACY_ENABLED_KEY);
+  } catch (_) {}
+}
+
+function getTonightGuidanceSleepEnabled() {
+  migrateTonightGuidanceLocalStorageFromLegacy();
   try {
     if (typeof localStorage === 'undefined') return false;
-    return localStorage.getItem(TONIGHT_GUIDANCE_ENABLED_KEY) === '1';
+    return localStorage.getItem(TONIGHT_GUIDANCE_SLEEP_ENABLED_KEY) === '1';
   } catch (_) {
     return false;
   }
 }
 
-function setTonightGuidanceEnabled(on) {
+function getTonightGuidanceWakeEnabled() {
+  migrateTonightGuidanceLocalStorageFromLegacy();
+  try {
+    if (typeof localStorage === 'undefined') return false;
+    return localStorage.getItem(TONIGHT_GUIDANCE_WAKE_ENABLED_KEY) === '1';
+  } catch (_) {
+    return false;
+  }
+}
+
+function setTonightGuidanceSleepEnabled(on) {
   try {
     if (typeof localStorage !== 'undefined') {
-      if (on) localStorage.setItem(TONIGHT_GUIDANCE_ENABLED_KEY, '1');
-      else localStorage.removeItem(TONIGHT_GUIDANCE_ENABLED_KEY);
+      if (on) localStorage.setItem(TONIGHT_GUIDANCE_SLEEP_ENABLED_KEY, '1');
+      else localStorage.removeItem(TONIGHT_GUIDANCE_SLEEP_ENABLED_KEY);
+    }
+  } catch (_) {}
+  syncUserSettingsRowToCloud();
+  updateDevBannerUserSettingsPanel();
+  try {
+    document.dispatchEvent(new CustomEvent('tonight-guidance-changed'));
+  } catch (_) {}
+}
+
+function setTonightGuidanceWakeEnabled(on) {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      if (on) localStorage.setItem(TONIGHT_GUIDANCE_WAKE_ENABLED_KEY, '1');
+      else localStorage.removeItem(TONIGHT_GUIDANCE_WAKE_ENABLED_KEY);
     }
   } catch (_) {}
   syncUserSettingsRowToCloud();
@@ -2530,6 +2727,70 @@ function setTonightGuidancePaceId(paceId) {
   } catch (_) {}
 }
 
+function readDashboardHintAboutKey(storageKey) {
+  try {
+    if (typeof localStorage === 'undefined') return true;
+    return localStorage.getItem(storageKey) !== '0';
+  } catch (_) {
+    return true;
+  }
+}
+
+function writeDashboardHintAboutKey(storageKey, visible) {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    if (visible) localStorage.removeItem(storageKey);
+    else localStorage.setItem(storageKey, '0');
+  } catch (_) {}
+}
+
+function getHintQuickActionsAbout() {
+  return readDashboardHintAboutKey(HINT_QUICK_ACTIONS_ABOUT_KEY);
+}
+
+function getHintTonightAbout() {
+  return readDashboardHintAboutKey(HINT_TONIGHT_ABOUT_KEY);
+}
+
+function setHintQuickActionsAboutVisible(visible) {
+  writeDashboardHintAboutKey(HINT_QUICK_ACTIONS_ABOUT_KEY, Boolean(visible));
+  syncUserSettingsRowToCloud();
+  if (typeof updateDevBannerUserSettingsPanel === 'function') updateDevBannerUserSettingsPanel();
+}
+
+function setHintTonightAboutVisible(visible) {
+  writeDashboardHintAboutKey(HINT_TONIGHT_ABOUT_KEY, Boolean(visible));
+  syncUserSettingsRowToCloud();
+  if (typeof updateDevBannerUserSettingsPanel === 'function') updateDevBannerUserSettingsPanel();
+}
+
+function setInAppTipsBothVisible(visible) {
+  writeDashboardHintAboutKey(HINT_QUICK_ACTIONS_ABOUT_KEY, Boolean(visible));
+  writeDashboardHintAboutKey(HINT_TONIGHT_ABOUT_KEY, Boolean(visible));
+  syncUserSettingsRowToCloud();
+  if (typeof updateDevBannerUserSettingsPanel === 'function') updateDevBannerUserSettingsPanel();
+}
+
+function applyInAppTipEyeButton(btn, visible) {
+  if (!btn) return;
+  btn.innerHTML = visible ? INAPP_TIP_SVG_EYE : INAPP_TIP_SVG_EYE_OFF;
+  btn.setAttribute('aria-pressed', visible ? 'true' : 'false');
+  const hideL =
+    typeof t === 'function' ? t('config.inAppTips.hideTipAria', 'Hide this tip on the Dashboard') : 'Hide this tip on the Dashboard';
+  const showL =
+    typeof t === 'function' ? t('config.inAppTips.showTipAria', 'Show this tip on the Dashboard') : 'Show this tip on the Dashboard';
+  btn.setAttribute('aria-label', visible ? hideL : showL);
+}
+
+function syncInAppTipsSettingsEyeButtonsFromState() {
+  if (typeof document === 'undefined') return;
+  const q = getHintQuickActionsAbout();
+  const w = getHintTonightAbout();
+  applyInAppTipEyeButton(document.getElementById('config-in-app-tip-eye-quick'), q);
+  applyInAppTipEyeButton(document.getElementById('config-in-app-tip-eye-tonight'), w);
+  applyInAppTipEyeButton(document.getElementById('config-in-app-tip-eye-all'), q && w);
+}
+
 /**
  * Effective Tonight sleep/wake from recent averages and optional saved target + guidance.
  * Missing saved pole uses the recent average for that pole as its effective target.
@@ -2552,19 +2813,42 @@ function resolveTonightScheduledWindow(avgSleep, avgWake, savedTw) {
   if (targetS === targetW) {
     return { sleep: as, wake: aw, mode: 'average' };
   }
-  if (!getTonightGuidanceEnabled()) {
-    return { sleep: targetS, wake: targetW, mode: 'target' };
-  }
-  const dS = shortestSignedClockDelta(as, targetS);
-  const dW = shortestSignedClockDelta(aw, targetW);
-  if (Math.abs(dS) <= TONIGHT_GUIDANCE_SNAP_BAND_MINUTES && Math.abs(dW) <= TONIGHT_GUIDANCE_SNAP_BAND_MINUTES) {
-    return { sleep: targetS, wake: targetW, mode: 'target' };
-  }
   const cap = getTonightGuidancePaceMaxMinutes();
-  const gS = modMinutes1440(as + clampSignedDelta(dS, cap));
-  const gW = modMinutes1440(aw + clampSignedDelta(dW, cap));
-  if (gS === targetS && gW === targetW) return { sleep: targetS, wake: targetW, mode: 'target' };
-  return { sleep: gS, wake: gW, mode: 'guided' };
+  const gSleep = getTonightGuidanceSleepEnabled();
+  const gWake = getTonightGuidanceWakeEnabled();
+
+  let outS;
+  if (hasS && gSleep) {
+    const dS = shortestSignedClockDelta(as, targetS);
+    if (Math.abs(dS) <= TONIGHT_GUIDANCE_SNAP_BAND_MINUTES) outS = targetS;
+    else outS = modMinutes1440(as + clampSignedDelta(dS, cap));
+  } else if (hasS) {
+    outS = targetS;
+  } else {
+    outS = as;
+  }
+
+  let outW;
+  if (hasW && gWake) {
+    const dW = shortestSignedClockDelta(aw, targetW);
+    if (Math.abs(dW) <= TONIGHT_GUIDANCE_SNAP_BAND_MINUTES) outW = targetW;
+    else outW = modMinutes1440(aw + clampSignedDelta(dW, cap));
+  } else if (hasW) {
+    outW = targetW;
+  } else {
+    outW = aw;
+  }
+
+  if (outS === outW) {
+    return { sleep: as, wake: aw, mode: 'average' };
+  }
+
+  const sleepGuiding = hasS && gSleep && modMinutes1440(outS) !== modMinutes1440(targetS);
+  const wakeGuiding = hasW && gWake && modMinutes1440(outW) !== modMinutes1440(targetW);
+  if (sleepGuiding || wakeGuiding) {
+    return { sleep: outS, wake: outW, mode: 'guided' };
+  }
+  return { sleep: outS, wake: outW, mode: 'target' };
 }
 
 /** Same key as quick-actions / entry-modal night QA flags (bed, sleep, wake). */
@@ -3790,13 +4074,24 @@ function updateDevBannerUserSettingsPanel() {
     }
   }
 
-  const gEn = document.getElementById('nav-dev-banner-tonight-guidance-enabled');
-  if (gEn) gEn.value = getTonightGuidanceEnabled() ? '1' : '0';
+  const gSleep = document.getElementById('nav-dev-banner-tonight-guidance-sleep-enabled');
+  if (gSleep) gSleep.value = getTonightGuidanceSleepEnabled() ? '1' : '0';
+  const gWake = document.getElementById('nav-dev-banner-tonight-guidance-wake-enabled');
+  if (gWake) gWake.value = getTonightGuidanceWakeEnabled() ? '1' : '0';
   const gPace = document.getElementById('nav-dev-banner-tonight-guidance-pace');
   if (gPace) {
     const pid = getTonightGuidancePaceId();
     gPace.value = TONIGHT_GUIDANCE_PACE_IDS.indexOf(pid) === -1 ? DEFAULT_TONIGHT_GUIDANCE_PACE_ID : pid;
   }
+
+  const hq = getHintQuickActionsAbout();
+  const ht = getHintTonightAbout();
+  const hintAll = document.getElementById('nav-dev-banner-hint-all');
+  const hintQuick = document.getElementById('nav-dev-banner-hint-quick');
+  const hintTonight = document.getElementById('nav-dev-banner-hint-tonight');
+  if (hintAll) hintAll.checked = hq && ht;
+  if (hintQuick) hintQuick.checked = hq;
+  if (hintTonight) hintTonight.checked = ht;
 }
 
 /** Resets dev-banner user settings (and mirrored prefs) to app defaults; dev build only (Use defaults). */
@@ -3820,8 +4115,12 @@ function applyDevBannerUserSettingsDefaults() {
   clearTonightTargetWindow();
   try {
     if (typeof localStorage !== 'undefined') {
-      localStorage.removeItem(TONIGHT_GUIDANCE_ENABLED_KEY);
+      localStorage.removeItem(TONIGHT_GUIDANCE_SLEEP_ENABLED_KEY);
+      localStorage.removeItem(TONIGHT_GUIDANCE_WAKE_ENABLED_KEY);
+      localStorage.removeItem(TONIGHT_GUIDANCE_LEGACY_ENABLED_KEY);
       localStorage.removeItem(TONIGHT_GUIDANCE_PACE_KEY);
+      localStorage.removeItem(HINT_QUICK_ACTIONS_ABOUT_KEY);
+      localStorage.removeItem(HINT_TONIGHT_ABOUT_KEY);
     }
   } catch (_) {}
   if (typeof applyRemainingWakeThresholdsUI === 'function') {
@@ -3832,6 +4131,7 @@ function applyDevBannerUserSettingsDefaults() {
   }
   if (typeof initRemainingWakeNav === 'function') initRemainingWakeNav();
   updateDevBannerUserSettingsPanel();
+  syncUserSettingsRowToCloud();
   requestAnimationFrame(function () {
     syncDevBannerFixedLayout();
   });
@@ -3992,10 +4292,19 @@ function initDevBannerUserSettingsPanel() {
       wakeTargetIn.addEventListener('blur', revertTonightTargetDevBannerIfPartial);
     }
 
-    const gEnSel = document.getElementById('nav-dev-banner-tonight-guidance-enabled');
-    if (gEnSel) {
-      gEnSel.addEventListener('change', function () {
-        setTonightGuidanceEnabled(gEnSel.value === '1');
+    const gSleepSel = document.getElementById('nav-dev-banner-tonight-guidance-sleep-enabled');
+    if (gSleepSel) {
+      gSleepSel.addEventListener('change', function () {
+        setTonightGuidanceSleepEnabled(gSleepSel.value === '1');
+        requestAnimationFrame(function () {
+          syncDevBannerFixedLayout();
+        });
+      });
+    }
+    const gWakeSel = document.getElementById('nav-dev-banner-tonight-guidance-wake-enabled');
+    if (gWakeSel) {
+      gWakeSel.addEventListener('change', function () {
+        setTonightGuidanceWakeEnabled(gWakeSel.value === '1');
         requestAnimationFrame(function () {
           syncDevBannerFixedLayout();
         });
@@ -4009,6 +4318,29 @@ function initDevBannerUserSettingsPanel() {
           syncDevBannerFixedLayout();
         });
       });
+    }
+
+    const tipsRow = document.querySelector('.nav-dev-banner-in-app-tips');
+    if (tipsRow && tipsRow.dataset.hintBound !== '1') {
+      tipsRow.dataset.hintBound = '1';
+      const hintAllCb = document.getElementById('nav-dev-banner-hint-all');
+      const hintQuickCb = document.getElementById('nav-dev-banner-hint-quick');
+      const hintTonightCb = document.getElementById('nav-dev-banner-hint-tonight');
+      if (hintAllCb) {
+        hintAllCb.addEventListener('change', function () {
+          setInAppTipsBothVisible(hintAllCb.checked);
+        });
+      }
+      if (hintQuickCb) {
+        hintQuickCb.addEventListener('change', function () {
+          setHintQuickActionsAboutVisible(hintQuickCb.checked);
+        });
+      }
+      if (hintTonightCb) {
+        hintTonightCb.addEventListener('change', function () {
+          setHintTonightAboutVisible(hintTonightCb.checked);
+        });
+      }
     }
 
     updateDevBannerUserSettingsPanel();
@@ -4491,11 +4823,11 @@ function renderNavBar(currentPage) {
     devBannerUserIdEsc +
     '</code>' +
     '<button type="button" class="nav-dev-banner-user-defaults-btn" id="nav-dev-banner-user-use-default"' +
-    ' aria-label="Use all default settings: reset language, clock, theme, palette, remaining wake thresholds, heads-up, tonight target, and tonight guidance to app defaults">Use all default settings</button>' +
+    ' aria-label="Use all default settings: reset language, clock, theme, palette, remaining wake thresholds, heads-up, tonight target, and per-pole tonight guidance (plus shared pace) to app defaults">Use all default settings</button>' +
     '</span>' +
     '</div>' +
     '<div class="nav-dev-banner-user-settings" role="group" aria-label="User settings (dev; mirrors Settings and user_settings)">' +
-    '<div class="nav-dev-banner-user-settings-row nav-dev-banner-user-settings-row--prefs-grid" role="group" aria-label="Display and quality">' +
+    '<div class="nav-dev-banner-user-settings-row nav-dev-banner-user-settings-row--prefs-grid" role="group" aria-label="Display, quality, and Dashboard in-app tips">' +
     '<div class="nav-dev-banner-user-field nav-dev-banner-user-field--col nav-dev-banner-user-field--pref">' +
     '<span class="nav-dev-banner-user-label">Language</span>' +
     '<select id="nav-dev-banner-user-lang" class="nav-dev-banner-user-select nav-dev-banner-user-select--field" aria-label="Display language">' +
@@ -4526,11 +4858,19 @@ function renderNavBar(currentPage) {
     '<option value="auto">Auto</option>' +
     '</select>' +
     '</div>' +
+    '<div class="nav-dev-banner-in-app-tips" role="group" aria-label="In-app tips (Dashboard)">' +
+    '<span class="nav-dev-banner-tips-label">Tips</span>' +
+    '<span class="nav-dev-banner-hint-checks" role="group" aria-label="Show Dashboard in-app tips">' +
+    '<label class="nav-dev-banner-hint-check-label"><input type="checkbox" id="nav-dev-banner-hint-all" /> All</label>' +
+    '<label class="nav-dev-banner-hint-check-label"><input type="checkbox" id="nav-dev-banner-hint-quick" /> Quick</label>' +
+    '<label class="nav-dev-banner-hint-check-label"><input type="checkbox" id="nav-dev-banner-hint-tonight" /> Tonight</label>' +
+    '</span>' +
+    '</div>' +
     '</div>' +
     '<div class="nav-dev-banner-user-chunks-row">' +
     '<div class="nav-dev-banner-user-chunk nav-dev-banner-user-chunk--tonight" role="group" aria-labelledby="nav-dev-banner-tonight-heading">' +
     '<span class="nav-dev-banner-user-chunk-heading" id="nav-dev-banner-tonight-heading">Tonight</span>' +
-    '<div class="nav-dev-banner-user-settings-row nav-dev-banner-user-settings-row--prefs-grid nav-dev-banner-user-settings-row--night-grid" role="group" aria-label="Tonight sleep, wake, guidance, and pace">' +
+    '<div class="nav-dev-banner-user-settings-row nav-dev-banner-user-settings-row--prefs-grid nav-dev-banner-user-settings-row--night-grid" role="group" aria-label="Tonight sleep, wake, per-pole guidance, and pace">' +
     '<div class="nav-dev-banner-user-field nav-dev-banner-user-field--col nav-dev-banner-user-field--pref">' +
     '<span class="nav-dev-banner-user-label">Sleep</span>' +
     '<input type="time" id="nav-dev-banner-tonight-sleep" class="nav-dev-banner-user-input-time" step="60" aria-label="Sleep time (tonight)" />' +
@@ -4540,8 +4880,15 @@ function renderNavBar(currentPage) {
     '<input type="time" id="nav-dev-banner-tonight-wake" class="nav-dev-banner-user-input-time" step="60" aria-label="Wake time (tomorrow)" />' +
     '</div>' +
     '<div class="nav-dev-banner-user-field nav-dev-banner-user-field--col nav-dev-banner-user-field--pref">' +
-    '<span class="nav-dev-banner-user-label">Guidance</span>' +
-    '<select id="nav-dev-banner-tonight-guidance-enabled" class="nav-dev-banner-user-select nav-dev-banner-user-select--field" aria-label="Tonight guidance on or off">' +
+    '<span class="nav-dev-banner-user-label">Sleep G</span>' +
+    '<select id="nav-dev-banner-tonight-guidance-sleep-enabled" class="nav-dev-banner-user-select nav-dev-banner-user-select--field" aria-label="Tonight sleep target guidance on or off">' +
+    '<option value="0">Off</option>' +
+    '<option value="1">On</option>' +
+    '</select>' +
+    '</div>' +
+    '<div class="nav-dev-banner-user-field nav-dev-banner-user-field--col nav-dev-banner-user-field--pref">' +
+    '<span class="nav-dev-banner-user-label">Wake G</span>' +
+    '<select id="nav-dev-banner-tonight-guidance-wake-enabled" class="nav-dev-banner-user-select nav-dev-banner-user-select--field" aria-label="Tonight wake target guidance on or off">' +
     '<option value="0">Off</option>' +
     '<option value="1">On</option>' +
     '</select>' +

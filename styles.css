@@ -907,10 +907,50 @@ body{
   max-width: none;
 }
 
+.nav-dev-banner-user-settings-row--prefs-grid > .nav-dev-banner-in-app-tips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  flex: 0 0 auto;
+  align-self: center;
+  min-width: 0;
+}
+
 .nav-dev-banner-user-settings-row--prefs-grid.nav-dev-banner-user-settings-row--night-grid {
   flex-wrap: wrap;
   overflow-x: visible;
   align-content: flex-start;
+}
+
+.nav-dev-banner-tips-label {
+  color: rgba(255, 255, 255, 0.88);
+  font-weight: 500;
+  font-size: inherit;
+  line-height: inherit;
+  align-self: center;
+}
+
+.nav-dev-banner-hint-checks {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  font-size: inherit;
+}
+
+.nav-dev-banner-hint-check-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.88);
+  user-select: none;
+}
+
+.nav-dev-banner-hint-check-label input {
+  margin: 0;
+  cursor: pointer;
 }
 
 .nav-dev-banner-user-chunks-row {
@@ -2653,32 +2693,150 @@ body{
   text-align: center;
 }
 
+.dashboard-projection-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: 0 0 4px 0;
+  min-width: 0;
+}
+
+.dashboard-projection-title-row .dashboard-projection-title {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+
 #dashboard-tonight-projection.dashboard-projection {
   padding: 12px 12px 14px;
 }
 
-#dashboard-tonight-projection .dashboard-projection-title {
+#dashboard-tonight-projection .dashboard-projection-title-row {
   margin-bottom: 0;
 }
 
-/* Tonight: “natural average” cue when no saved target (same band as 🎯 saved-target ghosts, centered) */
-.dashboard-tonight-adjust-natural-ghost {
-  position: absolute;
-  top: 56px;
-  left: var(--tonight-mid-pct, 50%);
-  transform: translateX(-50%);
-  font-size: 0.68rem;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.2;
-  white-space: nowrap;
-  pointer-events: none;
-  opacity: 0.72;
-  color: color-mix(in srgb, var(--color-sleep) 68%, var(--text));
-  text-align: center;
+.about-hint-dismiss-wrap {
+  margin-top: 0.75rem;
+  transition: opacity 0.65s ease;
 }
 
-.dashboard-tonight-adjust-natural-ghost--hidden {
-  display: none;
+.about-hint-dismiss-wrap--fading {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.about-hint-dismiss-block {
+  margin: 0;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border-color);
+  background: var(--panel);
+}
+
+.about-hint-dismiss-check-row {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.6rem;
+  cursor: pointer;
+  margin: 0;
+  font: inherit;
+  user-select: none;
+}
+
+.about-hint-dismiss-checkbox {
+  margin: 0;
+  accent-color: var(--color-sleep, #2a9641);
+}
+
+.about-hint-dismiss-gotit,
+.about-hint-done {
+  font-size: 0.95rem;
+}
+
+.about-hint-done {
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+
+.about-hint-dismiss-block--done .about-hint-done {
+  opacity: 1;
+}
+
+.about-hint-dismiss-followup {
+  margin: 0.55rem 0 0;
+  font-size: 0.88rem;
+  opacity: 0.9;
+  line-height: 1.45;
+}
+
+.about-hint-dismiss-feedback {
+  font-size: 0.88rem;
+  opacity: 0.85;
+  margin-top: 0.25rem;
+}
+
+.about-tonight-symbol-list {
+  margin: 10px 0 14px;
+}
+
+.config-in-app-tips-list {
+  list-style: none;
+  margin: 0.35rem 0 0;
+  padding: 0;
+  max-width: 28rem;
+}
+
+.config-in-app-tips-list__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--panel-border-color);
+}
+
+.config-in-app-tips-list__row:last-child {
+  border-bottom: none;
+}
+
+.config-in-app-tip-eye-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  opacity: 0.85;
+  cursor: pointer;
+  transition: opacity 0.2s, background 0.2s;
+}
+
+.config-in-app-tip-eye-btn:hover,
+.config-in-app-tip-eye-btn:focus-visible {
+  opacity: 1;
+  background: var(--panel);
+  outline: none;
+}
+
+.in-app-tip-eye-svg {
+  display: block;
+  width: 22px;
+  height: 22px;
+}
+
+.config-in-app-tips-feedback {
+  font-size: 0.88rem;
+  opacity: 0.85;
+  margin-top: 6px;
 }
 
 #dashboard-tonight-projection .dashboard-tonight-adjust {
@@ -2808,24 +2966,96 @@ body{
   gap: 8px;
 }
 
-.dashboard-tonight-adjust-toolbar.quick-add-page-toolbar {
-  margin-bottom: 0;
-  max-width: 100%;
-  width: 100%;
-}
-
-.dashboard-tonight-adjust-toolbar .quick-add-toolbar-btn--undo:disabled {
-  opacity: 0.45;
-  cursor: default;
-  pointer-events: none;
-}
-
+/* Tonight panel + per-knob Set target / Undo under each thumb */
 .dashboard-tonight-adjust-panel {
+  position: relative;
+  overflow: visible;
   width: min(620px, 100%);
   padding: 4px 0 2px;
   border: none;
   border-radius: 0;
   background: transparent;
+}
+
+.dashboard-tonight-knob-actions {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  top: calc(24px + 10px + 1.2em);
+  transform: translateX(-50%);
+  z-index: 7;
+  max-width: min(48%, 12rem);
+  text-align: left;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+
+.dashboard-tonight-knob-actions.dashboard-tonight-knob-actions--visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.dashboard-tonight-knob-actions--sleep {
+  left: var(--tonight-sleep-pct);
+}
+
+.dashboard-tonight-knob-actions--wake {
+  left: var(--tonight-wake-pct);
+}
+
+.dashboard-tonight-knob-action-btn {
+  margin: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--panel-border-color);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--panel) 90%, transparent);
+  color: var(--text);
+  font-size: 0.68rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.dashboard-tonight-knob-undo-pole {
+  margin-top: 2px;
+  border: none;
+  background: transparent;
+  color: color-mix(in srgb, var(--text) 64%, transparent);
+  font-weight: 500;
+  padding: 2px 6px;
+}
+
+.dashboard-tonight-knob-undo-pole:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.dashboard-tonight-knob-undo-pole:not(:disabled):hover {
+  color: color-mix(in srgb, var(--text) 84%, transparent);
+}
+
+.dashboard-tonight-knob-action-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--text) 28%, var(--panel-border-color));
+  outline-offset: 1px;
+}
+
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-knob-save-inline {
+  border: none;
+  background: color-mix(in srgb, var(--panel) 86%, transparent);
+  font-weight: 400;
+}
+
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-knob-save-inline:focus,
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-knob-save-inline:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
 
 .dashboard-tonight-adjust-panel--hidden {
@@ -2850,38 +3080,14 @@ body{
 
 /* Dashboard Tonight: Sleep/Wake row above bar, thick track, ruler below (quick-add unchanged) */
 .dashboard-tonight-adjust-slider--main {
-  padding: 0 0 2px;
-}
-
-.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-pole-row {
   position: relative;
-  width: 100%;
-  min-height: 1.65rem;
-  margin-bottom: 6px;
-  pointer-events: none;
-}
-
-.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-pole-label {
-  position: absolute;
-  bottom: 0;
-  transform: translateX(-50%);
-  z-index: 5;
-  font-size: 0.85rem;
-  line-height: 1.25;
-  white-space: nowrap;
-}
-
-.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-pole-label--sleep {
-  left: var(--tonight-sleep-pct);
-}
-
-.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-pole-label--wake {
-  left: var(--tonight-wake-pct);
+  padding: 0 0 2px;
 }
 
 .dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-slider-core {
   position: relative;
-  padding: 0 0 72px;
+  /* Space for thumb labels + Set target / Undo row (always reserved so layout does not jump) */
+  padding: 0 0 88px;
 }
 
 .dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-track {
@@ -2893,21 +3099,27 @@ body{
   border-radius: 999px;
 }
 
-/* Let label stay readable; sleep→wake fill stays below this band where they overlap */
+/* Sleep→wake fill: edges align to emoji outer bounds (vars set in updateVisualState; fallbacks until first paint). */
 .dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-range-fill {
   z-index: 2;
+  left: var(--tonight-fill-start-pct, var(--tonight-sleep-pct));
+  width: max(0%, calc(var(--tonight-fill-end-pct, var(--tonight-wake-pct)) - var(--tonight-fill-start-pct, var(--tonight-sleep-pct))));
 }
 
 .dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-recommended-window {
   z-index: 3;
+  background: color-mix(in srgb, var(--color-sleep) 22%, transparent);
 }
 
 .dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-recommended-text--main {
-  font-size: 0.65rem;
+  font-size: 0.78rem;
   font-weight: 600;
-  line-height: 1.1;
-  letter-spacing: 0.07em;
-  font-variant: small-caps;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+  /* Override .dashboard-tonight-adjust-recommended-text { font-variant: small-caps } */
+  font-variant: normal;
+  font-variant-numeric: tabular-nums;
+  text-transform: lowercase;
   color: #ffffff;
   text-shadow: 0 0 1px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.4);
   opacity: 0.98;
@@ -2935,55 +3147,356 @@ body{
   height: 24px;
 }
 
-/* Knobs slightly larger than the 24px bar, centered on the track */
-.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-slider-core input[type="range"]::-webkit-slider-thumb {
-  width: 28px;
-  height: 28px;
-  margin-top: -2px;
+/* Knobs: moon / sunrise emoji — just above 24px track, vertically centered; high z-index above track/SVG (inputs pointer-events: none → overlay still receives drags). */
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-slider-core input[type="range"]#dashboard-tonight-sleep-slider {
+  z-index: 50;
 }
 
-.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-slider-core input[type="range"]::-moz-range-thumb {
-  width: 28px;
-  height: 28px;
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-slider-core input[type="range"]#dashboard-tonight-wake-slider {
+  z-index: 51;
+}
+
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-slider-core #dashboard-tonight-sleep-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 40px;
+  height: 40px;
+  margin-top: -8px;
+  border: none;
+  box-shadow: none;
+  background-color: transparent;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ctext x='20' y='20' dominant-baseline=%22central%22 text-anchor='middle' font-size='34' font-family='Segoe UI Emoji,Apple Color Emoji,Noto Color Emoji,sans-serif'%3E%26%23x1F319%3B%3C/text%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 38px 38px;
+  cursor: grab;
+}
+
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-slider-core #dashboard-tonight-wake-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 40px;
+  height: 40px;
+  margin-top: -8px;
+  border: none;
+  box-shadow: none;
+  background-color: transparent;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ctext x='20' y='20' dominant-baseline=%22central%22 text-anchor='middle' font-size='34' font-family='Segoe UI Emoji,Apple Color Emoji,Noto Color Emoji,sans-serif'%3E%26%23x1F305%3B%3C/text%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 38px 38px;
+  cursor: grab;
+}
+
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-slider-core #dashboard-tonight-sleep-slider::-moz-range-thumb {
+  -moz-appearance: none;
+  appearance: none;
+  width: 40px;
+  height: 40px;
+  margin-top: -8px;
+  border: none;
+  box-shadow: none;
+  background-color: transparent;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ctext x='20' y='20' dominant-baseline=%22central%22 text-anchor='middle' font-size='34' font-family='Segoe UI Emoji,Apple Color Emoji,Noto Color Emoji,sans-serif'%3E%26%23x1F319%3B%3C/text%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 38px 38px;
+  cursor: grab;
+}
+
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-slider-core #dashboard-tonight-wake-slider::-moz-range-thumb {
+  -moz-appearance: none;
+  appearance: none;
+  width: 40px;
+  height: 40px;
+  margin-top: -8px;
+  border: none;
+  box-shadow: none;
+  background-color: transparent;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ctext x='20' y='20' dominant-baseline=%22central%22 text-anchor='middle' font-size='34' font-family='Segoe UI Emoji,Apple Color Emoji,Noto Color Emoji,sans-serif'%3E%26%23x1F305%3B%3C/text%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 38px 38px;
+  cursor: grab;
 }
 
 .dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-slider-core input[type="range"]::-moz-focus-outer {
   border: 0;
 }
 
-/* Cover track plus thumb overhang (2px above/below vs 24px bar) */
+/* Drag hit area: cover track + emoji thumb overhang (inputs stay above for paint; pointer-events: none on inputs passes through to overlay). */
 .dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-overlay {
-  top: -2px;
-  height: 28px;
+  top: -10px;
+  height: 44px;
+  z-index: 5;
 }
 
-/* Live knob times directly under the track; committed “ghost” times fixed below (no vertical jump). */
-.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-thumb-label {
-  top: calc(24px + 4px);
-  z-index: 6;
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-goal-links {
+  z-index: 2;
+}
+
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-knob-actions {
+  z-index: 60;
+}
+
+/* Curved dotted “working toward” guides from live thumb to saved / committed marker */
+.dashboard-tonight-goal-links {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 4;
+}
+
+/* Outline paths kept in DOM for compatibility; not painted (single dotted path only). */
+.dashboard-tonight-goal-path-outline {
+  fill: none;
+  pointer-events: none;
+  stroke: none;
+  opacity: 0;
+}
+
+.dashboard-tonight-goal-path {
+  stroke-width: 1.65;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  /* Denser dotted stroke: short stamp + shorter gap (~2× dots vs 0.1 9) */
+  stroke-dasharray: 0.08 4.25;
+  stroke-opacity: 0.62;
+  paint-order: stroke fill;
+}
+
+.dashboard-tonight-goal-path--sleep {
+  stroke: var(--color-sleep);
+}
+
+.dashboard-tonight-goal-path--wake {
+  stroke: var(--color-up);
+}
+
+/* Filled arrow (separate from dotted path): always vertical into bottom-mid of chip; dotted cubic leaves knob L/R then up */
+.dashboard-tonight-goal-arrow {
+  stroke: none;
+  paint-order: stroke fill;
+}
+
+.dashboard-tonight-goal-arrow--sleep {
+  fill: var(--color-sleep);
+  fill-opacity: 0.72;
+}
+
+.dashboard-tonight-goal-arrow--wake {
+  fill: var(--color-up);
+  fill-opacity: 0.72;
+}
+
+/* Live knob times directly under the track; previous times live in .dashboard-tonight-adjust-top-band */
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-thumb-pack {
+  position: absolute;
+  top: calc(24px + 10px);
+  transform: translateX(-50%);
+  z-index: 45;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  max-width: min(46%, 11rem);
+  pointer-events: none;
+}
+
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-thumb-pack--sleep {
+  left: var(--tonight-sleep-pct);
+}
+
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-thumb-pack--wake {
+  left: var(--tonight-wake-pct);
+}
+
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-thumb-pack .dashboard-tonight-adjust-thumb-label {
+  position: static;
+  transform: none;
+  top: auto;
+  left: auto;
   font-size: 0.95rem;
   font-weight: 600;
+  opacity: 1;
+  flex: 0 1 auto;
+  min-width: 0;
+  line-height: 1.2;
+  padding: 0 1px;
+  pointer-events: none;
 }
 
-.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-baseline-label {
-  top: calc(24px + 26px);
-  z-index: 6;
-  font-size: 0.72rem;
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-thumb-pack:not(.dashboard-tonight-adjust-thumb-pack--dirty) .dashboard-tonight-adjust-minute-step {
+  display: none;
+}
+
+.dashboard-tonight-adjust-minute-step {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0 4px;
+  box-sizing: border-box;
+  min-width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-thumb-pack--sleep .dashboard-tonight-adjust-minute-step {
+  color: var(--color-sleep);
+}
+
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-thumb-pack--wake .dashboard-tonight-adjust-minute-step {
+  color: var(--color-up);
+}
+
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-thumb-pack--sleep .dashboard-tonight-adjust-minute-step:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-sleep) 14%, transparent);
+}
+
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-thumb-pack--wake .dashboard-tonight-adjust-minute-step:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-up) 14%, transparent);
+}
+
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-thumb-pack--sleep .dashboard-tonight-adjust-minute-step:active:not(:disabled) {
+  background: color-mix(in srgb, var(--color-sleep) 22%, transparent);
+}
+
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-thumb-pack--wake .dashboard-tonight-adjust-minute-step:active:not(:disabled) {
+  background: color-mix(in srgb, var(--color-up) 22%, transparent);
+}
+
+.dashboard-tonight-adjust-minute-step:disabled {
+  opacity: 0.28;
+  cursor: default;
+}
+
+.dashboard-tonight-adjust-minute-step:focus,
+.dashboard-tonight-adjust-minute-step:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.dashboard-tonight-adjust-top-band {
+  position: relative;
+  width: 100%;
+  min-height: 32px;
+  margin-bottom: 2px;
+}
+
+.dashboard-tonight-adjust-committed-ghost {
+  position: absolute;
+  top: -6px;
+  transform: translateX(-50%);
+  font-size: 0;
   font-weight: 500;
-  opacity: 0.72;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0.58;
+  max-width: 46%;
+  overflow: visible;
+  text-overflow: ellipsis;
 }
 
-.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-baseline-label--sleep {
-  color: color-mix(in srgb, var(--color-sleep) 58%, var(--text) 42%);
+.dashboard-tonight-committed-ghost-time {
+  font-size: 0.88rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
-.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-baseline-label--wake {
-  color: color-mix(in srgb, var(--color-up) 58%, var(--text) 42%);
+.dashboard-tonight-adjust-committed-ghost--hidden {
+  display: none;
 }
 
-.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-duration-row--above-bar {
-  margin-top: 0;
-  margin-bottom: 8px;
+.dashboard-tonight-adjust-committed-ghost--sleep {
+  left: var(--tonight-committed-sleep-pct, var(--tonight-rec-start-pct));
+  color: color-mix(in srgb, var(--color-sleep) 58%, var(--text));
+}
+
+.dashboard-tonight-adjust-committed-ghost--wake {
+  left: var(--tonight-committed-wake-pct, var(--tonight-rec-end-pct));
+  color: color-mix(in srgb, var(--color-up) 58%, var(--text));
+}
+
+.dashboard-tonight-saved-target-btn {
+  position: absolute;
+  top: -4px;
+  transform: translateX(-50%);
+  display: inline-flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 5px;
+  margin: 0;
+  padding: 5px 10px 6px;
+  border: none;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--panel) 55%, transparent);
+  font-size: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  color: var(--text);
+  opacity: 0.92;
+  max-width: 46%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dashboard-tonight-saved-target-ico {
+  font-size: 0.72rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.dashboard-tonight-saved-target-time {
+  font-size: 0.88rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-tonight-saved-target-btn--hidden {
+  display: none;
+}
+
+.dashboard-tonight-saved-target-btn--dim {
+  opacity: 0.42;
+  cursor: default;
+}
+
+.dashboard-tonight-saved-target-btn--sleep:focus-visible {
+  outline: 2px solid var(--color-sleep);
+  outline-offset: 2px;
+}
+
+.dashboard-tonight-saved-target-btn--wake:focus-visible {
+  outline: 2px solid var(--color-up);
+  outline-offset: 2px;
+}
+
+.dashboard-tonight-saved-target-btn--sleep {
+  left: var(--tonight-saved-target-sleep-pct, 0%);
+  color: color-mix(in srgb, var(--color-sleep) 72%, var(--text));
+}
+
+.dashboard-tonight-saved-target-btn--wake {
+  left: var(--tonight-saved-target-wake-pct, 0%);
+  color: color-mix(in srgb, var(--color-up) 72%, var(--text));
 }
 
 .dashboard-tonight-adjust-duration-row {
@@ -3195,33 +3708,6 @@ body{
   background: transparent;
 }
 
-/* Saved Tonight target (🎯) when guidance shows a different scheduled time than your stored target */
-.dashboard-tonight-adjust-saved-target-ghost {
-  position: absolute;
-  top: 56px;
-  transform: translateX(-50%);
-  font-size: 0.68rem;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.2;
-  white-space: nowrap;
-  pointer-events: none;
-  opacity: 0.72;
-}
-
-.dashboard-tonight-adjust-saved-target-ghost--hidden {
-  display: none;
-}
-
-.dashboard-tonight-adjust-saved-target-ghost--sleep {
-  left: var(--tonight-saved-target-sleep-pct, 0%);
-  color: color-mix(in srgb, var(--color-sleep) 72%, var(--text));
-}
-
-.dashboard-tonight-adjust-saved-target-ghost--wake {
-  left: var(--tonight-saved-target-wake-pct, 0%);
-  color: color-mix(in srgb, var(--color-up) 72%, var(--text));
-}
-
 .dashboard-tonight-clear-target-dialog {
   border: 1px solid var(--panel-border-color);
   border-radius: 12px;
@@ -3241,6 +3727,14 @@ body{
   padding: 16px 18px 14px;
 }
 
+.dashboard-tonight-clear-target-dialog-inner--save-menu {
+  padding-top: 14px;
+}
+
+.dashboard-tonight-clear-target-dialog-inner--save-menu .dashboard-tonight-clear-target-dialog-message {
+  display: none;
+}
+
 .dashboard-tonight-clear-target-dialog-message {
   margin: 0;
   font-size: 0.95rem;
@@ -3256,6 +3750,13 @@ body{
   font-size: 0.92rem;
   line-height: 1.55;
   font-variant-numeric: tabular-nums;
+}
+
+.dashboard-tonight-confirm-dialog-skp[hidden] {
+  display: none !important;
+  margin: 0;
+  height: 0;
+  overflow: hidden;
 }
 
 .dashboard-tonight-confirm-dialog-skp-lead {
@@ -3281,14 +3782,19 @@ body{
   margin-top: 18px;
 }
 
+.dashboard-tonight-clear-target-dialog-inner--save-menu .dashboard-tonight-clear-target-dialog-actions {
+  margin-top: 0;
+  gap: 8px;
+}
+
 .dashboard-tonight-clear-target-dialog-actions .about-theme-option {
   width: 100%;
-  justify-content: center;
-  text-align: center;
+  justify-content: flex-start;
+  text-align: left;
 }
 
 .dashboard-tonight-confirm-dialog-btn-primary {
-  border-color: color-mix(in srgb, var(--color-sleep) 45%, var(--panel-border-color));
+  border-color: var(--panel-border-color);
 }
 
 .dashboard-tonight-adjust-actions {
@@ -6394,6 +6900,11 @@ body.page-stats .stats-page-shell .container {
 .content-link:hover,
 .section-intro a:hover {
   opacity: 1;
+}
+
+.content-link--dotted {
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
 }
 
 .config-remaining-wake-default-row {
