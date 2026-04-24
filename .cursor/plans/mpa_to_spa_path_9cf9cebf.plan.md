@@ -1,6 +1,6 @@
 ---
 name: MPA to SPA path
-overview: This repo is a vanilla static MPA (~4.5k-line [sleep-utils.js](c:/Users/UriasRey/Desktop/sleep_proj/sleep-utils.js), nine HTML shells, no npm bundler in [package.json](c:/Users/UriasRey/Desktop/sleep_proj/package.json)). **Done:** `docs-track` ([docs/migration/](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/)), `utils-audit` ([listener-audit.md](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/listener-audit.md) gate: incremental OK). **Next:** `first-lifecycle` (mount/unmount on quality or stats). Pattern-first rollout; config/about extraction later. Optional Vite, then SPA pivot.
+overview: This repo is a vanilla static MPA (~4.5k-line [sleep-utils.js](c:/Users/UriasRey/Desktop/sleep_proj/sleep-utils.js), nine HTML shells, no npm bundler in [package.json](c:/Users/UriasRey/Desktop/sleep_proj/package.json)). **Done:** `docs-track`, `utils-audit`, `first-lifecycle` ([lifecycle-contract.md](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/lifecycle-contract.md) — quality page). **Next:** `data-fetching-policy` or `route-table`. Pattern-first rollout; config/about extraction later. Optional Vite, then SPA pivot.
 todos:
   - id: docs-track
     content: Add docs/migration/ (conventions, listener-audit, lifecycle-contract, route-table, decisions); cross-link existing docs/dev-banner.md, docs/quick-actions.md, docs/user-data-cloud.md when touching those behaviors
@@ -10,7 +10,7 @@ todos:
     status: completed
   - id: first-lifecycle
     content: "Freeze lifecycle contract: mount(root,ctx)/unmount() on **quality or stats** only (dedicated page script + single outlet) + dev harness for mount→unmount→mount. Do **not** use config/about as the first conversion."
-    status: pending
+    status: completed
   - id: data-fetching-policy
     content: Document per-route fetch/cache/SWR rules (loadSleepData, cloud hydrate) in decisions.md before broad mount rollout
     status: pending
@@ -42,11 +42,21 @@ isProject: false
 
 ## Progress
 
-| Todo | Status |
-|------|--------|
-| `docs-track` | **Completed** — see [docs/migration/conventions.md](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/conventions.md) |
-| `utils-audit` | **Completed** — [docs/migration/listener-audit.md](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/listener-audit.md) (gate: incremental); plan: [`.cursor/plans/utils_audit_gate.plan.md`](c:/Users/UriasRey/Desktop/sleep_proj/.cursor/plans/utils_audit_gate.plan.md) |
-| `first-lifecycle` | **Next** |
+Summary: **3 / 11** todos completed (`docs-track`, `utils-audit`, `first-lifecycle`). **Next:** `data-fetching-policy` or `route-table` (see YAML order).
+
+| Todo | Status | Notes |
+|------|--------|--------|
+| `docs-track` | **Completed** | [docs/migration/conventions.md](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/conventions.md) + sibling stubs |
+| `utils-audit` | **Completed** | [docs/migration/listener-audit.md](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/listener-audit.md); gate plan: [utils_audit_gate.plan.md](c:/Users/UriasRey/Desktop/sleep_proj/.cursor/plans/utils_audit_gate.plan.md) |
+| `first-lifecycle` | **Completed** | [lifecycle-contract.md](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/lifecycle-contract.md); impl: [quality.js](c:/Users/UriasRey/Desktop/sleep_proj/quality.js), [quality.html](c:/Users/UriasRey/Desktop/sleep_proj/quality.html); plan: [first_lifecycle_contract.plan.md](c:/Users/UriasRey/Desktop/sleep_proj/.cursor/plans/first_lifecycle_contract.plan.md) |
+| `data-fetching-policy` | **Next** | |
+| `route-table` | Pending | |
+| `rollout-lifecycles` | Pending | |
+| `config-about-extraction` | Pending | |
+| `link-helper` | Pending | |
+| `module-migration` | Pending | |
+| `bundler-optional` | Pending | |
+| `pivot` | Pending | |
 
 ## What exists today
 
