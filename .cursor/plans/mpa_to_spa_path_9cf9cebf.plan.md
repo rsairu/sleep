@@ -1,13 +1,13 @@
 ---
 name: MPA to SPA path
-overview: This repo is a vanilla static MPA (~4.5k-line [sleep-utils.js](c:/Users/UriasRey/Desktop/sleep_proj/sleep-utils.js), nine HTML shells, no npm bundler in [package.json](c:/Users/UriasRey/Desktop/sleep_proj/package.json)). Gate on a `sleep-utils.js` listener audit; freeze the lifecycle contract using **quality or stats** (dedicated script + outlet only—not config/about). Roll out with a **pattern-first** order (dashboard second proof, then graph/daily hard cases); record the rollout tradeoff in `decisions.md`. Config/about **inline-init extraction** is a separate later step. Optional ES modules/Vite, then a single SPA pivot with hosting rules.
+overview: This repo is a vanilla static MPA (~4.5k-line [sleep-utils.js](c:/Users/UriasRey/Desktop/sleep_proj/sleep-utils.js), nine HTML shells, no npm bundler in [package.json](c:/Users/UriasRey/Desktop/sleep_proj/package.json)). **Done:** `docs-track` ([docs/migration/](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/)), `utils-audit` ([listener-audit.md](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/listener-audit.md) gate: incremental OK). **Next:** `first-lifecycle` (mount/unmount on quality or stats). Pattern-first rollout; config/about extraction later. Optional Vite, then SPA pivot.
 todos:
   - id: docs-track
     content: Add docs/migration/ (conventions, listener-audit, lifecycle-contract, route-table, decisions); cross-link existing docs/dev-banner.md, docs/quick-actions.md, docs/user-data-cloud.md when touching those behaviors
-    status: pending
+    status: completed
   - id: utils-audit
     content: Audit sleep-utils.js (~57 addEventListener) plus timers/global state; classify per-route vs singleton vs per-element; record in listener-audit.md as migration gate
-    status: pending
+    status: completed
   - id: first-lifecycle
     content: "Freeze lifecycle contract: mount(root,ctx)/unmount() on **quality or stats** only (dedicated page script + single outlet) + dev harness for mount→unmount→mount. Do **not** use config/about as the first conversion."
     status: pending
@@ -39,6 +39,14 @@ isProject: false
 ---
 
 # MPA → SPA (repo-tailored plan)
+
+## Progress
+
+| Todo | Status |
+|------|--------|
+| `docs-track` | **Completed** — see [docs/migration/conventions.md](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/conventions.md) |
+| `utils-audit` | **Completed** — [docs/migration/listener-audit.md](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/listener-audit.md) (gate: incremental); plan: [`.cursor/plans/utils_audit_gate.plan.md`](c:/Users/UriasRey/Desktop/sleep_proj/.cursor/plans/utils_audit_gate.plan.md) |
+| `first-lifecycle` | **Next** |
 
 ## What exists today
 

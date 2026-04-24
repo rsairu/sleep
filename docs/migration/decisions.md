@@ -21,6 +21,20 @@ Use for new entries:
 
 ## Accepted / proposed (fill as work lands)
 
+### `utils-audit` gate (`sleep-utils.js`)
+
+**Status:** accepted (Apr 2026).
+
+**Context:** Inventory listeners, timers, and sticky state in `sleep-utils.js` for SPA navigation (see [listener-audit.md](./listener-audit.md)).
+
+**Decision:** **Proceed incremental in-tree** — no fork mandated by audit alone. Address P0/P1 hotspots in listener-audit (config remaining-wake `document` listeners; single `setInterval` / single nav-menu init) during `first-lifecycle` and dashboard second-proof.
+
+**Consequences:** Vite fork remains optional for DX, not a hard gate from entanglement.
+
+**Related (product / UX):** Plan to offer remaining-wake threshold editing **on Settings only**, not on About (see [listener-audit.md — Planned product change](./listener-audit.md#planned-product-change-remaining-wake-settings-only-on-settings)).
+
+---
+
 ### Rollout order (pattern-first default)
 
 **Status:** accepted (from parent plan).
