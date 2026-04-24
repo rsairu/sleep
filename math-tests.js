@@ -182,11 +182,14 @@ function runTests() {
   u.localStorage.setItem('sleep-app-tonight-guidance-pace', 'normal');
   const rOn = u.resolveTonightScheduledWindow(1380, 420, { sleep: 1320, wake: 420 });
   expectEqual(rOn.mode, 'guided', 'resolveTonightScheduledWindow both poles guided when gap');
-  expectEqual(rOn.sleep, 1371, 'normal pace nudges sleep 9m toward earlier target');
+  expectEqual(rOn.sleep, 1370, 'normal pace nudges sleep 10m toward earlier target');
   expectEqual(rOn.wake, 420, 'wake unchanged when already at target');
   const guidedBasis = u.getTonightWakePhaseBasisFromDays(basisDays);
-  expectEqual(guidedBasis.avgSleepStart, 1371, 'getTonightWakePhaseBasisFromDays uses guided sleep');
+  expectEqual(guidedBasis.avgSleepStart, 1370, 'getTonightWakePhaseBasisFromDays uses guided sleep');
   expectEqual(guidedBasis.avgSleepEnd, 420, 'guided basis wake');
+  u.localStorage.setItem('sleep-app-tonight-guidance-pace', 'steady');
+  const rSteady = u.resolveTonightScheduledWindow(1380, 420, { sleep: 1320, wake: 420 });
+  expectEqual(rSteady.sleep, 1365, 'steady pace nudges sleep 15m toward earlier target');
   u.localStorage.removeItem('sleep-app-tonight-guidance-pace');
   const rGentleDefault = u.resolveTonightScheduledWindow(1380, 420, { sleep: 1320, wake: 420 });
   expectEqual(rGentleDefault.sleep, 1374, 'default gentle pace nudges sleep 6m toward earlier target');
@@ -212,7 +215,8 @@ function runTests() {
   u.localStorage.removeItem('sleep-app-tonight-guidance-sleep-enabled');
   u.localStorage.setItem('sleep-app-tonight-guidance-pace', 'gentle');
   const rWakeOnlyG = u.resolveTonightScheduledWindow(1380, 440, wakeOnly);
-  expectEqual(rWakeOnlyG.mode, 'guided', 'wake-only with wake guidance on when wake gap exceeds snap band');
+  expectEqual(rWakeOnlyG.mode, 'guided', 'wake-only with wake guidance on when wake still differs from target');
+  expectEqual(rWakeOnlyG.wake, 434, 'wake-only gentle nudge is pace-capped (no snap to saved wake)');
   u.localStorage.removeItem('sleep-app-tonight-guidance-wake-enabled');
   u.localStorage.removeItem('sleep-app-tonight-guidance-pace');
   u.localStorage.removeItem('sleep-app-tonight-target-window');
@@ -266,6 +270,117 @@ function runTests() {
   const tw3 = u.getTonightTargetWindow();
   expectTruthy(tw3 && tw3.wake === 400 && tw3.sleep == null, 'clearTonightTargetPole sleep');
   u.clearTonightTargetWindow();
+
+  // Tonight matrix view model (phase boundaries, modes, snap removal behavior)
+  const mEmpty = u.buildTonightMatrixViewModel({
+    pole: 'sleep',
+    naturalMinutes: null,
+    savedTargetMinutes: 1320,
+    guidanceEnabled: true,
+    guidedMinutes: 1320,
+    paceId: 'gentle'
+  });
+  expectEqual(mEmpty.rowMode, 'empty', 'no natural → empty row');
+  expectEqual(mEmpty.phase, 'none', 'no natural → phase none');
+
+  const mNoTgt = u.buildTonightMatrixViewModel({
+    pole: 'wake',
+    naturalMinutes: 420,
+    savedTargetMinutes: null,
+    guidanceEnabled: true,
+    guidedMinutes: 420,
+    paceId: 'normal'
+  });
+  expectEqual(mNoTgt.rowMode, 'no_target', 'no saved target → no_target');
+  expectEqual(mNoTgt.showPaceWave, false, 'no target → no pace wave');
+
+  const mTgtOff = u.buildTonightMatrixViewModel({
+    pole: 'sleep',
+    naturalMinutes: 1380,
+    savedTargetMinutes: 1320,
+    guidanceEnabled: false,
+    guidedMinutes: 1320,
+    paceId: 'steady'
+  });
+  expectEqual(mTgtOff.rowMode, 'target_no_guidance', 'target with guidance off');
+  expectEqual(mTgtOff.showPaceWave, false, 'hard target mode → no pace wave');
+
+  const mOnTarget = u.buildTonightMatrixViewModel({
+    pole: 'wake',
+    naturalMinutes: 420,
+    savedTargetMinutes: 400,
+    guidanceEnabled: true,
+    guidedMinutes: 400,
+    paceId: 'gentle'
+  });
+  expectEqual(mOnTarget.phase, 'on_target', 'guided equals target → on_target MAINTAIN');
+  expectEqual(mOnTarget.showPaceWave, true, 'MAINTAIN keeps pace wave active');
+  expectTruthy(mOnTarget.callout != null, 'on_target still emits callout vars');
+
+  const mInitBoundary = u.buildTonightMatrixViewModel({
+    pole: 'sleep',
+    naturalMinutes: 0,
+    savedTargetMinutes: 100,
+    guidanceEnabled: true,
+    guidedMinutes: 30,
+    paceId: 'gentle'
+  });
+  expectEqual(mInitBoundary.remainingRatio, 0.7, 'remainingRatio boundary 70%');
+  expectEqual(mInitBoundary.phase, 'initiating', 'exactly 0.70 remaining → initiating');
+
+  const mLockBoundary = u.buildTonightMatrixViewModel({
+    pole: 'sleep',
+    naturalMinutes: 1380,
+    savedTargetMinutes: 1320,
+    guidanceEnabled: true,
+    guidedMinutes: 1326,
+    paceId: 'gentle'
+  });
+  expectEqual(mLockBoundary.initialGap, 60, 'fixture initial gap 60');
+  expectEqual(mLockBoundary.currentGap, 6, 'fixture current gap 6');
+  expectEqual(mLockBoundary.remainingRatio, 0.1, 'remaining ratio 0.1');
+  expectEqual(mLockBoundary.phase, 'locking_in', 'exactly below 0.15 → locking_in');
+
+  const mSnapNoJump = u.buildTonightMatrixViewModel({
+    pole: 'sleep',
+    naturalMinutes: 100,
+    savedTargetMinutes: 88,
+    guidanceEnabled: true,
+    guidedMinutes: 94,
+    paceId: 'gentle'
+  });
+  expectEqual(mSnapNoJump.currentGap, 6, '12m gap closed by 6m step leaves 6m to target');
+  expectEqual(mSnapNoJump.phase, 'transitioning', '6/12 ratio mid-band (not snap-jumped to on_target)');
+
+  const mDrift = u.buildTonightMatrixViewModel({
+    pole: 'sleep',
+    naturalMinutes: 1330,
+    savedTargetMinutes: 1320,
+    guidanceEnabled: true,
+    guidedMinutes: 1324,
+    paceId: 'gentle'
+  });
+  expectEqual(mDrift.phase, 'transitioning', 'after natural drift, guided off target re-enters mid phase');
+
+  const mSleepDir = u.buildTonightMatrixViewModel({
+    pole: 'sleep',
+    naturalMinutes: 1380,
+    savedTargetMinutes: 1320,
+    guidanceEnabled: true,
+    guidedMinutes: 1370,
+    paceId: 'normal'
+  });
+  expectTruthy(mSleepDir.callout && mSleepDir.callout.directionEarlier === true, 'sleep natural→guided signed earlier');
+
+  const mWakeDir = u.buildTonightMatrixViewModel({
+    pole: 'wake',
+    naturalMinutes: 420,
+    savedTargetMinutes: 400,
+    guidanceEnabled: true,
+    guidedMinutes: 430,
+    paceId: 'normal'
+  });
+  expectTruthy(mWakeDir.callout && mWakeDir.callout.directionEarlier === false, 'wake guided later than natural');
 
   // Projection window wrap behavior near midnight
   const sleepTargetNearMidnight = 10; // 00:10

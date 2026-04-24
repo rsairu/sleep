@@ -122,13 +122,13 @@
         "paceSliderGentler": "Gentler drift",
         "paceSliderSteadier": "Steadier drift",
         "paceTick6": "6m",
-        "paceTick9": "9m",
-        "paceTick12": "12m",
+        "paceTick10": "10m",
+        "paceTick15": "15m",
         "off": "Off",
         "on": "On",
         "gentle": "Gentle (6 min)",
-        "normal": "Normal (9 min)",
-        "steady": "Steady (12 min)",
+        "normal": "Normal (10 min)",
+        "steady": "Steady (15 min)",
         "defaultPill": "Default"
       }
     },
@@ -172,7 +172,7 @@
         "clearWakeConfirm": "🌅 Yes, clear my wake target",
         "clearLeaveSingle": "No, leave my target",
         "ariaScheduleBase": "Tonight sleep and wake schedule.",
-        "ariaGuidedHint": "Compass on a time is tonight's guided schedule. Markers above the bar show saved targets where they still differ from Tonight's schedule.",
+        "ariaGuidedHint": "Compass on a knob is tonight's guided schedule when that pole has a saved target and guidance is on. The matrix below lists natural, guided, pace, and target. Markers above the bar show saved targets where they still differ from Tonight's schedule.",
         "ariaSleepFromAverage": "Sleep time follows your recent average (no saved sleep target).",
         "ariaWakeFromAverage": "Wake time follows your recent average (no saved wake target).",
         "clearTarget": "Clear target",
@@ -199,15 +199,43 @@
         "wakeMinuteLaterAria": "Wake time one minute later",
         "sleepKnobTooltip": "Sleep",
         "wakeKnobTooltip": "Wake",
+        "modePillNatural": "Natural averages",
+        "modePillGuided": "Target with guidance",
+        "modePillTargetOnly": "Target only",
         "clearPoleLead": "Clear your ",
         "clearPoleTrail": " target?",
         "clearTargetYesShort": "Yes, clear my target",
         "saveTargetInline": "🎯 Set target",
-        "saveGuidedInline": "🧭 Set guided target"
+        "saveGuidedInline": "🧭 Set guided target",
+        "matrix": {
+          "ariaGrid": "Tonight schedule matrix: natural average, guided time, pace, and saved target per pole.",
+          "headerNatural": "Natural",
+          "headerGuided": "Guided",
+          "headerPace": "Pace",
+          "headerTarget": "Target"
+        },
+        "phaseCallout": {
+          "phase": {
+            "initiating": "initiating",
+            "transitioning": "transitioning",
+            "locking_in": "locking in",
+            "on_target": "on target"
+          },
+          "verbNudging": "nudging",
+          "verbHolding": "holding",
+          "dirEarlier": "earlier",
+          "dirLater": "later",
+          "sleepNudgingDetail": "{verb} bedtime {dir} by {delta} toward target {target} (gap {gap}).",
+          "sleepHoldingDetail": "{verb} bedtime at target {target} (gap {gap}).",
+          "wakeNudgingDetail": "{verb} wake {dir} by {delta} toward target {target} (gap {gap}).",
+          "wakeHoldingDetail": "{verb} wake at target {target} (gap {gap})."
+        }
       },
       "quickActions": {
         "aboutAria": "About quick actions"
-      }
+      },
+      "sectionTonight": "Tonight",
+      "sectionSleepQuality": "Sleep quality"
     },
     "about": {
       "dashboardHints": {
@@ -221,11 +249,11 @@
         "heading": "What the icons mean on Tonight",
         "listAria": "Tonight bar symbols",
         "compassName": "Guided time",
-        "compassDesc": "On the main sleep or wake time when guidance is on and that pole is still easing toward your saved target.",
+        "compassDesc": "On the knob row when that pole has a saved target and guidance is on (including maintain mode on target). Also labels the Guided and Pace columns in the matrix.",
         "targetName": "Saved target",
-        "targetDesc": "A marker above the bar for each pole where you have a saved goal and it still differs from the schedule Tonight is using. Tap the marker to clear that target.",
+        "targetDesc": "A marker above the bar for each pole where you have a saved goal and it still differs from the schedule Tonight is using. Tap the marker to clear that target. The Target column in the matrix shows the same saved time.",
         "leafName": "Recent average for that pole",
-        "leafDesc": "On the main time when you have not saved a target for that pole (sleep, wake, or both). You can have 🍃 on one pole and 🎯 on the other."
+        "leafDesc": "On the knob row when you have no saved target for that pole, or you have a target but guidance is off for that pole. Labels the Natural column in the matrix. You can have 🍃 on one pole and 🧭 on the other."
       }
     },
     "log": {
@@ -407,13 +435,13 @@
         "paceSliderGentler": "やさしく寄せる",
         "paceSliderSteadier": "しっかり寄せる",
         "paceTick6": "6m",
-        "paceTick9": "9m",
-        "paceTick12": "12m",
+        "paceTick10": "10m",
+        "paceTick15": "15m",
         "off": "オフ",
         "on": "オン",
         "gentle": "ゆるやか（6分）",
-        "normal": "ふつう（9分）",
-        "steady": "しっかり（12分）",
+        "normal": "ふつう（10分）",
+        "steady": "しっかり（15分）",
         "defaultPill": "デフォルト"
       }
     },
@@ -457,7 +485,7 @@
         "clearWakeConfirm": "🌅 はい、起床の目標を消す",
         "clearLeaveSingle": "いいえ、目標を残す",
         "ariaScheduleBase": "今夜の睡眠と起床の予定です。",
-        "ariaGuidedHint": "時刻の横のコンパスは、今夜のガイドされた予定です。バーの上のマークは、今夜の予定とまだずれている保存した目標の時刻です。",
+        "ariaGuidedHint": "ノブ横のコンパスは、その極で保存した目標がありガイドがオンのときの今夜のガイド予定です。下のマトリクスに自然・ガイド・ペース・目標が並びます。バーの上のマークは、今夜の予定とまだずれている保存した目標の時刻です。",
         "ariaSleepFromAverage": "睡眠の時刻は直近の平均に沿っています（睡眠の目標は保存されていません）。",
         "ariaWakeFromAverage": "起床の時刻は直近の平均に沿っています（起床の目標は保存されていません）。",
         "clearTarget": "目標を消去",
@@ -484,15 +512,43 @@
         "wakeMinuteLaterAria": "起床を1分遅らせる",
         "sleepKnobTooltip": "睡眠",
         "wakeKnobTooltip": "起床",
+        "modePillNatural": "自然な平均",
+        "modePillGuided": "ガイド付き目標",
+        "modePillTargetOnly": "目標のみ",
         "clearPoleLead": "",
         "clearPoleTrail": "の目標を消しますか？",
         "clearTargetYesShort": "はい、目標を消す",
         "saveTargetInline": "🎯 目標を保存",
-        "saveGuidedInline": "🧭 ガイド付きで目標を保存"
+        "saveGuidedInline": "🧭 ガイド付きで目標を保存",
+        "matrix": {
+          "ariaGrid": "今夜の予定マトリクス：各極について、自然平均・ガイド時刻・ペース・保存した目標。",
+          "headerNatural": "自然",
+          "headerGuided": "ガイド",
+          "headerPace": "ペース",
+          "headerTarget": "目標"
+        },
+        "phaseCallout": {
+          "phase": {
+            "initiating": "開始",
+            "transitioning": "移行",
+            "locking_in": "確定",
+            "on_target": "目標どおり"
+          },
+          "verbNudging": "寄せる",
+          "verbHolding": "維持",
+          "dirEarlier": "早める",
+          "dirLater": "遅らせる",
+          "sleepNudgingDetail": "{verb}：就寝を{dir}に{delta}寄せ、目標{target}（差{gap}）。",
+          "sleepHoldingDetail": "{verb}：目標の就寝{target}（差{gap}）。",
+          "wakeNudgingDetail": "{verb}：起床を{dir}に{delta}寄せ、目標{target}（差{gap}）。",
+          "wakeHoldingDetail": "{verb}：目標の起床{target}（差{gap}）。"
+        }
       },
       "quickActions": {
         "aboutAria": "クイックアクションについて"
-      }
+      },
+      "sectionTonight": "今夜",
+      "sectionSleepQuality": "睡眠の質"
     },
     "about": {
       "dashboardHints": {
@@ -506,11 +562,11 @@
         "heading": "「今夜」の横にある記号の意味",
         "listAria": "今夜バーの記号",
         "compassName": "ガイドされた予定",
-        "compassDesc": "ガイドがオンで、その極（睡眠または起床）がまだ保存した目標に寄せているとき、メインの時刻の横に表示されます。",
+        "compassDesc": "その極に保存した目標がありガイドがオンのとき、ノブ行の横に表示されます（目標どおりの維持モードも含みます）。マトリクスの「ガイド」「ペース」列の見出しにも使います。",
         "targetName": "保存した目標",
-        "targetDesc": "その極に保存した目標があり、今夜使っている予定とまだ違うとき、バーの上に表示されます。タップでその目標だけ消せます。",
+        "targetDesc": "その極に保存した目標があり、今夜の予定とまだ違うとき、バーの上に表示されます。タップで消せます。マトリクスの「目標」列にも同じ時刻が出ます。",
         "leafName": "その極は直近の平均",
-        "leafDesc": "その極の目標を保存していないとき、メインの時刻の横に表示されます（睡眠だけ、起床だけ、または両方）。一方に🍃、もう一方に🎯が付くこともあります。"
+        "leafDesc": "その極の目標がないとき、または目標はあるがガイドがオフのとき、ノブ行の横に表示されます。マトリクスの「自然」列の見出しにも使います。一方に🍃、もう一方に🧭が付くこともあります。"
       }
     },
     "log": {

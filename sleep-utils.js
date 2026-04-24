@@ -1871,11 +1871,9 @@ const INAPP_TIP_SVG_EYE =
 const INAPP_TIP_SVG_EYE_OFF =
   '<svg class="in-app-tip-eye-svg in-app-tip-eye-svg--off" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a21.77 21.77 0 015.06-7.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a21.5 21.5 0 01-4.7 5.8M1 1l22 22"/></svg>';
 /** Minutes per day cap toward saved target (shortest clock arc). */
-const TONIGHT_GUIDANCE_PACE_MAX_MINUTES = { gentle: 6, normal: 9, steady: 12 };
+const TONIGHT_GUIDANCE_PACE_MAX_MINUTES = { gentle: 6, normal: 10, steady: 15 };
 const TONIGHT_GUIDANCE_PACE_IDS = ['gentle', 'normal', 'steady'];
 const DEFAULT_TONIGHT_GUIDANCE_PACE_ID = 'gentle';
-/** When |avg−target| ≤ this on both sleep and wake (minutes), use saved target directly. */
-const TONIGHT_GUIDANCE_SNAP_BAND_MINUTES = 15;
 
 // Six-step ramps (best → worst). Tiers 4–6 map to severity flags (slight / moderate / severe); 1–3 reserved for future use.
 const QUALITY_PALETTES = {
@@ -2628,6 +2626,11 @@ function shortestSignedClockDelta(fromMin, toMin) {
   return d;
 }
 
+/** Shortest distance between two clock times on the 24h circle, in minutes ∈ [0, 720]. */
+function shortestClockGapMinutes(a, b) {
+  return Math.abs(shortestSignedClockDelta(a, b));
+}
+
 function clampSignedDelta(delta, cap) {
   if (delta > cap) return cap;
   if (delta < -cap) return -cap;
@@ -2820,8 +2823,7 @@ function resolveTonightScheduledWindow(avgSleep, avgWake, savedTw) {
   let outS;
   if (hasS && gSleep) {
     const dS = shortestSignedClockDelta(as, targetS);
-    if (Math.abs(dS) <= TONIGHT_GUIDANCE_SNAP_BAND_MINUTES) outS = targetS;
-    else outS = modMinutes1440(as + clampSignedDelta(dS, cap));
+    outS = modMinutes1440(as + clampSignedDelta(dS, cap));
   } else if (hasS) {
     outS = targetS;
   } else {
@@ -2831,8 +2833,7 @@ function resolveTonightScheduledWindow(avgSleep, avgWake, savedTw) {
   let outW;
   if (hasW && gWake) {
     const dW = shortestSignedClockDelta(aw, targetW);
-    if (Math.abs(dW) <= TONIGHT_GUIDANCE_SNAP_BAND_MINUTES) outW = targetW;
-    else outW = modMinutes1440(aw + clampSignedDelta(dW, cap));
+    outW = modMinutes1440(aw + clampSignedDelta(dW, cap));
   } else if (hasW) {
     outW = targetW;
   } else {
@@ -2849,6 +2850,174 @@ function resolveTonightScheduledWindow(avgSleep, avgWake, savedTw) {
     return { sleep: outS, wake: outW, mode: 'guided' };
   }
   return { sleep: outS, wake: outW, mode: 'target' };
+}
+
+/**
+ * Pure view-model for one Tonight matrix row (sleep or wake).
+ * @param {{ pole?: 'sleep'|'wake', naturalMinutes: number|null, savedTargetMinutes: number|null, guidanceEnabled: boolean, guidedMinutes: number|null, paceId?: string }} input
+ * @returns {{
+ *   pole: 'sleep'|'wake',
+ *   paceId: 'gentle'|'normal'|'steady',
+ *   phase: 'none'|'initiating'|'transitioning'|'locking_in'|'on_target',
+ *   initialGap: number|null,
+ *   currentGap: number|null,
+ *   remainingRatio: number|null,
+ *   rowMode: 'empty'|'no_target'|'target_no_guidance'|'full_guidance',
+ *   cellNatural: number|null,
+ *   cellGuided: number|null,
+ *   cellTarget: number|null,
+ *   showPaceWave: boolean,
+ *   callout: null|{ phase: string, pole: 'sleep'|'wake', deltaMins: number, gapMins: number, targetMins: number, directionEarlier: boolean }
+ * }}
+ */
+function buildTonightMatrixViewModel(input) {
+  const pole = input.pole === 'wake' ? 'wake' : 'sleep';
+  const paceId =
+    input.paceId === 'gentle' || input.paceId === 'normal' || input.paceId === 'steady' ? input.paceId : 'gentle';
+  const naturalRaw = input.naturalMinutes;
+  const naturalMinutes =
+    naturalRaw != null && Number.isFinite(Number(naturalRaw)) ? modMinutes1440(Number(naturalRaw)) : null;
+  const savedRaw = input.savedTargetMinutes;
+  const savedTargetMinutes =
+    savedRaw != null && Number.isFinite(Number(savedRaw)) ? modMinutes1440(Number(savedRaw)) : null;
+  const guidanceEnabled = Boolean(input.guidanceEnabled);
+  const guidedRaw = input.guidedMinutes;
+  const guidedMinutes =
+    guidedRaw != null && Number.isFinite(Number(guidedRaw)) ? modMinutes1440(Number(guidedRaw)) : null;
+
+  /** @type {'none'|'initiating'|'transitioning'|'locking_in'|'on_target'} */
+  let phase = 'none';
+  let initialGap = null;
+  let currentGap = null;
+  let remainingRatio = null;
+  /** @type {'empty'|'no_target'|'target_no_guidance'|'full_guidance'} */
+  let rowMode = 'empty';
+  let cellNatural = null;
+  let cellGuided = null;
+  let cellTarget = null;
+  let showPaceWave = false;
+  let callout = null;
+
+  if (naturalMinutes == null) {
+    rowMode = 'empty';
+    return {
+      pole,
+      paceId,
+      phase,
+      initialGap,
+      currentGap,
+      remainingRatio,
+      rowMode,
+      cellNatural,
+      cellGuided,
+      cellTarget,
+      showPaceWave,
+      callout
+    };
+  }
+  cellNatural = naturalMinutes;
+
+  if (savedTargetMinutes == null) {
+    rowMode = 'no_target';
+    return {
+      pole,
+      paceId,
+      phase,
+      initialGap,
+      currentGap,
+      remainingRatio,
+      rowMode,
+      cellNatural,
+      cellGuided,
+      cellTarget,
+      showPaceWave,
+      callout
+    };
+  }
+  cellTarget = savedTargetMinutes;
+
+  if (!guidanceEnabled) {
+    rowMode = 'target_no_guidance';
+    return {
+      pole,
+      paceId,
+      phase,
+      initialGap,
+      currentGap,
+      remainingRatio,
+      rowMode,
+      cellNatural,
+      cellGuided,
+      cellTarget,
+      showPaceWave,
+      callout
+    };
+  }
+
+  rowMode = 'full_guidance';
+  if (guidedMinutes == null) {
+    return {
+      pole,
+      paceId,
+      phase,
+      initialGap,
+      currentGap,
+      remainingRatio,
+      rowMode,
+      cellNatural,
+      cellGuided,
+      cellTarget,
+      showPaceWave,
+      callout
+    };
+  }
+  cellGuided = guidedMinutes;
+  showPaceWave = true;
+
+  initialGap = shortestClockGapMinutes(naturalMinutes, savedTargetMinutes);
+  currentGap = shortestClockGapMinutes(guidedMinutes, savedTargetMinutes);
+  if (initialGap > 0) {
+    remainingRatio = currentGap / initialGap;
+  } else {
+    remainingRatio = null;
+  }
+
+  if (currentGap === 0) {
+    phase = 'on_target';
+  } else if (remainingRatio != null && remainingRatio <= 0.15) {
+    phase = 'locking_in';
+  } else if (remainingRatio != null && remainingRatio >= 0.7) {
+    phase = 'initiating';
+  } else if (remainingRatio != null) {
+    phase = 'transitioning';
+  } else {
+    phase = 'transitioning';
+  }
+
+  const signedNatToGuided = shortestSignedClockDelta(naturalMinutes, guidedMinutes);
+  callout = {
+    phase,
+    pole,
+    deltaMins: Math.abs(signedNatToGuided),
+    gapMins: currentGap,
+    targetMins: savedTargetMinutes,
+    directionEarlier: signedNatToGuided < 0
+  };
+
+  return {
+    pole,
+    paceId,
+    phase,
+    initialGap,
+    currentGap,
+    remainingRatio,
+    rowMode,
+    cellNatural,
+    cellGuided,
+    cellTarget,
+    showPaceWave,
+    callout
+  };
 }
 
 /** Same key as quick-actions / entry-modal night QA flags (bed, sleep, wake). */
@@ -4897,8 +5066,8 @@ function renderNavBar(currentPage) {
     '<span class="nav-dev-banner-user-label">Pace</span>' +
     '<select id="nav-dev-banner-tonight-guidance-pace" class="nav-dev-banner-user-select nav-dev-banner-user-select--field" aria-label="Tonight guidance pace (minutes per step)">' +
     '<option value="gentle">6m</option>' +
-    '<option value="normal">9m</option>' +
-    '<option value="steady">12m</option>' +
+    '<option value="normal">10m</option>' +
+    '<option value="steady">15m</option>' +
     '</select>' +
     '</div>' +
     '</div>' +

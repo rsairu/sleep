@@ -2,6 +2,8 @@
 const ALARM_TO_WAKE_WARNING_THRESHOLD = 60; // minutes
 /** Prior nights required before timing flags or heatmap colors apply. */
 const LOOKBACK_DAYS = 7;
+/** Minimum logged nights before Tonight matrix shows natural / guidance cells (same window as weekly averages). */
+const TONIGHT_MATRIX_MIN_NATURAL_DAYS = 7;
 const DAY_MINUTES = 1440;
 /** Weight when blending sleep-relative vs day-relative variation (internal only). */
 const BLEND_ALPHA = 0.75;
@@ -600,6 +602,7 @@ function calculateAverages(days) {
   });
   
   return {
+    sampleSize: days.length,
     avgSleepStart: denormalizeTimeForAveraging(Math.round(sleepStartSum / days.length)),
     avgSleepEnd: denormalizeTimeForAveraging(Math.round(sleepEndSum / days.length)),
     avgSleepDuration: Math.round(sleepDurationSum / days.length),
@@ -816,9 +819,7 @@ function calendarSquareTooltip(dayCell) {
 }
 
 // Render a single month block (for heatmap). large: true adds --large class for 2x size on dashboard.
-/** @param {{ dashboardQualityTitleLink?: boolean }} [options] */
-function renderMonthBlock(month, large, options) {
-  const qualityTitleLink = Boolean(options && options.dashboardQualityTitleLink);
+function renderMonthBlock(month, large) {
   const flagSlots = [
     { emoji: '😴', count: month.flagCounts['😴'] },
     { emoji: '⌛', count: month.flagCounts['⌛'] },
@@ -828,12 +829,7 @@ function renderMonthBlock(month, large, options) {
   const flagHtml = flagSlots.map(f => `<span class="calendar-flag-slot"><span class="calendar-flag-emoji">${f.emoji}</span><span class="calendar-flag-num">${f.count}</span></span>`).join('');
   const weekdayLabels = ['Su', 'M', 'T', 'W', 'R', 'F', 'Sa'].map(w => `<div class="calendar-weekday-label">${w}</div>`).join('');
   const blockClass = 'calendar-month-block' + (large ? ' calendar-month-block--large' : '');
-  const monthTitleHtml = qualityTitleLink
-    ? `<a href="quality.html" class="calendar-month-cta calendar-month-cta--dashboard-quality">
-        <span class="calendar-month-cta__quality"><span aria-hidden="true">💜</span> Sleep quality</span>
-        <span class="calendar-month-cta__month">${month.name}</span>
-      </a>`
-    : `<div class="calendar-month-name">${month.name}</div>`;
+  const monthTitleHtml = `<div class="calendar-month-name">${month.name}</div>`;
   return `
     <div class="${blockClass}">
       <div class="calendar-month-header">
@@ -913,16 +909,17 @@ function renderCalendarHeatmapHeader(options) {
   `;
 }
 
-// Dashboard inline: current month calendar only (no header, no legend)
+// Dashboard inline: Sleep quality section title + current month calendar (no heatmap legend)
 function renderCalendarCurrentMonthOnlyBlock(year, flagMap, latestDataDate) {
   const months = generateCalendarHeatmap(year, flagMap, latestDataDate);
   const now = getAppDate();
   const isCurrentYear = year === now.getFullYear();
   const currentMonthIndex = isCurrentYear ? now.getMonth() : null;
-  const currentMonthBlock = currentMonthIndex !== null ? renderMonthBlock(months[currentMonthIndex], true, { dashboardQualityTitleLink: true }) : '';
+  const currentMonthBlock = currentMonthIndex !== null ? renderMonthBlock(months[currentMonthIndex], true) : '';
   if (!currentMonthBlock) return '';
   return `
-    <div class="calendar-heatmap calendar-heatmap--inline">
+    <div class="calendar-heatmap calendar-heatmap--inline calendar-heatmap--dashboard-month">
+      <h2 class="dashboard-section-title"><a class="dashboard-section-title__link" href="quality.html"><span class="dashboard-section-title__emoji" aria-hidden="true">💜</span> <span data-i18n="dashboard.sectionSleepQuality">Sleep quality</span></a></h2>
       <div class="calendar-current-month-row">${currentMonthBlock}</div>
     </div>
   `;
@@ -983,6 +980,12 @@ function normalizeClockMinutesNearReference(clockMinutes, referenceMinutes) {
 }
 
 function getTonightProjectionBaseState(recentAverages) {
+  if (!recentAverages) {
+    return getTonightProjectionBaseState(QUICK_ADD_FALLBACK_AVERAGES);
+  }
+  const sampleSize =
+    recentAverages && typeof recentAverages.sampleSize === 'number' ? recentAverages.sampleSize : 0;
+  const tonightNaturalReliable = sampleSize >= TONIGHT_MATRIX_MIN_NATURAL_DAYS;
   const avgSleep = recentAverages.avgSleepStart;
   const avgWake = recentAverages.avgSleepEnd;
   const sleepByLow = modMinutes1440(avgSleep - PROJECTION_BAND_MINUTES);
@@ -1049,7 +1052,23 @@ function getTonightProjectionBaseState(recentAverages) {
     scopeEndNorm = Math.max(scopeEndNorm, wn + TONIGHT_ADJUST_SCOPE_PAD_MINUTES);
   }
 
+  const paceId =
+    typeof getTonightGuidancePaceId === 'function' ? getTonightGuidancePaceId() : 'gentle';
+  const guidanceSleepEnabled =
+    typeof getTonightGuidanceSleepEnabled === 'function' ? getTonightGuidanceSleepEnabled() : false;
+  const guidanceWakeEnabled =
+    typeof getTonightGuidanceWakeEnabled === 'function' ? getTonightGuidanceWakeEnabled() : false;
+  const naturalSleepMinutes = tonightNaturalReliable ? avgSleep : null;
+  const naturalWakeMinutes = tonightNaturalReliable ? avgWake : null;
+
   return {
+    sampleSize,
+    tonightNaturalReliable,
+    naturalSleepMinutes,
+    naturalWakeMinutes,
+    paceId,
+    guidanceSleepEnabled,
+    guidanceWakeEnabled,
     avgSleepStart: avgSleep,
     avgSleepEnd: avgWake,
     sleepTarget: committedSleep,
@@ -1076,6 +1095,65 @@ function getTonightProjectionBaseState(recentAverages) {
   };
 }
 
+const TONIGHT_MATRIX_EM = '\u2014';
+
+function tonightMatrixFormatCell(minutes) {
+  if (minutes == null || !Number.isFinite(Number(minutes))) return TONIGHT_MATRIX_EM;
+  return formatTime(modMinutes1440(Number(minutes)));
+}
+
+function tonightInterpolateTemplate(str, vars) {
+  return String(str).replace(/\{(\w+)\}/g, function (_, k) {
+    return Object.prototype.hasOwnProperty.call(vars, k) && vars[k] != null ? String(vars[k]) : '';
+  });
+}
+
+function buildTonightMatrixCalloutParts(vm, tdT) {
+  if (!vm || !vm.callout || vm.rowMode !== 'full_guidance') return null;
+  const c = vm.callout;
+  const phaseDefaults = {
+    initiating: 'initiating',
+    transitioning: 'transitioning',
+    locking_in: 'locking in',
+    on_target: 'on target'
+  };
+  const phaseWord = tdT('dashboard.tonight.phaseCallout.phase.' + vm.phase, phaseDefaults[vm.phase] || vm.phase);
+  const verb =
+    vm.phase === 'on_target'
+      ? tdT('dashboard.tonight.phaseCallout.verbHolding', 'holding')
+      : tdT('dashboard.tonight.phaseCallout.verbNudging', 'nudging');
+  const dirWord = c.directionEarlier
+    ? tdT('dashboard.tonight.phaseCallout.dirEarlier', 'earlier')
+    : tdT('dashboard.tonight.phaseCallout.dirLater', 'later');
+  const delta = formatDuration(c.deltaMins);
+  const gap = formatDuration(c.gapMins);
+  const target = formatTime(c.targetMins);
+  const vars = { verb: verb, dir: dirWord, delta: delta, gap: gap, target: target };
+  let detail;
+  if (vm.pole === 'sleep') {
+    const key =
+      vm.phase === 'on_target'
+        ? 'dashboard.tonight.phaseCallout.sleepHoldingDetail'
+        : 'dashboard.tonight.phaseCallout.sleepNudgingDetail';
+    const fallback =
+      vm.phase === 'on_target'
+        ? '{verb} at target bedtime {target} (gap {gap}).'
+        : '{verb} bedtime {dir} by {delta} toward target {target} (gap {gap}).';
+    detail = tonightInterpolateTemplate(tdT(key, fallback), vars);
+  } else {
+    const keyW =
+      vm.phase === 'on_target'
+        ? 'dashboard.tonight.phaseCallout.wakeHoldingDetail'
+        : 'dashboard.tonight.phaseCallout.wakeNudgingDetail';
+    const fallbackW =
+      vm.phase === 'on_target'
+        ? '{verb} at target wake {target} (gap {gap}).'
+        : '{verb} wake {dir} by {delta} toward target {target} (gap {gap}).';
+    detail = tonightInterpolateTemplate(tdT(keyW, fallbackW), vars);
+  }
+  return { phaseWord: phaseWord, detail: detail };
+}
+
 function clampTonightProjectionNorms(base, sleepNorm, wakeNorm) {
   const min = base.scopeStartNorm;
   const max = base.scopeEndNorm;
@@ -1095,6 +1173,7 @@ function clampTonightProjectionNorms(base, sleepNorm, wakeNorm) {
 
 /** Default “recent average” when there is no history (minutes from midnight). */
 const QUICK_ADD_FALLBACK_AVERAGES = {
+  sampleSize: 0,
   avgSleepStart: 22 * 60 + 30,
   avgSleepEnd: 7 * 60,
   avgSleepDuration: Math.round(8.5 * 60),
@@ -1464,6 +1543,11 @@ function renderDashboardProjection(recentAverages) {
   const projection = getTonightProjectionState(recentAverages);
   const base = projection.base;
   const durationMins = durationMinutes(projection.sleepClock, projection.wakeClock);
+  const paceWaveCircles = Array.from({ length: 13 }, (_, i) => {
+    const cx = 2 + i * 4;
+    return `<circle class="dashboard-tonight-pace-dot" cx="${cx}" cy="4" r="0.9" style="--i:${i}"></circle>`;
+  }).join('');
+  const paceWaveSvg = `<svg class="dashboard-tonight-pace-wave-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 8" preserveAspectRatio="none" aria-hidden="true">${paceWaveCircles}</svg>`;
   const savedSleepPct =
     projection.savedTargetSleepPct != null ? `${projection.savedTargetSleepPct}%` : `${projection.committedSleepPct}%`;
   const savedWakePct =
@@ -1475,7 +1559,7 @@ function renderDashboardProjection(recentAverages) {
   return `
     <div class="dashboard-projection" id="dashboard-tonight-projection" data-rec-sleep="${base.avgSleepStart}" data-rec-wake="${base.avgSleepEnd}">
       <div class="dashboard-projection-title-row">
-        <h2 class="dashboard-projection-title">Tonight</h2>
+        <h2 class="dashboard-section-title"><span class="dashboard-section-title__static"><span class="dashboard-section-title__emoji" aria-hidden="true">🛌</span> <span data-i18n="dashboard.sectionTonight">Tonight</span></span></h2>
         ${tonightInfoHtml}
       </div>
       <div class="dashboard-tonight-adjust">
@@ -1534,7 +1618,10 @@ function renderDashboardProjection(recentAverages) {
                 >
                   ‹
                 </button>
-                <div class="dashboard-tonight-adjust-thumb-label dashboard-tonight-adjust-thumb-label--sleep" id="dashboard-tonight-sleep-thumb-label">${formatTime(projection.sleepClock)}</div>
+                <div class="dashboard-tonight-adjust-thumb-inner">
+                  <span class="dashboard-tonight-adjust-thumb-emoji" id="dashboard-tonight-sleep-thumb-icon" aria-hidden="true">🍃</span>
+                  <div class="dashboard-tonight-adjust-thumb-label dashboard-tonight-adjust-thumb-label--sleep" id="dashboard-tonight-sleep-thumb-label">${formatTime(projection.sleepClock)}</div>
+                </div>
                 <button
                   type="button"
                   class="dashboard-tonight-adjust-minute-step"
@@ -1555,7 +1642,10 @@ function renderDashboardProjection(recentAverages) {
                 >
                   ‹
                 </button>
-                <div class="dashboard-tonight-adjust-thumb-label dashboard-tonight-adjust-thumb-label--wake" id="dashboard-tonight-wake-thumb-label">${formatTime(projection.wakeClock)}</div>
+                <div class="dashboard-tonight-adjust-thumb-inner">
+                  <span class="dashboard-tonight-adjust-thumb-emoji" id="dashboard-tonight-wake-thumb-icon" aria-hidden="true">🍃</span>
+                  <div class="dashboard-tonight-adjust-thumb-label dashboard-tonight-adjust-thumb-label--wake" id="dashboard-tonight-wake-thumb-label">${formatTime(projection.wakeClock)}</div>
+                </div>
                 <button
                   type="button"
                   class="dashboard-tonight-adjust-minute-step"
@@ -1577,6 +1667,43 @@ function renderDashboardProjection(recentAverages) {
                 <button type="button" class="dashboard-tonight-knob-action-btn dashboard-tonight-knob-undo-pole" id="dashboard-tonight-wake-undo" data-i18n="dashboard.tonight.undoPlain">Undo</button>
               </div>
             </div>
+          </div>
+          <div class="dashboard-tonight-matrix">
+            <div
+              class="dashboard-tonight-matrix-grid"
+              role="grid"
+              data-i18n-aria-label="dashboard.tonight.matrix.ariaGrid"
+              aria-label="Tonight schedule matrix: natural average, guided time, pace, and saved target per pole."
+            >
+              <div class="dashboard-tonight-matrix-corner" aria-hidden="true"></div>
+              <div class="dashboard-tonight-matrix-h" data-i18n="dashboard.tonight.matrix.headerNatural"><span class="dashboard-tonight-matrix-h-ico" aria-hidden="true">🍃</span> Natural</div>
+              <div class="dashboard-tonight-matrix-h" data-i18n="dashboard.tonight.matrix.headerGuided"><span class="dashboard-tonight-matrix-h-ico" aria-hidden="true">🧭</span> Guided</div>
+              <div class="dashboard-tonight-matrix-h" data-i18n="dashboard.tonight.matrix.headerPace"><span class="dashboard-tonight-matrix-h-ico" aria-hidden="true">🧭</span> Pace</div>
+              <div class="dashboard-tonight-matrix-h" data-i18n="dashboard.tonight.matrix.headerTarget"><span class="dashboard-tonight-matrix-h-ico" aria-hidden="true">🎯</span> Target</div>
+              <div class="dashboard-tonight-matrix-rh dashboard-tonight-matrix-rh--sleep">
+                <span class="dashboard-tonight-matrix-rh-emoji" aria-hidden="true">🌙</span>
+                <span class="proj-keyword proj-sleep" data-i18n="dashboard.tonight.sleepKnobTooltip">Sleep</span>
+              </div>
+              <div class="dashboard-tonight-matrix-cell" id="dashboard-tonight-matrix-sleep-natural"></div>
+              <div class="dashboard-tonight-matrix-cell" id="dashboard-tonight-matrix-sleep-guided"></div>
+              <div class="dashboard-tonight-matrix-cell dashboard-tonight-matrix-cell--pace" id="dashboard-tonight-matrix-sleep-pace">
+                <span class="dashboard-tonight-matrix-dash" id="dashboard-tonight-matrix-sleep-pace-dash" hidden>—</span>
+                <div class="dashboard-tonight-pace-wave-host dashboard-tonight-pace-wave-host--sleep" id="dashboard-tonight-matrix-sleep-pace-wave" hidden>${paceWaveSvg}</div>
+              </div>
+              <div class="dashboard-tonight-matrix-cell" id="dashboard-tonight-matrix-sleep-target"></div>
+              <div class="dashboard-tonight-matrix-rh dashboard-tonight-matrix-rh--wake">
+                <span class="dashboard-tonight-matrix-rh-emoji" aria-hidden="true">🌅</span>
+                <span class="proj-keyword proj-wake" data-i18n="dashboard.tonight.wakeKnobTooltip">Wake</span>
+              </div>
+              <div class="dashboard-tonight-matrix-cell" id="dashboard-tonight-matrix-wake-natural"></div>
+              <div class="dashboard-tonight-matrix-cell" id="dashboard-tonight-matrix-wake-guided"></div>
+              <div class="dashboard-tonight-matrix-cell dashboard-tonight-matrix-cell--pace" id="dashboard-tonight-matrix-wake-pace">
+                <span class="dashboard-tonight-matrix-dash" id="dashboard-tonight-matrix-wake-pace-dash" hidden>—</span>
+                <div class="dashboard-tonight-pace-wave-host dashboard-tonight-pace-wave-host--wake" id="dashboard-tonight-matrix-wake-pace-wave" hidden>${paceWaveSvg}</div>
+              </div>
+              <div class="dashboard-tonight-matrix-cell" id="dashboard-tonight-matrix-wake-target"></div>
+            </div>
+            <div class="dashboard-tonight-matrix-callouts" id="dashboard-tonight-matrix-callouts"></div>
           </div>
         </div>
       </div>
@@ -1607,6 +1734,8 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
   const wakeSlider = document.getElementById('dashboard-tonight-wake-slider');
   const sleepLabel = document.getElementById('dashboard-tonight-sleep-thumb-label');
   const wakeLabel = document.getElementById('dashboard-tonight-wake-thumb-label');
+  const sleepThumbIcon = document.getElementById('dashboard-tonight-sleep-thumb-icon');
+  const wakeThumbIcon = document.getElementById('dashboard-tonight-wake-thumb-icon');
   const sleepThumbPack = document.getElementById('dashboard-tonight-sleep-thumb-pack');
   const wakeThumbPack = document.getElementById('dashboard-tonight-wake-thumb-pack');
   const sleepMinusBtn = document.getElementById('dashboard-tonight-sleep-minus');
@@ -1622,6 +1751,7 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
   const wakeSaveTargetBtn = document.getElementById('dashboard-tonight-wake-save-target');
   const wakeSaveGuidedBtn = document.getElementById('dashboard-tonight-wake-save-guided');
   const wakeUndoBtn = document.getElementById('dashboard-tonight-wake-undo');
+  const matrixCallouts = document.getElementById('dashboard-tonight-matrix-callouts');
   const clearTargetDialogInner = document.getElementById('dashboard-tonight-clear-target-dialog-inner');
   const committedSleepTop = document.getElementById('dashboard-tonight-committed-sleep-top');
   const committedWakeTop = document.getElementById('dashboard-tonight-committed-wake-top');
@@ -1703,6 +1833,128 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
     wakeSlider.max = String(base.scopeEndNorm);
   }
 
+  function syncTonightPaceWaveHost(hostEl, paceId) {
+    if (!hostEl) return;
+    hostEl.classList.remove(
+      'dashboard-tonight-pace-wave-host--gentle',
+      'dashboard-tonight-pace-wave-host--normal',
+      'dashboard-tonight-pace-wave-host--steady'
+    );
+    const pid = paceId === 'normal' || paceId === 'steady' ? paceId : 'gentle';
+    hostEl.classList.add('dashboard-tonight-pace-wave-host--' + pid);
+  }
+
+  function syncTonightMatrix() {
+    if (typeof buildTonightMatrixViewModel !== 'function' || !matrixCallouts) return;
+    const elSleepNat = document.getElementById('dashboard-tonight-matrix-sleep-natural');
+    if (!elSleepNat) return;
+
+    const paceIdLive = base.paceId || 'gentle';
+    const sleepVm = buildTonightMatrixViewModel({
+      pole: 'sleep',
+      naturalMinutes: base.naturalSleepMinutes,
+      savedTargetMinutes: base.savedTargetSleep,
+      guidanceEnabled: base.guidanceSleepEnabled,
+      guidedMinutes: state.sleepClock,
+      paceId: paceIdLive
+    });
+    const wakeVm = buildTonightMatrixViewModel({
+      pole: 'wake',
+      naturalMinutes: base.naturalWakeMinutes,
+      savedTargetMinutes: base.savedTargetWake,
+      guidanceEnabled: base.guidanceWakeEnabled,
+      guidedMinutes: state.wakeClock,
+      paceId: paceIdLive
+    });
+
+    function fillRow(vm, ids) {
+      const nat = document.getElementById(ids.nat);
+      const guided = document.getElementById(ids.guided);
+      const dash = document.getElementById(ids.paceDash);
+      const waveHost = document.getElementById(ids.paceWave);
+      const tgt = document.getElementById(ids.target);
+      if (!nat || !guided || !dash || !waveHost || !tgt) return;
+
+      if (vm.rowMode === 'empty') {
+        nat.textContent = TONIGHT_MATRIX_EM;
+        guided.textContent = TONIGHT_MATRIX_EM;
+        tgt.textContent = TONIGHT_MATRIX_EM;
+        dash.hidden = false;
+        waveHost.hidden = true;
+        return;
+      }
+      nat.textContent = tonightMatrixFormatCell(vm.cellNatural);
+      if (vm.rowMode === 'no_target') {
+        guided.textContent = TONIGHT_MATRIX_EM;
+        tgt.textContent = TONIGHT_MATRIX_EM;
+        dash.hidden = false;
+        waveHost.hidden = true;
+        return;
+      }
+      if (vm.rowMode === 'target_no_guidance') {
+        guided.textContent = TONIGHT_MATRIX_EM;
+        tgt.textContent = tonightMatrixFormatCell(vm.cellTarget);
+        dash.hidden = false;
+        waveHost.hidden = true;
+        return;
+      }
+      guided.textContent = tonightMatrixFormatCell(vm.cellGuided);
+      tgt.textContent = tonightMatrixFormatCell(vm.cellTarget);
+      if (vm.showPaceWave) {
+        dash.hidden = true;
+        waveHost.hidden = false;
+        syncTonightPaceWaveHost(waveHost, vm.paceId);
+      } else {
+        dash.hidden = false;
+        waveHost.hidden = true;
+      }
+    }
+
+    fillRow(sleepVm, {
+      nat: 'dashboard-tonight-matrix-sleep-natural',
+      guided: 'dashboard-tonight-matrix-sleep-guided',
+      paceDash: 'dashboard-tonight-matrix-sleep-pace-dash',
+      paceWave: 'dashboard-tonight-matrix-sleep-pace-wave',
+      target: 'dashboard-tonight-matrix-sleep-target'
+    });
+    fillRow(wakeVm, {
+      nat: 'dashboard-tonight-matrix-wake-natural',
+      guided: 'dashboard-tonight-matrix-wake-guided',
+      paceDash: 'dashboard-tonight-matrix-wake-pace-dash',
+      paceWave: 'dashboard-tonight-matrix-wake-pace-wave',
+      target: 'dashboard-tonight-matrix-wake-target'
+    });
+
+    matrixCallouts.textContent = '';
+    [sleepVm, wakeVm].forEach(function (vm) {
+      if (!vm.callout || vm.rowMode !== 'full_guidance') return;
+      const parts = buildTonightMatrixCalloutParts(vm, tdT);
+      if (!parts) return;
+      const row = document.createElement('div');
+      row.className = 'dashboard-tonight-matrix-callout dashboard-tonight-matrix-callout--' + vm.pole;
+      const dot = document.createElement('span');
+      dot.className = 'dashboard-tonight-matrix-callout-dot';
+      dot.setAttribute('aria-hidden', 'true');
+      const body = document.createElement('p');
+      body.className = 'dashboard-tonight-matrix-callout-body';
+      const phaseSpan = document.createElement('span');
+      phaseSpan.className = 'dashboard-tonight-matrix-callout-phase';
+      phaseSpan.textContent = parts.phaseWord;
+      const sep = document.createElement('span');
+      sep.className = 'dashboard-tonight-matrix-callout-sep';
+      sep.textContent = ' \u2014 ';
+      const rest = document.createElement('span');
+      rest.className = 'dashboard-tonight-matrix-callout-rest';
+      rest.textContent = parts.detail;
+      body.appendChild(phaseSpan);
+      body.appendChild(sep);
+      body.appendChild(rest);
+      row.appendChild(dot);
+      row.appendChild(body);
+      matrixCallouts.appendChild(row);
+    });
+  }
+
   function updateVisualState(persistOverride) {
     const scopeSpan = base.scopeEndNorm - base.scopeStartNorm;
     const sleepPct = ((state.sleepNorm - base.scopeStartNorm) / scopeSpan) * 100;
@@ -1765,8 +2017,6 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
     sleepSlider.value = String(state.sleepNorm);
     wakeSlider.value = String(state.wakeNorm);
 
-    const sleepAdjusted = state.sleepClock !== base.committedSleep;
-    const wakeAdjusted = state.wakeClock !== base.committedWake;
     const sleepGuidanceOn =
       typeof getTonightGuidanceSleepEnabled === 'function' ? getTonightGuidanceSleepEnabled() : false;
     const wakeGuidanceOn =
@@ -1783,18 +2033,13 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
     const wakeTxt = formatTime(state.wakeClock);
     const sleepFromAverage = base.savedTargetSleep == null;
     const wakeFromAverage = base.savedTargetWake == null;
-    sleepLabel.textContent =
-      sleepPoleGuided && !sleepAdjusted
-        ? '🧭 ' + sleepTxt
-        : sleepFromAverage && !sleepAdjusted
-          ? '🍃 ' + sleepTxt
-          : sleepTxt;
-    wakeLabel.textContent =
-      wakePoleGuided && !wakeAdjusted
-        ? '🧭 ' + wakeTxt
-        : wakeFromAverage && !wakeAdjusted
-          ? '🍃 ' + wakeTxt
-          : wakeTxt;
+    sleepLabel.textContent = sleepTxt;
+    wakeLabel.textContent = wakeTxt;
+    const sleepThumbCompass = base.savedTargetSleep != null && base.guidanceSleepEnabled;
+    const wakeThumbCompass = base.savedTargetWake != null && base.guidanceWakeEnabled;
+    if (sleepThumbIcon) sleepThumbIcon.textContent = sleepThumbCompass ? '🧭' : '🍃';
+    if (wakeThumbIcon) wakeThumbIcon.textContent = wakeThumbCompass ? '🧭' : '🍃';
+    syncTonightMatrix();
 
     let scheduleAria = tdT('dashboard.tonight.ariaScheduleBase', 'Tonight sleep and wake schedule.');
     if (base.tonightGuidanceMode === 'guided') {
