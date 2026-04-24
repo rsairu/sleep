@@ -1,0 +1,18 @@
+---
+description: Voice, constraints, and workflow for Restore user-facing copy (About, Settings, i18n).
+globs:
+  - "**/about.html"
+  - "**/settings.html"
+  - "**/locales.json"
+alwaysApply: false
+---
+
+# Restore copy and voice
+
+User-facing prose for Restore should match **`docs/restore-copy-voice.md`**: calm, direct, plain language; no medical claims or guilt framing; **Settings** copy short and scannable, **About** may be longer where behavior is explained; align tone with dark-first UI (precise where the product is precise).
+
+When editing strings tied to **`data-i18n`**, keep keys and markup intact and update **`locales.json`** (and Japanese entries where they exist) in the same change.
+
+For color/event semantics in copy that references the UI, see **`docs/semantic-keyword-palette.md`**.
+
+Do not expand scope into drive-by rewrites of unrelated sections; match the user’s requested surfaces only.

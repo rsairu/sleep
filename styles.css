@@ -2587,7 +2587,7 @@ body{
   flex: 1 1 0;
   min-width: 0;
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: flex-start;
   align-self: flex-start;
 }
@@ -2596,7 +2596,12 @@ body{
   margin: 0;
   width: 100%;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.dashboard-top-col--calendar .calendar-heatmap--dashboard-month {
+  align-items: flex-start;
 }
 
 .dashboard-top-col--calendar .calendar-heatmap.calendar-heatmap--inline {
@@ -2608,7 +2613,7 @@ body{
   margin-bottom: 0;
   padding-bottom: 0;
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
 }
 
 .dashboard-top-col--calendar .calendar-month-block--large {
@@ -2622,19 +2627,18 @@ body{
 .dashboard-top-col--calendar .calendar-month-block--large .calendar-month-header {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  text-align: center;
+  align-items: flex-start;
+  text-align: left;
   gap: 2px;
 }
 
-.dashboard-top-col--calendar .calendar-month-block--large .calendar-month-name,
-.dashboard-top-col--calendar .calendar-month-block--large .calendar-month-cta--dashboard-quality {
-  text-align: center;
+.dashboard-top-col--calendar .calendar-month-block--large .calendar-month-name {
+  text-align: left;
 }
 
 .dashboard-top-col--calendar .calendar-month-block--large .calendar-month-flag-counter {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
 }
 
 .dashboard-top-col--calendar .calendar-month-block--large .calendar-weekday-cells--in-block {
@@ -2684,15 +2688,6 @@ body{
   margin: 0;
 }
 
-.dashboard-projection-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin: 0 0 4px 0;
-  color: var(--text);
-  opacity: 0.95;
-  text-align: center;
-}
-
 .dashboard-projection-title-row {
   display: flex;
   align-items: center;
@@ -2702,11 +2697,11 @@ body{
   min-width: 0;
 }
 
-.dashboard-projection-title-row .dashboard-projection-title {
-  margin: 0;
-  flex: 1;
+.dashboard-projection-title-row .dashboard-section-title {
+  flex: 1 1 auto;
   min-width: 0;
-  text-align: center;
+  text-align: left;
+  margin-top: 0;
 }
 
 #dashboard-tonight-projection.dashboard-projection {
@@ -2975,6 +2970,240 @@ body{
   border: none;
   border-radius: 0;
   background: transparent;
+}
+
+/* Tonight: natural / guided / pace / target matrix below the bar */
+.dashboard-tonight-matrix {
+  margin: 12px 0 0 0;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--panel-border-color) 75%, transparent);
+  min-width: 0;
+  width: 100%;
+}
+
+.dashboard-tonight-matrix-grid {
+  display: grid;
+  grid-template-columns: auto repeat(4, minmax(0, 1fr));
+  gap: 0;
+  min-width: 0;
+  width: 100%;
+  align-items: stretch;
+}
+
+.dashboard-tonight-matrix-corner {
+  min-height: 1px;
+}
+
+.dashboard-tonight-matrix-h {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: color-mix(in srgb, var(--text) 52%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--panel-border-color) 80%, transparent);
+  padding: 0 4px 6px;
+  text-align: center;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dashboard-tonight-matrix-h-ico {
+  display: inline;
+  margin-right: 0.15em;
+  font-style: normal;
+}
+
+.dashboard-tonight-matrix-rh {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.35em;
+  padding: 8px 8px 8px 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border-bottom: 1px solid color-mix(in srgb, var(--panel-border-color) 65%, transparent);
+  white-space: nowrap;
+}
+
+.dashboard-tonight-matrix-rh--sleep {
+  color: var(--color-sleep);
+}
+
+.dashboard-tonight-matrix-rh--wake {
+  color: var(--color-up);
+}
+
+.dashboard-tonight-matrix-rh-emoji {
+  font-size: 1em;
+  line-height: 1;
+}
+
+.dashboard-tonight-matrix-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 4px;
+  border-bottom: 1px solid color-mix(in srgb, var(--panel-border-color) 65%, transparent);
+  font-size: 14px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  color: var(--text);
+  min-width: 0;
+  text-align: center;
+}
+
+#dashboard-tonight-matrix-sleep-natural,
+#dashboard-tonight-matrix-sleep-guided,
+#dashboard-tonight-matrix-sleep-target {
+  color: color-mix(in srgb, var(--color-sleep) 78%, var(--text));
+}
+
+#dashboard-tonight-matrix-wake-natural,
+#dashboard-tonight-matrix-wake-guided,
+#dashboard-tonight-matrix-wake-target {
+  color: color-mix(in srgb, var(--color-up) 78%, var(--text));
+}
+
+.dashboard-tonight-matrix-cell--pace {
+  padding-left: 2px;
+  padding-right: 2px;
+}
+
+.dashboard-tonight-matrix-dash {
+  color: color-mix(in srgb, var(--text) 45%, transparent);
+  font-weight: 500;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-tonight-pace-wave-host {
+  width: 100%;
+  max-width: 100%;
+  height: 14px;
+  color: var(--color-sleep);
+  box-sizing: border-box;
+}
+
+.dashboard-tonight-pace-wave-host--wake {
+  color: var(--color-up);
+}
+
+.dashboard-tonight-pace-wave-svg {
+  display: block;
+  width: 100%;
+  height: 14px;
+}
+
+.dashboard-tonight-pace-dot {
+  fill: currentColor;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation-name: tonightPaceWaveDot;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-duration: var(--tonight-wave-cycle, 1.45s);
+  animation-delay: calc(var(--i, 0) * var(--tonight-wave-stagger, 0.09s));
+}
+
+.dashboard-tonight-pace-wave-host--gentle {
+  --tonight-wave-cycle: 1.55s;
+  --tonight-wave-stagger: 0.1s;
+}
+
+.dashboard-tonight-pace-wave-host--normal {
+  --tonight-wave-cycle: 1.05s;
+  --tonight-wave-stagger: 0.066s;
+}
+
+.dashboard-tonight-pace-wave-host--steady {
+  --tonight-wave-cycle: 0.72s;
+  --tonight-wave-stagger: 0.045s;
+}
+
+@keyframes tonightPaceWaveDot {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-1.6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-tonight-pace-dot {
+    animation: none !important;
+    transform: translateY(0);
+  }
+}
+
+.dashboard-tonight-matrix-callouts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+  min-width: 0;
+}
+
+.dashboard-tonight-matrix-callout {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--border-radius-md, 10px);
+  border: 0.5px solid var(--color-border-tertiary, var(--panel-border-color));
+  background: var(--color-background-secondary, var(--panel));
+}
+
+.dashboard-tonight-matrix-callout--sleep .dashboard-tonight-matrix-callout-dot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  margin-top: 0.35em;
+  border-radius: 50%;
+  background: var(--color-sleep);
+}
+
+.dashboard-tonight-matrix-callout--wake .dashboard-tonight-matrix-callout-dot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  margin-top: 0.35em;
+  border-radius: 50%;
+  background: var(--color-up);
+}
+
+.dashboard-tonight-matrix-callout-body {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--text) 78%, transparent);
+  min-width: 0;
+}
+
+.dashboard-tonight-matrix-callout-phase {
+  font-weight: 500;
+}
+
+.dashboard-tonight-matrix-callout--sleep .dashboard-tonight-matrix-callout-phase {
+  color: var(--color-sleep);
+}
+
+.dashboard-tonight-matrix-callout--wake .dashboard-tonight-matrix-callout-phase {
+  color: var(--color-up);
+}
+
+.dashboard-tonight-matrix-callout-sep {
+  font-weight: 400;
+  color: color-mix(in srgb, var(--text) 55%, transparent);
+}
+
+.dashboard-tonight-matrix-callout-rest {
+  font-weight: 400;
 }
 
 .dashboard-tonight-knob-actions {
@@ -3315,6 +3544,22 @@ body{
   left: var(--tonight-wake-pct);
 }
 
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-thumb-inner {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  pointer-events: none;
+}
+
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-thumb-emoji {
+  font-size: 0.78rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
 .dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-thumb-pack .dashboard-tonight-adjust-thumb-label {
   position: static;
   transform: none;
@@ -3328,6 +3573,11 @@ body{
   line-height: 1.2;
   padding: 0 1px;
   pointer-events: none;
+}
+
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-thumb-pack--sleep .dashboard-tonight-adjust-thumb-label--sleep,
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-thumb-pack--wake .dashboard-tonight-adjust-thumb-label--wake {
+  left: auto;
 }
 
 .dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-thumb-pack:not(.dashboard-tonight-adjust-thumb-pack--dirty) .dashboard-tonight-adjust-minute-step {
@@ -4889,6 +5139,10 @@ body{
   margin-right: 0.35em;
 }
 
+.dashboard-section-title__static {
+  color: inherit;
+}
+
 h1,
 .page-title {
   margin-bottom: var(--space-5);
@@ -6058,9 +6312,7 @@ body.page-stats .stats-page-shell .container {
   margin-bottom: 8px;
 }
 
-.calendar-month-block--large .calendar-month-name,
-.calendar-month-block--large .calendar-month-cta__month,
-.calendar-month-block--large .calendar-month-cta__quality {
+.calendar-month-block--large .calendar-month-name {
   font-size: 22px;
 }
 
@@ -6209,32 +6461,6 @@ body.page-stats .stats-page-shell .container {
   color: var(--text);
   opacity: 0.9;
   font-weight: 600;
-}
-
-/* Dashboard current month: linked “Sleep quality” header, then month above flag row / calendar (see nightly.js). */
-.calendar-month-cta--dashboard-quality {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  text-decoration: none;
-  color: inherit;
-  cursor: pointer;
-  font-weight: 600;
-}
-
-.calendar-month-cta--dashboard-quality:hover .calendar-month-cta__quality {
-  text-decoration: underline;
-}
-
-.calendar-month-cta__month {
-  font-size: 11px;
-  opacity: 0.95;
-}
-
-.calendar-month-cta__quality {
-  font-size: 11px;
-  opacity: 0.95;
 }
 
 .calendar-month-flag-counter {
