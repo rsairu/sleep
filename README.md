@@ -30,7 +30,7 @@ That uses `hooks/post-checkout` and `hooks/post-merge`, which invoke `scripts/st
 
 ## Local Supabase presets (optional)
 
-Pages load `local-supabase-presets.js` before `sleep-utils.js` so the dev banner can offer a **Dev** / **Prod** toggle. The file is **gitignored**; copy `local-supabase-presets.example.js` to `local-supabase-presets.js` and fill in both project URLs and anon keys. If the file is absent (e.g. production deploy), the script request fails harmlessly and the toggle is hidden. See `docs/dev-banner.md`.
+Pages load `local-supabase-presets.js`, then `routes-data.js` (canonical nav routes), then `sleep-utils.js` so the dev banner can offer a **Dev** / **Prod** toggle and `renderNavBar` stays aligned with the SPA migration route table. The file is **gitignored**; copy `local-supabase-presets.example.js` to `local-supabase-presets.js` and fill in both project URLs and anon keys. If the file is absent (e.g. production deploy), the script request fails harmlessly and the toggle is hidden. See `docs/dev-banner.md`.
 
 ## npm scripts
 

@@ -60,7 +60,7 @@ MPA navigation does not call `unmount`. To exercise **mount → unmount → moun
 ## Relationship to other migration docs
 
 - [listener-audit.md](./listener-audit.md) — classifies `sleep-utils` surface; future routes with listeners extend `unmount` accordingly.
-- [decisions.md](./decisions.md) — data refetch on mount vs cache (per-route policy still TBD).
+- [decisions.md](./decisions.md) — sleep-data store and refresh policy (**accepted**; [Phase 4](./decisions.md#phase-4)).
 
 ---
 

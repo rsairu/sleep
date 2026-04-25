@@ -4725,19 +4725,22 @@ var SLUMBY_NAV_BOUNCE_MS = 4180;
 var SLUMBY_NAV_STILL_PATH = 'assets/slumby_bounce_still.png';
 var SLUMBY_NAV_GIF_PATH = 'assets/slumby_bounce_mini.gif';
 
+function getRestoreRoutesData() {
+  var g = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : null;
+  return g && g.__restoreRoutesData ? g.__restoreRoutesData : null;
+}
+
 // Render navigation bar
 function renderNavBar(currentPage) {
   applyDayNightTheme();
   ensureDevSupabasePresetApplied();
 
-  const pages = [
-    { id: 'dashboard', key: 'nav.tabs.dashboard', defaultName: 'Dashboard', url: 'dashboard.html', icon: '🛌' },
-    { id: 'log', key: 'nav.tabs.log', defaultName: 'Log', url: 'log.html', icon: '✏️' },
-    { id: 'quality', key: 'nav.tabs.quality', defaultName: 'Quality', url: 'quality.html', icon: '💜' },
-    { id: 'timeline', key: 'nav.tabs.daily', defaultName: 'Nightly', url: 'nightly.html', icon: '📅' },
-    { id: 'charts', key: 'nav.tabs.graphs', defaultName: 'Charts', url: 'charts.html', icon: '📊' },
-    { id: 'stats', key: 'nav.tabs.stats', defaultName: 'Stats', url: 'stats.html', icon: '🔢' }
-  ];
+  const routesData = getRestoreRoutesData();
+  if (!routesData || !Array.isArray(routesData.navTabs)) {
+    throw new Error('routes-data.js must load before sleep-utils.js (__restoreRoutesData.navTabs missing).');
+  }
+  const href = routesData.href || {};
+  const pages = routesData.navTabs;
 
   const navItems = pages.map(page => {
     const isActive = page.id === currentPage;
@@ -4755,7 +4758,9 @@ function renderNavBar(currentPage) {
   const themeToggleHTML = getThemeToggleHTML(nightActive, 'nav-menu-theme-toggle', 'nav');
   const dataSourceModel = getDataSourceUIModel(getDataSourceState());
   const dataSourceMenuRow =
-    '<a href="settings.html#cloud-sync" class="nav-menu-item nav-menu-item--data-source" id="nav-menu-data-source" role="menuitem" title="' +
+    '<a href="' +
+    (href.settingsCloudSync || 'settings.html#cloud-sync') +
+    '" class="nav-menu-item nav-menu-item--data-source" id="nav-menu-data-source" role="menuitem" title="' +
     escapeHtmlBannerAttr(dataSourceModel.title) +
     '" aria-label="' +
     escapeHtmlBannerAttr(dataSourceModel.title) +
@@ -4766,8 +4771,20 @@ function renderNavBar(currentPage) {
     '</span></a>';
   const menuItems = (
     '<div class="nav-menu-dropdown" id="nav-menu-dropdown" role="menu" hidden>' +
-      '<a href="about.html" class="nav-menu-item" role="menuitem"><span class="nav-menu-item-icon-wrap">' + aboutIcon + '</span><span>' + t('nav.menu.about', 'About') + '</span></a>' +
-      '<a href="settings.html" class="nav-menu-item" role="menuitem"><span class="nav-menu-item-icon-wrap">' + configIcon + '</span><span>' + t('nav.menu.settings', 'Settings') + '</span></a>' +
+      '<a href="' +
+      (href.about || 'about.html') +
+      '" class="nav-menu-item" role="menuitem"><span class="nav-menu-item-icon-wrap">' +
+      aboutIcon +
+      '</span><span>' +
+      t('nav.menu.about', 'About') +
+      '</span></a>' +
+      '<a href="' +
+      (href.settings || 'settings.html') +
+      '" class="nav-menu-item" role="menuitem"><span class="nav-menu-item-icon-wrap">' +
+      configIcon +
+      '</span><span>' +
+      t('nav.menu.settings', 'Settings') +
+      '</span></a>' +
       '<div class="nav-menu-item nav-menu-theme-row" role="none"><span class="nav-menu-item-icon-wrap">' + themeToggleHTML + '</span><span>' + t('nav.menu.theme', 'Theme') + '</span></div>' +
       dataSourceMenuRow +
     '</div>'
@@ -4783,7 +4800,16 @@ function renderNavBar(currentPage) {
     SLUMBY_NAV_GIF_IDLE_DATA_URI +
     '" alt="" class="nav-app-icon nav-slumby-gif" id="nav-slumby-gif" width="36" height="36" decoding="async" aria-hidden="true">' +
     '</span>';
-  const appName = `<a href="dashboard.html" class="nav-app-block nav-app-block--stacked" title="${t('nav.tabs.dashboard', 'Dashboard')}"><span class="nav-app-name">Restore</span>${appIcon}<span class="nav-app-subtitle">${t('nav.app.subtitle', 'Sleep Tracker')}</span></a>`;
+  const appName =
+    '<a href="' +
+    (href.dashboard || 'dashboard.html') +
+    '" class="nav-app-block nav-app-block--stacked" title="' +
+    escapeHtmlBannerAttr(t('nav.tabs.dashboard', 'Dashboard')) +
+    '"><span class="nav-app-name">Restore</span>' +
+    appIcon +
+    '<span class="nav-app-subtitle">' +
+    escapeHtmlBannerAttr(t('nav.app.subtitle', 'Sleep Tracker')) +
+    '</span></a>';
   const remainingWakeSlot = `<div class="nav-remaining-wake" id="nav-remaining-wake"></div>`;
   const headerRow = `<div class="nav-header nav-header--remaining-wake">${appName}${remainingWakeSlot}${navRight}</div>`;
   const tabsRow = `<div class="nav-tabs-row"><div class="nav-tabs">${navItems}</div></div>`;

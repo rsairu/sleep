@@ -16,7 +16,6 @@ function loadSleepUtils() {
     JSON,
     setInterval: () => {},
     clearInterval: () => {},
-    window: undefined,
     localStorage: {
       getItem(k) {
         return Object.prototype.hasOwnProperty.call(lsStore, k) ? lsStore[k] : null;
@@ -29,7 +28,11 @@ function loadSleepUtils() {
       }
     }
   };
+  context.window = context;
+  context.globalThis = context;
   vm.createContext(context);
+  const routesPath = path.join(__dirname, 'routes-data.js');
+  vm.runInContext(fs.readFileSync(routesPath, 'utf8'), context, { filename: 'routes-data.js' });
   vm.runInContext(code, context, { filename: 'sleep-utils.js' });
   const aggPath = path.join(__dirname, 'stats-aggregates.js');
   vm.runInContext(fs.readFileSync(aggPath, 'utf8'), context, { filename: 'stats-aggregates.js' });

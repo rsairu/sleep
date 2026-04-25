@@ -2,7 +2,7 @@
 
 **Start here.** This folder (`docs/migration/`) is the working set for the MPA → SPA path: audits, route tables, lifecycle contract, and ADR-style decisions. Product behavior (what the app does today) stays documented under sibling files in [`docs/`](../) and enforced in [`.cursor/rules/`](../../.cursor/rules/).
 
-Parent plan: [`.cursor/plans/mpa_to_spa_path_9cf9cebf.plan.md`](../../.cursor/plans/mpa_to_spa_path_9cf9cebf.plan.md) (`docs-track` and follow-on todos).
+Parent plan: [`.cursor/plans/mpa_to_spa_path_9cf9cebf.plan.md`](../../.cursor/plans/mpa_to_spa_path_9cf9cebf.plan.md) (`docs-track` and follow-on todos). **Completed migration phase:** Phase 4 (`route-table` + `data-fetching-policy`) — see [decisions.md — Phase 4](./decisions.md#phase-4) and [routes-data.js](../../routes-data.js). **Next:** Phase 5 — `rollout-lifecycles` per parent plan.
 
 ---
 

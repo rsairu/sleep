@@ -114,7 +114,7 @@ Supporting **rAF** in these inits: schedules layout (`syncDevBannerFixedLayout`)
 
 ## Open questions
 
-1. **`initRemainingWakeThresholdsConfig`** — Who calls it from each page (config vs about embed)? If SPA mounts **only** an outlet for “settings” without full document unload, **must** pair `document.removeEventListener` for the five document-level handlers (or never attach until drag starts / use `AbortController`).
+1. **`initRemainingWakeThresholdsConfig`** — Who calls it from each page (settings vs about embed)? If SPA mounts **only** an outlet for “settings” without full document unload, **must** pair `document.removeEventListener` for the five document-level handlers (or never attach until drag starts / use `AbortController`).
 2. **`initDayNightTheme` / `initNavMenu`** — Assume **once per shell** after `renderNavBar`; document explicitly that double init is unsupported, or add guards mirroring dev-banner pattern.
 3. **Config selectors without `dataset.bound`** (`initQualityPaletteSelector`, `initClockFormatSelector`, `initLanguageSelector`, `initConfigThemeSelector`) — SPA route re-enter may need guards or idempotent “replace + bind” pattern.
 4. **`setInterval` in `initDayNightTheme`** — Accept one global theme clock in shell, or tie to `visibilitychange` later; either way record in lifecycle doc when nav becomes persistent.
@@ -123,7 +123,7 @@ Supporting **rAF** in these inits: schedules layout (`syncDevBannerFixedLayout`)
 
 ## Planned product change: remaining-wake settings only on Settings
 
-**Future intent:** Call `initRemainingWakeThresholdsConfig` **only from the Settings page** (`config.html`), **not** from About (`about.html`). Today the remaining-wake thresholds control (bar, sliders, and `document`-level drag listeners) can be initialized on both pages. Consolidating to Settings-only reduces duplicate SPA mount surfaces, makes a single route own teardown of those `document` listeners, and matches “settings live in Settings.”
+**Future intent:** Call `initRemainingWakeThresholdsConfig` **only from the Settings page** (`settings.html`), **not** from About (`about.html`). Today the remaining-wake thresholds control (bar, sliders, and `document`-level drag listeners) can be initialized on both pages. Consolidating to Settings-only reduces duplicate SPA mount surfaces, makes a single route own teardown of those `document` listeners, and matches “settings live in Settings.”
 
 ---
 
@@ -131,13 +131,13 @@ Supporting **rAF** in these inits: schedules layout (`syncDevBannerFixedLayout`)
 
 **Recommendation: proceed with incremental in-tree SPA** (no Vite fork required solely on this audit).
 
-**Rationale:** Most high-churn UI is either (a) behind **`window.__*Bound`** dev-banner guards, (b) on **config/about DOM** that MPA currently replaces or re-inits on navigation, or (c) **nav singletons** with clear “call once after `renderNavBar`” semantics. The **`sleep-utils` surface does not show unfixable mixing** of singleton vs per-route logic beyond what a persistent shell + explicit `unmount` for config routes and documented single-init for nav can address.
+**Rationale:** Most high-churn UI is either (a) behind **`window.__*Bound`** dev-banner guards, (b) on **settings/about DOM** that MPA currently replaces or re-inits on navigation, or (c) **nav singletons** with clear “call once after `renderNavBar`” semantics. The **`sleep-utils` surface does not show unfixable mixing** of singleton vs per-route logic beyond what a persistent shell + explicit `unmount` for settings routes and documented single-init for nav can address.
 
 **Concrete hotspots before `first-lifecycle` / broader mount rollout:**
 
 | Priority | Item |
 |----------|------|
-| P0 | `initRemainingWakeThresholdsConfig`: **document**-level listeners (`3749–3753`) — require teardown or refactor when config is not a full page navigation. |
+| P0 | `initRemainingWakeThresholdsConfig`: **document**-level listeners (`3749–3753`) — require teardown or refactor when settings is not a full page navigation. |
 | P1 | `initDayNightTheme` **60s `setInterval`**: ensure exactly one instance under SPA shell. |
 | P1 | `initNavMenu` + `initDayNightTheme`: add **init-once** contract or guards to prevent duplicate `document` / pill handlers. |
 | P2 | Unguarded config inits (quality palette, clock, language, theme): add **`dataset` guards** or split “render markup” vs “bind once”. |
