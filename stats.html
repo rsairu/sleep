@@ -11,7 +11,7 @@
 </head>
 <body class="page-stats">
   <div id="nav-container"></div>
-  <div class="stats-page-shell">
+  <div id="stats-page-root" class="stats-page-shell">
     <div class="container stats-page-shell__title">
       <h1 class="page-title">Sleep Statistics</h1>
       <p class="stats-page-about-link"><a class="content-link" href="about.html#sleep-statistics">More about these statistics</a></p>
@@ -38,6 +38,23 @@
       document.getElementById('nav-container').innerHTML = renderNavBar('stats');
       initDayNightTheme();
       initRemainingWakeNav();
+      var statsRoot = document.getElementById('stats-page-root');
+      var S = window.__restoreStatsLifecycle;
+      if (statsRoot && S && typeof S.mount === 'function') {
+        S.mount(statsRoot, {});
+        var params = new URLSearchParams(window.location.search);
+        if (
+          params.get('lifecycleHarness') === '1' &&
+          typeof isDevBuildContext === 'function' &&
+          isDevBuildContext()
+        ) {
+          console.info('[lifecycleHarness] stats: start mount → unmount → mount');
+          S.unmount();
+          console.info('[lifecycleHarness] stats: after unmount (period bar + matrix cleared)');
+          S.mount(statsRoot, {});
+          console.info('[lifecycleHarness] stats: second mount complete');
+        }
+      }
     })();
   </script>
 </body>

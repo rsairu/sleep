@@ -93,6 +93,19 @@ Global namespace: **`window.__restoreLogLifecycle`**
 
 ---
 
+## Rollout: **Stats**
+
+Global namespace: **`window.__restoreStatsLifecycle`**
+
+| Method | Behavior |
+|--------|----------|
+| **`mount(root, ctx?)`** | `root` is **[`#stats-page-root`](../../stats.html)** (`stats-page-shell`). Clears **`#stats-period-scope`** and **`#stats-container`**, loads data, renders period bar + matrix, binds **`#stats-period-select`** `change` with an **`AbortSignal`**. |
+| **`unmount()`** | Idempotent. Aborts the session controller, clears period scope and matrix outlets. |
+
+**Harness:** `stats.html?lifecycleHarness=1` (dev-gated). Console: **`[lifecycleHarness] stats:`** …
+
+---
+
 ## MPA wiring
 
 [`quality.html`](../../quality.html) inline `initQualityPage` (after `initI18n`, `renderNavBar('quality')`, `initDayNightTheme`, `initRemainingWakeNav`):
