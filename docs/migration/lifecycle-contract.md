@@ -78,6 +78,21 @@ Global namespace: **`window.__restoreNightlyTimelineLifecycle`**
 
 ---
 
+## Rollout: **Log**
+
+Global namespace: **`window.__restoreLogLifecycle`**
+
+| Method | Behavior |
+|--------|----------|
+| **`mount(root, ctx?)`** | `root` is **[`#log-page-root`](../../log.html)**. Bumps generation, clears outlet, loads data, renders quick-add HTML, starts remaining-wake **`setInterval`**, calls **`initQuickAddEntryModal`**. |
+| **`unmount()`** | Idempotent. Bumps generation, clears the **60s interval**, clears outlet `innerHTML`. |
+
+**Note:** [`entry-modal.js`](../../entry-modal.js) **`bindQuickAddHostOnce`** registers **`document`** listeners once per app lifetime; they are **not** removed on log `unmount` (same pattern as other singleton inits). Form nodes under `#log-page-root` are destroyed so delegated handlers no-op until the next mount rebuilds `#quick-add-form`.
+
+**Harness:** `log.html?lifecycleHarness=1` (dev-gated). Console: **`[lifecycleHarness] log:`** …
+
+---
+
 ## MPA wiring
 
 [`quality.html`](../../quality.html) inline `initQualityPage` (after `initI18n`, `renderNavBar('quality')`, `initDayNightTheme`, `initRemainingWakeNav`):
