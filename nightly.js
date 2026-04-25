@@ -2840,40 +2840,106 @@ function toggleWeek(weekId) {
   }
 }
 
-// Load and render data (only on timeline page when #days-container exists)
-const daysContainer = document.getElementById('days-container');
-if (daysContainer) {
-  loadSleepData()
-    .then((sleepData) => {
+// Nightly timeline page: mount / unmount on #timeline-section — see docs/migration/lifecycle-contract.md
+// initDeviationFlagChips() below is an app singleton (document-level); not tied to timeline mount.
+(function () {
+  var nightlyTimelineMountGen = 0;
+  /** @type {HTMLElement | null} */
+  var nightlyTimelineSection = null;
+  /** @type {AbortController | null} */
+  var nightlyTimelineAbort = null;
 
-      const legendControlsEl = document.getElementById('timeline-legend-controls');
-      if (legendControlsEl) legendControlsEl.innerHTML = renderTimelineLegendControls();
-
-      const weeks = groupDaysByWeek(sleepData.days);
-      daysContainer.innerHTML = weeks.map((week, index) => renderWeek(week, index, sleepData.days)).join('');
-
-      document.querySelectorAll('.week-header').forEach(header => {
-        header.addEventListener('click', () => {
-          const weekId = header.getAttribute('data-week-id');
-          toggleWeek(weekId);
-        });
-      });
-
-      function setupCheckbox(id, toggleFn) {
-        const checkbox = document.getElementById(id);
-        if (checkbox) {
-          checkbox.addEventListener('change', (e) => toggleFn(e.target.checked));
-          toggleFn(checkbox.checked);
-        }
+  function mountNightlyTimeline(sectionRoot, _ctx) {
+    if (!sectionRoot) return;
+    nightlyTimelineMountGen++;
+    var g = nightlyTimelineMountGen;
+    nightlyTimelineSection = sectionRoot;
+    if (nightlyTimelineAbort) {
+      try {
+        nightlyTimelineAbort.abort();
+      } catch (e) {
+        /* ignore */
       }
-      setupCheckbox('show-time-ticks', toggleTimeTicks);
-      setupCheckbox('show-daily-details', toggleDailyDetails);
-      setupCheckbox('show-flags', toggleFlags);
-    })
-    .catch(error => {
-      console.error('Error loading data:', error);
-      daysContainer.innerHTML = '<p>Error loading data</p>';
-    });
-}
+      nightlyTimelineAbort = null;
+    }
+    nightlyTimelineAbort = new AbortController();
+    var sig = nightlyTimelineAbort.signal;
+
+    var daysContainer = sectionRoot.querySelector('#days-container');
+    var legendControlsEl = sectionRoot.querySelector('#timeline-legend-controls');
+    if (!daysContainer) return;
+
+    if (legendControlsEl) legendControlsEl.innerHTML = '';
+    daysContainer.innerHTML = '';
+
+    loadSleepData()
+      .then(function (sleepData) {
+        if (g !== nightlyTimelineMountGen || nightlyTimelineSection !== sectionRoot) return;
+        if (legendControlsEl) legendControlsEl.innerHTML = renderTimelineLegendControls();
+
+        var weeks = groupDaysByWeek(sleepData.days);
+        daysContainer.innerHTML = weeks.map(function (week, index) {
+          return renderWeek(week, index, sleepData.days);
+        }).join('');
+
+        document.querySelectorAll('.week-header').forEach(function (header) {
+          header.addEventListener(
+            'click',
+            function () {
+              var weekId = header.getAttribute('data-week-id');
+              toggleWeek(weekId);
+            },
+            { signal: sig }
+          );
+        });
+
+        function setupCheckbox(id, toggleFn) {
+          var checkbox = document.getElementById(id);
+          if (checkbox) {
+            checkbox.addEventListener(
+              'change',
+              function (e) {
+                toggleFn(e.target.checked);
+              },
+              { signal: sig }
+            );
+            toggleFn(checkbox.checked);
+          }
+        }
+        setupCheckbox('show-time-ticks', toggleTimeTicks);
+        setupCheckbox('show-daily-details', toggleDailyDetails);
+        setupCheckbox('show-flags', toggleFlags);
+      })
+      .catch(function (error) {
+        console.error('Error loading data:', error);
+        if (g !== nightlyTimelineMountGen || nightlyTimelineSection !== sectionRoot) return;
+        daysContainer.innerHTML = '<p>Error loading data</p>';
+      });
+  }
+
+  function unmountNightlyTimeline() {
+    nightlyTimelineMountGen++;
+    if (nightlyTimelineAbort) {
+      try {
+        nightlyTimelineAbort.abort();
+      } catch (e) {
+        /* ignore */
+      }
+      nightlyTimelineAbort = null;
+    }
+    if (nightlyTimelineSection) {
+      var leg = nightlyTimelineSection.querySelector('#timeline-legend-controls');
+      var days = nightlyTimelineSection.querySelector('#days-container');
+      if (leg) leg.innerHTML = '';
+      if (days) days.innerHTML = '';
+    }
+    nightlyTimelineSection = null;
+  }
+
+  window.__restoreNightlyTimelineLifecycle = {
+    mount: mountNightlyTimeline,
+    unmount: unmountNightlyTimeline,
+  };
+})();
 
 initDeviationFlagChips();

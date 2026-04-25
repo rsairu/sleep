@@ -63,6 +63,21 @@ Global namespace: **`window.__restoreChartsLifecycle`**
 
 ---
 
+## Rollout: **Nightly timeline**
+
+Global namespace: **`window.__restoreNightlyTimelineLifecycle`**
+
+| Method | Behavior |
+|--------|----------|
+| **`mount(root, ctx?)`** | `root` is **[`#timeline-section`](../../nightly.html)** (contains `#timeline-legend-controls` and `#days-container`). Clears legend and days, loads data, renders weeks, binds week headers and legend checkboxes with an **`AbortSignal`**. |
+| **`unmount()`** | Idempotent. Aborts the timeline **`AbortController`**, clears legend and days `innerHTML`. |
+
+**Deviation flags (`initDeviationFlagChips`):** Remains an **app singleton** at the end of [`nightly.js`](../../nightly.js) — `document` listeners for chip expand/collapse are **not** tied to timeline mount; every page that loads `nightly.js` still initializes them once (guarded by `deviationFlagChipListenersBound`).
+
+**Harness:** `nightly.html?lifecycleHarness=1` (dev-gated). Console: **`[lifecycleHarness] nightly:`** …
+
+---
+
 ## MPA wiring
 
 [`quality.html`](../../quality.html) inline `initQualityPage` (after `initI18n`, `renderNavBar('quality')`, `initDayNightTheme`, `initRemainingWakeNav`):
