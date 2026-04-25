@@ -50,6 +50,19 @@ Global namespace: **`window.__restoreDashboardLifecycle`**
 
 ---
 
+## Rollout: **Charts**
+
+Global namespace: **`window.__restoreChartsLifecycle`**
+
+| Method | Behavior |
+|--------|----------|
+| **`mount(root, ctx?)`** | `root` is **[`#charts-page-root`](../../charts.html)** — wraps the static page chrome (container, tooltips, day panel) for a **single route outlet** (Option 2). Does **not** wipe static HTML; loads data then binds range buttons, **`resize`**, master toggles, and chart-mode rockers with an **`AbortSignal`** tied to the mount session. |
+| **`unmount()`** | Idempotent. Aborts the session **`AbortController`** (drops all signal-bound listeners), resets toggle/rocker flags and hash-scroll bookkeeping, clears **`graphPageAllPoints`**, runs **`clearGraphSvgsAndErrors`**. |
+
+**Harness:** `charts.html?lifecycleHarness=1` (dev-gated). Console: **`[lifecycleHarness] charts:`** …
+
+---
+
 ## MPA wiring
 
 [`quality.html`](../../quality.html) inline `initQualityPage` (after `initI18n`, `renderNavBar('quality')`, `initDayNightTheme`, `initRemainingWakeNav`):
