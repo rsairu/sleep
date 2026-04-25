@@ -2626,12 +2626,25 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
   bindMinuteStep(wakePlusBtn, 'wake', 1);
 
   sliderOverlay.addEventListener('mousedown', onPointerDown);
-  sliderOverlay.addEventListener('touchstart', onPointerDown, { passive: false });
+  var tonightPointerTouchStartOpts = { passive: false };
+  sliderOverlay.addEventListener('touchstart', onPointerDown, tonightPointerTouchStartOpts);
   document.addEventListener('mousemove', onPointerMove);
-  document.addEventListener('touchmove', onPointerMove, { passive: false });
+  var tonightPointerTouchMoveOpts = { passive: false };
+  document.addEventListener('touchmove', onPointerMove, tonightPointerTouchMoveOpts);
   document.addEventListener('mouseup', onPointerUp);
   document.addEventListener('touchend', onPointerUp);
   document.addEventListener('touchcancel', onPointerUp);
+
+  window.__dashboardTonightAdjusterTeardown = function () {
+    document.removeEventListener('mousemove', onPointerMove);
+    document.removeEventListener('touchmove', onPointerMove, tonightPointerTouchMoveOpts);
+    document.removeEventListener('mouseup', onPointerUp);
+    document.removeEventListener('touchend', onPointerUp);
+    document.removeEventListener('touchcancel', onPointerUp);
+    sliderOverlay.removeEventListener('mousedown', onPointerDown);
+    sliderOverlay.removeEventListener('touchstart', onPointerDown, tonightPointerTouchStartOpts);
+    onPointerUp();
+  };
 
   applySliderBoundsFromBase();
   updateVisualState(false);

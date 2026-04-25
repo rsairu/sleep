@@ -33,6 +33,23 @@ Global namespace (classic scripts, no bundler): **`window.__restoreQualityLifecy
 
 ---
 
+## Rollout: **Dashboard** (second proof)
+
+Global namespace: **`window.__restoreDashboardLifecycle`**
+
+| Method | Behavior |
+|--------|----------|
+| **`mount(root, ctx?)`** | `root` is [`#dashboard-container`](../../dashboard.html). Bumps generation, clears outlet, registers **`tonight-guidance-changed`** on `window`, then loads data and renders (stale completions dropped). |
+| **`unmount()`** | Idempotent. Tears down **tonight adjuster** document listeners via **`window.__dashboardTonightAdjusterTeardown`** (set by `initDashboardTonightAdjuster` in [`nightly.js`](../../nightly.js)), **`destroyDashboardQuickActions`** ([`quick-actions.js`](../../quick-actions.js)), tracked **day-panel** `document` `click` closers, **`resize`** rerender listener, **`tonight-guidance-changed`**, then clears outlet HTML. |
+
+**MPA:** [`dashboard.html`](../../dashboard.html) calls `mount` after nav/theme init. **`#tooltip`** / **`#day-panel`** stay in the shell outside the outlet (unchanged from MPA).
+
+**Harness:** `dashboard.html?lifecycleHarness=1` (dev-gated). Console lines prefixed **`[lifecycleHarness] dashboard:`** (start, after unmount, second mount complete).
+
+**Deviation flags:** `initDeviationFlagChips` remains an **app singleton** (see nightly rollout notes); dashboard still invokes it on render.
+
+---
+
 ## MPA wiring
 
 [`quality.html`](../../quality.html) inline `initQualityPage` (after `initI18n`, `renderNavBar('quality')`, `initDayNightTheme`, `initRemainingWakeNav`):
@@ -51,7 +68,7 @@ MPA navigation does not call `unmount`. To exercise **mount → unmount → moun
 1. Open **`quality.html?lifecycleHarness=1`**
 2. Require **`isDevBuildContext()`** from [`sleep-utils.js`](../../sleep-utils.js) to be **true** (same rules as the dev banner: local host, query/build-id overrides, etc.).
 
-**Behavior:** After the initial successful `mount`, the inline init runs **`unmount()`** then **`mount(qualityRoot, {})`** again. Console: **`[lifecycleHarness] quality: mount → unmount → mount`**.
+**Behavior:** After the initial successful `mount`, the inline init runs **`unmount()`** then **`mount(qualityRoot, {})`** again. Console lines prefixed **`[lifecycleHarness] quality:`** (start, after unmount, second mount complete).
 
 **Production / non-dev:** Parameter is ignored; no extra churn.
 

@@ -37,9 +37,11 @@
           typeof isDevBuildContext === 'function' &&
           isDevBuildContext()
         ) {
-          console.info('[lifecycleHarness] quality: mount → unmount → mount');
+          console.info('[lifecycleHarness] quality: start mount → unmount → mount');
           L.unmount();
+          console.info('[lifecycleHarness] quality: after unmount (expect empty outlet)');
           L.mount(qualityRoot, {});
+          console.info('[lifecycleHarness] quality: second mount complete');
         }
       }
     })();
