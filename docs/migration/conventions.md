@@ -2,7 +2,7 @@
 
 **Start here.** This folder (`docs/migration/`) is the working set for the MPA → SPA path: audits, route tables, lifecycle contract, and ADR-style decisions. Product behavior (what the app does today) stays documented under sibling files in [`docs/`](../) and enforced in [`.cursor/rules/`](../../.cursor/rules/).
 
-Parent plan: [`.cursor/plans/mpa_to_spa_path_9cf9cebf.plan.md`](../../.cursor/plans/mpa_to_spa_path_9cf9cebf.plan.md) (`docs-track` and follow-on todos). **Completed migration phases:** Phase 4 (`route-table` + `data-fetching-policy`) and Phase 5 (`rollout-lifecycles` for tab routes), then Phase 6 (`settings/about extraction + lifecycle`). **Next:** Phase 6.5 — sleep-data store implementation per [decisions.md](./decisions.md).
+Parent plan: [`.cursor/plans/mpa_to_spa_path_9cf9cebf.plan.md`](../../.cursor/plans/mpa_to_spa_path_9cf9cebf.plan.md) (`docs-track` and follow-on todos). **Completed migration phases:** Phase 4 (`route-table` + `data-fetching-policy`), Phase 5 (`rollout-lifecycles`), Phase 6 (`settings/about extraction + lifecycle`), Phase 6.5 (sleep-data store), Phase 7 (`link-helper` / `mpaHref`), Phase 8 (`module-migration` — [`routes-data.mjs`](../../routes-data.mjs), deferred shells, `*-boot.js`; see [decisions.md](./decisions.md)). **Next (parent plan):** optional Vite, then SPA shell pivot.
 
 ---
 

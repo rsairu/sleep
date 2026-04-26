@@ -4905,9 +4905,12 @@ function renderNavBar(currentPage) {
 
   const routesData = getRestoreRoutesData();
   if (!routesData || !Array.isArray(routesData.navTabs)) {
-    throw new Error('routes-data.js must load before sleep-utils.js (__restoreRoutesData.navTabs missing).');
+    throw new Error('routes-data.mjs must load before sleep-utils.js (__restoreRoutesData.navTabs missing).');
   }
-  const href = routesData.href || {};
+  if (typeof routesData.mpaHref !== 'function') {
+    throw new Error('routes-data.mjs must define __restoreRoutesData.mpaHref (internal link helper).');
+  }
+  const mpaHref = routesData.mpaHref.bind(routesData);
   const pages = routesData.navTabs;
 
   const navItems = pages.map(page => {
@@ -4927,7 +4930,7 @@ function renderNavBar(currentPage) {
   const dataSourceModel = getDataSourceUIModel(getDataSourceState());
   const dataSourceMenuRow =
     '<a href="' +
-    (href.settingsCloudSync || 'settings.html#cloud-sync') +
+    mpaHref('settings.cloudSync') +
     '" class="nav-menu-item nav-menu-item--data-source" id="nav-menu-data-source" role="menuitem" title="' +
     escapeHtmlBannerAttr(dataSourceModel.title) +
     '" aria-label="' +
@@ -4940,14 +4943,14 @@ function renderNavBar(currentPage) {
   const menuItems = (
     '<div class="nav-menu-dropdown" id="nav-menu-dropdown" role="menu" hidden>' +
       '<a href="' +
-      (href.about || 'about.html') +
+      mpaHref('about.page') +
       '" class="nav-menu-item" role="menuitem"><span class="nav-menu-item-icon-wrap">' +
       aboutIcon +
       '</span><span>' +
       t('nav.menu.about', 'About') +
       '</span></a>' +
       '<a href="' +
-      (href.settings || 'settings.html') +
+      mpaHref('settings.page') +
       '" class="nav-menu-item" role="menuitem"><span class="nav-menu-item-icon-wrap">' +
       configIcon +
       '</span><span>' +
@@ -4970,7 +4973,7 @@ function renderNavBar(currentPage) {
     '</span>';
   const appName =
     '<a href="' +
-    (href.dashboard || 'dashboard.html') +
+    mpaHref('dashboard.page') +
     '" class="nav-app-block nav-app-block--stacked" title="' +
     escapeHtmlBannerAttr(t('nav.tabs.dashboard', 'Dashboard')) +
     '"><span class="nav-app-name">Restore</span>' +
@@ -5500,8 +5503,13 @@ function updateRemainingWakeNav(display) {
         ? `<span class="nav-remaining-wake-phase-heads-up" aria-hidden="true">${hu.icon} in ${hu.minutes}m</span>`
         : '';
     const ariaEsc = escapeHtmlBannerAttr(ariaLabel);
+    const rd = getRestoreRoutesData();
+    const remainingWakeAboutHref =
+      rd && typeof rd.mpaHref === 'function'
+        ? rd.mpaHref('about.remainingWakeTime')
+        : 'about.html#remaining-wake-time';
     slot.innerHTML =
-      `<a href="about.html#remaining-wake-time" class="nav-remaining-wake-link" title="${ariaEsc}" aria-label="${ariaEsc}"><span class="nav-remaining-wake-main"><span class="nav-remaining-wake-icon" aria-hidden="true">${display.icon}</span><span class="${timeClass}">${display.timeLabel}</span>${headsUpHtml}</span>${progressBar}</a>`;
+      `<a href="${remainingWakeAboutHref}" class="nav-remaining-wake-link" title="${ariaEsc}" aria-label="${ariaEsc}"><span class="nav-remaining-wake-main"><span class="nav-remaining-wake-icon" aria-hidden="true">${display.icon}</span><span class="${timeClass}">${display.timeLabel}</span>${headsUpHtml}</span>${progressBar}</a>`;
   }
   if (wrapper) {
     wrapper.classList.remove(

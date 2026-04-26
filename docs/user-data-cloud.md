@@ -33,7 +33,7 @@ This matches `loadSleepDataUsesSupabase(config)` in `sleep-utils.js`. If the use
 | User preferences (tracked columns) | `public.user_settings` + **localStorage mirror** | See mapping table below. |
 | Supabase URL / anon key | localStorage | Never sent as table data; `restore_supabase_*` keys. |
 | Dev/prod preset mode | localStorage `sleep-app-active-supabase-preset` | Optional: when `dev` or `prod`, credentials are driven by gitignored `local-supabase-presets.js` (see `docs/dev-banner.md`). Cleared when saving or clearing Supabase in Settings. |
-| Preset definitions | `window.__RESTORE_SUPABASE_PRESETS__` (from optional `local-supabase-presets.js`) | Not persisted; loaded before `routes-data.js` / `sleep-utils.js`. If missing or incomplete, Settings-only config applies. |
+| Preset definitions | `window.__RESTORE_SUPABASE_PRESETS__` (from optional `local-supabase-presets.js`) | Not persisted; loaded before `routes-data.mjs` / `sleep-utils.js`. If missing or incomplete, Settings-only config applies. |
 | Sleep data cache | localStorage `restore_sleep_data_cache_v1` | Snapshot of last loaded sleep payload + cache key. |
 | Tonight session slider tweak | `sleep-app-tonight-projection-adjustment` (localStorage) | Optional overlay on top of averages or saved target; cleared when you **save** Tonight targets on the dashboard. |
 | Tonight saved targets (sleep and/or wake) | `public.user_settings` + `sleep-app-tonight-target-window` (localStorage mirror) | Nullable integer minutes 0–1439 per column; JSON may set one or both poles (`null` omits a pole). Removed when both cleared. Drives Tonight thumbs and `getTonightWakePhaseBasisFromDays` before the session tweak. |

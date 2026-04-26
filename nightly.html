@@ -17,35 +17,11 @@
     <div id="days-container"></div>
   </div>
 
-  <script src="dev-git-branch.js"></script>
-  <script src="local-supabase-presets.js"></script>
-  <script src="routes-data.js"></script>
-  <script src="sleep-utils.js"></script>
-  <script src="nightly.js"></script>
-  <script>
-    (async function initDailyPage() {
-      await initI18n(document);
-      document.getElementById('nav-container').innerHTML = renderNavBar('timeline');
-      initDayNightTheme();
-      initRemainingWakeNav();
-      var timelineSection = document.getElementById('timeline-section');
-      var N = window.__restoreNightlyTimelineLifecycle;
-      if (timelineSection && N && typeof N.mount === 'function') {
-        N.mount(timelineSection, {});
-        var params = new URLSearchParams(window.location.search);
-        if (
-          params.get('lifecycleHarness') === '1' &&
-          typeof isDevBuildContext === 'function' &&
-          isDevBuildContext()
-        ) {
-          console.info('[lifecycleHarness] nightly: start mount → unmount → mount');
-          N.unmount();
-          console.info('[lifecycleHarness] nightly: after unmount (legend + days cleared)');
-          N.mount(timelineSection, {});
-          console.info('[lifecycleHarness] nightly: second mount complete');
-        }
-      }
-    })();
-  </script>
+  <script defer src="dev-git-branch.js"></script>
+  <script defer src="local-supabase-presets.js"></script>
+  <script defer type="module" src="routes-data.mjs"></script>
+  <script defer src="sleep-utils.js"></script>
+  <script defer src="nightly.js"></script>
+  <script defer src="nightly-boot.js"></script>
 </body>
 </html>

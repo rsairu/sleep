@@ -14,7 +14,7 @@ See [conventions.md](./conventions.md).
 
 **Shipped:**
 
-- Canonical routes in [`routes-data.js`](../../routes-data.js) (`window.__restoreRoutesData`), loaded before [`sleep-utils.js`](../../sleep-utils.js); `renderNavBar` reads `navTabs` and `href` from that object (throws if missing).
+- Canonical routes (`window.__restoreRoutesData`); implementation lives in [`routes-data.mjs`](../../routes-data.mjs) (Phase 8 ES module + `installRoutesData` for Node tests; was `routes-data.js` through Phase 7), loaded before [`sleep-utils.js`](../../sleep-utils.js); `renderNavBar` reads `navTabs` and `href` from that object (throws if missing).
 - This ADR: sleep-data store policy and refresh rules for the SPA target (implementation is **Phase 5+**, not Phase 4).
 
 ---
@@ -51,6 +51,17 @@ See [conventions.md](./conventions.md).
 - Wired `loadSleepData(...)` as a compatibility wrapper over store loading, preserving existing caller behavior during migration.
 - Added store-driven refresh/invalidation hooks for mutation completion paths and visibility revalidation (`visibilitychange`), with 12h staleness policy (`lastFetchedAt`) active in store state.
 - Route lifecycle modules now subscribe/unsubscribe to store snapshots during mount/unmount.
+
+---
+
+## Phase 7 (`link-helper`)
+
+**Status:** Complete (Apr 2026).
+
+**Shipped:**
+
+- `window.__restoreRoutesData.mpaHref(key)` in [`routes-data.mjs`](../../routes-data.mjs) with a semantic registry for tab/menu URLs and deep-link fragments; [`sleep-utils.js`](../../sleep-utils.js) nav/menu/app block and remaining-wake link use it; [`nightly.js`](../../nightly.js) dashboard and quality heatmap links use `restoreMpaHref(key)`.
+- **Internal links** ADR accepted below; static `<a href>` in HTML shells remain literals with a parity checklist in [route-table.md](./route-table.md#static-html-internal-links-parity).
 
 ---
 
@@ -126,13 +137,50 @@ Use for new entries:
 
 ### Internal links: MPA hrefs vs future router (hash policy)
 
-**Status:** proposed (placeholder).
+**Status:** accepted (Apr 2026).
 
-**Context:** Today’s `*.html` hrefs, `settings.html#cloud-sync`, `about.html#…`, cross-links such as stats → about anchors. Tab/menu hrefs for nav are centralized in [`routes-data.js`](../../routes-data.js).
+**Context:** The app used scattered `*.html` and `#fragment` strings in JS templates and static HTML. Tab/menu base URLs already lived on `__restoreRoutesData` (`navTabs`, `href`). SPA navigation will need one place to swap MPA paths for path-based routes and optional `pushState`.
 
-**Decision:** *To be filled alongside `link-helper` / router work.*
+**Decision:**
 
-**Consequences:** *TBD.*
+1. **MPA (now):** All **JavaScript-generated** internal navigation targets go through **`__restoreRoutesData.mpaHref(key)`** (see [`routes-data.mjs`](../../routes-data.mjs)). Keys compose from the same `navTabs` / `href` data so overrides stay centralized.
+2. **SPA (later):** Prefer **path-based routes** (e.g. `/charts`) and **preserve today’s fragment strings** for deep links (e.g. `/charts#chart-bed-asleep-wake`). Anchor IDs used for scroll targets (e.g. on [`charts.js`](../../charts.js)) stay stable; scrolling remains a **route module concern**. Moving anchors exclusively into URL path segments would be a **separate** ADR.
+3. **Router (future):** Intercept **primary** left-clicks on **internal** links for in-app navigation; **do not** break modified clicks (e.g. Ctrl/Cmd/meta, shift) or **middle-click** — those should perform a normal full navigation (new tab / window) per platform conventions.
+4. **[`index.html`](../../index.html)** has no `routes-data.mjs` today (meta-refresh only); aligning its visible fallback `<a href>` with `mpaHref` is **optional** until the **pivot** phase replaces the redirect.
+
+**Consequences:**
+
+- Pivot work can add `spaHref(key)` (or a mode on the resolver) without touching every call site.
+- Static HTML links are documented in [route-table.md — Static HTML parity](./route-table.md#static-html-internal-links-parity); when changing a URL or hash, update **both** the registry row and the literal `href`, or grep will drift.
+
+---
+
+### ES modules and script orchestration (MPA shells)
+
+**Status:** accepted (Apr 2026).
+
+**Context:** `type="module"` scripts are deferred by default; a classic script placed after a module tag can still run before the module, breaking `routes-data` before `sleep-utils` unless the whole shell uses a consistent defer strategy.
+
+**Decision:**
+
+1. **Shell script list:** Use **`defer` on every** tail `<script src>` in each HTML shell, including the first `dev-git-branch.js`. Load [`routes-data.mjs`](../../routes-data.mjs) as **`<script type="module" src="routes-data.mjs" defer></script>`** in the same ordered list so deferred modules and deferred classics execute in **document order** after the document is parsed.
+2. **Page init:** Inline `init*Page` blocks are moved to deferred **`*-boot.js`** files that appear **after** route lifecycle scripts so globals from `sleep-utils` / route modules exist before boot runs.
+3. **No new `window.*` globals** in this phase beyond what already existed; `installRoutesData` is the supported way to attach `__restoreRoutesData` on non-browser globals (e.g. vm sandboxes).
+4. **Relative URLs:** Keep same-origin relative paths for static `src`/`import` until hosting/pivot defines a base URL policy.
+
+**Consequences:** Optional follow-up: convert leaf route scripts (`stats.js`, `about.js`, …) to ESM one at a time; keep [`sleep-utils.js`](../../sleep-utils.js) classic until a bundler phase unless a dedicated refactor is scheduled. Vite/pivot can replace the shell list with a single entry import graph.
+
+---
+
+## Phase 8 (`module-migration`)
+
+**Status:** Complete (Apr 2026).
+
+**Shipped:**
+
+- [`routes-data.mjs`](../../routes-data.mjs): native ES module with `export` of `navTabs`, `href`, `mpaHref`, and `installRoutesData(globalObj)` for vm/Node consumers; browser installs on `globalThis` when `document` is defined; **`globalThis.__restoreRoutesData`** unchanged for [`sleep-utils.js`](../../sleep-utils.js) / [`nightly.js`](../../nightly.js).
+- All substantive HTML shells use **`defer`** on the shared script chain, **`type="module"`** + `defer` for `routes-data.mjs`, and deferred **`*-boot.js`** replacing inline page init (ordering: deferred classics + module run in document order after parse).
+- [`math-tests.js`](../../math-tests.js) loads routes via `import()` + `installRoutesData(context)` before `sleep-utils` in the vm sandbox.
 
 ---
 

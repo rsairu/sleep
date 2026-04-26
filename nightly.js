@@ -15,6 +15,13 @@ const DATA_FILES = {
   sleep: 'data/sleep-data.json'
 };
 
+/** Internal MPA href from routes-data.mjs mpaHref (Phase 7 link-helper). */
+function restoreMpaHref(key) {
+  const g = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : null;
+  const d = g && g.__restoreRoutesData;
+  return d && typeof d.mpaHref === 'function' ? d.mpaHref(key) : '#';
+}
+
 // Time constants
 const MILLISECONDS_PER_DAY = 86400000;
 // Timeline runs 21:00 to 21:00 (24 hours). Ticks: 21 (start), 0, 4, 8, 12, 16, 21 (end)
@@ -868,7 +875,7 @@ function renderCalendarHeatmapHeader(options) {
       </ul>`
     : '';
   const aboutLink = qualityPage
-    ? `<p class="calendar-heatmap-about"><a class="content-link" href="about.html#daily-flags">About daily flags</a></p>`
+    ? `<p class="calendar-heatmap-about"><a class="content-link" href="${restoreMpaHref('about.dailyFlags')}">About daily flags</a></p>`
     : '';
   return `
     <div class="calendar-heatmap-header${qualityPage ? ' calendar-heatmap-header--quality-page' : ''}">
@@ -919,7 +926,7 @@ function renderCalendarCurrentMonthOnlyBlock(year, flagMap, latestDataDate) {
   if (!currentMonthBlock) return '';
   return `
     <div class="calendar-heatmap calendar-heatmap--inline calendar-heatmap--dashboard-month">
-      <h2 class="dashboard-section-title"><a class="dashboard-section-title__link" href="quality.html"><span class="dashboard-section-title__emoji" aria-hidden="true">💜</span> <span data-i18n="dashboard.sectionSleepQuality">Sleep quality</span></a></h2>
+      <h2 class="dashboard-section-title"><a class="dashboard-section-title__link" href="${restoreMpaHref('tab.quality')}"><span class="dashboard-section-title__emoji" aria-hidden="true">💜</span> <span data-i18n="dashboard.sectionSleepQuality">Sleep quality</span></a></h2>
       <div class="calendar-current-month-row">${currentMonthBlock}</div>
     </div>
   `;
@@ -1445,7 +1452,7 @@ function renderQuickActionsSection() {
   const showHint =
     typeof getHintQuickActionsAbout === 'function' ? getHintQuickActionsAbout() : true;
   const quickActionsInfoHtml = showHint
-    ? `<a class="dashboard-quick-actions-info-link content-link" href="about.html#quick-actions" data-i18n-aria-label="dashboard.quickActions.aboutAria" aria-label="About quick actions"><span class="dashboard-quick-actions-info-letter" aria-hidden="true">i</span></a>`
+    ? `<a class="dashboard-quick-actions-info-link content-link" href="${restoreMpaHref('about.quickActions')}" data-i18n-aria-label="dashboard.quickActions.aboutAria" aria-label="About quick actions"><span class="dashboard-quick-actions-info-letter" aria-hidden="true">i</span></a>`
     : '';
   return `
     <div class="dashboard-quick-actions quick-add-drawer" aria-label="Quick actions">
@@ -1554,7 +1561,7 @@ function renderDashboardProjection(recentAverages) {
     projection.savedTargetWakePct != null ? `${projection.savedTargetWakePct}%` : `${projection.committedWakePct}%`;
   const showTonightHint = typeof getHintTonightAbout === 'function' ? getHintTonightAbout() : true;
   const tonightInfoHtml = showTonightHint
-    ? `<a class="dashboard-quick-actions-info-link content-link" href="about.html#tonight-bar-symbols" data-i18n-aria-label="dashboard.tonight.aboutSectionAria" aria-label="About Tonight on the Dashboard"><span class="dashboard-quick-actions-info-letter" aria-hidden="true">i</span></a>`
+    ? `<a class="dashboard-quick-actions-info-link content-link" href="${restoreMpaHref('about.tonightBarSymbols')}" data-i18n-aria-label="dashboard.tonight.aboutSectionAria" aria-label="About Tonight on the Dashboard"><span class="dashboard-quick-actions-info-letter" aria-hidden="true">i</span></a>`
     : '';
   return `
     <div class="dashboard-projection" id="dashboard-tonight-projection" data-rec-sleep="${base.avgSleepStart}" data-rec-wake="${base.avgSleepEnd}">
@@ -2676,7 +2683,7 @@ function renderDashboardContent(days) {
   const recentNightsCount = Math.min(3, days.length);
   const recentNightsHtml = recentNightsCount > 0
     ? `
-    <h2 class="dashboard-section-title"><a class="dashboard-section-title__link" href="nightly.html"><span class="dashboard-section-title__emoji" aria-hidden="true">📅</span> Recent nightlies</a></h2>
+    <h2 class="dashboard-section-title"><a class="dashboard-section-title__link" href="${restoreMpaHref('tab.timeline')}"><span class="dashboard-section-title__emoji" aria-hidden="true">📅</span> Recent nightlies</a></h2>
     <section class="dashboard-past-nights">
       <div class="week-days">
         ${Array.from({ length: recentNightsCount }, (_, i) => renderDay(days[i], days, i, { showTicks: true })).join('')}
@@ -2686,19 +2693,19 @@ function renderDashboardContent(days) {
     : '';
 
   const sevenDaySectionHtml = `
-    <h2 class="dashboard-section-title"><a class="dashboard-section-title__link" href="charts.html"><span class="dashboard-section-title__emoji" aria-hidden="true">📊</span> Weekly charts</a></h2>
+    <h2 class="dashboard-section-title"><a class="dashboard-section-title__link" href="${restoreMpaHref('tab.charts')}"><span class="dashboard-section-title__emoji" aria-hidden="true">📊</span> Weekly charts</a></h2>
     <div class="dashboard-7d-row">
       <div class="dashboard-7d-col">
         <div class="dashboard-7d-time-stack">
           <div>
             <h3 class="dashboard-7d-subtitle dashboard-7d-subtitle--skp-time">
-              <a class="dashboard-7d-subtitle__link" href="charts.html#chart-bed-asleep-wake">Bed &amp; sleep start</a>
+              <a class="dashboard-7d-subtitle__link" href="${restoreMpaHref('charts.bedAsleepWake')}">Bed &amp; sleep start</a>
             </h3>
             <div class="dashboard-7d-graph-container" id="dashboard-7d-bed-sleep-graph"></div>
           </div>
           <div>
             <h3 class="dashboard-7d-subtitle dashboard-7d-subtitle--skp-wake">
-              <a class="dashboard-7d-subtitle__link" href="charts.html#chart-bed-asleep-wake">Wake time</a>
+              <a class="dashboard-7d-subtitle__link" href="${restoreMpaHref('charts.bedAsleepWake')}">Wake time</a>
             </h3>
             <div class="dashboard-7d-graph-container" id="dashboard-7d-wake-graph"></div>
           </div>
@@ -2706,7 +2713,7 @@ function renderDashboardContent(days) {
       </div>
       <div class="dashboard-7d-col">
         <h3 class="dashboard-7d-subtitle dashboard-7d-subtitle--skp-sleep">
-          <a class="dashboard-7d-subtitle__link" href="charts.html#chart-sleep-duration">Total sleep time</a>
+          <a class="dashboard-7d-subtitle__link" href="${restoreMpaHref('charts.sleepDuration')}">Total sleep time</a>
         </h3>
         <div class="dashboard-7d-graph-container" id="dashboard-7d-duration-graph"></div>
       </div>

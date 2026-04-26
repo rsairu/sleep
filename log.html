@@ -15,37 +15,13 @@
     <div id="log-page-root" class="log-page-root"></div>
   </div>
 
-  <script src="dev-git-branch.js"></script>
-  <script src="local-supabase-presets.js"></script>
-  <script src="routes-data.js"></script>
-  <script src="sleep-utils.js"></script>
-  <script src="nightly.js"></script>
-  <script src="entry-modal.js"></script>
-  <script src="log.js"></script>
-  <script>
-    (async function initLogPage() {
-      await initI18n(document);
-      document.getElementById('nav-container').innerHTML = renderNavBar('log');
-      initDayNightTheme();
-      initRemainingWakeNav({ interval: false });
-      var logRoot = document.getElementById('log-page-root');
-      var L = window.__restoreLogLifecycle;
-      if (logRoot && L && typeof L.mount === 'function') {
-        L.mount(logRoot, {});
-        var params = new URLSearchParams(window.location.search);
-        if (
-          params.get('lifecycleHarness') === '1' &&
-          typeof isDevBuildContext === 'function' &&
-          isDevBuildContext()
-        ) {
-          console.info('[lifecycleHarness] log: start mount → unmount → mount');
-          L.unmount();
-          console.info('[lifecycleHarness] log: after unmount (expect empty outlet)');
-          L.mount(logRoot, {});
-          console.info('[lifecycleHarness] log: second mount complete');
-        }
-      }
-    })();
-  </script>
+  <script defer src="dev-git-branch.js"></script>
+  <script defer src="local-supabase-presets.js"></script>
+  <script defer type="module" src="routes-data.mjs"></script>
+  <script defer src="sleep-utils.js"></script>
+  <script defer src="nightly.js"></script>
+  <script defer src="entry-modal.js"></script>
+  <script defer src="log.js"></script>
+  <script defer src="log-boot.js"></script>
 </body>
 </html>

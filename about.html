@@ -224,33 +224,11 @@
     </div>
   </div>
 
-  <script src="dev-git-branch.js"></script>
-  <script src="local-supabase-presets.js"></script>
-  <script src="routes-data.js"></script>
-  <script src="sleep-utils.js"></script>
-  <script src="about.js"></script>
-  <script>
-    (async function initAboutPage() {
-      await initI18n(document);
-      document.getElementById('nav-container').innerHTML = renderNavBar('about');
-      var aboutRoot = document.getElementById('about-page-root');
-      var A = window.__restoreAboutLifecycle;
-      if (aboutRoot && A && typeof A.mount === 'function') {
-        A.mount(aboutRoot, {});
-        var params = new URLSearchParams(window.location.search);
-        if (
-          params.get('lifecycleHarness') === '1' &&
-          typeof isDevBuildContext === 'function' &&
-          isDevBuildContext()
-        ) {
-          console.info('[lifecycleHarness] about: start mount → unmount → mount');
-          A.unmount();
-          console.info('[lifecycleHarness] about: after unmount (remaining-wake controls cleared)');
-          A.mount(aboutRoot, {});
-          console.info('[lifecycleHarness] about: second mount complete');
-        }
-      }
-    })();
-  </script>
+  <script defer src="dev-git-branch.js"></script>
+  <script defer src="local-supabase-presets.js"></script>
+  <script defer type="module" src="routes-data.mjs"></script>
+  <script defer src="sleep-utils.js"></script>
+  <script defer src="about.js"></script>
+  <script defer src="about-boot.js"></script>
 </body>
 </html>

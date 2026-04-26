@@ -17,37 +17,13 @@
   <div class="tooltip" id="tooltip"></div>
   <div class="day-panel" id="day-panel"></div>
 
-  <script src="dev-git-branch.js"></script>
-  <script src="local-supabase-presets.js"></script>
-  <script src="routes-data.js"></script>
-  <script src="sleep-utils.js"></script>
-  <script src="nightly.js"></script>
-  <script src="quick-actions.js"></script>
-  <script src="dashboard.js"></script>
-  <script>
-    (async function initDashboardPage() {
-      await initI18n(document);
-      document.getElementById('nav-container').innerHTML = renderNavBar('dashboard');
-      initDayNightTheme();
-      initRemainingWakeNav({ interval: false });
-      var dashRoot = document.getElementById('dashboard-container');
-      var D = window.__restoreDashboardLifecycle;
-      if (dashRoot && D && typeof D.mount === 'function') {
-        D.mount(dashRoot, {});
-        var params = new URLSearchParams(window.location.search);
-        if (
-          params.get('lifecycleHarness') === '1' &&
-          typeof isDevBuildContext === 'function' &&
-          isDevBuildContext()
-        ) {
-          console.info('[lifecycleHarness] dashboard: start mount → unmount → mount');
-          D.unmount();
-          console.info('[lifecycleHarness] dashboard: after unmount (expect empty outlet)');
-          D.mount(dashRoot, {});
-          console.info('[lifecycleHarness] dashboard: second mount complete');
-        }
-      }
-    })();
-  </script>
+  <script defer src="dev-git-branch.js"></script>
+  <script defer src="local-supabase-presets.js"></script>
+  <script defer type="module" src="routes-data.mjs"></script>
+  <script defer src="sleep-utils.js"></script>
+  <script defer src="nightly.js"></script>
+  <script defer src="quick-actions.js"></script>
+  <script defer src="dashboard.js"></script>
+  <script defer src="dashboard-boot.js"></script>
 </body>
 </html>
