@@ -8,6 +8,7 @@
 
   var qualityMountGeneration = 0;
   var qualityMountedRoot = null;
+  var qualityUnsubscribeStore = null;
 
   function applyLoadedData(root, sleepData, gen) {
     if (gen !== qualityMountGeneration || qualityMountedRoot !== root) return;
@@ -22,6 +23,17 @@
     root.innerHTML = '<p>Error loading data.</p>';
   }
 
+  function renderQualityFromStoreSnapshot(root, gen, snapshot) {
+    if (gen !== qualityMountGeneration || qualityMountedRoot !== root) return;
+    if (snapshot && snapshot.data) {
+      applyLoadedData(root, snapshot.data, gen);
+      return;
+    }
+    if (snapshot && snapshot.status === 'error') {
+      applyError(root, gen);
+    }
+  }
+
   /**
    * @param {HTMLElement} root
    * @param {Record<string, unknown>} [_ctx] reserved for future SPA context (e.g. abortSignal)
@@ -32,6 +44,26 @@
     var gen = qualityMountGeneration;
     qualityMountedRoot = root;
     root.innerHTML = '';
+    if (qualityUnsubscribeStore) {
+      qualityUnsubscribeStore();
+      qualityUnsubscribeStore = null;
+    }
+    var store = window.__restoreSleepDataStore;
+    if (store && typeof store.subscribe === 'function') {
+      qualityUnsubscribeStore = store.subscribe(function (snapshot) {
+        renderQualityFromStoreSnapshot(root, gen, snapshot);
+      });
+      renderQualityFromStoreSnapshot(root, gen, store.getSnapshot());
+      store.ensureLoaded()
+        .then(function (sleepData) {
+          applyLoadedData(root, sleepData, gen);
+        })
+        .catch(function (error) {
+          console.error('Error loading quality history data:', error);
+          applyError(root, gen);
+        });
+      return;
+    }
     loadSleepData()
       .then(function (sleepData) {
         applyLoadedData(root, sleepData, gen);
@@ -44,6 +76,10 @@
 
   function unmount() {
     qualityMountGeneration++;
+    if (qualityUnsubscribeStore) {
+      qualityUnsubscribeStore();
+      qualityUnsubscribeStore = null;
+    }
     if (qualityMountedRoot) {
       qualityMountedRoot.innerHTML = '';
     }

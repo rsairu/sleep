@@ -509,6 +509,7 @@ let dashboardMountGeneration = 0;
 let dashboardMountedRoot = null;
 /** @type {(() => void) | null} */
 let dashboardTonightGuidanceHandler = null;
+let dashboardStoreUnsubscribe = null;
 
 function bindDashboardResponsiveRerender() {
   if (dashboardResizeRenderBound) return;
@@ -575,6 +576,24 @@ function loadDashboardData() {
   const root = dashboardMountedRoot;
   if (!root) return Promise.resolve();
   const genAtStart = dashboardMountGeneration;
+  const store = window.__restoreSleepDataStore;
+  if (store && typeof store.ensureLoaded === 'function') {
+    return store.ensureLoaded()
+      .then(() => {
+        if (genAtStart !== dashboardMountGeneration || dashboardMountedRoot !== root) return;
+        const snap = store.getSnapshot();
+        if (snap && snap.data) {
+          renderDashboardFromData(snap.data);
+          return;
+        }
+        throw new Error('Missing sleep data snapshot');
+      })
+      .catch((error) => {
+        console.error('Error loading dashboard data:', error);
+        if (genAtStart !== dashboardMountGeneration || dashboardMountedRoot !== root) return;
+        root.innerHTML = '<p>Error loading data.</p>';
+      });
+  }
   return loadSleepData()
     .then((sleepData) => {
       if (genAtStart !== dashboardMountGeneration || dashboardMountedRoot !== root) return;
@@ -596,6 +615,10 @@ function mountDashboard(root, _ctx) {
   dashboardMountGeneration++;
   const gen = dashboardMountGeneration;
   dashboardMountedRoot = root;
+  if (dashboardStoreUnsubscribe) {
+    dashboardStoreUnsubscribe();
+    dashboardStoreUnsubscribe = null;
+  }
   root.innerHTML = '';
   if (dashboardTonightGuidanceHandler) {
     window.removeEventListener('tonight-guidance-changed', dashboardTonightGuidanceHandler);
@@ -605,20 +628,29 @@ function mountDashboard(root, _ctx) {
     if (typeof loadDashboardData === 'function') void loadDashboardData();
   };
   window.addEventListener('tonight-guidance-changed', dashboardTonightGuidanceHandler);
-  loadSleepData()
-    .then((sleepData) => {
+  const store = window.__restoreSleepDataStore;
+  if (store && typeof store.subscribe === 'function') {
+    dashboardStoreUnsubscribe = store.subscribe((snapshot) => {
       if (gen !== dashboardMountGeneration || dashboardMountedRoot !== root) return;
-      renderDashboardFromData(sleepData);
-    })
-    .catch((error) => {
-      console.error('Error loading dashboard data:', error);
-      if (gen !== dashboardMountGeneration || dashboardMountedRoot !== root) return;
-      root.innerHTML = '<p>Error loading data.</p>';
+      if (!snapshot) return;
+      if (snapshot.data) {
+        renderDashboardFromData(snapshot.data);
+        return;
+      }
+      if (snapshot.status === 'error') {
+        root.innerHTML = '<p>Error loading data.</p>';
+      }
     });
+  }
+  void loadDashboardData();
 }
 
 function unmountDashboard() {
   dashboardMountGeneration++;
+  if (dashboardStoreUnsubscribe) {
+    dashboardStoreUnsubscribe();
+    dashboardStoreUnsubscribe = null;
+  }
   if (typeof window.__dashboardTonightAdjusterTeardown === 'function') {
     try {
       window.__dashboardTonightAdjusterTeardown();

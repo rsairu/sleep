@@ -1,6 +1,6 @@
 ---
 name: MPA to SPA path
-overview: This repo is a vanilla static MPA (~4.5k-line [sleep-utils.js](c:/Users/UriasRey/Desktop/sleep_proj/sleep-utils.js), nine HTML shells, [routes-data.js](c:/Users/UriasRey/Desktop/sleep_proj/routes-data.js), no npm bundler in [package.json](c:/Users/UriasRey/Desktop/sleep_proj/package.json)). **Done through Phase 6:** `docs-track`, `utils-audit`, `first-lifecycle`, `route-table`, `data-fetching-policy`, `rollout-lifecycles`, `settings-about-extraction`. **Next:** Phase 6.5 — sleep-data store implementation. Link-helper, optional Vite, SPA pivot follow.
+overview: This repo is a vanilla static MPA (~4.5k-line [sleep-utils.js](c:/Users/UriasRey/Desktop/sleep_proj/sleep-utils.js), nine HTML shells, [routes-data.js](c:/Users/UriasRey/Desktop/sleep_proj/routes-data.js), no npm bundler in [package.json](c:/Users/UriasRey/Desktop/sleep_proj/package.json)). **Done through Phase 6.5:** `docs-track`, `utils-audit`, `first-lifecycle`, `route-table`, `data-fetching-policy`, `rollout-lifecycles`, `settings-about-extraction`, `sleep-data-store-phase-6-5`. **Next:** `link-helper`, then optional Vite and SPA pivot.
 todos:
   - id: docs-track
     content: Add docs/migration/ (conventions, listener-audit, lifecycle-contract, route-table, decisions); cross-link existing docs/dev-banner.md, docs/quick-actions.md, docs/user-data-cloud.md when touching those behaviors
@@ -25,7 +25,7 @@ todos:
     status: completed
   - id: sleep-data-store-phase-6-5
     content: Implement single sleep-data store module (window-attached pre-Vite) with subscriptions, `lastFetchedAt` 12h revalidation, and forceRefresh invalidation paths from decisions.md
-    status: pending
+    status: completed
   - id: link-helper
     content: Centralize internal hrefs (sleep-utils nav, nightly.js and other *.html string links) for MPA vs future SPA intercept + hash policy
     status: pending
@@ -45,7 +45,7 @@ isProject: false
 
 ## Progress
 
-Summary: **7 / 12** todos completed (through **Phase 6**). **Next:** Phase 6.5 — `sleep-data-store-phase-6-5`.
+Summary: **8 / 12** todos completed (through **Phase 6.5**). **Next:** `link-helper`.
 
 | Todo | Status | Notes |
 |------|--------|--------|
@@ -56,8 +56,8 @@ Summary: **7 / 12** todos completed (through **Phase 6**). **Next:** Phase 6.5 �
 | `data-fetching-policy` | **Completed** | [decisions.md — Data fetching](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/decisions.md) (accepted ADR: single store, subscribe/unmount, refresh rules, midnight render note, Phase 5 module shape) |
 | `rollout-lifecycles` | **Completed** | Phase 5 complete (dashboard → charts → nightly → log → stats) |
 | `settings-about-extraction` | **Completed** | Phase 6 complete (`about.js` + `settings.js` lifecycle extraction) |
-| `sleep-data-store-phase-6-5` | **Next** | Phase 6.5 |
-| `link-helper` | Pending | |
+| `sleep-data-store-phase-6-5` | **Completed** | Phase 6.5 store implemented (`__restoreSleepDataStore`) |
+| `link-helper` | **Next** | pending |
 | `module-migration` | Pending | |
 | `bundler-optional` | Pending | |
 | `pivot` | Pending | |
@@ -81,13 +81,14 @@ Summary: **7 / 12** todos completed (through **Phase 6**). **Next:** Phase 6.5 �
 - [`settings.js`](c:/Users/UriasRey/Desktop/sleep_proj/settings.js) + `window.__restoreSettingsLifecycle`
 - updated script chains in [`docs/migration/route-table.md`](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/route-table.md) and contract in [`docs/migration/lifecycle-contract.md`](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/lifecycle-contract.md)
 
-## Phase 6.5 — Sleep-data store (next)
+## Phase 6.5 — Sleep-data store (complete)
 
-Implement the accepted ADR in [`docs/migration/decisions.md`](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/decisions.md):
+Implemented the accepted ADR in [`docs/migration/decisions.md`](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/decisions.md):
 
-- one store module-shaped singleton (window-attached pre-Vite)
+- one store module-shaped singleton (`window.__restoreSleepDataStore`, pre-Vite window-attached)
 - subscribe/unsubscribe model for route lifecycles
 - `lastFetchedAt` 12h revalidation and `forceRefresh` invalidation paths
+- compatibility wrapper: `loadSleepData(...)` routes through the store
 
 ## What exists today
 

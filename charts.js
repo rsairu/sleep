@@ -72,6 +72,7 @@ let chartsLifecycleController = null;
 let chartsMountGeneration = 0;
 /** @type {HTMLElement | null} */
 let chartsMountedRoot = null;
+let chartsStoreUnsubscribe = null;
 
 function syncGraphChartModeRockerUI() {
   document.querySelectorAll('.graph-chart-mode-rocker').forEach((rocker) => {
@@ -2043,7 +2044,11 @@ function buildGraphPagePointsFromDays(days) {
 }
 
 function startChartsPageDataLoad(gen) {
-  return loadSleepData()
+  const store = window.__restoreSleepDataStore;
+  const loadPromise = store && typeof store.ensureLoaded === 'function'
+    ? store.ensureLoaded()
+    : loadSleepData();
+  return loadPromise
     .then((data) => {
       if (gen !== chartsMountGeneration || chartsMountedRoot == null) return;
 
@@ -2058,7 +2063,9 @@ function startChartsPageDataLoad(gen) {
       chartsLifecycleController = new AbortController();
       const sigOpts = { signal: chartsLifecycleController.signal };
 
-      graphPageAllPoints = buildGraphPagePointsFromDays(data.days).sort((a, b) => a.date - b.date);
+      const snap = store && typeof store.getSnapshot === 'function' ? store.getSnapshot() : null;
+      const days = snap && snap.data ? snap.data.days || [] : data.days;
+      graphPageAllPoints = buildGraphPagePointsFromDays(days).sort((a, b) => a.date - b.date);
       graphPageRangeKey = defaultGraphRangeKey();
 
       document.querySelectorAll('.graph-range-btn').forEach((btn) => {
@@ -2091,6 +2098,10 @@ function startChartsPageDataLoad(gen) {
  */
 function mountChartsPage(root, _ctx) {
   if (!root) return;
+  if (chartsStoreUnsubscribe) {
+    chartsStoreUnsubscribe();
+    chartsStoreUnsubscribe = null;
+  }
   if (chartsLifecycleController) {
     try {
       chartsLifecycleController.abort();
@@ -2106,11 +2117,24 @@ function mountChartsPage(root, _ctx) {
   graphChartModeListenersBound = false;
   graphPageChartRenderGeneration = 0;
   graphPageHashScrollAfterNavDone = false;
+  const store = window.__restoreSleepDataStore;
+  if (store && typeof store.subscribe === 'function') {
+    chartsStoreUnsubscribe = store.subscribe((snapshot) => {
+      if (gen !== chartsMountGeneration || chartsMountedRoot == null) return;
+      if (!snapshot || !snapshot.data) return;
+      graphPageAllPoints = buildGraphPagePointsFromDays(snapshot.data.days || []).sort((a, b) => a.date - b.date);
+      renderGraphPageCharts();
+    });
+  }
   void startChartsPageDataLoad(gen);
 }
 
 function unmountChartsPage() {
   chartsMountGeneration++;
+  if (chartsStoreUnsubscribe) {
+    chartsStoreUnsubscribe();
+    chartsStoreUnsubscribe = null;
+  }
   graphPageTogglesBound = false;
   graphChartModeListenersBound = false;
   graphPageChartRenderGeneration = 0;

@@ -41,6 +41,19 @@ See [conventions.md](./conventions.md).
 
 ---
 
+## Phase 6.5
+
+**Status:** Complete (Apr 2026).
+
+**Shipped:**
+
+- Added `window.__restoreSleepDataStore` in [`sleep-utils.js`](../../sleep-utils.js) as the single runtime source of truth for sleep data state (`getSnapshot`, `subscribe`, `ensureLoaded`, `refresh`, `invalidate`).
+- Wired `loadSleepData(...)` as a compatibility wrapper over store loading, preserving existing caller behavior during migration.
+- Added store-driven refresh/invalidation hooks for mutation completion paths and visibility revalidation (`visibilitychange`), with 12h staleness policy (`lastFetchedAt`) active in store state.
+- Route lifecycle modules now subscribe/unsubscribe to store snapshots during mount/unmount.
+
+---
+
 ## ADR template
 
 Use for new entries:
@@ -103,7 +116,7 @@ Use for new entries:
 **Consequences:**
 
 - Unblocks **scrollable dashboard ranges** and other multi-slice UIs without per-route `loadSleepData` orchestration.
-- Store implementation is explicitly staged as **Phase 6.5** in this repo: implement one file / one module-shaped singleton (window-attached in pre-Vite), plus `lastFetchedAt` / refresh policy wiring before `link-helper`.
+- Implemented in **Phase 6.5** with a compatibility period: legacy `loadSleepData(...)` callers route through the store while migration to direct store APIs completes.
 
 **Reference:** [User data and cloud](../user-data-cloud.md) — `loadSleepData`, Supabase gate, hydration; do not duplicate storage tables here.
 

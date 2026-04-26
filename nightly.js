@@ -2848,6 +2848,47 @@ function toggleWeek(weekId) {
   var nightlyTimelineSection = null;
   /** @type {AbortController | null} */
   var nightlyTimelineAbort = null;
+  var nightlyTimelineStoreUnsubscribe = null;
+
+  function renderNightlyTimelineFromData(sectionRoot, sig, sleepData) {
+    var daysContainer = sectionRoot.querySelector('#days-container');
+    var legendControlsEl = sectionRoot.querySelector('#timeline-legend-controls');
+    if (!daysContainer) return;
+    if (legendControlsEl) legendControlsEl.innerHTML = renderTimelineLegendControls();
+
+    var weeks = groupDaysByWeek((sleepData && sleepData.days) || []);
+    daysContainer.innerHTML = weeks.map(function (week, index) {
+      return renderWeek(week, index, (sleepData && sleepData.days) || []);
+    }).join('');
+
+    document.querySelectorAll('.week-header').forEach(function (header) {
+      header.addEventListener(
+        'click',
+        function () {
+          var weekId = header.getAttribute('data-week-id');
+          toggleWeek(weekId);
+        },
+        { signal: sig }
+      );
+    });
+
+    function setupCheckbox(id, toggleFn) {
+      var checkbox = document.getElementById(id);
+      if (checkbox) {
+        checkbox.addEventListener(
+          'change',
+          function (e) {
+            toggleFn(e.target.checked);
+          },
+          { signal: sig }
+        );
+        toggleFn(checkbox.checked);
+      }
+    }
+    setupCheckbox('show-time-ticks', toggleTimeTicks);
+    setupCheckbox('show-daily-details', toggleDailyDetails);
+    setupCheckbox('show-flags', toggleFlags);
+  }
 
   function mountNightlyTimeline(sectionRoot, _ctx) {
     if (!sectionRoot) return;
@@ -2872,43 +2913,29 @@ function toggleWeek(weekId) {
     if (legendControlsEl) legendControlsEl.innerHTML = '';
     daysContainer.innerHTML = '';
 
-    loadSleepData()
+    if (nightlyTimelineStoreUnsubscribe) {
+      nightlyTimelineStoreUnsubscribe();
+      nightlyTimelineStoreUnsubscribe = null;
+    }
+    var store = window.__restoreSleepDataStore;
+    if (store && typeof store.subscribe === 'function') {
+      nightlyTimelineStoreUnsubscribe = store.subscribe(function (snapshot) {
+        if (g !== nightlyTimelineMountGen || nightlyTimelineSection !== sectionRoot) return;
+        if (snapshot && snapshot.data) {
+          if (legendControlsEl) legendControlsEl.innerHTML = '';
+          daysContainer.innerHTML = '';
+          renderNightlyTimelineFromData(sectionRoot, sig, snapshot.data);
+        }
+      });
+    }
+
+    var loadPromise = store && typeof store.ensureLoaded === 'function'
+      ? store.ensureLoaded()
+      : loadSleepData();
+    loadPromise
       .then(function (sleepData) {
         if (g !== nightlyTimelineMountGen || nightlyTimelineSection !== sectionRoot) return;
-        if (legendControlsEl) legendControlsEl.innerHTML = renderTimelineLegendControls();
-
-        var weeks = groupDaysByWeek(sleepData.days);
-        daysContainer.innerHTML = weeks.map(function (week, index) {
-          return renderWeek(week, index, sleepData.days);
-        }).join('');
-
-        document.querySelectorAll('.week-header').forEach(function (header) {
-          header.addEventListener(
-            'click',
-            function () {
-              var weekId = header.getAttribute('data-week-id');
-              toggleWeek(weekId);
-            },
-            { signal: sig }
-          );
-        });
-
-        function setupCheckbox(id, toggleFn) {
-          var checkbox = document.getElementById(id);
-          if (checkbox) {
-            checkbox.addEventListener(
-              'change',
-              function (e) {
-                toggleFn(e.target.checked);
-              },
-              { signal: sig }
-            );
-            toggleFn(checkbox.checked);
-          }
-        }
-        setupCheckbox('show-time-ticks', toggleTimeTicks);
-        setupCheckbox('show-daily-details', toggleDailyDetails);
-        setupCheckbox('show-flags', toggleFlags);
+        renderNightlyTimelineFromData(sectionRoot, sig, sleepData);
       })
       .catch(function (error) {
         console.error('Error loading data:', error);
@@ -2919,6 +2946,10 @@ function toggleWeek(weekId) {
 
   function unmountNightlyTimeline() {
     nightlyTimelineMountGen++;
+    if (nightlyTimelineStoreUnsubscribe) {
+      nightlyTimelineStoreUnsubscribe();
+      nightlyTimelineStoreUnsubscribe = null;
+    }
     if (nightlyTimelineAbort) {
       try {
         nightlyTimelineAbort.abort();

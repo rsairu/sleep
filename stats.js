@@ -495,6 +495,7 @@ let statsMountGeneration = 0;
 let statsMountedRoot = null;
 /** @type {AbortController | null} */
 let statsLifecycleController = null;
+let statsStoreUnsubscribe = null;
 
 function initStatsPageWithData(allDays) {
   renderPeriodScopeBar();
@@ -513,7 +514,11 @@ function initStatsPageWithData(allDays) {
 }
 
 function startStatsPageLoad(gen) {
-  loadSleepData()
+  const store = window.__restoreSleepDataStore;
+  const loadPromise = store && typeof store.ensureLoaded === 'function'
+    ? store.ensureLoaded()
+    : loadSleepData();
+  loadPromise
     .then(function (data) {
       if (gen !== statsMountGeneration || statsMountedRoot == null) return;
       if (statsLifecycleController) {
@@ -525,7 +530,8 @@ function startStatsPageLoad(gen) {
         statsLifecycleController = null;
       }
       statsLifecycleController = new AbortController();
-      const days = (data && data.days) || [];
+      const snap = store && typeof store.getSnapshot === 'function' ? store.getSnapshot() : null;
+      const days = snap && snap.data ? snap.data.days || [] : (data && data.days) || [];
       initStatsPageWithData(days);
     })
     .catch(function (error) {
@@ -553,15 +559,31 @@ function mountStatsPage(root, _ctx) {
   statsMountGeneration++;
   const gen = statsMountGeneration;
   statsMountedRoot = root;
+  if (statsStoreUnsubscribe) {
+    statsStoreUnsubscribe();
+    statsStoreUnsubscribe = null;
+  }
   const scopeEl = root.querySelector('#stats-period-scope');
   const matrix = root.querySelector('#stats-container');
   if (scopeEl) scopeEl.innerHTML = '';
   if (matrix) matrix.innerHTML = '';
+  const store = window.__restoreSleepDataStore;
+  if (store && typeof store.subscribe === 'function') {
+    statsStoreUnsubscribe = store.subscribe(function (snapshot) {
+      if (gen !== statsMountGeneration || statsMountedRoot == null) return;
+      if (!snapshot || !snapshot.data) return;
+      initStatsPageWithData(snapshot.data.days || []);
+    });
+  }
   void startStatsPageLoad(gen);
 }
 
 function unmountStatsPage() {
   statsMountGeneration++;
+  if (statsStoreUnsubscribe) {
+    statsStoreUnsubscribe();
+    statsStoreUnsubscribe = null;
+  }
   if (statsLifecycleController) {
     try {
       statsLifecycleController.abort();

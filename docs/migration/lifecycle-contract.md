@@ -159,7 +159,9 @@ MPA navigation does not call `unmount`. To exercise **mount → unmount → moun
 ## Relationship to other migration docs
 
 - [listener-audit.md](./listener-audit.md) — classifies `sleep-utils` surface; future routes with listeners extend `unmount` accordingly.
-- [decisions.md](./decisions.md) — sleep-data store and refresh policy (**accepted**; [Phase 4](./decisions.md#phase-4)).
+- [decisions.md](./decisions.md) — sleep-data store and refresh policy (**accepted**; [Phase 4](./decisions.md#phase-4), implemented in Phase 6.5).
+
+Phase 6.5 note: lifecycle routes subscribe to `window.__restoreSleepDataStore` on `mount` and unsubscribe on `unmount`; `loadSleepData(...)` remains as a compatibility wrapper while migration completes.
 
 ---
 

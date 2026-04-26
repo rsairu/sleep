@@ -7,6 +7,7 @@
   var logMountGeneration = 0;
   /** @type {HTMLElement | null} */
   var logMountedRoot = null;
+  var logUnsubscribeStore = null;
   var logRemainingWakeTimer = null;
   var logPageDaysForWake = [];
 
@@ -53,6 +54,23 @@
     var root = logMountedRoot;
     if (!root) return Promise.resolve();
     var genAtStart = logMountGeneration;
+    var store = window.__restoreSleepDataStore;
+    if (store && typeof store.ensureLoaded === 'function') {
+      return store.ensureLoaded()
+        .then(function () {
+          if (genAtStart !== logMountGeneration || logMountedRoot !== root) return;
+          var snap = store.getSnapshot();
+          if (snap && snap.data) return renderLogFromData(root, snap.data);
+          throw new Error('Missing sleep data snapshot');
+        })
+        .catch(function (err) {
+          console.error(err);
+          if (genAtStart !== logMountGeneration || logMountedRoot !== root) return;
+          clearLogRemainingWakeTimer();
+          logPageDaysForWake = [];
+          root.innerHTML = '<p class="dashboard-empty-msg">Error loading data.</p>';
+        });
+    }
     return loadSleepData()
       .then(function (sleepData) {
         if (genAtStart !== logMountGeneration || logMountedRoot !== root) return;
@@ -77,6 +95,26 @@
     var gen = logMountGeneration;
     logMountedRoot = root;
     root.innerHTML = '';
+    if (logUnsubscribeStore) {
+      logUnsubscribeStore();
+      logUnsubscribeStore = null;
+    }
+    var store = window.__restoreSleepDataStore;
+    if (store && typeof store.subscribe === 'function') {
+      logUnsubscribeStore = store.subscribe(function (snapshot) {
+        if (gen !== logMountGeneration || logMountedRoot !== root) return;
+        if (!snapshot) return;
+        if (snapshot.data) {
+          void renderLogFromData(root, snapshot.data);
+          return;
+        }
+        if (snapshot.status === 'error') {
+          root.innerHTML = '<p class="dashboard-empty-msg">Error loading data.</p>';
+        }
+      });
+      void loadLogPageData();
+      return;
+    }
     loadSleepData()
       .then(function (sleepData) {
         if (gen !== logMountGeneration || logMountedRoot !== root) return;
@@ -93,6 +131,10 @@
 
   function unmount() {
     logMountGeneration++;
+    if (logUnsubscribeStore) {
+      logUnsubscribeStore();
+      logUnsubscribeStore = null;
+    }
     clearLogRemainingWakeTimer();
     logPageDaysForWake = [];
     if (logMountedRoot) {
