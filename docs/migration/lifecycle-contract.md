@@ -106,9 +106,35 @@ Global namespace: **`window.__restoreStatsLifecycle`**
 
 ---
 
+## Rollout: **About**
+
+Global namespace: **`window.__restoreAboutLifecycle`**
+
+| Method | Behavior |
+|--------|----------|
+| **`mount(root, ctx?)`** | `root` is **[`#about-page-root`](../../about.html)**. Applies translations to root + nav, runs theme + remaining-wake nav, mounts **`#about-remaining-wake-mount`** controls, then initializes remaining-wake controls and hint-dismiss buttons. |
+| **`unmount()`** | Idempotent. Clears **`#about-remaining-wake-mount`** content and resets active root reference. |
+
+**Harness:** `about.html?lifecycleHarness=1` (dev-gated). Console: **`[lifecycleHarness] about:`** …
+
+---
+
+## Rollout: **Settings**
+
+Global namespace: **`window.__restoreSettingsLifecycle`**
+
+| Method | Behavior |
+|--------|----------|
+| **`mount(root, ctx?)`** | `root` is **[`#settings-page-root`](../../settings.html)**. Applies translations, runs theme/nav helpers, initializes settings controls (clock/language/theme/palette/tonight guidance), mounts remaining-wake and cloud config controls, then re-applies hash scroll after dynamic mounts. |
+| **`unmount()`** | Idempotent. Clears dynamic mounts **`#remaining-wake-mount`** and **`#supabase-config-mount`**, resets active root reference. |
+
+**Harness:** `settings.html?lifecycleHarness=1` (dev-gated). Console: **`[lifecycleHarness] settings:`** …
+
+---
+
 ## MPA wiring
 
-[`quality.html`](../../quality.html) inline `initQualityPage` (after `initI18n`, `renderNavBar('quality')`, `initDayNightTheme`, `initRemainingWakeNav`):
+`*.html` shells call `mount` from inline init after `initI18n` and `renderNavBar('<route>')` (plus shared theme/nav setup where applicable), e.g.:
 
 1. Resolve `#quality-container`.
 2. Call **`__restoreQualityLifecycle.mount(qualityRoot, {})`**.

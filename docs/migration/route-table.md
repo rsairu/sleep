@@ -35,8 +35,8 @@ See [conventions.md](./conventions.md).
 
 | logical id | `mpaPath` | `spaPath` (TBD) | `navKind` | notes |
 |------------|-----------|-----------------|-----------|-------|
-| `about` | `about.html` | TBD | `menu` | Hamburger first row; inline scripts only |
-| `settings` | `settings.html` | TBD | `menu` | Hamburger; cloud deep-link **`settings.html#cloud-sync`** on data-source row; inline scripts only |
+| `about` | `about.html` | TBD | `menu` | Hamburger first row; `about.js` lifecycle on `#about-page-root` |
+| `settings` | `settings.html` | TBD | `menu` | Hamburger; cloud deep-link **`settings.html#cloud-sync`** on data-source row; `settings.js` lifecycle on `#settings-page-root` |
 
 ---
 
@@ -60,8 +60,8 @@ Order matches `<script>` tags in each HTML shell (after shared `dev-git-branch.j
 | `timeline` (`nightly.html`) | `nightly.js` |
 | `charts` | `charts.js` |
 | `stats` | `stats-aggregates.js`, `stats.js` |
-| `about` | *(none — inline only)* |
-| `settings` | *(none — inline only)* |
+| `about` | `about.js` |
+| `settings` | `settings.js` |
 
 **Shared `nightly.js` cluster:** dashboard, log, quality, nightly page. See [decisions.md](./decisions.md) (accepted ADR **Data fetching / cache / SWR** — single sleep-data store, subscribe/unmount, refresh rules).
 

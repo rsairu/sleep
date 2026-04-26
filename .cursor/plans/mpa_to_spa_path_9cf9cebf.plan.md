@@ -1,6 +1,6 @@
 ---
 name: MPA to SPA path
-overview: This repo is a vanilla static MPA (~4.5k-line [sleep-utils.js](c:/Users/UriasRey/Desktop/sleep_proj/sleep-utils.js), nine HTML shells, [routes-data.js](c:/Users/UriasRey/Desktop/sleep_proj/routes-data.js), no npm bundler in [package.json](c:/Users/UriasRey/Desktop/sleep_proj/package.json)). **Done through Phase 4:** `docs-track`, `utils-audit`, `first-lifecycle`, `route-table`, `data-fetching-policy`. **Next:** Phase 5 — `rollout-lifecycles` (dashboard second proof onward). Settings/about extraction, link-helper, optional Vite, SPA pivot follow.
+overview: This repo is a vanilla static MPA (~4.5k-line [sleep-utils.js](c:/Users/UriasRey/Desktop/sleep_proj/sleep-utils.js), nine HTML shells, [routes-data.js](c:/Users/UriasRey/Desktop/sleep_proj/routes-data.js), no npm bundler in [package.json](c:/Users/UriasRey/Desktop/sleep_proj/package.json)). **Done through Phase 6:** `docs-track`, `utils-audit`, `first-lifecycle`, `route-table`, `data-fetching-policy`, `rollout-lifecycles`, `settings-about-extraction`. **Next:** Phase 6.5 — sleep-data store implementation. Link-helper, optional Vite, SPA pivot follow.
 todos:
   - id: docs-track
     content: Add docs/migration/ (conventions, listener-audit, lifecycle-contract, route-table, decisions); cross-link existing docs/dev-banner.md, docs/quick-actions.md, docs/user-data-cloud.md when touching those behaviors
@@ -19,9 +19,12 @@ todos:
     status: completed
   - id: rollout-lifecycles
     content: "Pattern-first rollout after first proof: dashboard (2nd proof) → charts → nightly → log → the stats or quality route not used as first proof → settings/about (only after settings-about-extraction). Log tradeoff vs risk-first order in decisions.md."
-    status: pending
+    status: completed
   - id: settings-about-extraction
     content: "After contract is frozen: extract settings.html / about.html inline inits into dedicated modules, then add mount/unmount for those routes (separate from first lifecycle—more variables than a clean proof)."
+    status: completed
+  - id: sleep-data-store-phase-6-5
+    content: Implement single sleep-data store module (window-attached pre-Vite) with subscriptions, `lastFetchedAt` 12h revalidation, and forceRefresh invalidation paths from decisions.md
     status: pending
   - id: link-helper
     content: Centralize internal hrefs (sleep-utils nav, nightly.js and other *.html string links) for MPA vs future SPA intercept + hash policy
@@ -42,7 +45,7 @@ isProject: false
 
 ## Progress
 
-Summary: **5 / 11** todos completed (through **Phase 4**). **Next:** Phase 5 — `rollout-lifecycles`.
+Summary: **7 / 12** todos completed (through **Phase 6**). **Next:** Phase 6.5 — `sleep-data-store-phase-6-5`.
 
 | Todo | Status | Notes |
 |------|--------|--------|
@@ -51,8 +54,9 @@ Summary: **5 / 11** todos completed (through **Phase 4**). **Next:** Phase 5 —
 | `first-lifecycle` | **Completed** | [lifecycle-contract.md](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/lifecycle-contract.md); impl: [quality.js](c:/Users/UriasRey/Desktop/sleep_proj/quality.js), [quality.html](c:/Users/UriasRey/Desktop/sleep_proj/quality.html); plan: [first_lifecycle_contract.plan.md](c:/Users/UriasRey/Desktop/sleep_proj/.cursor/plans/first_lifecycle_contract.plan.md) |
 | `route-table` | **Completed** | [routes-data.js](c:/Users/UriasRey/Desktop/sleep_proj/routes-data.js) + [route-table.md](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/route-table.md) |
 | `data-fetching-policy` | **Completed** | [decisions.md — Data fetching](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/decisions.md) (accepted ADR: single store, subscribe/unmount, refresh rules, midnight render note, Phase 5 module shape) |
-| `rollout-lifecycles` | **Next** | Phase 5 |
-| `settings-about-extraction` | Pending | |
+| `rollout-lifecycles` | **Completed** | Phase 5 complete (dashboard → charts → nightly → log → stats) |
+| `settings-about-extraction` | **Completed** | Phase 6 complete (`about.js` + `settings.js` lifecycle extraction) |
+| `sleep-data-store-phase-6-5` | **Next** | Phase 6.5 |
 | `link-helper` | Pending | |
 | `module-migration` | Pending | |
 | `bundler-optional` | Pending | |
@@ -62,7 +66,28 @@ Summary: **5 / 11** todos completed (through **Phase 4**). **Next:** Phase 5 —
 
 **Shipped:** [routes-data.js](c:/Users/UriasRey/Desktop/sleep_proj/routes-data.js) (`__restoreRoutesData`) before `sleep-utils.js` on all shells; `renderNavBar` consumes it. Accepted ADR in [decisions.md](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/decisions.md): single sleep-data store (boot / first read), `loadSleepData({ forceRefresh: true })` for explicit refresh + post-mutation invalidation, route subscribe/unmount, refresh triggers (boot, mutation, cloud sync done, visibility, 12h `lastFetchedAt`), midnight re-derive as per-route render concern; Phase 5 store = one file, module-shaped singleton on `window` until Vite.
 
-**Phase 5 (current):** `rollout-lifecycles` (dashboard second proof → charts → nightly → log → stats → settings/about after extraction).
+## Phase 5 — Rollout lifecycles (complete)
+
+**Shipped:** `mount` / `unmount` rollout for tab routes in pattern-first order after quality proof:
+
+- dashboard → charts → nightly timeline → log → stats
+- harness logs on each route (`?lifecycleHarness=1`) for mount → unmount → mount verification
+
+## Phase 6 — Settings/About extraction (complete)
+
+**Shipped:** moved inline init from menu routes into dedicated modules and lifecycle globals:
+
+- [`about.js`](c:/Users/UriasRey/Desktop/sleep_proj/about.js) + `window.__restoreAboutLifecycle`
+- [`settings.js`](c:/Users/UriasRey/Desktop/sleep_proj/settings.js) + `window.__restoreSettingsLifecycle`
+- updated script chains in [`docs/migration/route-table.md`](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/route-table.md) and contract in [`docs/migration/lifecycle-contract.md`](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/lifecycle-contract.md)
+
+## Phase 6.5 — Sleep-data store (next)
+
+Implement the accepted ADR in [`docs/migration/decisions.md`](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/decisions.md):
+
+- one store module-shaped singleton (window-attached pre-Vite)
+- subscribe/unsubscribe model for route lifecycles
+- `lastFetchedAt` 12h revalidation and `forceRefresh` invalidation paths
 
 ## What exists today
 
@@ -70,7 +95,7 @@ Summary: **5 / 11** todos completed (through **Phase 4**). **Next:** Phase 5 —
 - **Nine shells**: Tab routes — `dashboard`, `log`, `quality`, **`timeline` → [nightly.html](c:/Users/UriasRey/Desktop/sleep_proj/nightly.html)** (nav label “Nightly”), **`charts` → [charts.html](c:/Users/UriasRey/Desktop/sleep_proj/charts.html)**, `stats`. Menu-only — [about.html](c:/Users/UriasRey/Desktop/sleep_proj/about.html), [settings.html](c:/Users/UriasRey/Desktop/sleep_proj/settings.html) (hamburger uses `settings.html#cloud-sync` for cloud). Plus [index.html](c:/Users/UriasRey/Desktop/sleep_proj/index.html) **meta-refreshes to `dashboard.html`** (SPA cutover must replace this with a real shell or redirect policy).
 - **Shared core**: Every substantive page loads `dev-git-branch.js` → `local-supabase-presets.js` → [routes-data.js](c:/Users/UriasRey/Desktop/sleep_proj/routes-data.js) → [sleep-utils.js](c:/Users/UriasRey/Desktop/sleep_proj/sleep-utils.js). **`nightly.js`** is included on **dashboard, log, quality, nightly** but **not** on charts/stats/settings/about — any SPA module graph must respect that split until bundles unify. **Charts** loads [charts.js](c:/Users/UriasRey/Desktop/sleep_proj/charts.js) only; **stats** loads `stats-aggregates.js` + [stats.js](c:/Users/UriasRey/Desktop/sleep_proj/stats.js).
 - **Nav source of truth**: [routes-data.js](c:/Users/UriasRey/Desktop/sleep_proj/routes-data.js) (`__restoreRoutesData.navTabs` + `href`); [sleep-utils.js](c:/Users/UriasRey/Desktop/sleep_proj/sleep-utils.js) `renderNavBar` maps them to HTML. Human table + script matrix: [route-table.md](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/route-table.md).
-- **Per-page shells**: Typical init is inline `async function init…Page()` after scripts: `initI18n` → `renderNavBar('<id>')` → `initDayNightTheme` → `initRemainingWakeNav` (sometimes `{ interval: false }`). **Settings/about** use **inline-only** boot logic (no dedicated `settings.js` / `about.js`) — **not** the first lifecycle contract target; extract them **after** the contract is frozen (dedicated workstream below).
+- **Per-page shells**: Typical init is inline `async function init…Page()` after scripts: `initI18n` → `renderNavBar('<id>')` → route lifecycle `mount(...)` (theme/nav helpers run inside route modules where needed). **Settings/about** now use dedicated modules ([`settings.js`](c:/Users/UriasRey/Desktop/sleep_proj/settings.js), [`about.js`](c:/Users/UriasRey/Desktop/sleep_proj/about.js)) with lifecycle globals.
 - **Global UI nodes**: e.g. [dashboard.html](c:/Users/UriasRey/Desktop/sleep_proj/dashboard.html) includes `#tooltip` and `#day-panel`; [charts.html](c:/Users/UriasRey/Desktop/sleep_proj/charts.html) does too. SPA shell design must decide what lives **once in the shell** vs **per-route**.
 
 ## Listener / lifecycle reality check (adjusts the draft)

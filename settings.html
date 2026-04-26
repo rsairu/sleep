@@ -11,7 +11,7 @@
 </head>
 <body>
   <div id="nav-container"></div>
-  <div class="container container--config">
+  <div id="settings-page-root" class="container container--config">
     <h1 class="page-title config-page-title" data-i18n="config.title">Settings</h1>
 
     <h2 class="section-title" id="clock" data-i18n="config.clock.title">Clock</h2>
@@ -179,34 +179,26 @@
   <script src="local-supabase-presets.js"></script>
   <script src="routes-data.js"></script>
   <script src="sleep-utils.js"></script>
+  <script src="settings.js"></script>
   <script>
     (async function initConfigPage() {
       await initI18n(document);
-      applyTranslations(document.querySelector('.container--config'));
       document.getElementById('nav-container').innerHTML = renderNavBar('settings');
-      applyTranslations(document.getElementById('nav-container'));
-      initDayNightTheme();
-      initClockFormatSelector();
-      initLanguageSelector();
-      initConfigThemeSelector();
-      initQualityPaletteSelector();
-      initTonightGuidanceConfigControls();
-      document.getElementById('remaining-wake-mount').innerHTML =
-        getRemainingWakeThresholdsControlHTML('remaining-wake');
-      initRemainingWakeNav();
-      initRemainingWakeThresholdsConfig();
-      initDashboardHintsSettingsControls();
-      initSupabaseConfigForm();
-      // Hash scroll runs before late-mounted sections (e.g. remaining wake); re-apply after layout.
-      if (window.location.hash.length > 1) {
-        const id = decodeURIComponent(window.location.hash.slice(1));
-        const scrollTarget = document.getElementById(id);
-        if (scrollTarget) {
-          requestAnimationFrame(function () {
-            requestAnimationFrame(function () {
-              scrollTarget.scrollIntoView({ block: 'start', behavior: 'auto' });
-            });
-          });
+      var settingsRoot = document.getElementById('settings-page-root');
+      var S = window.__restoreSettingsLifecycle;
+      if (settingsRoot && S && typeof S.mount === 'function') {
+        S.mount(settingsRoot, {});
+        var params = new URLSearchParams(window.location.search);
+        if (
+          params.get('lifecycleHarness') === '1' &&
+          typeof isDevBuildContext === 'function' &&
+          isDevBuildContext()
+        ) {
+          console.info('[lifecycleHarness] settings: start mount → unmount → mount');
+          S.unmount();
+          console.info('[lifecycleHarness] settings: after unmount (remaining-wake/cloud controls cleared)');
+          S.mount(settingsRoot, {});
+          console.info('[lifecycleHarness] settings: second mount complete');
         }
       }
     })();

@@ -19,6 +19,28 @@ See [conventions.md](./conventions.md).
 
 ---
 
+## Phase 5
+
+**Status:** Complete (Apr 2026).
+
+**Shipped:**
+
+- Lifecycle rollout for tab routes is complete and documented in [`lifecycle-contract.md`](./lifecycle-contract.md): dashboard, charts, nightly timeline, log, stats (quality was first proof).
+- Pattern-first order executed as planned (quality first, then dashboard → charts → nightly → log → stats), with settings/about intentionally deferred to extraction.
+
+---
+
+## Phase 6
+
+**Status:** Complete (Apr 2026).
+
+**Shipped:**
+
+- Extracted inline init from [`about.html`](../../about.html) and [`settings.html`](../../settings.html) into dedicated modules: [`about.js`](../../about.js) and [`settings.js`](../../settings.js).
+- Added `window.__restoreAboutLifecycle` and `window.__restoreSettingsLifecycle` plus dev harness logging (`?lifecycleHarness=1`).
+
+---
+
 ## ADR template
 
 Use for new entries:
@@ -54,7 +76,7 @@ Use for new entries:
 
 **Decision:** **Pattern-first:** first lifecycle proof on **quality or stats** → second proof **dashboard** → **charts** → **nightly** → **log** → sibling stats/quality route → **settings/about** only after inline-init extraction.
 
-**Consequences:** *To be updated by `rollout-lifecycles` if order changes mid-flight; note rejected alternative and rationale.*
+**Consequences:** Rollout executed in the documented order through tab routes (Phase 5), then settings/about extraction + lifecycle in Phase 6.
 
 ---
 
@@ -81,7 +103,7 @@ Use for new entries:
 **Consequences:**
 
 - Unblocks **scrollable dashboard ranges** and other multi-slice UIs without per-route `loadSleepData` orchestration.
-- Phase 5 implementation should hold the store in **one file**, **one module-shaped singleton** (single default export or one obvious object) even while still attaching to `window` in the pre-Vite world—**only the export mechanism changes** when moving to ES modules/Vite.
+- Store implementation is explicitly staged as **Phase 6.5** in this repo: implement one file / one module-shaped singleton (window-attached in pre-Vite), plus `lastFetchedAt` / refresh policy wiring before `link-helper`.
 
 **Reference:** [User data and cloud](../user-data-cloud.md) — `loadSleepData`, Supabase gate, hydration; do not duplicate storage tables here.
 

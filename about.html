@@ -11,7 +11,7 @@
 </head>
 <body>
   <div id="nav-container"></div>
-  <div class="container container--config">
+  <div id="about-page-root" class="container container--config">
     <h1 class="page-title config-page-title">About</h1>
 
     <img src="assets/slumby_banner.png" alt="" class="about-hero-banner" decoding="async" />
@@ -228,22 +228,28 @@
   <script src="local-supabase-presets.js"></script>
   <script src="routes-data.js"></script>
   <script src="sleep-utils.js"></script>
+  <script src="about.js"></script>
   <script>
     (async function initAboutPage() {
       await initI18n(document);
       document.getElementById('nav-container').innerHTML = renderNavBar('about');
-      if (typeof applyTranslations === 'function') {
-        const mainEl = document.querySelector('.container.container--config');
-        if (mainEl) applyTranslations(mainEl);
-        const navEl = document.getElementById('nav-container');
-        if (navEl) applyTranslations(navEl);
+      var aboutRoot = document.getElementById('about-page-root');
+      var A = window.__restoreAboutLifecycle;
+      if (aboutRoot && A && typeof A.mount === 'function') {
+        A.mount(aboutRoot, {});
+        var params = new URLSearchParams(window.location.search);
+        if (
+          params.get('lifecycleHarness') === '1' &&
+          typeof isDevBuildContext === 'function' &&
+          isDevBuildContext()
+        ) {
+          console.info('[lifecycleHarness] about: start mount → unmount → mount');
+          A.unmount();
+          console.info('[lifecycleHarness] about: after unmount (remaining-wake controls cleared)');
+          A.mount(aboutRoot, {});
+          console.info('[lifecycleHarness] about: second mount complete');
+        }
       }
-      initDayNightTheme();
-      initRemainingWakeNav();
-      document.getElementById('about-remaining-wake-mount').innerHTML =
-        getRemainingWakeThresholdsControlHTML('about-remaining-wake-thresholds');
-      initRemainingWakeThresholdsConfig();
-      initAboutDashboardHintDismissButtons();
     })();
   </script>
 </body>
