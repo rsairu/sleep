@@ -3035,6 +3035,7 @@ function resolveTonightScheduledWindow(avgSleep, avgWake, savedTw) {
  *   cellGuided: number|null,
  *   cellTarget: number|null,
  *   showPaceWave: boolean,
+ *   activeColumn: 'natural'|'guided'|'target',
  *   callout: null|{ phase: string, pole: 'sleep'|'wake', deltaMins: number, gapMins: number, targetMins: number, directionEarlier: boolean }
  * }}
  */
@@ -3080,6 +3081,7 @@ function buildTonightMatrixViewModel(input) {
       cellGuided,
       cellTarget,
       showPaceWave,
+      activeColumn: 'natural',
       callout
     };
   }
@@ -3099,6 +3101,7 @@ function buildTonightMatrixViewModel(input) {
       cellGuided,
       cellTarget,
       showPaceWave,
+      activeColumn: 'natural',
       callout
     };
   }
@@ -3118,6 +3121,7 @@ function buildTonightMatrixViewModel(input) {
       cellGuided,
       cellTarget,
       showPaceWave,
+      activeColumn: 'target',
       callout
     };
   }
@@ -3136,6 +3140,7 @@ function buildTonightMatrixViewModel(input) {
       cellGuided,
       cellTarget,
       showPaceWave,
+      activeColumn: 'target',
       callout
     };
   }
@@ -3184,6 +3189,7 @@ function buildTonightMatrixViewModel(input) {
     cellGuided,
     cellTarget,
     showPaceWave,
+    activeColumn: 'guided',
     callout
   };
 }
