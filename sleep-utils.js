@@ -4903,8 +4903,8 @@ function isDevGitBranchMaster() {
 var SLUMBY_NAV_GIF_IDLE_DATA_URI =
   'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 var SLUMBY_NAV_BOUNCE_MS = 4180;
-var SLUMBY_NAV_STILL_PATH = 'assets/slumby_bounce_still.png';
-var SLUMBY_NAV_GIF_PATH = 'assets/slumby_bounce_mini.gif';
+var SLUMBY_NAV_STILL_PATH = '/assets/slumby_bounce_still.png';
+var SLUMBY_NAV_GIF_PATH = '/assets/slumby_bounce_mini.gif';
 
 function getRestoreRoutesData() {
   var g = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : null;

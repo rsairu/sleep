@@ -39,7 +39,7 @@ todos:
     content: Single shell, History API, dynamic import per route, host fallback/redirects; replace index.html meta-refresh with real entry behavior
     status: completed
   - id: phase-9b-redirects
-    content: "Vercel redirects root *.html → path routes; build copies MPA shells to dist/mpa for SPA fetch; decisions + route-table + plan body sync"
+    content: Vercel redirects root *.html → path routes; build copies MPA shells to dist/mpa for SPA fetch; decisions + route-table + plan body sync
     status: completed
 isProject: false
 ---

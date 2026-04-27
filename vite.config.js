@@ -40,7 +40,6 @@ const mpaShells = [
 ].filter((f) => fs.existsSync(f));
 
 const staticCopyTargets = [
-  { src: 'assets', dest: 'assets' },
   { src: 'data', dest: 'data' },
   { src: 'theme-toggle.css', dest: '.' },
   { src: 'styles.css', dest: '.' },
