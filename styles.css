@@ -3060,15 +3060,15 @@ body{
   text-align: center;
 }
 
-#dashboard-tonight-matrix-sleep-natural,
-#dashboard-tonight-matrix-sleep-guided,
-#dashboard-tonight-matrix-sleep-target {
+.dashboard-tonight-matrix-cell.dashboard-tonight-matrix-cell--muted {
+  color: color-mix(in srgb, var(--text) 52%, transparent);
+}
+
+.dashboard-tonight-matrix-cell.dashboard-tonight-matrix-cell--active.dashboard-tonight-matrix-cell--pole-sleep {
   color: color-mix(in srgb, var(--color-sleep) 78%, var(--text));
 }
 
-#dashboard-tonight-matrix-wake-natural,
-#dashboard-tonight-matrix-wake-guided,
-#dashboard-tonight-matrix-wake-target {
+.dashboard-tonight-matrix-cell.dashboard-tonight-matrix-cell--active.dashboard-tonight-matrix-cell--pole-wake {
   color: color-mix(in srgb, var(--color-up) 78%, var(--text));
 }
 
