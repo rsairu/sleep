@@ -160,6 +160,11 @@
   --tooltip-fg: #ffffff;
 }
 
+/* Reserve scrollbar width on the root so route/content height changes do not shift 100vw layouts. */
+html {
+  scrollbar-gutter: stable;
+}
+
 body{
   background: var(--bg);
   color: var(--text);
