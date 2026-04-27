@@ -146,7 +146,7 @@ Use for new entries:
 1. **MPA (now):** All **JavaScript-generated** internal navigation targets go through **`__restoreRoutesData.mpaHref(key)`** (see [`routes-data.mjs`](../../routes-data.mjs)). Keys compose from the same `navTabs` / `href` data so overrides stay centralized.
 2. **SPA (later):** Prefer **path-based routes** (e.g. `/charts`) and **preserve today’s fragment strings** for deep links (e.g. `/charts#chart-bed-asleep-wake`). Anchor IDs used for scroll targets (e.g. on [`charts.js`](../../charts.js)) stay stable; scrolling remains a **route module concern**. Moving anchors exclusively into URL path segments would be a **separate** ADR.
 3. **Router (future):** Intercept **primary** left-clicks on **internal** links for in-app navigation; **do not** break modified clicks (e.g. Ctrl/Cmd/meta, shift) or **middle-click** — those should perform a normal full navigation (new tab / window) per platform conventions.
-4. **[`index.html`](../../index.html)** has no `routes-data.mjs` today (meta-refresh only); aligning its visible fallback `<a href>` with `mpaHref` is **optional** until the **pivot** phase replaces the redirect.
+4. **[`index.html`](../../index.html)** is now the **Vite SPA shell** (Phase 9); `routes-data` is imported from [`src/spa-app.js`](../../src/spa-app.js) so it initializes before `sleep-utils.js`. Legacy `*.html` bookmarks are unchanged until Phase 9b redirects.
 
 **Consequences:**
 
@@ -181,6 +181,20 @@ Use for new entries:
 - [`routes-data.mjs`](../../routes-data.mjs): native ES module with `export` of `navTabs`, `href`, `mpaHref`, and `installRoutesData(globalObj)` for vm/Node consumers; browser installs on `globalThis` when `document` is defined; **`globalThis.__restoreRoutesData`** unchanged for [`sleep-utils.js`](../../sleep-utils.js) / [`nightly.js`](../../nightly.js).
 - All substantive HTML shells use **`defer`** on the shared script chain, **`type="module"`** + `defer` for `routes-data.mjs`, and deferred **`*-boot.js`** replacing inline page init (ordering: deferred classics + module run in document order after parse).
 - [`math-tests.js`](../../math-tests.js) loads routes via `import()` + `installRoutesData(context)` before `sleep-utils` in the vm sandbox.
+
+---
+
+## Phase 9 (Vite + SPA shell + Vercel)
+
+**Status:** Complete (Apr 2026).
+
+**Shipped:**
+
+- **Vite** — [`vite.config.js`](../../vite.config.js), [`package.json`](../../package.json) scripts `dev` / `build` / `preview`; production output in `dist/`.
+- **SPA shell** — root [`index.html`](../../index.html) with `#nav-container`, `#spa-outlet`, shared `#tooltip` / `#day-panel`; [`src/spa-app.js`](../../src/spa-app.js) imports [`routes-data.mjs`](../../routes-data.mjs) first, sets `globalThis.__restoreUseSpaNav`, implements History navigation, modifier-safe link interception, and fetches legacy `*.html` shells to hydrate outlet markup before `mount`.
+- **Path routes + hashes** — `spaHref(key)`, `spaPathForTabId`, `internalNavHref(key)` on `__restoreRoutesData`; [`sleep-utils.js`](../../sleep-utils.js) nav/menu uses them when `__restoreUseSpaNav` is set; [`nightly.js`](../../nightly.js) dashboard links use `internalNavHref`.
+- **Vercel** — [`vercel.json`](../../vercel.json) SPA fallback rewrites to `index.html` (static files such as `*.html`, `/assets/*`, `/data/*` still win when present).
+- **Deferred:** bookmark redirects from `*.html` to path URLs → **Phase 9b** (see plan).
 
 ---
 

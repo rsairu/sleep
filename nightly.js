@@ -15,11 +15,13 @@ const DATA_FILES = {
   sleep: 'data/sleep-data.json'
 };
 
-/** Internal MPA href from routes-data.mjs mpaHref (Phase 7 link-helper). */
+/** Internal nav href (MPA or SPA) from routes-data.mjs. */
 function restoreMpaHref(key) {
   const g = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : null;
   const d = g && g.__restoreRoutesData;
-  return d && typeof d.mpaHref === 'function' ? d.mpaHref(key) : '#';
+  if (d && typeof d.internalNavHref === 'function') return d.internalNavHref(key);
+  if (d && typeof d.mpaHref === 'function') return d.mpaHref(key);
+  return '#';
 }
 
 // Time constants

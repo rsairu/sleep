@@ -4692,7 +4692,10 @@ function initDayNightTheme() {
   updateDayNightIcon();
   updateDataSourceBadge();
   const pillWrap = document.getElementById('nav-daynight');
-  if (pillWrap) pillWrap.addEventListener('click', handleDayNightClick);
+  if (pillWrap && !pillWrap.dataset.sleepDayNightNavBound) {
+    pillWrap.dataset.sleepDayNightNavBound = '1';
+    pillWrap.addEventListener('click', handleDayNightClick);
+  }
   initNavMenu();
   initNavSlumbyBounce();
   initDevClockControl();
@@ -4700,10 +4703,12 @@ function initDayNightTheme() {
   initDevBannerSupabasePresetToggle();
   initDevBannerDrawer();
   initDevBannerUserSettingsPanel();
-  setInterval(function () {
-    applyDayNightTheme();
-    updateDayNightIcon();
-  }, 60000);
+  if (typeof window !== 'undefined' && !window.__sleepDayNightThemeIntervalId) {
+    window.__sleepDayNightThemeIntervalId = setInterval(function () {
+      applyDayNightTheme();
+      updateDayNightIcon();
+    }, 60000);
+  }
 
   requestAnimationFrame(function () {
     syncDevBannerFixedLayout();
@@ -4763,11 +4768,19 @@ function initNavMenu() {
     link.addEventListener('click', closeMenu);
   });
 
-  document.addEventListener('click', function (e) {
-    if (dropdown.classList.contains('nav-menu-dropdown--open') && !trigger.contains(e.target) && !dropdown.contains(e.target)) {
-      closeMenu();
-    }
-  });
+  if (typeof window !== 'undefined' && !window.__restoreNavMenuOutsideCloseBound) {
+    window.__restoreNavMenuOutsideCloseBound = true;
+    document.addEventListener('click', function (e) {
+      const t = document.getElementById('nav-menu-trigger');
+      const d = document.getElementById('nav-menu-dropdown');
+      if (!t || !d) return;
+      if (d.classList.contains('nav-menu-dropdown--open') && !t.contains(e.target) && !d.contains(e.target)) {
+        t.setAttribute('aria-expanded', 'false');
+        d.classList.remove('nav-menu-dropdown--open');
+        d.hidden = true;
+      }
+    });
+  }
 }
 
 function isLocalDevHost(hostname) {
@@ -4911,12 +4924,20 @@ function renderNavBar(currentPage) {
     throw new Error('routes-data.mjs must define __restoreRoutesData.mpaHref (internal link helper).');
   }
   const mpaHref = routesData.mpaHref.bind(routesData);
+  const internalNavHref =
+    typeof routesData.internalNavHref === 'function'
+      ? routesData.internalNavHref.bind(routesData)
+      : mpaHref;
+  const spaPathForTabId =
+    typeof routesData.spaPathForTabId === 'function' ? routesData.spaPathForTabId.bind(routesData) : null;
+  const useSpaNav = typeof window !== 'undefined' && window.__restoreUseSpaNav && spaPathForTabId;
   const pages = routesData.navTabs;
 
   const navItems = pages.map(page => {
     const isActive = page.id === currentPage;
     const name = t(page.key, page.defaultName);
-    return `<a href="${page.url}" class="nav-tab ${isActive ? 'active' : ''}" aria-label="${name}"><span class="nav-icon">${page.icon}</span><span class="nav-tab-label">${name}</span></a>`;
+    const tabHref = useSpaNav ? spaPathForTabId(page.id) || page.url : page.url;
+    return `<a href="${tabHref}" class="nav-tab ${isActive ? 'active' : ''}" aria-label="${name}"><span class="nav-icon">${page.icon}</span><span class="nav-tab-label">${name}</span></a>`;
   }).join('');
 
   const theme = getEffectiveTheme();
@@ -4930,7 +4951,7 @@ function renderNavBar(currentPage) {
   const dataSourceModel = getDataSourceUIModel(getDataSourceState());
   const dataSourceMenuRow =
     '<a href="' +
-    mpaHref('settings.cloudSync') +
+    internalNavHref('settings.cloudSync') +
     '" class="nav-menu-item nav-menu-item--data-source" id="nav-menu-data-source" role="menuitem" title="' +
     escapeHtmlBannerAttr(dataSourceModel.title) +
     '" aria-label="' +
@@ -4943,14 +4964,14 @@ function renderNavBar(currentPage) {
   const menuItems = (
     '<div class="nav-menu-dropdown" id="nav-menu-dropdown" role="menu" hidden>' +
       '<a href="' +
-      mpaHref('about.page') +
+      internalNavHref('about.page') +
       '" class="nav-menu-item" role="menuitem"><span class="nav-menu-item-icon-wrap">' +
       aboutIcon +
       '</span><span>' +
       t('nav.menu.about', 'About') +
       '</span></a>' +
       '<a href="' +
-      mpaHref('settings.page') +
+      internalNavHref('settings.page') +
       '" class="nav-menu-item" role="menuitem"><span class="nav-menu-item-icon-wrap">' +
       configIcon +
       '</span><span>' +
@@ -4973,7 +4994,7 @@ function renderNavBar(currentPage) {
     '</span>';
   const appName =
     '<a href="' +
-    mpaHref('dashboard.page') +
+    internalNavHref('dashboard.page') +
     '" class="nav-app-block nav-app-block--stacked" title="' +
     escapeHtmlBannerAttr(t('nav.tabs.dashboard', 'Dashboard')) +
     '"><span class="nav-app-name">Restore</span>' +
@@ -5505,9 +5526,11 @@ function updateRemainingWakeNav(display) {
     const ariaEsc = escapeHtmlBannerAttr(ariaLabel);
     const rd = getRestoreRoutesData();
     const remainingWakeAboutHref =
-      rd && typeof rd.mpaHref === 'function'
-        ? rd.mpaHref('about.remainingWakeTime')
-        : 'about.html#remaining-wake-time';
+      rd && typeof rd.internalNavHref === 'function'
+        ? rd.internalNavHref('about.remainingWakeTime')
+        : rd && typeof rd.mpaHref === 'function'
+          ? rd.mpaHref('about.remainingWakeTime')
+          : 'about.html#remaining-wake-time';
     slot.innerHTML =
       `<a href="${remainingWakeAboutHref}" class="nav-remaining-wake-link" title="${ariaEsc}" aria-label="${ariaEsc}"><span class="nav-remaining-wake-main"><span class="nav-remaining-wake-icon" aria-hidden="true">${display.icon}</span><span class="${timeClass}">${display.timeLabel}</span>${headsUpHtml}</span>${progressBar}</a>`;
   }

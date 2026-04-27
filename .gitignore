@@ -8,6 +8,9 @@ Thumbs.db
 # Dependencies (if you add any later)
 node_modules/
 
+# Vite production output
+dist/
+
 # Generated local dev metadata (see README: Git hooks)
 dev-git-branch.js
 

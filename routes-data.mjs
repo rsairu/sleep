@@ -2,8 +2,19 @@
  * Canonical MPA routes for nav tabs and fixed menu/home hrefs.
  * Loaded as `<script type="module" src="routes-data.mjs" defer></script>` before sleep-utils (deferred chain).
  *
- * mpaHref(key) — internal navigation targets for MPA *.html (+ hash). SPA pivot can add spaHref later.
+ * mpaHref(key) — internal navigation targets for MPA *.html (+ hash).
+ * spaHref(key) — path routes for SPA (Vite shell); hash fragments preserved for deep links.
  */
+
+/** Tab nav id → canonical SPA path (matches History API router). */
+export const spaPathByTabId = {
+  dashboard: '/dashboard',
+  log: '/log',
+  quality: '/quality',
+  timeline: '/timeline',
+  charts: '/charts',
+  stats: '/stats'
+};
 
 export const navTabs = [
   { id: 'dashboard', key: 'nav.tabs.dashboard', defaultName: 'Dashboard', url: 'dashboard.html', icon: '🛌' },
@@ -21,8 +32,18 @@ export const href = {
   dashboard: 'dashboard.html'
 };
 
+/** Menu / home paths for SPA (no *.html). */
+export const spaHrefMenu = {
+  about: '/about',
+  settings: '/settings',
+  settingsCloudSync: '/settings#cloud-sync',
+  dashboard: '/dashboard'
+};
+
 /** Semantic key → resolver spec (see mpaHref). Registry also listed in docs/migration/route-table.md */
 const INTERNAL_MPA_LINKS = {
+  'tab.dashboard': { tab: 'dashboard' },
+  'tab.log': { tab: 'log' },
   'about.page': { hrefKey: 'about', fallback: 'about.html' },
   'about.dailyFlags': { hrefKey: 'about', hash: 'daily-flags', fallback: 'about.html' },
   'about.quickActions': { hrefKey: 'about', hash: 'quick-actions', fallback: 'about.html' },
@@ -84,6 +105,50 @@ export function mpaHref(key) {
   return '#';
 }
 
+export function spaPathForTabId(id) {
+  const p = spaPathByTabId[id];
+  return p || null;
+}
+
+export function spaHref(key) {
+  const spec = INTERNAL_MPA_LINKS[key];
+  if (!spec) {
+    if (typeof console !== 'undefined' && console.warn) {
+      console.warn('[routes-data] spaHref: unknown key "' + key + '"');
+    }
+    return '#';
+  }
+  if (spec.hrefKey) {
+    const resolved = spaHrefMenu[spec.hrefKey] || spec.fallback || '#';
+    if (spec.hash) {
+      return stripHash(resolved) + '#' + spec.hash;
+    }
+    return resolved;
+  }
+  if (spec.tab) {
+    const tabPath = spaPathByTabId[spec.tab];
+    if (!tabPath) {
+      if (typeof console !== 'undefined' && console.warn) {
+        console.warn('[routes-data] spaHref: unknown tab id "' + spec.tab + '" for key "' + key + '"');
+      }
+      return '#';
+    }
+    return spec.hash ? stripHash(tabPath) + '#' + spec.hash : tabPath;
+  }
+  return '#';
+}
+
+/**
+ * MPA or SPA href from the same semantic key (reads globalThis.__restoreUseSpaNav at call time).
+ * @param {string} key
+ */
+export function internalNavHref(key) {
+  const g = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : null;
+  const spa = g && g.__restoreUseSpaNav;
+  if (spa) return spaHref(key);
+  return mpaHref(key);
+}
+
 /**
  * @param {object} globalObj - e.g. globalThis or a vm sandbox `window`
  */
@@ -92,7 +157,12 @@ export function installRoutesData(globalObj) {
   g.__restoreRoutesData = {
     navTabs,
     href,
-    mpaHref
+    spaHrefMenu,
+    spaPathByTabId,
+    mpaHref,
+    spaHref,
+    spaPathForTabId,
+    internalNavHref
   };
 }
 

@@ -1,6 +1,6 @@
 ---
 name: MPA to SPA path
-overview: This repo is a vanilla static MPA (~4.5k-line [sleep-utils.js](c:/Users/UriasRey/Desktop/sleep_proj/sleep-utils.js), nine HTML shells, [routes-data.js](c:/Users/UriasRey/Desktop/sleep_proj/routes-data.js), no npm bundler in [package.json](c:/Users/UriasRey/Desktop/sleep_proj/package.json)). **Done through Phase 6.5:** `docs-track`, `utils-audit`, `first-lifecycle`, `route-table`, `data-fetching-policy`, `rollout-lifecycles`, `settings-about-extraction`, `sleep-data-store-phase-6-5`. **Next:** `link-helper`, then optional Vite and SPA pivot.
+overview: This repo uses a **Vite SPA shell** at [index.html](c:/Users/UriasRey/Desktop/sleep_proj/index.html) plus legacy per-page `*.html` (~4.5k-line [sleep-utils.js](c:/Users/UriasRey/Desktop/sleep_proj/sleep-utils.js), [routes-data.mjs](c:/Users/UriasRey/Desktop/sleep_proj/routes-data.mjs), [src/spa-app.js](c:/Users/UriasRey/Desktop/sleep_proj/src/spa-app.js)). **Done through Phase 9:** `link-helper`, `module-migration`, `bundler-optional`, `pivot` (path routes, `vercel.json`, lifecycle `mount`/`unmount` per navigation). **Deferred:** `*.html` → path redirects (Phase 9b).
 todos:
   - id: docs-track
     content: Add docs/migration/ (conventions, listener-audit, lifecycle-contract, route-table, decisions); cross-link existing docs/dev-banner.md, docs/quick-actions.md, docs/user-data-cloud.md when touching those behaviors
@@ -28,16 +28,16 @@ todos:
     status: completed
   - id: link-helper
     content: Centralize internal hrefs (sleep-utils nav, nightly.js and other *.html string links) for MPA vs future SPA intercept + hash policy
-    status: pending
+    status: completed
   - id: module-migration
     content: Optional ES module entries per page; shrink-only window compat; no new global attachments
-    status: pending
+    status: completed
   - id: bundler-optional
     content: Optional Vite when imports/code-splitting warrant it
-    status: pending
+    status: completed
   - id: pivot
     content: Single shell, History API, dynamic import per route, host fallback/redirects; replace index.html meta-refresh with real entry behavior
-    status: pending
+    status: completed
 isProject: false
 ---
 

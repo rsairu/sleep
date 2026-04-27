@@ -2,6 +2,13 @@
   "name": "sleep-proj",
   "private": true,
   "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
     "test:math": "node math-tests.js"
+  },
+  "devDependencies": {
+    "vite": "^6.3.5",
+    "vite-plugin-static-copy": "^2.3.1"
   }
 }

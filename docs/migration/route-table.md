@@ -10,9 +10,9 @@ See [conventions.md](./conventions.md).
 
 ## Sources of truth (extract from code)
 
-1. **[`routes-data.mjs`](../../routes-data.mjs)** — `navTabs` (tab rows), `href` (about, settings, settings cloud hash, dashboard for app block), and **`mpaHref(key)`** for internal links built in JS. Loaded as **`type="module"`** with **`defer`**, in document order **before** `sleep-utils.js` (Phase 8 — see [decisions.md](./decisions.md)).
-2. **`renderNavBar`** in [`sleep-utils.js`](../../sleep-utils.js) — maps `navTabs` + `mpaHref` to HTML (i18n keys unchanged).
-3. **Root entry** — [`index.html`](../../index.html) meta-refresh to `dashboard.html`; SPA cutover must replace with intentional routing.
+1. **[`routes-data.mjs`](../../routes-data.mjs)** — `navTabs` (tab rows), `href`, **`spaPathByTabId`**, **`spaHrefMenu`**, **`mpaHref(key)`**, **`spaHref(key)`**, **`internalNavHref(key)`** (MPA vs SPA chosen at call time via `globalThis.__restoreUseSpaNav`). MPA shells load `routes-data.mjs` before `sleep-utils.js`; the Vite SPA entry [`src/spa-app.js`](../../src/spa-app.js) **imports** `routes-data.mjs` so it runs before `sleep-utils.js` (see [decisions.md](./decisions.md) Phase 9).
+2. **`renderNavBar`** in [`sleep-utils.js`](../../sleep-utils.js) — maps `navTabs` + `internalNavHref` / `spaPathForTabId` when `__restoreUseSpaNav` is set (i18n keys unchanged).
+3. **Root entry** — [`index.html`](../../index.html) is the **Vite SPA shell** (`npm run dev` / `npm run build`): History routes under path URLs; `/` replaces to `/dashboard`. Legacy per-page `*.html` shells remain for direct MPA opens and for SPA outlet markup fetch.
 
 **Naming note:** Older migration drafts referred to `daily.html` / `graph.html` / `config.html`. The repo uses **`nightly.html`**, **`charts.html`**, and **`settings.html`** — treat those as canonical MPA paths.
 
@@ -20,31 +20,31 @@ See [conventions.md](./conventions.md).
 
 ## Tabs (`pages[]` in `renderNavBar`)
 
-| nav `id` | `mpaPath` | `spaPath` (TBD) | `navKind` | `renderNavBar` arg | notes |
-|----------|-----------|-----------------|-----------|-------------------|-------|
-| `dashboard` | `dashboard.html` | `/dashboard` (TBD) | `tab` | `'dashboard'` | App “home”; includes `nightly.js`, `quick-actions.js`, `dashboard.js` |
-| `log` | `log.html` | TBD | `tab` | `'log'` | Includes `nightly.js`, `entry-modal.js`, `log.js` |
-| `quality` | `quality.html` | TBD | `tab` | `'quality'` | Lifecycle: [`lifecycle-contract.md`](./lifecycle-contract.md); includes `nightly.js`, `quality.js` |
-| `timeline` | `nightly.html` | TBD | `tab` | `'timeline'` | **Nav id ≠ filename:** id is `timeline`, file is `nightly.html`, i18n tab is “Nightly” (`nav.tabs.daily` key). |
-| `charts` | `charts.html` | TBD | `tab` | `'charts'` | Includes `charts.js` only (no `nightly.js`) |
-| `stats` | `stats.html` | TBD | `tab` | `'stats'` | Includes `stats-aggregates.js`, `stats.js` |
+| nav `id` | `mpaPath` | `spaPath` | `navKind` | `renderNavBar` arg | notes |
+|----------|-----------|-----------|-----------|-------------------|-------|
+| `dashboard` | `dashboard.html` | `/dashboard` | `tab` | `'dashboard'` | App “home”; includes `nightly.js`, `quick-actions.js`, `dashboard.js` |
+| `log` | `log.html` | `/log` | `tab` | `'log'` | Includes `nightly.js`, `entry-modal.js`, `log.js` |
+| `quality` | `quality.html` | `/quality` | `tab` | `'quality'` | Lifecycle: [`lifecycle-contract.md`](./lifecycle-contract.md); includes `nightly.js`, `quality.js` |
+| `timeline` | `nightly.html` | `/timeline` | `tab` | `'timeline'` | **Nav id ≠ filename:** id is `timeline`, file is `nightly.html`, i18n tab is “Nightly” (`nav.tabs.daily` key). |
+| `charts` | `charts.html` | `/charts` | `tab` | `'charts'` | Includes `charts.js` only (no `nightly.js`) |
+| `stats` | `stats.html` | `/stats` | `tab` | `'stats'` | Includes `stats-aggregates.js`, `stats.js` |
 
 ---
 
 ## Menu-only routes (not in `pages[]`)
 
-| logical id | `mpaPath` | `spaPath` (TBD) | `navKind` | notes |
-|------------|-----------|-----------------|-----------|-------|
-| `about` | `about.html` | TBD | `menu` | Hamburger first row; `about.js` lifecycle on `#about-page-root` |
-| `settings` | `settings.html` | TBD | `menu` | Hamburger; cloud deep-link **`settings.html#cloud-sync`** on data-source row; `settings.js` lifecycle on `#settings-page-root` |
+| logical id | `mpaPath` | `spaPath` | `navKind` | notes |
+|------------|-----------|-----------|-----------|-------|
+| `about` | `about.html` | `/about` | `menu` | Hamburger first row; `about.js` lifecycle on `#about-page-root` |
+| `settings` | `settings.html` | `/settings` | `menu` | Hamburger; cloud deep-link **`/settings#cloud-sync`** (MPA: `settings.html#cloud-sync`); `settings.js` lifecycle on `#settings-page-root` |
 
 ---
 
 ## Redirect / entry
 
-| logical id | `mpaPath` | `spaPath` (TBD) | `navKind` | notes |
-|------------|-----------|-----------------|-----------|-------|
-| `index` | `index.html` | `/` (TBD) | `redirect` | Meta-refresh → `dashboard.html` |
+| logical id | `mpaPath` | `spaPath` | `navKind` | notes |
+|------------|-----------|-----------|-----------|-------|
+| `index` | `index.html` (legacy) | `/` → `/dashboard` | `redirect` | SPA shell replaces meta-refresh: `history.replaceState` to `/dashboard` on first load at `/` |
 
 ---
 
