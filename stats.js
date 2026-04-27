@@ -1,4 +1,5 @@
 // Sleep statistics: period-scoped matrix (see stats-aggregates.js for shared helpers).
+// Lifecycle (SPA prep): mount / unmount on #stats-page-root — see docs/migration/lifecycle-contract.md
 
 function calculateMonthlyAverages(monthDays) {
   if (monthDays.length === 0) {
@@ -488,25 +489,119 @@ function renderStatsPage(allDays) {
   container.innerHTML = renderStatsMatrix(periodDays);
 }
 
+// Lifecycle (SPA prep): mount / unmount on #stats-page-root — see docs/migration/lifecycle-contract.md
+let statsMountGeneration = 0;
+/** @type {HTMLElement | null} */
+let statsMountedRoot = null;
+/** @type {AbortController | null} */
+let statsLifecycleController = null;
+let statsStoreUnsubscribe = null;
+
 function initStatsPageWithData(allDays) {
   renderPeriodScopeBar();
   const select = document.getElementById('stats-period-select');
+  const listenOpts = statsLifecycleController ? { signal: statsLifecycleController.signal } : {};
   if (select) {
-    select.addEventListener('change', function () {
-      renderStatsPage(allDays);
-    });
+    select.addEventListener(
+      'change',
+      function () {
+        renderStatsPage(allDays);
+      },
+      listenOpts
+    );
   }
   renderStatsPage(allDays);
 }
 
-Promise.all([loadSleepData()])
-  .then(function (results) {
-    const data = results[0];
-    const days = (data && data.days) || [];
-    initStatsPageWithData(days);
-  })
-  .catch(function (error) {
-    console.error('Error loading data:', error);
-    const c = document.getElementById('stats-container');
-    if (c) c.innerHTML = '<p>Error loading data</p>';
-  });
+function startStatsPageLoad(gen) {
+  const store = window.__restoreSleepDataStore;
+  const loadPromise = store && typeof store.ensureLoaded === 'function'
+    ? store.ensureLoaded()
+    : loadSleepData();
+  loadPromise
+    .then(function (data) {
+      if (gen !== statsMountGeneration || statsMountedRoot == null) return;
+      if (statsLifecycleController) {
+        try {
+          statsLifecycleController.abort();
+        } catch (e) {
+          /* ignore */
+        }
+        statsLifecycleController = null;
+      }
+      statsLifecycleController = new AbortController();
+      const snap = store && typeof store.getSnapshot === 'function' ? store.getSnapshot() : null;
+      const days = snap && snap.data ? snap.data.days || [] : (data && data.days) || [];
+      initStatsPageWithData(days);
+    })
+    .catch(function (error) {
+      console.error('Error loading data:', error);
+      if (gen !== statsMountGeneration || statsMountedRoot == null) return;
+      const c = document.getElementById('stats-container');
+      if (c) c.innerHTML = '<p>Error loading data</p>';
+    });
+}
+
+/**
+ * @param {HTMLElement} root
+ * @param {Record<string, unknown>} [_ctx]
+ */
+function mountStatsPage(root, _ctx) {
+  if (!root) return;
+  if (statsLifecycleController) {
+    try {
+      statsLifecycleController.abort();
+    } catch (e) {
+      /* ignore */
+    }
+    statsLifecycleController = null;
+  }
+  statsMountGeneration++;
+  const gen = statsMountGeneration;
+  statsMountedRoot = root;
+  if (statsStoreUnsubscribe) {
+    statsStoreUnsubscribe();
+    statsStoreUnsubscribe = null;
+  }
+  const scopeEl = root.querySelector('#stats-period-scope');
+  const matrix = root.querySelector('#stats-container');
+  if (scopeEl) scopeEl.innerHTML = '';
+  if (matrix) matrix.innerHTML = '';
+  const store = window.__restoreSleepDataStore;
+  if (store && typeof store.subscribe === 'function') {
+    statsStoreUnsubscribe = store.subscribe(function (snapshot) {
+      if (gen !== statsMountGeneration || statsMountedRoot == null) return;
+      if (!snapshot || !snapshot.data) return;
+      initStatsPageWithData(snapshot.data.days || []);
+    });
+  }
+  void startStatsPageLoad(gen);
+}
+
+function unmountStatsPage() {
+  statsMountGeneration++;
+  if (statsStoreUnsubscribe) {
+    statsStoreUnsubscribe();
+    statsStoreUnsubscribe = null;
+  }
+  if (statsLifecycleController) {
+    try {
+      statsLifecycleController.abort();
+    } catch (e) {
+      /* ignore */
+    }
+    statsLifecycleController = null;
+  }
+  if (statsMountedRoot) {
+    const scopeEl = statsMountedRoot.querySelector('#stats-period-scope');
+    const matrix = statsMountedRoot.querySelector('#stats-container');
+    if (scopeEl) scopeEl.innerHTML = '';
+    if (matrix) matrix.innerHTML = '';
+  }
+  statsMountedRoot = null;
+}
+
+window.__restoreStatsLifecycle = {
+  mount: mountStatsPage,
+  unmount: unmountStatsPage,
+};

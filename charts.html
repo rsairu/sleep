@@ -6,11 +6,12 @@
 <title>Sleep charts</title>
 <link rel="stylesheet" href="theme-toggle.css">
 <link rel="stylesheet" href="styles.css">
-<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png">
 </head>
 <body>
   <div id="nav-container"></div>
+  <div id="charts-page-root">
   <div class="container">
     <div class="graph-page-header">
       <h1 class="page-title">Sleep charts</h1>
@@ -165,23 +166,13 @@
   </div>
   <div class="tooltip" id="tooltip"></div>
   <div class="day-panel" id="day-panel"></div>
+  </div>
 
-  <script src="dev-git-branch.js"></script>
-  <script src="local-supabase-presets.js"></script>
-  <script src="sleep-utils.js"></script>
-  <script src="charts.js"></script>
-  <script>
-    (async function initGraphPage() {
-      await initI18n(document);
-      document.getElementById('nav-container').innerHTML = renderNavBar('charts');
-      initDayNightTheme();
-      initRemainingWakeNav();
-      requestAnimationFrame(function () {
-        requestAnimationFrame(function () {
-          if (typeof scrollGraphPageHashAfterNavOnce === 'function') scrollGraphPageHashAfterNavOnce();
-        });
-      });
-    })();
-  </script>
+  <script defer src="dev-git-branch.js"></script>
+  <script defer src="local-supabase-presets.js"></script>
+  <script defer type="module" src="routes-data.mjs"></script>
+  <script defer src="sleep-utils.js"></script>
+  <script defer src="charts.js"></script>
+  <script defer src="charts-boot.js"></script>
 </body>
 </html>

@@ -4,8 +4,9 @@
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
+const { pathToFileURL } = require('url');
 
-function loadSleepUtils() {
+async function loadSleepUtils() {
   const filePath = path.join(__dirname, 'sleep-utils.js');
   const code = fs.readFileSync(filePath, 'utf8');
   const lsStore = Object.create(null);
@@ -16,7 +17,6 @@ function loadSleepUtils() {
     JSON,
     setInterval: () => {},
     clearInterval: () => {},
-    window: undefined,
     localStorage: {
       getItem(k) {
         return Object.prototype.hasOwnProperty.call(lsStore, k) ? lsStore[k] : null;
@@ -29,15 +29,19 @@ function loadSleepUtils() {
       }
     }
   };
+  context.window = context;
+  context.globalThis = context;
   vm.createContext(context);
+  const { installRoutesData } = await import(pathToFileURL(path.join(__dirname, 'routes-data.mjs')));
+  installRoutesData(context);
   vm.runInContext(code, context, { filename: 'sleep-utils.js' });
   const aggPath = path.join(__dirname, 'stats-aggregates.js');
   vm.runInContext(fs.readFileSync(aggPath, 'utf8'), context, { filename: 'stats-aggregates.js' });
   return context;
 }
 
-function runTests() {
-  const u = loadSleepUtils();
+async function runTests() {
+  const u = await loadSleepUtils();
   const failures = [];
   let passed = 0;
 
@@ -507,4 +511,7 @@ function runTests() {
   console.log(`All math tests passed (${passed} checks).`);
 }
 
-runTests();
+runTests().catch(function (err) {
+  console.error(err);
+  process.exit(1);
+});

@@ -6,15 +6,15 @@
 <title>About — Restore</title>
 <link rel="stylesheet" href="theme-toggle.css">
 <link rel="stylesheet" href="styles.css">
-<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png">
 </head>
 <body>
   <div id="nav-container"></div>
-  <div class="container container--config">
+  <div id="about-page-root" class="container container--config">
     <h1 class="page-title config-page-title">About</h1>
 
-    <img src="assets/slumby_banner.png" alt="" class="about-hero-banner" decoding="async" />
+    <img src="/assets/slumby_banner.png" alt="" class="about-hero-banner" decoding="async" />
 
     <section class="about-app" aria-labelledby="about-app-heading">
       <h2 id="about-app-heading" class="section-title about-app__heading">About the Restore sleep tracker app</h2>
@@ -111,7 +111,7 @@
     <hr class="about-section-rule" />
     <h2 class="section-title" id="tonight-guidance">Tonight target and guidance</h2>
     <p class="about-tonight-guided-figure">
-      <img src="assets/slumby_guided.png" alt="" class="about-tonight-guided-img" width="640" height="360" decoding="async" />
+      <img src="/assets/slumby_guided.png" alt="" class="about-tonight-guided-img" width="640" height="360" decoding="async" />
     </p>
     <p class="section-intro">On the <strong>Dashboard</strong>, <strong>Tonight</strong> can follow your <strong>recent average</strong> or <strong>saved targets</strong> for sleep, wake, or both. Below the bar, a small <strong>matrix</strong> shows, per pole, your rolling <strong>natural</strong> average, the <strong>guided</strong> time Tonight is using on the bar, your guidance <strong>pace</strong> (gentle, normal, or steady), and your saved <strong>target</strong>. When guidance is on, short <strong>callouts</strong> describe the phase (initiating, transitioning, locking in, on target) and whether the app is <strong>nudging</strong> you toward the goal or <strong>holding</strong> at the target in maintain mode. There is <strong>no hidden snap</strong>: the guided time moves only by your pace cap each evaluation, so closing the last few minutes can take more than one night on a gentle pace.</p>
     <p class="section-intro"><strong>Drift</strong> is the slow slide you get when real life keeps nudging you later: you go to bed a little later, or wake a little later, night after night, and your <strong>rolling average</strong> creeps in the same direction. The <strong>gentle</strong> pace is meant mainly to <strong>hold off that drift</strong>&mdash;keeping you near your current habit, or changing only <strong>very gradually</strong>. With typical smoothing, think on the order of <strong>about an hour over roughly five weeks</strong> when you are deliberately closing a gap (not a straight-line promise; the window wiggles as nights drop in and out).</p>
@@ -199,7 +199,7 @@
     <p class="section-intro">The flag color is how far that measure drifted from your <strong>previous seven logged nights</strong>. (Fewer than 7 prior nights in the log will show an insufficient-data message.)</p>
 
     <div class="about-daily-flags-visual">
-      <img src="assets/slumby_flag.png" alt="Slumby with a daily flag" class="about-daily-flags-visual__flag" loading="lazy" decoding="async" />
+      <img src="/assets/slumby_flag.png" alt="Slumby with a daily flag" class="about-daily-flags-visual__flag" loading="lazy" decoding="async" />
       <div class="about-daily-flags-visual__copy">
         <p class="section-intro"><strong>😴 Asleep</strong> is only flagged when you fell asleep <em>later</em> than your baseline; falling asleep earlier is not flagged.</p>
         <p class="section-intro"><strong>⌛ Duration</strong> uses the <em>worse</em> of two checks (not added together): shorter than your recent average, <em>or</em> absolute short sleep—under 6 hours (slight), under 5 hours (moderate), under 4 hours (severe)—based on total sleep including naps.</p>
@@ -220,30 +220,15 @@
         <p class="section-intro"><strong>Social lag</strong> is a simple way to see whether your sleep timing shifts between workdays and days off. We compare the <em>middle</em> of your sleep on workdays with the middle on free days. A larger gap usually means your weekday routine and your weekend rhythm are not lining up—useful for noticing schedule strain, not a grade on how you sleep.</p>
         <p class="section-intro"><strong>Wake lag</strong> compares how you wake on mornings when an alarm was involved versus mornings when you woke without one. If the number is positive, your natural wake time tends to run <em>later</em> than when the alarm pulls you up—so the alarm is getting you out of bed a bit earlier than you might on your own.</p>
       </div>
-      <img src="assets/slumby_stats.png" alt="" class="about-stats-visual__img" loading="lazy" decoding="async" />
+      <img src="/assets/slumby_stats.png" alt="" class="about-stats-visual__img" loading="lazy" decoding="async" />
     </div>
   </div>
 
-  <script src="dev-git-branch.js"></script>
-  <script src="local-supabase-presets.js"></script>
-  <script src="sleep-utils.js"></script>
-  <script>
-    (async function initAboutPage() {
-      await initI18n(document);
-      document.getElementById('nav-container').innerHTML = renderNavBar('about');
-      if (typeof applyTranslations === 'function') {
-        const mainEl = document.querySelector('.container.container--config');
-        if (mainEl) applyTranslations(mainEl);
-        const navEl = document.getElementById('nav-container');
-        if (navEl) applyTranslations(navEl);
-      }
-      initDayNightTheme();
-      initRemainingWakeNav();
-      document.getElementById('about-remaining-wake-mount').innerHTML =
-        getRemainingWakeThresholdsControlHTML('about-remaining-wake-thresholds');
-      initRemainingWakeThresholdsConfig();
-      initAboutDashboardHintDismissButtons();
-    })();
-  </script>
+  <script defer src="dev-git-branch.js"></script>
+  <script defer src="local-supabase-presets.js"></script>
+  <script defer type="module" src="routes-data.mjs"></script>
+  <script defer src="sleep-utils.js"></script>
+  <script defer src="about.js"></script>
+  <script defer src="about-boot.js"></script>
 </body>
 </html>

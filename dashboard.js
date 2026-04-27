@@ -2,6 +2,8 @@
 // Uses renderDashboardContent() and shared helpers from nightly.js.
 // Includes 7-day graphs: bed/sleep-start and wake time (left column), duration chart (right).
 // Requires: sleep-utils.js (timeToMinutes, getDateFromString, calculateTotalSleep, formatDuration, formatTime)
+//
+// Lifecycle (SPA prep): mount / unmount on #dashboard-container — see docs/migration/lifecycle-contract.md
 
 // --- 7-day graph helpers ---
 function regressionDegree(pointCount) {
@@ -84,6 +86,31 @@ function timeSeriesLineClass(key) {
   if (key === 'bedTimeMinutes') return { data: 'data-line bedtime', reg: 'regression-line bedtime-regression', point: 'data-point bedtime' };
   if (key === 'sleepStartMinutes') return { data: 'data-line sleep-start', reg: 'regression-line sleep-start-regression', point: 'data-point sleep-start' };
   return { data: 'data-line getup', reg: 'regression-line getup-regression', point: 'data-point getup' };
+}
+
+/** Outside-click handlers for day panel; cleared on dashboard unmount */
+let dashboardDayPanelDocCloses = [];
+function clearDashboardDayPanelDocCloses() {
+  dashboardDayPanelDocCloses.forEach((fn) => {
+    document.removeEventListener('click', fn);
+  });
+  dashboardDayPanelDocCloses = [];
+  if (typeof hideDayPanel === 'function') hideDayPanel();
+}
+function scheduleDashboardChartDayPanelOutsideClose(container) {
+  setTimeout(() => {
+    const dayPanel = document.getElementById('day-panel');
+    const close = (e2) => {
+      if (dayPanel && !dayPanel.contains(e2.target) && !container.contains(e2.target)) {
+        if (typeof hideDayPanel === 'function') hideDayPanel();
+        document.removeEventListener('click', close);
+        const ix = dashboardDayPanelDocCloses.indexOf(close);
+        if (ix !== -1) dashboardDayPanelDocCloses.splice(ix, 1);
+      }
+    };
+    dashboardDayPanelDocCloses.push(close);
+    document.addEventListener('click', close);
+  }, 0);
 }
 
 /** @param {string[]} seriesKeys subset of bedTimeMinutes, sleepStartMinutes, getUpMinutes */
@@ -291,16 +318,7 @@ function render7DayTimeGraph(container, points, seriesKeys) {
       const clientX = rect.left + margin.left + x;
       const clientY = rect.top + margin.top + graphHeight / 2;
       showDayPanel(point, clientX, clientY);
-      setTimeout(() => {
-        const dayPanel = document.getElementById('day-panel');
-        const close = (e2) => {
-          if (dayPanel && !dayPanel.contains(e2.target) && !container.contains(e2.target)) {
-            hideDayPanel();
-            document.removeEventListener('click', close);
-          }
-        };
-        document.addEventListener('click', close);
-      }, 0);
+      scheduleDashboardChartDayPanelOutsideClose(container);
     });
     g.appendChild(dayRect);
   });
@@ -410,16 +428,7 @@ function render7DayDurationChart(container, points) {
     mainRect.addEventListener('click', (e) => {
       const rect = container.getBoundingClientRect();
       showDayPanel(point, e.clientX, e.clientY);
-      setTimeout(() => {
-        const dayPanel = document.getElementById('day-panel');
-        const close = (e2) => {
-          if (dayPanel && !dayPanel.contains(e2.target) && !container.contains(e2.target)) {
-            hideDayPanel();
-            document.removeEventListener('click', close);
-          }
-        };
-        document.addEventListener('click', close);
-      }, 0);
+      scheduleDashboardChartDayPanelOutsideClose(container);
     });
     g.appendChild(mainRect);
     const mainBarH = graphHeight - mainSleepBarY;
@@ -448,16 +457,7 @@ function render7DayDurationChart(container, points) {
         napRect.addEventListener('mouseleave', () => { if (tooltip) tooltip.classList.remove('visible'); });
         napRect.addEventListener('click', (e) => {
           showDayPanel(point, e.clientX, e.clientY);
-          setTimeout(() => {
-            const dayPanel = document.getElementById('day-panel');
-            const close = (e2) => {
-              if (dayPanel && !dayPanel.contains(e2.target) && !container.contains(e2.target)) {
-                hideDayPanel();
-                document.removeEventListener('click', close);
-              }
-            };
-            document.addEventListener('click', close);
-          }, 0);
+          scheduleDashboardChartDayPanelOutsideClose(container);
         });
         g.appendChild(napRect);
         const napBarH = mainSleepBarY - napBarY;
@@ -500,26 +500,52 @@ function renderDashboard7DayGraphs(days) {
 }
 
 let dashboardResizeRenderBound = false;
+/** @type {(() => void) | null} */
+let dashboardResizeHandler = null;
 let dashboardCurrentDays = [];
+
+let dashboardMountGeneration = 0;
+/** @type {HTMLElement | null} */
+let dashboardMountedRoot = null;
+/** @type {(() => void) | null} */
+let dashboardTonightGuidanceHandler = null;
+let dashboardStoreUnsubscribe = null;
+
 function bindDashboardResponsiveRerender() {
   if (dashboardResizeRenderBound) return;
   dashboardResizeRenderBound = true;
-
   let resizeTimer = null;
-  window.addEventListener('resize', () => {
+  dashboardResizeHandler = () => {
     if (resizeTimer) clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
       renderDashboard7DayGraphs(dashboardCurrentDays);
     }, 120);
-  });
+  };
+  window.addEventListener('resize', dashboardResizeHandler);
 }
 
-// --- Dashboard bootstrap ---
-const dashboardContainer = document.getElementById('dashboard-container');
+function unbindDashboardResponsiveRerender() {
+  if (dashboardResizeHandler) {
+    window.removeEventListener('resize', dashboardResizeHandler);
+    dashboardResizeHandler = null;
+  }
+  dashboardResizeRenderBound = false;
+}
+
 function renderDashboardFromData(sleepData) {
+  const root = dashboardMountedRoot;
+  if (!root) return;
+  if (typeof window.__dashboardTonightAdjusterTeardown === 'function') {
+    try {
+      window.__dashboardTonightAdjusterTeardown();
+    } catch (e) {
+      /* ignore */
+    }
+    window.__dashboardTonightAdjusterTeardown = null;
+  }
   dashboardCurrentDays = Array.isArray(sleepData.days) ? sleepData.days : [];
-  dashboardContainer.innerHTML = renderDashboardContent(dashboardCurrentDays);
-  if (typeof applyTranslations === 'function') applyTranslations(dashboardContainer);
+  root.innerHTML = renderDashboardContent(dashboardCurrentDays);
+  if (typeof applyTranslations === 'function') applyTranslations(root);
   if (typeof initDeviationFlagChips === 'function') initDeviationFlagChips();
   renderDashboard7DayGraphs(dashboardCurrentDays);
   bindDashboardResponsiveRerender();
@@ -547,19 +573,109 @@ function renderDashboardFromData(sleepData) {
 }
 
 function loadDashboardData() {
+  const root = dashboardMountedRoot;
+  if (!root) return Promise.resolve();
+  const genAtStart = dashboardMountGeneration;
+  const store = window.__restoreSleepDataStore;
+  if (store && typeof store.ensureLoaded === 'function') {
+    return store.ensureLoaded()
+      .then(() => {
+        if (genAtStart !== dashboardMountGeneration || dashboardMountedRoot !== root) return;
+        const snap = store.getSnapshot();
+        if (snap && snap.data) {
+          renderDashboardFromData(snap.data);
+          return;
+        }
+        throw new Error('Missing sleep data snapshot');
+      })
+      .catch((error) => {
+        console.error('Error loading dashboard data:', error);
+        if (genAtStart !== dashboardMountGeneration || dashboardMountedRoot !== root) return;
+        root.innerHTML = '<p>Error loading data.</p>';
+      });
+  }
   return loadSleepData()
     .then((sleepData) => {
+      if (genAtStart !== dashboardMountGeneration || dashboardMountedRoot !== root) return;
       renderDashboardFromData(sleepData);
     })
-    .catch(error => {
+    .catch((error) => {
       console.error('Error loading dashboard data:', error);
-      dashboardContainer.innerHTML = '<p>Error loading data.</p>';
+      if (genAtStart !== dashboardMountGeneration || dashboardMountedRoot !== root) return;
+      root.innerHTML = '<p>Error loading data.</p>';
     });
 }
 
-if (dashboardContainer) {
-  loadDashboardData();
-  window.addEventListener('tonight-guidance-changed', function () {
+/**
+ * @param {HTMLElement} root
+ * @param {Record<string, unknown>} [_ctx]
+ */
+function mountDashboard(root, _ctx) {
+  if (!root) return;
+  dashboardMountGeneration++;
+  const gen = dashboardMountGeneration;
+  dashboardMountedRoot = root;
+  if (dashboardStoreUnsubscribe) {
+    dashboardStoreUnsubscribe();
+    dashboardStoreUnsubscribe = null;
+  }
+  root.innerHTML = '';
+  if (dashboardTonightGuidanceHandler) {
+    window.removeEventListener('tonight-guidance-changed', dashboardTonightGuidanceHandler);
+    dashboardTonightGuidanceHandler = null;
+  }
+  dashboardTonightGuidanceHandler = function () {
     if (typeof loadDashboardData === 'function') void loadDashboardData();
-  });
+  };
+  window.addEventListener('tonight-guidance-changed', dashboardTonightGuidanceHandler);
+  const store = window.__restoreSleepDataStore;
+  if (store && typeof store.subscribe === 'function') {
+    dashboardStoreUnsubscribe = store.subscribe((snapshot) => {
+      if (gen !== dashboardMountGeneration || dashboardMountedRoot !== root) return;
+      if (!snapshot) return;
+      if (snapshot.data) {
+        renderDashboardFromData(snapshot.data);
+        return;
+      }
+      if (snapshot.status === 'error') {
+        root.innerHTML = '<p>Error loading data.</p>';
+      }
+    });
+  }
+  void loadDashboardData();
 }
+
+function unmountDashboard() {
+  dashboardMountGeneration++;
+  if (dashboardStoreUnsubscribe) {
+    dashboardStoreUnsubscribe();
+    dashboardStoreUnsubscribe = null;
+  }
+  if (typeof window.__dashboardTonightAdjusterTeardown === 'function') {
+    try {
+      window.__dashboardTonightAdjusterTeardown();
+    } catch (e) {
+      /* ignore */
+    }
+    window.__dashboardTonightAdjusterTeardown = null;
+  }
+  if (typeof destroyDashboardQuickActions === 'function') {
+    destroyDashboardQuickActions();
+  }
+  clearDashboardDayPanelDocCloses();
+  unbindDashboardResponsiveRerender();
+  if (dashboardTonightGuidanceHandler) {
+    window.removeEventListener('tonight-guidance-changed', dashboardTonightGuidanceHandler);
+    dashboardTonightGuidanceHandler = null;
+  }
+  if (dashboardMountedRoot) {
+    dashboardMountedRoot.innerHTML = '';
+  }
+  dashboardMountedRoot = null;
+  dashboardCurrentDays = [];
+}
+
+window.__restoreDashboardLifecycle = {
+  mount: mountDashboard,
+  unmount: unmountDashboard
+};

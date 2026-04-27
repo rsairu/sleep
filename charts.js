@@ -1,4 +1,5 @@
 // Graph page rendering. Shared math/time helpers live in sleep-utils.js.
+// Lifecycle (SPA prep): mount / unmount on #charts-page-root — see docs/migration/lifecycle-contract.md
 
 function graphRangeDays(key) {
   const map = { '30d': 30, '90d': 90, '180d': 180, '365d': 365 };
@@ -66,6 +67,13 @@ function writeGraphChartMode(chartKey, mode) {
 
 let graphChartModeListenersBound = false;
 
+/** AbortController for listeners bound during a charts mount session (range, resize, toggles, rockers). */
+let chartsLifecycleController = null;
+let chartsMountGeneration = 0;
+/** @type {HTMLElement | null} */
+let chartsMountedRoot = null;
+let chartsStoreUnsubscribe = null;
+
 function syncGraphChartModeRockerUI() {
   document.querySelectorAll('.graph-chart-mode-rocker').forEach((rocker) => {
     const first = rocker.querySelector('.graph-chart-mode-seg[data-graph-chart-mode]');
@@ -84,6 +92,7 @@ function syncGraphChartModeRockerUI() {
 function initGraphChartModeRockerListeners() {
   if (graphChartModeListenersBound) return;
   graphChartModeListenersBound = true;
+  const opts = chartsLifecycleController ? { signal: chartsLifecycleController.signal } : {};
   document.querySelectorAll('.graph-chart-mode-seg').forEach((btn) => {
     btn.addEventListener('click', () => {
       const chartKey = btn.dataset.graphChartMode;
@@ -92,7 +101,7 @@ function initGraphChartModeRockerListeners() {
       writeGraphChartMode(chartKey, shape);
       syncGraphChartModeRockerUI();
       renderGraphPageCharts();
-    });
+    }, opts);
   });
   syncGraphChartModeRockerUI();
 }
@@ -278,76 +287,8 @@ function scrollGraphPageHashAfterNavOnce() {
   syncGraphPageHashScroll();
 }
 
-// Load and render graph
-loadSleepData()
-  .then((data) => {
-    graphPageAllPoints = data.days.map(day => {
-      const rawBedMinutes = timeToMinutes(day.bed);
-      const rawSleepStartMinutes = timeToMinutes(day.sleepStart);
-      const rawGetUpMinutes = timeToMinutes(day.sleepEnd);
-      const sleepDuration = calculateTotalSleep(day);
-      
-      // Calculate main sleep (without nap)
-      const sleepStart = timeToMinutes(day.sleepStart);
-      const sleepEnd = timeToMinutes(day.sleepEnd);
-      const mainSleep = sleepEnd >= sleepStart 
-        ? sleepEnd - sleepStart 
-        : sleepEnd + 1440 - sleepStart;
-      
-      // Calculate nap duration if exists
-      let napDuration = 0;
-      if (day.nap && day.nap.start && day.nap.end) {
-        const napStart = timeToMinutes(day.nap.start);
-        const napEnd = timeToMinutes(day.nap.end);
-        napDuration = napEnd >= napStart 
-          ? napEnd - napStart 
-          : napEnd + 1440 - napStart;
-      }
-      
-      return {
-        date: getDateFromString(day.date),
-        bedTimeMinutes: normalizeTimeForYAxis(rawBedMinutes),
-        bedTimeRawMinutes: rawBedMinutes, // Keep original for display
-        bedTimeString: day.bed,
-        sleepStartMinutes: normalizeTimeForYAxis(rawSleepStartMinutes),
-        sleepStartRawMinutes: rawSleepStartMinutes, // Keep original for display
-        sleepStartString: day.sleepStart,
-        getUpMinutes: normalizeTimeForYAxis(rawGetUpMinutes),
-        getUpRawMinutes: rawGetUpMinutes, // Keep original for display
-        getUpString: day.sleepEnd,
-        dateString: day.date,
-        sleepDurationMinutes: sleepDuration,
-        mainSleepMinutes: mainSleep,
-        napMinutes: napDuration,
-        wakeDelayMinutes: calculateWakeDelay(day),
-        sleepDelayMinutes: calculateSleepDelay(day),
-        firstAlarm: day.alarm && day.alarm.length > 0 ? day.alarm[0] : null,
-        fragmentation: normalizeFragmentationLevel(day),
-        naturalWake: isNoAlarmWakeDay(day)
-      };
-    });
-
-    graphPageAllPoints.sort((a, b) => a.date - b.date);
-
-    graphPageRangeKey = defaultGraphRangeKey();
-
-    document.querySelectorAll('.graph-range-btn').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        graphPageRangeKey = btn.dataset.range;
-        renderGraphPageCharts();
-      });
-    });
-
-    window.addEventListener('resize', debounceGraph(() => renderGraphPageCharts(), 200));
-
-    renderGraphPageCharts();
-  })
-  .catch((error) => {
-    console.error('Error loading data:', error);
-    document.getElementById('graph-container').innerHTML = '<p>Error loading data</p>';
-  });
-
 function renderGraphPageCharts() {
+  const chartsListenOpts = chartsLifecycleController ? { signal: chartsLifecycleController.signal } : {};
     initGraphChartModeRockerListeners();
     syncGraphChartModeRockerUI();
     const points = filterPointsByGraphRange(graphPageAllPoints, graphPageRangeKey);
@@ -992,7 +933,7 @@ function renderGraphPageCharts() {
     function setupCheckbox(id, toggleFn) {
       const checkbox = document.getElementById(id);
       if (checkbox) {
-        checkbox.addEventListener('change', (e) => toggleFn(e.target.checked));
+        checkbox.addEventListener('change', (e) => toggleFn(e.target.checked), chartsListenOpts);
         toggleFn(checkbox.checked);
       }
     }
@@ -1088,7 +1029,7 @@ function renderGraphPageCharts() {
           masterData.indeterminate = false;
           applyGraphMasterGroup(GRAPH_DATA_LINE_IDS, masterData.checked);
           syncGraphMasterDataCheckbox();
-        });
+        }, chartsListenOpts);
       }
       if (masterPoints) {
         masterPoints.addEventListener('change', () => {
@@ -1100,26 +1041,26 @@ function renderGraphPageCharts() {
           });
           syncGraphMasterPointsCheckbox();
           renderGraphPageCharts();
-        });
+        }, chartsListenOpts);
       }
       if (masterTrend) {
         masterTrend.addEventListener('change', () => {
           masterTrend.indeterminate = false;
           applyGraphMasterGroup(GRAPH_TREND_LINE_IDS, masterTrend.checked);
           syncGraphMasterTrendCheckbox();
-        });
+        }, chartsListenOpts);
       }
       GRAPH_DATA_LINE_IDS.forEach((id) => {
         const el = document.getElementById(id);
-        if (el) el.addEventListener('change', syncGraphMasterDataCheckbox);
+        if (el) el.addEventListener('change', syncGraphMasterDataCheckbox, chartsListenOpts);
       });
       GRAPH_POINT_IDS.forEach((id) => {
         const el = document.getElementById(id);
-        if (el) el.addEventListener('change', syncGraphMasterPointsCheckbox);
+        if (el) el.addEventListener('change', syncGraphMasterPointsCheckbox, chartsListenOpts);
       });
       GRAPH_TREND_LINE_IDS.forEach((id) => {
         const el = document.getElementById(id);
-        if (el) el.addEventListener('change', syncGraphMasterTrendCheckbox);
+        if (el) el.addEventListener('change', syncGraphMasterTrendCheckbox, chartsListenOpts);
       });
 
       setupCheckbox('show-bedtime-line', toggleBedtimeLine);
@@ -1133,7 +1074,7 @@ function renderGraphPageCharts() {
           el.addEventListener('change', () => {
             syncGraphMasterPointsCheckbox();
             renderGraphPageCharts();
-          });
+          }, chartsListenOpts);
         }
       });
       setupCheckbox('show-getup-regression', toggleGetUpRegression);
@@ -2058,3 +1999,161 @@ function renderGraphPageCharts() {
 
     maybeScrollGraphPageHashAfterFirstChartRender();
 }
+
+function buildGraphPagePointsFromDays(days) {
+  return (days || []).map((day) => {
+    const rawBedMinutes = timeToMinutes(day.bed);
+    const rawSleepStartMinutes = timeToMinutes(day.sleepStart);
+    const rawGetUpMinutes = timeToMinutes(day.sleepEnd);
+    const sleepDuration = calculateTotalSleep(day);
+
+    const sleepStart = timeToMinutes(day.sleepStart);
+    const sleepEnd = timeToMinutes(day.sleepEnd);
+    const mainSleep =
+      sleepEnd >= sleepStart ? sleepEnd - sleepStart : sleepEnd + 1440 - sleepStart;
+
+    let napDuration = 0;
+    if (day.nap && day.nap.start && day.nap.end) {
+      const napStart = timeToMinutes(day.nap.start);
+      const napEnd = timeToMinutes(day.nap.end);
+      napDuration = napEnd >= napStart ? napEnd - napStart : napEnd + 1440 - napStart;
+    }
+
+    return {
+      date: getDateFromString(day.date),
+      bedTimeMinutes: normalizeTimeForYAxis(rawBedMinutes),
+      bedTimeRawMinutes: rawBedMinutes,
+      bedTimeString: day.bed,
+      sleepStartMinutes: normalizeTimeForYAxis(rawSleepStartMinutes),
+      sleepStartRawMinutes: rawSleepStartMinutes,
+      sleepStartString: day.sleepStart,
+      getUpMinutes: normalizeTimeForYAxis(rawGetUpMinutes),
+      getUpRawMinutes: rawGetUpMinutes,
+      getUpString: day.sleepEnd,
+      dateString: day.date,
+      sleepDurationMinutes: sleepDuration,
+      mainSleepMinutes: mainSleep,
+      napMinutes: napDuration,
+      wakeDelayMinutes: calculateWakeDelay(day),
+      sleepDelayMinutes: calculateSleepDelay(day),
+      firstAlarm: day.alarm && day.alarm.length > 0 ? day.alarm[0] : null,
+      fragmentation: normalizeFragmentationLevel(day),
+      naturalWake: isNoAlarmWakeDay(day),
+    };
+  });
+}
+
+function startChartsPageDataLoad(gen) {
+  const store = window.__restoreSleepDataStore;
+  const loadPromise = store && typeof store.ensureLoaded === 'function'
+    ? store.ensureLoaded()
+    : loadSleepData();
+  return loadPromise
+    .then((data) => {
+      if (gen !== chartsMountGeneration || chartsMountedRoot == null) return;
+
+      if (chartsLifecycleController) {
+        try {
+          chartsLifecycleController.abort();
+        } catch (e) {
+          /* ignore */
+        }
+        chartsLifecycleController = null;
+      }
+      chartsLifecycleController = new AbortController();
+      const sigOpts = { signal: chartsLifecycleController.signal };
+
+      const snap = store && typeof store.getSnapshot === 'function' ? store.getSnapshot() : null;
+      const days = snap && snap.data ? snap.data.days || [] : data.days;
+      graphPageAllPoints = buildGraphPagePointsFromDays(days).sort((a, b) => a.date - b.date);
+      graphPageRangeKey = defaultGraphRangeKey();
+
+      document.querySelectorAll('.graph-range-btn').forEach((btn) => {
+        btn.addEventListener(
+          'click',
+          () => {
+            graphPageRangeKey = btn.dataset.range;
+            renderGraphPageCharts();
+          },
+          sigOpts
+        );
+      });
+
+      const debouncedResize = debounceGraph(() => renderGraphPageCharts(), 200);
+      window.addEventListener('resize', debouncedResize, sigOpts);
+
+      renderGraphPageCharts();
+    })
+    .catch((error) => {
+      console.error('Error loading data:', error);
+      if (gen !== chartsMountGeneration || chartsMountedRoot == null) return;
+      const gc = document.getElementById('graph-container');
+      if (gc) gc.innerHTML = '<p>Error loading data</p>';
+    });
+}
+
+/**
+ * @param {HTMLElement} root
+ * @param {Record<string, unknown>} [_ctx]
+ */
+function mountChartsPage(root, _ctx) {
+  if (!root) return;
+  if (chartsStoreUnsubscribe) {
+    chartsStoreUnsubscribe();
+    chartsStoreUnsubscribe = null;
+  }
+  if (chartsLifecycleController) {
+    try {
+      chartsLifecycleController.abort();
+    } catch (e) {
+      /* ignore */
+    }
+    chartsLifecycleController = null;
+  }
+  chartsMountGeneration++;
+  const gen = chartsMountGeneration;
+  chartsMountedRoot = root;
+  graphPageTogglesBound = false;
+  graphChartModeListenersBound = false;
+  graphPageChartRenderGeneration = 0;
+  graphPageHashScrollAfterNavDone = false;
+  const store = window.__restoreSleepDataStore;
+  if (store && typeof store.subscribe === 'function') {
+    chartsStoreUnsubscribe = store.subscribe((snapshot) => {
+      if (gen !== chartsMountGeneration || chartsMountedRoot == null) return;
+      if (!snapshot || !snapshot.data) return;
+      graphPageAllPoints = buildGraphPagePointsFromDays(snapshot.data.days || []).sort((a, b) => a.date - b.date);
+      renderGraphPageCharts();
+    });
+  }
+  void startChartsPageDataLoad(gen);
+}
+
+function unmountChartsPage() {
+  chartsMountGeneration++;
+  if (chartsStoreUnsubscribe) {
+    chartsStoreUnsubscribe();
+    chartsStoreUnsubscribe = null;
+  }
+  graphPageTogglesBound = false;
+  graphChartModeListenersBound = false;
+  graphPageChartRenderGeneration = 0;
+  graphPageHashScrollAfterNavDone = false;
+  graphPageAllPoints = [];
+  graphPageRangeKey = 'all';
+  if (chartsLifecycleController) {
+    try {
+      chartsLifecycleController.abort();
+    } catch (e) {
+      /* ignore */
+    }
+    chartsLifecycleController = null;
+  }
+  clearGraphSvgsAndErrors();
+  chartsMountedRoot = null;
+}
+
+window.__restoreChartsLifecycle = {
+  mount: mountChartsPage,
+  unmount: unmountChartsPage,
+};

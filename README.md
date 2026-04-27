@@ -1,8 +1,10 @@
 # Sleep Tracking Web App
 
-Restore is a lightweight sleep tracking web app for logging and visualizing sleep (bed time, sleep start/end, naps, interruptions). The UI is still static vanilla HTML/CSS/JS, and data is now intended to live in Supabase (with local JSON fallback).
+Restore is a lightweight sleep tracking web app for logging and visualizing sleep (bed time, sleep start/end, naps, interruptions). The UI is vanilla HTML/CSS/JS with a **Vite-built SPA** at the site root and **legacy per-page `*.html`** shells still available for direct opens.
 
-**Run:** Open `index.html` or `dashboard.html` in a browser (or use a local static server if you hit CORS with `fetch()`).
+**Run (SPA, recommended):** `npm install` then `npm run dev` and open the printed local URL (path routes such as `/dashboard`). Production: `npm run build` and deploy the `dist/` folder (see [`vercel.json`](vercel.json)).
+
+**Run (legacy MPA):** Open `dashboard.html` (or another `*.html` page) in a browser or static server.
 
 ## Cloud Sync + Direct Entry (MVP)
 
@@ -30,10 +32,13 @@ That uses `hooks/post-checkout` and `hooks/post-merge`, which invoke `scripts/st
 
 ## Local Supabase presets (optional)
 
-Pages load `local-supabase-presets.js` before `sleep-utils.js` so the dev banner can offer a **Dev** / **Prod** toggle. The file is **gitignored**; copy `local-supabase-presets.example.js` to `local-supabase-presets.js` and fill in both project URLs and anon keys. If the file is absent (e.g. production deploy), the script request fails harmlessly and the toggle is hidden. See `docs/dev-banner.md`.
+Pages load `local-supabase-presets.js`, then `routes-data.mjs` (canonical nav routes, ES module + `defer`), then `sleep-utils.js` so the dev banner can offer a **Dev** / **Prod** toggle and `renderNavBar` stays aligned with the SPA migration route table. The file is **gitignored**; copy `local-supabase-presets.example.js` to `local-supabase-presets.js` and fill in both project URLs and anon keys. If the file is absent (e.g. production deploy), the script request fails harmlessly and the toggle is hidden. See `docs/dev-banner.md`.
 
 ## npm scripts
 
+- `npm run dev` — Vite dev server (SPA shell + path routes).
+- `npm run build` — production build to `dist/` (copies assets, data template, classic JS, and MPA shells under `dist/mpa/` for SPA fragment fetch; Vercel redirects root `*.html` to path routes — see `docs/migration/decisions.md` Phase 9b).
+- `npm run preview` — local preview of the `dist/` output.
 - `npm run test:math` — deterministic math and dataset invariant checks (`math-tests.js`).
 
 ## Data on disk
@@ -55,7 +60,7 @@ The repo commits `data/.gitkeep` so the `data/` folder exists in fresh clones.
 | **Styling** | Single `styles.css` with CSS variables (dark theme) |
 
 - **Data source:** Supabase table `sleep_days` when configured; otherwise `data/sleep-data.json` (object with a `days` array of daily records). Holiday calendar is in `sleep-utils.js` as `HOLIDAYS_BY_YEAR` (year → month → list of holiday days).
-- **Shared logic:** `sleep-utils.js` holds time math, date helpers, and `renderNavBar()`. `daily.js` holds dashboard/timeline/heatmap logic and is the main "core" script. Page-specific scripts: `dashboard.js`, `entry-modal.js` (dashboard night entry), `quality.js`, `graph.js`, `stats.js`.
+- **Shared logic:** `sleep-utils.js` holds time math, date helpers, and `renderNavBar()`. `nightly.js` holds dashboard sections, timeline, heatmaps, and Tonight UI. Page-specific scripts: `dashboard.js`, `entry-modal.js`, `quality.js`, `charts.js`, `stats.js`, etc.
 
 ---
 

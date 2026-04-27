@@ -61,11 +61,23 @@ const USER_SETTINGS_CLOUD_MIGRATION_DONE_KEY = 'restore_user_settings_cloud_migr
 const DEFAULT_QUALITY_PALETTE_ID = 'auto';
 const SLEEP_DATA_LOCAL_CACHE_KEY = 'restore_sleep_data_cache_v3';
 const SLEEP_DATA_CACHE_TTL_MS = 5 * 60 * 1000;
+const SLEEP_DATA_STORE_STALE_MS = 12 * 60 * 60 * 1000;
 
 let sleepDataCacheValue = null;
 let sleepDataCacheExpiresAt = 0;
 let sleepDataCacheKey = '';
 let sleepDataPendingPromise = null;
+let sleepDataStoreVisibilityBound = false;
+const sleepDataStoreListeners = new Set();
+let sleepDataStoreState = {
+  data: null,
+  status: 'idle',
+  error: null,
+  lastFetchedAt: 0,
+  pendingPromise: null,
+  source: 'unknown',
+  cacheKey: ''
+};
 
 let userSettingsCloudHydrateSucceeded = false;
 let userSettingsCloudHydratePromise = null;
@@ -106,6 +118,7 @@ function clearSleepDataCache() {
       localStorage.removeItem(SLEEP_DATA_LOCAL_CACHE_KEY);
     }
   } catch (_) {}
+  resetSleepDataStoreState('cache-cleared');
 }
 
 function readSleepDataLocalCache() {
@@ -925,7 +938,7 @@ function fetchSupabaseSleepData(config) {
   });
 }
 
-function loadSleepData(options) {
+function loadSleepDataCore(options) {
   const opts = options || {};
   const forceRefresh = Boolean(opts.forceRefresh);
   const config = getSupabaseConfig();
@@ -999,6 +1012,157 @@ function loadSleepData(options) {
   return sleepDataPendingPromise;
 }
 
+function cloneSleepDataStoreSnapshot() {
+  return {
+    data: sleepDataStoreState.data ? cloneSleepData(sleepDataStoreState.data) : null,
+    status: sleepDataStoreState.status,
+    error: sleepDataStoreState.error,
+    lastFetchedAt: sleepDataStoreState.lastFetchedAt,
+    source: sleepDataStoreState.source,
+    cacheKey: sleepDataStoreState.cacheKey
+  };
+}
+
+function emitSleepDataStoreUpdate() {
+  const snap = cloneSleepDataStoreSnapshot();
+  sleepDataStoreListeners.forEach(function (listener) {
+    try {
+      listener(snap);
+    } catch (error) {
+      console.error('sleep-data store listener error:', error);
+    }
+  });
+}
+
+function resolveSleepDataStoreSource(config) {
+  const fromBadge = typeof window !== 'undefined' ? String(window.__RESTORE_DATA_SOURCE__ || '') : '';
+  if (fromBadge === 'cloud' || fromBadge === 'local') return fromBadge;
+  return loadSleepDataUsesSupabase(config) ? 'cloud' : 'local';
+}
+
+function setSleepDataStoreState(patch) {
+  sleepDataStoreState = Object.assign({}, sleepDataStoreState, patch || {});
+  emitSleepDataStoreUpdate();
+}
+
+function resetSleepDataStoreState(reason) {
+  sleepDataStoreState = {
+    data: null,
+    status: 'idle',
+    error: null,
+    lastFetchedAt: 0,
+    pendingPromise: null,
+    source: 'unknown',
+    cacheKey: ''
+  };
+  emitSleepDataStoreUpdate();
+}
+
+function invalidateSleepDataStore(reason) {
+  setSleepDataStoreState({
+    status: sleepDataStoreState.data ? 'ready' : 'idle',
+    error: null,
+    lastFetchedAt: 0
+  });
+}
+
+function bindSleepDataStoreVisibilityRefresh() {
+  if (sleepDataStoreVisibilityBound) return;
+  if (typeof document === 'undefined' || typeof window === 'undefined') return;
+  sleepDataStoreVisibilityBound = true;
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) return;
+    void refreshSleepDataStore({ force: true, reason: 'visibilitychange' }).catch(function () {});
+  });
+}
+
+function ensureSleepDataStoreLoaded(options) {
+  bindSleepDataStoreVisibilityRefresh();
+  const opts = options || {};
+  const forceRefresh = Boolean(opts.forceRefresh || opts.force);
+  const config = getSupabaseConfig();
+  const cacheKey = getSleepDataCacheKey(config);
+  const now = getAppNowMs();
+  const isFresh =
+    sleepDataStoreState.data &&
+    sleepDataStoreState.cacheKey === cacheKey &&
+    sleepDataStoreState.lastFetchedAt > 0 &&
+    now < sleepDataStoreState.lastFetchedAt + SLEEP_DATA_STORE_STALE_MS;
+
+  if (!forceRefresh && isFresh) {
+    return Promise.resolve(cloneSleepData(sleepDataStoreState.data));
+  }
+
+  if (!forceRefresh && sleepDataStoreState.pendingPromise && sleepDataStoreState.cacheKey === cacheKey) {
+    return sleepDataStoreState.pendingPromise.then(function (data) {
+      return cloneSleepData(data);
+    });
+  }
+
+  setSleepDataStoreState({
+    status: sleepDataStoreState.data ? 'refreshing' : 'loading',
+    error: null,
+    cacheKey: cacheKey
+  });
+
+  const pending = loadSleepDataCore({ forceRefresh: forceRefresh })
+    .then(function (data) {
+      const source = resolveSleepDataStoreSource(config);
+      setSleepDataStoreState({
+        data: cloneSleepData(data),
+        status: 'ready',
+        error: null,
+        lastFetchedAt: getAppNowMs(),
+        source: source,
+        cacheKey: cacheKey
+      });
+      return cloneSleepData(data);
+    })
+    .catch(function (error) {
+      setSleepDataStoreState({
+        status: 'error',
+        error: error,
+        cacheKey: cacheKey
+      });
+      throw error;
+    })
+    .finally(function () {
+      sleepDataStoreState.pendingPromise = null;
+    });
+
+  sleepDataStoreState.pendingPromise = pending;
+  return pending;
+}
+
+function refreshSleepDataStore(options) {
+  const opts = options || {};
+  return ensureSleepDataStoreLoaded(Object.assign({}, opts, { forceRefresh: true }));
+}
+
+function subscribeSleepDataStore(listener) {
+  if (typeof listener !== 'function') return function () {};
+  sleepDataStoreListeners.add(listener);
+  return function unsubscribeSleepDataStore() {
+    sleepDataStoreListeners.delete(listener);
+  };
+}
+
+function getSleepDataStoreSnapshot() {
+  return cloneSleepDataStoreSnapshot();
+}
+
+window.__restoreSleepDataStore = {
+  getSnapshot: getSleepDataStoreSnapshot,
+  subscribe: subscribeSleepDataStore,
+  ensureLoaded: ensureSleepDataStoreLoaded,
+  refresh: refreshSleepDataStore,
+  invalidate: invalidateSleepDataStore
+};
+
+function loadSleepData(options) {
+  return ensureSleepDataStoreLoaded(options || {});
+}
+
 function upsertSleepDay(day) {
   const config = getSupabaseConfig();
   if (!config.enabled) {
@@ -1020,6 +1184,8 @@ function upsertSleepDay(day) {
     return res.json();
   }).then(function (rows) {
     clearSleepDataCache();
+    invalidateSleepDataStore('upsertSleepDay');
+    void refreshSleepDataStore({ force: true, reason: 'upsertSleepDay' }).catch(function () {});
     return rows;
   });
 }
@@ -1254,6 +1420,8 @@ function saveDraftAndMaybePromote(dateMd, partial) {
     return res.json();
   }).then(function (result) {
     clearSleepDataCache();
+    invalidateSleepDataStore('promoteDraftIfComplete');
+    void refreshSleepDataStore({ force: true, reason: 'promoteDraftIfComplete' }).catch(function () {});
     return normalizePromoteDraftRpcResult(result, key);
   });
 }
@@ -4524,7 +4692,10 @@ function initDayNightTheme() {
   updateDayNightIcon();
   updateDataSourceBadge();
   const pillWrap = document.getElementById('nav-daynight');
-  if (pillWrap) pillWrap.addEventListener('click', handleDayNightClick);
+  if (pillWrap && !pillWrap.dataset.sleepDayNightNavBound) {
+    pillWrap.dataset.sleepDayNightNavBound = '1';
+    pillWrap.addEventListener('click', handleDayNightClick);
+  }
   initNavMenu();
   initNavSlumbyBounce();
   initDevClockControl();
@@ -4532,10 +4703,12 @@ function initDayNightTheme() {
   initDevBannerSupabasePresetToggle();
   initDevBannerDrawer();
   initDevBannerUserSettingsPanel();
-  setInterval(function () {
-    applyDayNightTheme();
-    updateDayNightIcon();
-  }, 60000);
+  if (typeof window !== 'undefined' && !window.__sleepDayNightThemeIntervalId) {
+    window.__sleepDayNightThemeIntervalId = setInterval(function () {
+      applyDayNightTheme();
+      updateDayNightIcon();
+    }, 60000);
+  }
 
   requestAnimationFrame(function () {
     syncDevBannerFixedLayout();
@@ -4595,11 +4768,19 @@ function initNavMenu() {
     link.addEventListener('click', closeMenu);
   });
 
-  document.addEventListener('click', function (e) {
-    if (dropdown.classList.contains('nav-menu-dropdown--open') && !trigger.contains(e.target) && !dropdown.contains(e.target)) {
-      closeMenu();
-    }
-  });
+  if (typeof window !== 'undefined' && !window.__restoreNavMenuOutsideCloseBound) {
+    window.__restoreNavMenuOutsideCloseBound = true;
+    document.addEventListener('click', function (e) {
+      const t = document.getElementById('nav-menu-trigger');
+      const d = document.getElementById('nav-menu-dropdown');
+      if (!t || !d) return;
+      if (d.classList.contains('nav-menu-dropdown--open') && !t.contains(e.target) && !d.contains(e.target)) {
+        t.setAttribute('aria-expanded', 'false');
+        d.classList.remove('nav-menu-dropdown--open');
+        d.hidden = true;
+      }
+    });
+  }
 }
 
 function isLocalDevHost(hostname) {
@@ -4722,27 +4903,41 @@ function isDevGitBranchMaster() {
 var SLUMBY_NAV_GIF_IDLE_DATA_URI =
   'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 var SLUMBY_NAV_BOUNCE_MS = 4180;
-var SLUMBY_NAV_STILL_PATH = 'assets/slumby_bounce_still.png';
-var SLUMBY_NAV_GIF_PATH = 'assets/slumby_bounce_mini.gif';
+var SLUMBY_NAV_STILL_PATH = '/assets/slumby_bounce_still.png';
+var SLUMBY_NAV_GIF_PATH = '/assets/slumby_bounce_mini.gif';
+
+function getRestoreRoutesData() {
+  var g = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : null;
+  return g && g.__restoreRoutesData ? g.__restoreRoutesData : null;
+}
 
 // Render navigation bar
 function renderNavBar(currentPage) {
   applyDayNightTheme();
   ensureDevSupabasePresetApplied();
 
-  const pages = [
-    { id: 'dashboard', key: 'nav.tabs.dashboard', defaultName: 'Dashboard', url: 'dashboard.html', icon: '🛌' },
-    { id: 'log', key: 'nav.tabs.log', defaultName: 'Log', url: 'log.html', icon: '✏️' },
-    { id: 'quality', key: 'nav.tabs.quality', defaultName: 'Quality', url: 'quality.html', icon: '💜' },
-    { id: 'timeline', key: 'nav.tabs.daily', defaultName: 'Nightly', url: 'nightly.html', icon: '📅' },
-    { id: 'charts', key: 'nav.tabs.graphs', defaultName: 'Charts', url: 'charts.html', icon: '📊' },
-    { id: 'stats', key: 'nav.tabs.stats', defaultName: 'Stats', url: 'stats.html', icon: '🔢' }
-  ];
+  const routesData = getRestoreRoutesData();
+  if (!routesData || !Array.isArray(routesData.navTabs)) {
+    throw new Error('routes-data.mjs must load before sleep-utils.js (__restoreRoutesData.navTabs missing).');
+  }
+  if (typeof routesData.mpaHref !== 'function') {
+    throw new Error('routes-data.mjs must define __restoreRoutesData.mpaHref (internal link helper).');
+  }
+  const mpaHref = routesData.mpaHref.bind(routesData);
+  const internalNavHref =
+    typeof routesData.internalNavHref === 'function'
+      ? routesData.internalNavHref.bind(routesData)
+      : mpaHref;
+  const spaPathForTabId =
+    typeof routesData.spaPathForTabId === 'function' ? routesData.spaPathForTabId.bind(routesData) : null;
+  const useSpaNav = typeof window !== 'undefined' && window.__restoreUseSpaNav && spaPathForTabId;
+  const pages = routesData.navTabs;
 
   const navItems = pages.map(page => {
     const isActive = page.id === currentPage;
     const name = t(page.key, page.defaultName);
-    return `<a href="${page.url}" class="nav-tab ${isActive ? 'active' : ''}" aria-label="${name}"><span class="nav-icon">${page.icon}</span><span class="nav-tab-label">${name}</span></a>`;
+    const tabHref = useSpaNav ? spaPathForTabId(page.id) || page.url : page.url;
+    return `<a href="${tabHref}" class="nav-tab ${isActive ? 'active' : ''}" aria-label="${name}"><span class="nav-icon">${page.icon}</span><span class="nav-tab-label">${name}</span></a>`;
   }).join('');
 
   const theme = getEffectiveTheme();
@@ -4755,7 +4950,9 @@ function renderNavBar(currentPage) {
   const themeToggleHTML = getThemeToggleHTML(nightActive, 'nav-menu-theme-toggle', 'nav');
   const dataSourceModel = getDataSourceUIModel(getDataSourceState());
   const dataSourceMenuRow =
-    '<a href="settings.html#cloud-sync" class="nav-menu-item nav-menu-item--data-source" id="nav-menu-data-source" role="menuitem" title="' +
+    '<a href="' +
+    internalNavHref('settings.cloudSync') +
+    '" class="nav-menu-item nav-menu-item--data-source" id="nav-menu-data-source" role="menuitem" title="' +
     escapeHtmlBannerAttr(dataSourceModel.title) +
     '" aria-label="' +
     escapeHtmlBannerAttr(dataSourceModel.title) +
@@ -4766,8 +4963,20 @@ function renderNavBar(currentPage) {
     '</span></a>';
   const menuItems = (
     '<div class="nav-menu-dropdown" id="nav-menu-dropdown" role="menu" hidden>' +
-      '<a href="about.html" class="nav-menu-item" role="menuitem"><span class="nav-menu-item-icon-wrap">' + aboutIcon + '</span><span>' + t('nav.menu.about', 'About') + '</span></a>' +
-      '<a href="settings.html" class="nav-menu-item" role="menuitem"><span class="nav-menu-item-icon-wrap">' + configIcon + '</span><span>' + t('nav.menu.settings', 'Settings') + '</span></a>' +
+      '<a href="' +
+      internalNavHref('about.page') +
+      '" class="nav-menu-item" role="menuitem"><span class="nav-menu-item-icon-wrap">' +
+      aboutIcon +
+      '</span><span>' +
+      t('nav.menu.about', 'About') +
+      '</span></a>' +
+      '<a href="' +
+      internalNavHref('settings.page') +
+      '" class="nav-menu-item" role="menuitem"><span class="nav-menu-item-icon-wrap">' +
+      configIcon +
+      '</span><span>' +
+      t('nav.menu.settings', 'Settings') +
+      '</span></a>' +
       '<div class="nav-menu-item nav-menu-theme-row" role="none"><span class="nav-menu-item-icon-wrap">' + themeToggleHTML + '</span><span>' + t('nav.menu.theme', 'Theme') + '</span></div>' +
       dataSourceMenuRow +
     '</div>'
@@ -4783,7 +4992,16 @@ function renderNavBar(currentPage) {
     SLUMBY_NAV_GIF_IDLE_DATA_URI +
     '" alt="" class="nav-app-icon nav-slumby-gif" id="nav-slumby-gif" width="36" height="36" decoding="async" aria-hidden="true">' +
     '</span>';
-  const appName = `<a href="dashboard.html" class="nav-app-block nav-app-block--stacked" title="${t('nav.tabs.dashboard', 'Dashboard')}"><span class="nav-app-name">Restore</span>${appIcon}<span class="nav-app-subtitle">${t('nav.app.subtitle', 'Sleep Tracker')}</span></a>`;
+  const appName =
+    '<a href="' +
+    internalNavHref('dashboard.page') +
+    '" class="nav-app-block nav-app-block--stacked" title="' +
+    escapeHtmlBannerAttr(t('nav.tabs.dashboard', 'Dashboard')) +
+    '"><span class="nav-app-name">Restore</span>' +
+    appIcon +
+    '<span class="nav-app-subtitle">' +
+    escapeHtmlBannerAttr(t('nav.app.subtitle', 'Sleep Tracker')) +
+    '</span></a>';
   const remainingWakeSlot = `<div class="nav-remaining-wake" id="nav-remaining-wake"></div>`;
   const headerRow = `<div class="nav-header nav-header--remaining-wake">${appName}${remainingWakeSlot}${navRight}</div>`;
   const tabsRow = `<div class="nav-tabs-row"><div class="nav-tabs">${navItems}</div></div>`;
@@ -5306,8 +5524,15 @@ function updateRemainingWakeNav(display) {
         ? `<span class="nav-remaining-wake-phase-heads-up" aria-hidden="true">${hu.icon} in ${hu.minutes}m</span>`
         : '';
     const ariaEsc = escapeHtmlBannerAttr(ariaLabel);
+    const rd = getRestoreRoutesData();
+    const remainingWakeAboutHref =
+      rd && typeof rd.internalNavHref === 'function'
+        ? rd.internalNavHref('about.remainingWakeTime')
+        : rd && typeof rd.mpaHref === 'function'
+          ? rd.mpaHref('about.remainingWakeTime')
+          : 'about.html#remaining-wake-time';
     slot.innerHTML =
-      `<a href="about.html#remaining-wake-time" class="nav-remaining-wake-link" title="${ariaEsc}" aria-label="${ariaEsc}"><span class="nav-remaining-wake-main"><span class="nav-remaining-wake-icon" aria-hidden="true">${display.icon}</span><span class="${timeClass}">${display.timeLabel}</span>${headsUpHtml}</span>${progressBar}</a>`;
+      `<a href="${remainingWakeAboutHref}" class="nav-remaining-wake-link" title="${ariaEsc}" aria-label="${ariaEsc}"><span class="nav-remaining-wake-main"><span class="nav-remaining-wake-icon" aria-hidden="true">${display.icon}</span><span class="${timeClass}">${display.timeLabel}</span>${headsUpHtml}</span>${progressBar}</a>`;
   }
   if (wrapper) {
     wrapper.classList.remove(

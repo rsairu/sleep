@@ -15,6 +15,15 @@ const DATA_FILES = {
   sleep: 'data/sleep-data.json'
 };
 
+/** Internal nav href (MPA or SPA) from routes-data.mjs. */
+function restoreMpaHref(key) {
+  const g = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : null;
+  const d = g && g.__restoreRoutesData;
+  if (d && typeof d.internalNavHref === 'function') return d.internalNavHref(key);
+  if (d && typeof d.mpaHref === 'function') return d.mpaHref(key);
+  return '#';
+}
+
 // Time constants
 const MILLISECONDS_PER_DAY = 86400000;
 // Timeline runs 21:00 to 21:00 (24 hours). Ticks: 21 (start), 0, 4, 8, 12, 16, 21 (end)
@@ -868,7 +877,7 @@ function renderCalendarHeatmapHeader(options) {
       </ul>`
     : '';
   const aboutLink = qualityPage
-    ? `<p class="calendar-heatmap-about"><a class="content-link" href="about.html#daily-flags">About daily flags</a></p>`
+    ? `<p class="calendar-heatmap-about"><a class="content-link" href="${restoreMpaHref('about.dailyFlags')}">About daily flags</a></p>`
     : '';
   return `
     <div class="calendar-heatmap-header${qualityPage ? ' calendar-heatmap-header--quality-page' : ''}">
@@ -919,7 +928,7 @@ function renderCalendarCurrentMonthOnlyBlock(year, flagMap, latestDataDate) {
   if (!currentMonthBlock) return '';
   return `
     <div class="calendar-heatmap calendar-heatmap--inline calendar-heatmap--dashboard-month">
-      <h2 class="dashboard-section-title"><a class="dashboard-section-title__link" href="quality.html"><span class="dashboard-section-title__emoji" aria-hidden="true">💜</span> <span data-i18n="dashboard.sectionSleepQuality">Sleep quality</span></a></h2>
+      <h2 class="dashboard-section-title"><a class="dashboard-section-title__link" href="${restoreMpaHref('tab.quality')}"><span class="dashboard-section-title__emoji" aria-hidden="true">💜</span> <span data-i18n="dashboard.sectionSleepQuality">Sleep quality</span></a></h2>
       <div class="calendar-current-month-row">${currentMonthBlock}</div>
     </div>
   `;
@@ -1445,7 +1454,7 @@ function renderQuickActionsSection() {
   const showHint =
     typeof getHintQuickActionsAbout === 'function' ? getHintQuickActionsAbout() : true;
   const quickActionsInfoHtml = showHint
-    ? `<a class="dashboard-quick-actions-info-link content-link" href="about.html#quick-actions" data-i18n-aria-label="dashboard.quickActions.aboutAria" aria-label="About quick actions"><span class="dashboard-quick-actions-info-letter" aria-hidden="true">i</span></a>`
+    ? `<a class="dashboard-quick-actions-info-link content-link" href="${restoreMpaHref('about.quickActions')}" data-i18n-aria-label="dashboard.quickActions.aboutAria" aria-label="About quick actions"><span class="dashboard-quick-actions-info-letter" aria-hidden="true">i</span></a>`
     : '';
   return `
     <div class="dashboard-quick-actions quick-add-drawer" aria-label="Quick actions">
@@ -1554,7 +1563,7 @@ function renderDashboardProjection(recentAverages) {
     projection.savedTargetWakePct != null ? `${projection.savedTargetWakePct}%` : `${projection.committedWakePct}%`;
   const showTonightHint = typeof getHintTonightAbout === 'function' ? getHintTonightAbout() : true;
   const tonightInfoHtml = showTonightHint
-    ? `<a class="dashboard-quick-actions-info-link content-link" href="about.html#tonight-bar-symbols" data-i18n-aria-label="dashboard.tonight.aboutSectionAria" aria-label="About Tonight on the Dashboard"><span class="dashboard-quick-actions-info-letter" aria-hidden="true">i</span></a>`
+    ? `<a class="dashboard-quick-actions-info-link content-link" href="${restoreMpaHref('about.tonightBarSymbols')}" data-i18n-aria-label="dashboard.tonight.aboutSectionAria" aria-label="About Tonight on the Dashboard"><span class="dashboard-quick-actions-info-letter" aria-hidden="true">i</span></a>`
     : '';
   return `
     <div class="dashboard-projection" id="dashboard-tonight-projection" data-rec-sleep="${base.avgSleepStart}" data-rec-wake="${base.avgSleepEnd}">
@@ -2626,12 +2635,25 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
   bindMinuteStep(wakePlusBtn, 'wake', 1);
 
   sliderOverlay.addEventListener('mousedown', onPointerDown);
-  sliderOverlay.addEventListener('touchstart', onPointerDown, { passive: false });
+  var tonightPointerTouchStartOpts = { passive: false };
+  sliderOverlay.addEventListener('touchstart', onPointerDown, tonightPointerTouchStartOpts);
   document.addEventListener('mousemove', onPointerMove);
-  document.addEventListener('touchmove', onPointerMove, { passive: false });
+  var tonightPointerTouchMoveOpts = { passive: false };
+  document.addEventListener('touchmove', onPointerMove, tonightPointerTouchMoveOpts);
   document.addEventListener('mouseup', onPointerUp);
   document.addEventListener('touchend', onPointerUp);
   document.addEventListener('touchcancel', onPointerUp);
+
+  window.__dashboardTonightAdjusterTeardown = function () {
+    document.removeEventListener('mousemove', onPointerMove);
+    document.removeEventListener('touchmove', onPointerMove, tonightPointerTouchMoveOpts);
+    document.removeEventListener('mouseup', onPointerUp);
+    document.removeEventListener('touchend', onPointerUp);
+    document.removeEventListener('touchcancel', onPointerUp);
+    sliderOverlay.removeEventListener('mousedown', onPointerDown);
+    sliderOverlay.removeEventListener('touchstart', onPointerDown, tonightPointerTouchStartOpts);
+    onPointerUp();
+  };
 
   applySliderBoundsFromBase();
   updateVisualState(false);
@@ -2663,7 +2685,7 @@ function renderDashboardContent(days) {
   const recentNightsCount = Math.min(3, days.length);
   const recentNightsHtml = recentNightsCount > 0
     ? `
-    <h2 class="dashboard-section-title"><a class="dashboard-section-title__link" href="nightly.html"><span class="dashboard-section-title__emoji" aria-hidden="true">📅</span> Recent nightlies</a></h2>
+    <h2 class="dashboard-section-title"><a class="dashboard-section-title__link" href="${restoreMpaHref('tab.timeline')}"><span class="dashboard-section-title__emoji" aria-hidden="true">📅</span> Recent nightlies</a></h2>
     <section class="dashboard-past-nights">
       <div class="week-days">
         ${Array.from({ length: recentNightsCount }, (_, i) => renderDay(days[i], days, i, { showTicks: true })).join('')}
@@ -2673,19 +2695,19 @@ function renderDashboardContent(days) {
     : '';
 
   const sevenDaySectionHtml = `
-    <h2 class="dashboard-section-title"><a class="dashboard-section-title__link" href="charts.html"><span class="dashboard-section-title__emoji" aria-hidden="true">📊</span> Weekly charts</a></h2>
+    <h2 class="dashboard-section-title"><a class="dashboard-section-title__link" href="${restoreMpaHref('tab.charts')}"><span class="dashboard-section-title__emoji" aria-hidden="true">📊</span> Weekly charts</a></h2>
     <div class="dashboard-7d-row">
       <div class="dashboard-7d-col">
         <div class="dashboard-7d-time-stack">
           <div>
             <h3 class="dashboard-7d-subtitle dashboard-7d-subtitle--skp-time">
-              <a class="dashboard-7d-subtitle__link" href="charts.html#chart-bed-asleep-wake">Bed &amp; sleep start</a>
+              <a class="dashboard-7d-subtitle__link" href="${restoreMpaHref('charts.bedAsleepWake')}">Bed &amp; sleep start</a>
             </h3>
             <div class="dashboard-7d-graph-container" id="dashboard-7d-bed-sleep-graph"></div>
           </div>
           <div>
             <h3 class="dashboard-7d-subtitle dashboard-7d-subtitle--skp-wake">
-              <a class="dashboard-7d-subtitle__link" href="charts.html#chart-bed-asleep-wake">Wake time</a>
+              <a class="dashboard-7d-subtitle__link" href="${restoreMpaHref('charts.bedAsleepWake')}">Wake time</a>
             </h3>
             <div class="dashboard-7d-graph-container" id="dashboard-7d-wake-graph"></div>
           </div>
@@ -2693,7 +2715,7 @@ function renderDashboardContent(days) {
       </div>
       <div class="dashboard-7d-col">
         <h3 class="dashboard-7d-subtitle dashboard-7d-subtitle--skp-sleep">
-          <a class="dashboard-7d-subtitle__link" href="charts.html#chart-sleep-duration">Total sleep time</a>
+          <a class="dashboard-7d-subtitle__link" href="${restoreMpaHref('charts.sleepDuration')}">Total sleep time</a>
         </h3>
         <div class="dashboard-7d-graph-container" id="dashboard-7d-duration-graph"></div>
       </div>
@@ -2827,40 +2849,137 @@ function toggleWeek(weekId) {
   }
 }
 
-// Load and render data (only on timeline page when #days-container exists)
-const daysContainer = document.getElementById('days-container');
-if (daysContainer) {
-  loadSleepData()
-    .then((sleepData) => {
+// Nightly timeline page: mount / unmount on #timeline-section — see docs/migration/lifecycle-contract.md
+// initDeviationFlagChips() below is an app singleton (document-level); not tied to timeline mount.
+(function () {
+  var nightlyTimelineMountGen = 0;
+  /** @type {HTMLElement | null} */
+  var nightlyTimelineSection = null;
+  /** @type {AbortController | null} */
+  var nightlyTimelineAbort = null;
+  var nightlyTimelineStoreUnsubscribe = null;
 
-      const legendControlsEl = document.getElementById('timeline-legend-controls');
-      if (legendControlsEl) legendControlsEl.innerHTML = renderTimelineLegendControls();
+  function renderNightlyTimelineFromData(sectionRoot, sig, sleepData) {
+    var daysContainer = sectionRoot.querySelector('#days-container');
+    var legendControlsEl = sectionRoot.querySelector('#timeline-legend-controls');
+    if (!daysContainer) return;
+    if (legendControlsEl) legendControlsEl.innerHTML = renderTimelineLegendControls();
 
-      const weeks = groupDaysByWeek(sleepData.days);
-      daysContainer.innerHTML = weeks.map((week, index) => renderWeek(week, index, sleepData.days)).join('');
+    var weeks = groupDaysByWeek((sleepData && sleepData.days) || []);
+    daysContainer.innerHTML = weeks.map(function (week, index) {
+      return renderWeek(week, index, (sleepData && sleepData.days) || []);
+    }).join('');
 
-      document.querySelectorAll('.week-header').forEach(header => {
-        header.addEventListener('click', () => {
-          const weekId = header.getAttribute('data-week-id');
+    document.querySelectorAll('.week-header').forEach(function (header) {
+      header.addEventListener(
+        'click',
+        function () {
+          var weekId = header.getAttribute('data-week-id');
           toggleWeek(weekId);
-        });
-      });
-
-      function setupCheckbox(id, toggleFn) {
-        const checkbox = document.getElementById(id);
-        if (checkbox) {
-          checkbox.addEventListener('change', (e) => toggleFn(e.target.checked));
-          toggleFn(checkbox.checked);
-        }
-      }
-      setupCheckbox('show-time-ticks', toggleTimeTicks);
-      setupCheckbox('show-daily-details', toggleDailyDetails);
-      setupCheckbox('show-flags', toggleFlags);
-    })
-    .catch(error => {
-      console.error('Error loading data:', error);
-      daysContainer.innerHTML = '<p>Error loading data</p>';
+        },
+        { signal: sig }
+      );
     });
-}
+
+    function setupCheckbox(id, toggleFn) {
+      var checkbox = document.getElementById(id);
+      if (checkbox) {
+        checkbox.addEventListener(
+          'change',
+          function (e) {
+            toggleFn(e.target.checked);
+          },
+          { signal: sig }
+        );
+        toggleFn(checkbox.checked);
+      }
+    }
+    setupCheckbox('show-time-ticks', toggleTimeTicks);
+    setupCheckbox('show-daily-details', toggleDailyDetails);
+    setupCheckbox('show-flags', toggleFlags);
+  }
+
+  function mountNightlyTimeline(sectionRoot, _ctx) {
+    if (!sectionRoot) return;
+    nightlyTimelineMountGen++;
+    var g = nightlyTimelineMountGen;
+    nightlyTimelineSection = sectionRoot;
+    if (nightlyTimelineAbort) {
+      try {
+        nightlyTimelineAbort.abort();
+      } catch (e) {
+        /* ignore */
+      }
+      nightlyTimelineAbort = null;
+    }
+    nightlyTimelineAbort = new AbortController();
+    var sig = nightlyTimelineAbort.signal;
+
+    var daysContainer = sectionRoot.querySelector('#days-container');
+    var legendControlsEl = sectionRoot.querySelector('#timeline-legend-controls');
+    if (!daysContainer) return;
+
+    if (legendControlsEl) legendControlsEl.innerHTML = '';
+    daysContainer.innerHTML = '';
+
+    if (nightlyTimelineStoreUnsubscribe) {
+      nightlyTimelineStoreUnsubscribe();
+      nightlyTimelineStoreUnsubscribe = null;
+    }
+    var store = window.__restoreSleepDataStore;
+    if (store && typeof store.subscribe === 'function') {
+      nightlyTimelineStoreUnsubscribe = store.subscribe(function (snapshot) {
+        if (g !== nightlyTimelineMountGen || nightlyTimelineSection !== sectionRoot) return;
+        if (snapshot && snapshot.data) {
+          if (legendControlsEl) legendControlsEl.innerHTML = '';
+          daysContainer.innerHTML = '';
+          renderNightlyTimelineFromData(sectionRoot, sig, snapshot.data);
+        }
+      });
+    }
+
+    var loadPromise = store && typeof store.ensureLoaded === 'function'
+      ? store.ensureLoaded()
+      : loadSleepData();
+    loadPromise
+      .then(function (sleepData) {
+        if (g !== nightlyTimelineMountGen || nightlyTimelineSection !== sectionRoot) return;
+        renderNightlyTimelineFromData(sectionRoot, sig, sleepData);
+      })
+      .catch(function (error) {
+        console.error('Error loading data:', error);
+        if (g !== nightlyTimelineMountGen || nightlyTimelineSection !== sectionRoot) return;
+        daysContainer.innerHTML = '<p>Error loading data</p>';
+      });
+  }
+
+  function unmountNightlyTimeline() {
+    nightlyTimelineMountGen++;
+    if (nightlyTimelineStoreUnsubscribe) {
+      nightlyTimelineStoreUnsubscribe();
+      nightlyTimelineStoreUnsubscribe = null;
+    }
+    if (nightlyTimelineAbort) {
+      try {
+        nightlyTimelineAbort.abort();
+      } catch (e) {
+        /* ignore */
+      }
+      nightlyTimelineAbort = null;
+    }
+    if (nightlyTimelineSection) {
+      var leg = nightlyTimelineSection.querySelector('#timeline-legend-controls');
+      var days = nightlyTimelineSection.querySelector('#days-container');
+      if (leg) leg.innerHTML = '';
+      if (days) days.innerHTML = '';
+    }
+    nightlyTimelineSection = null;
+  }
+
+  window.__restoreNightlyTimelineLifecycle = {
+    mount: mountNightlyTimeline,
+    unmount: unmountNightlyTimeline,
+  };
+})();
 
 initDeviationFlagChips();

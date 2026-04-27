@@ -6,8 +6,8 @@
 <title>Log</title>
 <link rel="stylesheet" href="theme-toggle.css">
 <link rel="stylesheet" href="styles.css">
-<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png">
 </head>
 <body>
   <div id="nav-container"></div>
@@ -15,19 +15,13 @@
     <div id="log-page-root" class="log-page-root"></div>
   </div>
 
-  <script src="dev-git-branch.js"></script>
-  <script src="local-supabase-presets.js"></script>
-  <script src="sleep-utils.js"></script>
-  <script src="nightly.js"></script>
-  <script src="entry-modal.js"></script>
-  <script src="log.js"></script>
-  <script>
-    (async function initLogPage() {
-      await initI18n(document);
-      document.getElementById('nav-container').innerHTML = renderNavBar('log');
-      initDayNightTheme();
-      initRemainingWakeNav({ interval: false });
-    })();
-  </script>
+  <script defer src="dev-git-branch.js"></script>
+  <script defer src="local-supabase-presets.js"></script>
+  <script defer type="module" src="routes-data.mjs"></script>
+  <script defer src="sleep-utils.js"></script>
+  <script defer src="nightly.js"></script>
+  <script defer src="entry-modal.js"></script>
+  <script defer src="log.js"></script>
+  <script defer src="log-boot.js"></script>
 </body>
 </html>

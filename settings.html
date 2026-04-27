@@ -6,12 +6,12 @@
 <title>Settings — Restore</title>
 <link rel="stylesheet" href="theme-toggle.css">
 <link rel="stylesheet" href="styles.css">
-<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png">
 </head>
 <body>
   <div id="nav-container"></div>
-  <div class="container container--config">
+  <div id="settings-page-root" class="container container--config">
     <h1 class="page-title config-page-title" data-i18n="config.title">Settings</h1>
 
     <h2 class="section-title" id="clock" data-i18n="config.clock.title">Clock</h2>
@@ -175,40 +175,11 @@
     <div id="supabase-config-mount"></div>
   </div>
 
-  <script src="dev-git-branch.js"></script>
-  <script src="local-supabase-presets.js"></script>
-  <script src="sleep-utils.js"></script>
-  <script>
-    (async function initConfigPage() {
-      await initI18n(document);
-      applyTranslations(document.querySelector('.container--config'));
-      document.getElementById('nav-container').innerHTML = renderNavBar('settings');
-      applyTranslations(document.getElementById('nav-container'));
-      initDayNightTheme();
-      initClockFormatSelector();
-      initLanguageSelector();
-      initConfigThemeSelector();
-      initQualityPaletteSelector();
-      initTonightGuidanceConfigControls();
-      document.getElementById('remaining-wake-mount').innerHTML =
-        getRemainingWakeThresholdsControlHTML('remaining-wake');
-      initRemainingWakeNav();
-      initRemainingWakeThresholdsConfig();
-      initDashboardHintsSettingsControls();
-      initSupabaseConfigForm();
-      // Hash scroll runs before late-mounted sections (e.g. remaining wake); re-apply after layout.
-      if (window.location.hash.length > 1) {
-        const id = decodeURIComponent(window.location.hash.slice(1));
-        const scrollTarget = document.getElementById(id);
-        if (scrollTarget) {
-          requestAnimationFrame(function () {
-            requestAnimationFrame(function () {
-              scrollTarget.scrollIntoView({ block: 'start', behavior: 'auto' });
-            });
-          });
-        }
-      }
-    })();
-  </script>
+  <script defer src="dev-git-branch.js"></script>
+  <script defer src="local-supabase-presets.js"></script>
+  <script defer type="module" src="routes-data.mjs"></script>
+  <script defer src="sleep-utils.js"></script>
+  <script defer src="settings.js"></script>
+  <script defer src="settings-boot.js"></script>
 </body>
 </html>

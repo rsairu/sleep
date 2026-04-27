@@ -534,7 +534,7 @@
     }
   }
 
-  function initDashboardQuickActions(getDays, onReload) {
+  function destroyDashboardQuickActions() {
     if (quickActionsIntervalId) {
       clearInterval(quickActionsIntervalId);
       quickActionsIntervalId = null;
@@ -543,6 +543,10 @@
       document.removeEventListener('click', boundClickHandler);
       boundClickHandler = null;
     }
+  }
+
+  function initDashboardQuickActions(getDays, onReload) {
+    destroyDashboardQuickActions();
 
     function refresh() {
       renderQuickActions(getDays(), onReload);
@@ -556,6 +560,7 @@
     document.addEventListener('click', boundClickHandler);
   }
 
+  window.destroyDashboardQuickActions = destroyDashboardQuickActions;
   window.initDashboardQuickActions = initDashboardQuickActions;
   window.refreshDashboardQuickActions = function (days, onReload) {
     renderQuickActions(days, onReload);
