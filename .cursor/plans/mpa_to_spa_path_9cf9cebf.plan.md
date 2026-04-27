@@ -1,6 +1,6 @@
 ---
 name: MPA to SPA path
-overview: This repo uses a **Vite SPA shell** at [index.html](c:/Users/UriasRey/Desktop/sleep_proj/index.html) plus legacy per-page `*.html` (~4.5k-line [sleep-utils.js](c:/Users/UriasRey/Desktop/sleep_proj/sleep-utils.js), [routes-data.mjs](c:/Users/UriasRey/Desktop/sleep_proj/routes-data.mjs), [src/spa-app.js](c:/Users/UriasRey/Desktop/sleep_proj/src/spa-app.js)). **Done through Phase 9:** `link-helper`, `module-migration`, `bundler-optional`, `pivot` (path routes, `vercel.json`, lifecycle `mount`/`unmount` per navigation). **Deferred:** `*.html` → path redirects (Phase 9b).
+overview: This repo uses a **Vite SPA shell** at [index.html](c:/Users/UriasRey/Desktop/sleep_proj/index.html), [src/spa-app.js](c:/Users/UriasRey/Desktop/sleep_proj/src/spa-app.js), and [routes-data.mjs](c:/Users/UriasRey/Desktop/sleep_proj/routes-data.mjs), with legacy MPA source shells for dev/direct open and **production fragment copies under `dist/mpa/`**. **Done through Phase 9b:** Phases 7–10 workstreams (`link-helper` … `pivot`) plus **legacy `*.html` → path redirects** ([vercel.json](c:/Users/UriasRey/Desktop/sleep_proj/vercel.json)), documented in [decisions.md](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/decisions.md).
 todos:
   - id: docs-track
     content: Add docs/migration/ (conventions, listener-audit, lifecycle-contract, route-table, decisions); cross-link existing docs/dev-banner.md, docs/quick-actions.md, docs/user-data-cloud.md when touching those behaviors
@@ -38,6 +38,9 @@ todos:
   - id: pivot
     content: Single shell, History API, dynamic import per route, host fallback/redirects; replace index.html meta-refresh with real entry behavior
     status: completed
+  - id: phase-9b-redirects
+    content: "Vercel redirects root *.html → path routes; build copies MPA shells to dist/mpa for SPA fetch; decisions + route-table + plan body sync"
+    status: completed
 isProject: false
 ---
 
@@ -45,26 +48,27 @@ isProject: false
 
 ## Progress
 
-Summary: **8 / 12** todos completed (through **Phase 6.5**). **Next:** `link-helper`.
+Summary: **All YAML todos completed** through **Phase 9b** (legacy redirects + `dist/mpa/` fragment copies). Canonical ADRs: [decisions.md](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/decisions.md). **Next (backlog, not in YAML):** optional fragment bundling (`import()` per route), slim or remove root MPA shells from source when traffic confirms.
 
 | Todo | Status | Notes |
 |------|--------|--------|
-| `docs-track` | **Completed** | [docs/migration/conventions.md](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/conventions.md) + sibling stubs |
-| `utils-audit` | **Completed** | [docs/migration/listener-audit.md](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/listener-audit.md); gate plan: [utils_audit_gate.plan.md](c:/Users/UriasRey/Desktop/sleep_proj/.cursor/plans/utils_audit_gate.plan.md) |
-| `first-lifecycle` | **Completed** | [lifecycle-contract.md](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/lifecycle-contract.md); impl: [quality.js](c:/Users/UriasRey/Desktop/sleep_proj/quality.js), [quality.html](c:/Users/UriasRey/Desktop/sleep_proj/quality.html); plan: [first_lifecycle_contract.plan.md](c:/Users/UriasRey/Desktop/sleep_proj/.cursor/plans/first_lifecycle_contract.plan.md) |
-| `route-table` | **Completed** | [routes-data.js](c:/Users/UriasRey/Desktop/sleep_proj/routes-data.js) + [route-table.md](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/route-table.md) |
-| `data-fetching-policy` | **Completed** | [decisions.md — Data fetching](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/decisions.md) (accepted ADR: single store, subscribe/unmount, refresh rules, midnight render note, Phase 5 module shape) |
-| `rollout-lifecycles` | **Completed** | Phase 5 complete (dashboard → charts → nightly → log → stats) |
-| `settings-about-extraction` | **Completed** | Phase 6 complete (`about.js` + `settings.js` lifecycle extraction) |
-| `sleep-data-store-phase-6-5` | **Completed** | Phase 6.5 store implemented (`__restoreSleepDataStore`) |
-| `link-helper` | **Next** | pending |
-| `module-migration` | Pending | |
-| `bundler-optional` | Pending | |
-| `pivot` | Pending | |
+| `docs-track` | **Completed** | [docs/migration/](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/) |
+| `utils-audit` | **Completed** | [listener-audit.md](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/listener-audit.md); [utils_audit_gate.plan.md](c:/Users/UriasRey/Desktop/sleep_proj/.cursor/plans/utils_audit_gate.plan.md) |
+| `first-lifecycle` | **Completed** | [quality.js](c:/Users/UriasRey/Desktop/sleep_proj/quality.js), [lifecycle-contract.md](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/lifecycle-contract.md) |
+| `route-table` | **Completed** | [routes-data.mjs](c:/Users/UriasRey/Desktop/sleep_proj/routes-data.mjs) + [route-table.md](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/route-table.md) |
+| `data-fetching-policy` | **Completed** | [decisions.md](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/decisions.md) |
+| `rollout-lifecycles` | **Completed** | dashboard → charts → nightly → log → stats |
+| `settings-about-extraction` | **Completed** | [about.js](c:/Users/UriasRey/Desktop/sleep_proj/about.js), [settings.js](c:/Users/UriasRey/Desktop/sleep_proj/settings.js) |
+| `sleep-data-store-phase-6-5` | **Completed** | `__restoreSleepDataStore` |
+| `link-helper` | **Completed** | `mpaHref` / registry in `routes-data.mjs` |
+| `module-migration` | **Completed** | ESM shells + `*-boot.js` |
+| `bundler-optional` | **Completed** | [vite.config.js](c:/Users/UriasRey/Desktop/sleep_proj/vite.config.js), [package.json](c:/Users/UriasRey/Desktop/sleep_proj/package.json) |
+| `pivot` | **Completed** | [index.html](c:/Users/UriasRey/Desktop/sleep_proj/index.html) + [src/spa-app.js](c:/Users/UriasRey/Desktop/sleep_proj/src/spa-app.js) + [vercel.json](c:/Users/UriasRey/Desktop/sleep_proj/vercel.json) rewrites |
+| `phase-9b-redirects` | **Completed** | Root `*.html` → path **redirects**; shells in **`dist/mpa/`** for SPA `fetch`; [decisions.md — Phase 9b](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/decisions.md) |
 
 ## Phase 4 — Route table + data-fetching policy (complete)
 
-**Shipped:** [routes-data.js](c:/Users/UriasRey/Desktop/sleep_proj/routes-data.js) (`__restoreRoutesData`) before `sleep-utils.js` on all shells; `renderNavBar` consumes it. Accepted ADR in [decisions.md](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/decisions.md): single sleep-data store (boot / first read), `loadSleepData({ forceRefresh: true })` for explicit refresh + post-mutation invalidation, route subscribe/unmount, refresh triggers (boot, mutation, cloud sync done, visibility, 12h `lastFetchedAt`), midnight re-derive as per-route render concern; Phase 5 store = one file, module-shaped singleton on `window` until Vite.
+**Shipped:** [routes-data.mjs](c:/Users/UriasRey/Desktop/sleep_proj/routes-data.mjs) (`__restoreRoutesData`) before `sleep-utils.js` on MPA shells (and imported before `sleep-utils` in the SPA entry); `renderNavBar` consumes it. Accepted ADR in [decisions.md](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/decisions.md): single sleep-data store (boot / first read), `loadSleepData({ forceRefresh: true })` for explicit refresh + post-mutation invalidation, route subscribe/unmount, refresh triggers (boot, mutation, cloud sync done, visibility, 12h `lastFetchedAt`), midnight re-derive as per-route render concern; Phase 5 store = one file, module-shaped singleton on `window` until Vite.
 
 ## Phase 5 — Rollout lifecycles (complete)
 
@@ -90,14 +94,14 @@ Implemented the accepted ADR in [`docs/migration/decisions.md`](c:/Users/UriasRe
 - `lastFetchedAt` 12h revalidation and `forceRefresh` invalidation paths
 - compatibility wrapper: `loadSleepData(...)` routes through the store
 
-## What exists today
+## What exists today (post Phase 9b)
 
-- **No bundler**: [package.json](c:/Users/UriasRey/Desktop/sleep_proj/package.json) only defines `test:math`; pages load classic `<script src="…">` chains per HTML file.
-- **Nine shells**: Tab routes — `dashboard`, `log`, `quality`, **`timeline` → [nightly.html](c:/Users/UriasRey/Desktop/sleep_proj/nightly.html)** (nav label “Nightly”), **`charts` → [charts.html](c:/Users/UriasRey/Desktop/sleep_proj/charts.html)**, `stats`. Menu-only — [about.html](c:/Users/UriasRey/Desktop/sleep_proj/about.html), [settings.html](c:/Users/UriasRey/Desktop/sleep_proj/settings.html) (hamburger uses `settings.html#cloud-sync` for cloud). Plus [index.html](c:/Users/UriasRey/Desktop/sleep_proj/index.html) **meta-refreshes to `dashboard.html`** (SPA cutover must replace this with a real shell or redirect policy).
-- **Shared core**: Every substantive page loads `dev-git-branch.js` → `local-supabase-presets.js` → [routes-data.js](c:/Users/UriasRey/Desktop/sleep_proj/routes-data.js) → [sleep-utils.js](c:/Users/UriasRey/Desktop/sleep_proj/sleep-utils.js). **`nightly.js`** is included on **dashboard, log, quality, nightly** but **not** on charts/stats/settings/about — any SPA module graph must respect that split until bundles unify. **Charts** loads [charts.js](c:/Users/UriasRey/Desktop/sleep_proj/charts.js) only; **stats** loads `stats-aggregates.js` + [stats.js](c:/Users/UriasRey/Desktop/sleep_proj/stats.js).
-- **Nav source of truth**: [routes-data.js](c:/Users/UriasRey/Desktop/sleep_proj/routes-data.js) (`__restoreRoutesData.navTabs` + `href`); [sleep-utils.js](c:/Users/UriasRey/Desktop/sleep_proj/sleep-utils.js) `renderNavBar` maps them to HTML. Human table + script matrix: [route-table.md](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/route-table.md).
-- **Per-page shells**: Typical init is inline `async function init…Page()` after scripts: `initI18n` → `renderNavBar('<id>')` → route lifecycle `mount(...)` (theme/nav helpers run inside route modules where needed). **Settings/about** now use dedicated modules ([`settings.js`](c:/Users/UriasRey/Desktop/sleep_proj/settings.js), [`about.js`](c:/Users/UriasRey/Desktop/sleep_proj/about.js)) with lifecycle globals.
-- **Global UI nodes**: e.g. [dashboard.html](c:/Users/UriasRey/Desktop/sleep_proj/dashboard.html) includes `#tooltip` and `#day-panel`; [charts.html](c:/Users/UriasRey/Desktop/sleep_proj/charts.html) does too. SPA shell design must decide what lives **once in the shell** vs **per-route**.
+- **Bundler:** [package.json](c:/Users/UriasRey/Desktop/sleep_proj/package.json) — `dev` / `build` / `preview` (Vite); `test:math` unchanged.
+- **SPA (primary):** [index.html](c:/Users/UriasRey/Desktop/sleep_proj/index.html) + [src/spa-app.js](c:/Users/UriasRey/Desktop/sleep_proj/src/spa-app.js) — path routes, `fetch` of **`/mpa/*.html`** in production for outlet markup, classic script preloads per route, shared `#tooltip` / `#day-panel` in shell.
+- **MPA (source):** Per-page `*.html` remain in-repo for direct open / dev; **`npm run build`** copies shells to **`dist/mpa/`** only (not site root). [vercel.json](c:/Users/UriasRey/Desktop/sleep_proj/vercel.json) **redirects** root `*.html` bookmarks to path URLs, then SPA **rewrites**.
+- **Shared core:** `dev-git-branch.js` → `local-supabase-presets.js` → [routes-data.mjs](c:/Users/UriasRey/Desktop/sleep_proj/routes-data.mjs) → [sleep-utils.js](c:/Users/UriasRey/Desktop/sleep_proj/sleep-utils.js); route scripts as today. **`nightly.js`** on dashboard, log, quality, nightly only; **charts** = [charts.js](c:/Users/UriasRey/Desktop/sleep_proj/charts.js); **stats** = `stats-aggregates.js` + [stats.js](c:/Users/UriasRey/Desktop/sleep_proj/stats.js).
+- **Nav source of truth:** [routes-data.mjs](c:/Users/UriasRey/Desktop/sleep_proj/routes-data.mjs) (`navTabs`, `href`, `spaHref`, `internalNavHref`); [route-table.md](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/route-table.md).
+- **Lifecycle:** `*-boot.js` for MPA; SPA central boot in `spa-app.js` with same `mount`/`unmount` globals.
 
 ## Listener / lifecycle reality check (adjusts the draft)
 
@@ -120,7 +124,7 @@ flowchart TB
     Shell[single shell HTML]
     Shell --> Router[match path]
     Router --> Un[unmount previous]
-    Un --> Imp[dynamic import route module]
+    Un --> Imp[preload route scripts plus fetch mpa fragment]
     Imp --> Mount[mount outlet]
   end
 ```
@@ -155,9 +159,9 @@ You already maintain feature docs under [docs/](c:/Users/UriasRey/Desktop/sleep_
 
 8. **ES modules (optional prep)** — Move toward `type="module"` entry per route with a **shrink-only** `window.*` compat rule as in the draft.
 
-9. **Bundler (optional)** — Add Vite when module graph / `import()` splitting justifies it; can dogfood SPA shell on a branch while production stays MPA.
+9. **Bundler** — **Done:** Vite + static copy ([vite.config.js](c:/Users/UriasRey/Desktop/sleep_proj/vite.config.js)).
 
-10. **Pivot** — Single shell (`index.html` or new `app.html`), History API, dynamic `import()` per route, host **rewrite / 404 fallback** (no `netlify.toml` / `vercel.json` in repo today — add when you pick host). Replace root meta-refresh with intentional routing. Optional `.html` → path redirects for bookmarks.
+10. **Pivot + 9b** — **Done:** SPA shell, History + click interception, [vercel.json](c:/Users/UriasRey/Desktop/sleep_proj/vercel.json) redirects + rewrites, `dist/mpa/` fragment copies (see [decisions.md](c:/Users/UriasRey/Desktop/sleep_proj/docs/migration/decisions.md) Phases 9–9b).
 
 ## Incremental vs hard fork (unchanged criterion)
 

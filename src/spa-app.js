@@ -28,8 +28,11 @@ function loadClassicScript(relativePath) {
 }
 
 async function fetchDocHtml(filename) {
-  const res = await fetch(scriptBase() + filename.replace(/^\//, ''));
-  if (!res.ok) throw new Error('[spa-app] fetch failed: ' + filename + ' (' + res.status + ')');
+  const name = filename.replace(/^\//, '');
+  /* Production: shells live under /mpa/ so root *.html can 308 to path routes without breaking fetch */
+  const path = (import.meta.env.PROD ? 'mpa/' : '') + name;
+  const res = await fetch(scriptBase() + path);
+  if (!res.ok) throw new Error('[spa-app] fetch failed: ' + path + ' (' + res.status + ')');
   return res.text();
 }
 

@@ -37,7 +37,7 @@ Pages load `local-supabase-presets.js`, then `routes-data.mjs` (canonical nav ro
 ## npm scripts
 
 - `npm run dev` — Vite dev server (SPA shell + path routes).
-- `npm run build` — production build to `dist/` (copies assets, data template, legacy `*.html` for SPA fetch, and classic JS).
+- `npm run build` — production build to `dist/` (copies assets, data template, classic JS, and MPA shells under `dist/mpa/` for SPA fragment fetch; Vercel redirects root `*.html` to path routes — see `docs/migration/decisions.md` Phase 9b).
 - `npm run preview` — local preview of the `dist/` output.
 - `npm run test:math` — deterministic math and dataset invariant checks (`math-tests.js`).
 

@@ -45,7 +45,8 @@ const staticCopyTargets = [
   { src: 'theme-toggle.css', dest: '.' },
   { src: 'styles.css', dest: '.' },
   ...rootScripts.map((f) => ({ src: f, dest: '.' })),
-  ...mpaShells.map((f) => ({ src: f, dest: '.' }))
+  /* MPA shells under /mpa/ only — root *.html redirects (vercel.json) must not break SPA fragment fetch */
+  ...mpaShells.map((f) => ({ src: f, dest: 'mpa' }))
 ];
 if (fs.existsSync('dev-git-branch.js')) {
   staticCopyTargets.push({ src: 'dev-git-branch.js', dest: '.' });

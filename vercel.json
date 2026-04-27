@@ -1,3 +1,14 @@
 {
+  "redirects": [
+    { "source": "/dashboard.html", "destination": "/dashboard", "permanent": true },
+    { "source": "/log.html", "destination": "/log", "permanent": true },
+    { "source": "/quality.html", "destination": "/quality", "permanent": true },
+    { "source": "/nightly.html", "destination": "/timeline", "permanent": true },
+    { "source": "/charts.html", "destination": "/charts", "permanent": true },
+    { "source": "/stats.html", "destination": "/stats", "permanent": true },
+    { "source": "/about.html", "destination": "/about", "permanent": true },
+    { "source": "/settings.html", "destination": "/settings", "permanent": true },
+    { "source": "/index.html", "destination": "/", "permanent": true }
+  ],
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }

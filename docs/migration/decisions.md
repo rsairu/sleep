@@ -191,10 +191,28 @@ Use for new entries:
 **Shipped:**
 
 - **Vite** — [`vite.config.js`](../../vite.config.js), [`package.json`](../../package.json) scripts `dev` / `build` / `preview`; production output in `dist/`.
-- **SPA shell** — root [`index.html`](../../index.html) with `#nav-container`, `#spa-outlet`, shared `#tooltip` / `#day-panel`; [`src/spa-app.js`](../../src/spa-app.js) imports [`routes-data.mjs`](../../routes-data.mjs) first, sets `globalThis.__restoreUseSpaNav`, implements History navigation, modifier-safe link interception, and fetches legacy `*.html` shells to hydrate outlet markup before `mount`.
+- **SPA shell** — root [`index.html`](../../index.html) with `#nav-container`, `#spa-outlet`, shared `#tooltip` / `#day-panel`; [`src/spa-app.js`](../../src/spa-app.js) imports [`routes-data.mjs`](../../routes-data.mjs) first, sets `globalThis.__restoreUseSpaNav`, implements History navigation, modifier-safe link interception, and fetches MPA shell HTML to hydrate outlet markup before `mount` (dev: root `*.html`; production: `/mpa/*.html` — see Phase 9b).
 - **Path routes + hashes** — `spaHref(key)`, `spaPathForTabId`, `internalNavHref(key)` on `__restoreRoutesData`; [`sleep-utils.js`](../../sleep-utils.js) nav/menu uses them when `__restoreUseSpaNav` is set; [`nightly.js`](../../nightly.js) dashboard links use `internalNavHref`.
-- **Vercel** — [`vercel.json`](../../vercel.json) SPA fallback rewrites to `index.html` (static files such as `*.html`, `/assets/*`, `/data/*` still win when present).
-- **Deferred:** bookmark redirects from `*.html` to path URLs → **Phase 9b** (see plan).
+- **Vercel** — [`vercel.json`](../../vercel.json) SPA fallback **rewrites** to `index.html`; Phase **9b** adds root `*.html` **redirects** and `/mpa/` shell copies so static assets and the fragment fetch path keep working.
+
+---
+
+## Phase 9b (legacy `*.html` redirects + fragment fetch)
+
+**Status:** Complete (Apr 2026).
+
+**Context:** Bookmarks and external links still pointed at root `*.html` (MPA filenames). A naive host redirect would break the SPA, which **`fetch()`es** those same filenames to hydrate [`src/spa-app.js`](../../src/spa-app.js) outlet markup.
+
+**Decision:**
+
+1. **Vercel [`redirects`](../../vercel.json)** — Permanent redirects (308) from root `/dashboard.html`, `/log.html`, … `/settings.html`, and `/index.html` → canonical path URLs (`/timeline` for `nightly.html`). Listed **before** the SPA catch-all `rewrites` entry.
+2. **Fragment HTML under `/mpa/`** — [`vite.config.js`](../../vite.config.js) copies MPA shells into `dist/mpa/*.html` only (not at site root). [`src/spa-app.js`](../../src/spa-app.js) uses `import.meta.env.PROD` to fetch `mpa/<file>` in production and the root `<file>` in dev (`npm run dev`) so local development does not require a duplicate tree.
+3. **URL fragments (hashes)** — HTTP redirects are decided on the path **without** the fragment (the browser does not send `#…` to the server). A request to `GET /settings.html` redirects to `/settings`; the client may re-apply `location.hash` only if the user had a full-URL bookmark (browser-dependent). Deep links after redirect are best expressed as **`/settings#cloud-sync`** in new content; SPA in-app navigation already preserves hash.
+
+**Consequences:**
+
+- **`npm run preview` / plain static servers** without Vercel-style redirects do not rewrite `*.html` URLs; production behavior is defined for Vercel. For other hosts, mirror the same redirect + `/mpa/` static layout or accept legacy URLs until configured.
+- Root `*.html` is **not** present in `dist/` after build; only [`dist/mpa/`](../../dist/mpa/) holds the fetched shells.
 
 ---
 

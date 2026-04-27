@@ -12,7 +12,7 @@ See [conventions.md](./conventions.md).
 
 1. **[`routes-data.mjs`](../../routes-data.mjs)** — `navTabs` (tab rows), `href`, **`spaPathByTabId`**, **`spaHrefMenu`**, **`mpaHref(key)`**, **`spaHref(key)`**, **`internalNavHref(key)`** (MPA vs SPA chosen at call time via `globalThis.__restoreUseSpaNav`). MPA shells load `routes-data.mjs` before `sleep-utils.js`; the Vite SPA entry [`src/spa-app.js`](../../src/spa-app.js) **imports** `routes-data.mjs` so it runs before `sleep-utils.js` (see [decisions.md](./decisions.md) Phase 9).
 2. **`renderNavBar`** in [`sleep-utils.js`](../../sleep-utils.js) — maps `navTabs` + `internalNavHref` / `spaPathForTabId` when `__restoreUseSpaNav` is set (i18n keys unchanged).
-3. **Root entry** — [`index.html`](../../index.html) is the **Vite SPA shell** (`npm run dev` / `npm run build`): History routes under path URLs; `/` replaces to `/dashboard`. Legacy per-page `*.html` shells remain for direct MPA opens and for SPA outlet markup fetch.
+3. **Root entry** — [`index.html`](../../index.html) is the **Vite SPA shell** (`npm run dev` / `npm run build`): History routes under path URLs; `/` replaces to `/dashboard`. Legacy per-page `*.html` shells remain in **source** for direct MPA opens / dev fetch; **production** builds copy shells to [`dist/mpa/`](../../dist/mpa/) and [`vercel.json`](../../vercel.json) redirects root `*.html` to path routes (Phase 9b).
 
 **Naming note:** Older migration drafts referred to `daily.html` / `graph.html` / `config.html`. The repo uses **`nightly.html`**, **`charts.html`**, and **`settings.html`** — treat those as canonical MPA paths.
 
@@ -98,15 +98,17 @@ Defined in [`routes-data.mjs`](../../routes-data.mjs) (internal link map; see `m
 
 These `<a href>` values are **not** emitted by `mpaHref` (no extra script on shells). When you change a URL or hash, update the HTML and add or adjust the matching **`mpaHref` key** above if a JS caller shares the same destination.
 
-| File | href (must match resolver semantics) | `mpaHref` key for parity |
-|------|----------------------------------------|---------------------------|
-| [`about.html`](../../about.html) | `settings.html#in-app-tips` | `settings.inAppTips` |
-| [`about.html`](../../about.html) | `settings.html#remaining-wake` | `settings.remainingWake` |
-| [`about.html`](../../about.html) | `stats.html` | `tab.stats` |
-| [`settings.html`](../../settings.html) | `about.html#tonight-guidance` | `about.tonightGuidance` |
-| [`settings.html`](../../settings.html) | `about.html#remaining-wake-time` | `about.remainingWakeTime` |
-| [`stats.html`](../../stats.html) | `about.html#sleep-statistics` | `about.sleepStatistics` |
-| [`index.html`](../../index.html) | `dashboard.html` (fallback link only) | `dashboard.page` (optional until pivot) |
+**SPA (production):** [`src/spa-app.js`](../../src/spa-app.js) fetches markup from `/mpa/*.html` and rewrites same-origin `*.html` links in the injected fragment to path URLs. The literals below remain **MPA-oriented** for direct opens of legacy shells and for dev (`npm run dev`) fetch paths; optional follow-up is to change them to path `href` if you drop `file://` MPA usage.
+
+| File | href (MPA / parity) | SPA path (canonical) | `mpaHref` key for parity |
+|------|---------------------|----------------------|---------------------------|
+| [`about.html`](../../about.html) | `settings.html#in-app-tips` | `/settings#in-app-tips` | `settings.inAppTips` |
+| [`about.html`](../../about.html) | `settings.html#remaining-wake` | `/settings#remaining-wake` | `settings.remainingWake` |
+| [`about.html`](../../about.html) | `stats.html` | `/stats` | `tab.stats` |
+| [`settings.html`](../../settings.html) | `about.html#tonight-guidance` | `/about#tonight-guidance` | `about.tonightGuidance` |
+| [`settings.html`](../../settings.html) | `about.html#remaining-wake-time` | `/about#remaining-wake-time` | `about.remainingWakeTime` |
+| [`stats.html`](../../stats.html) | `about.html#sleep-statistics` | `/about#sleep-statistics` | `about.sleepStatistics` |
+| [`index.html`](../../index.html) | *(SPA shell — no legacy fallback link)* | `/` → `/dashboard` (router) | `dashboard.page` for nav parity |
 
 ---
 
