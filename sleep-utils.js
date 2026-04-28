@@ -354,6 +354,36 @@ function ensureDevSupabasePresetApplied() {
   setSupabaseConfig(pair.url, pair.anonKey);
 }
 
+/** Dev-banner Supabase shields badge: passing = dev, failing = prod, unknown otherwise. */
+function getSupabaseBannerBadgeModel() {
+  const presets = readLocalSupabasePresets();
+  if (!presets) {
+    return { state: 'unknown', valueText: 'n/a' };
+  }
+  let id = getActiveSupabasePresetId();
+  if (!id) {
+    const cur = getSupabaseConfig();
+    if (cur.url === presets.dev.url) id = 'dev';
+    else if (cur.url === presets.prod.url) id = 'prod';
+  }
+  if (id === 'dev') return { state: 'passing', valueText: 'dev' };
+  if (id === 'prod') return { state: 'failing', valueText: 'prod' };
+  return { state: 'unknown', valueText: 'unknown' };
+}
+
+/** Presets loaded and current URL/storage resolve to dev (else prod or unknown counts as non-dev). */
+function isDevBannerSupabaseEffectiveDev() {
+  const presets = readLocalSupabasePresets();
+  if (!presets) return false;
+  let id = getActiveSupabasePresetId();
+  if (!id) {
+    const cur = getSupabaseConfig();
+    if (cur.url === presets.dev.url) id = 'dev';
+    else if (cur.url === presets.prod.url) id = 'prod';
+  }
+  return id === 'dev';
+}
+
 function getDataSourceState() {
   const config = getSupabaseConfig();
   if (config.enabled && isSleepDataForcedLocal()) return 'local';
@@ -1999,8 +2029,11 @@ function evaluatePolynomial(coefficients, x) {
 
 // Project repo (used in nav bar)
 const GITHUB_REPO_URL = 'https://github.com/rsairu/sleep/';
-const DEV_VERCEL_APP_URL = 'https://sleep-mu.vercel.app';
 const DEV_VERCEL_PROJECT_URL = 'https://vercel.com/rsairu-5429s-projects/sleep';
+/** Shields.io → GitHub Deployments API; Production environment only (not tied to local build or branch). */
+const SHIELDS_GITHUB_DEPLOYMENTS_PRODUCTION_BASE =
+  'https://img.shields.io/github/deployments/rsairu/sleep/Production';
+const SHIELDS_GITHUB_DEPLOYMENTS_PRODUCTION_JSON = SHIELDS_GITHUB_DEPLOYMENTS_PRODUCTION_BASE + '.json';
 const SUPABASE_PROJECT_REF_PROD = 'lsaguxfovamihwnicpkk';
 const SUPABASE_PROJECT_REF_DEV = 'pjpzxkyflmzzbfdkujan';
 // Dev banner + app-time simulation spec: docs/dev-banner.md
@@ -3984,22 +4017,20 @@ function initDevClockControl() {
   window.__devClockControlBound = true;
 
   function setModeUi(realTimeActive) {
-    const realBtn = document.getElementById('nav-dev-banner-clock-mode-real');
-    const simBtn = document.getElementById('nav-dev-banner-clock-mode-sim');
-    const panel = document.getElementById('nav-dev-banner-clock-sim-panel');
-    const clockRoot = document.getElementById('nav-dev-banner-clock');
-    const headingEl = document.getElementById('nav-dev-banner-clock-heading');
-    if (!realBtn || !simBtn || !panel) return;
-    realBtn.classList.toggle('nav-dev-banner-clock-mode-btn--active', realTimeActive);
-    simBtn.classList.toggle('nav-dev-banner-clock-mode-btn--active', !realTimeActive);
-    realBtn.setAttribute('aria-pressed', realTimeActive ? 'true' : 'false');
-    simBtn.setAttribute('aria-pressed', realTimeActive ? 'false' : 'true');
-    panel.hidden = realTimeActive;
-    if (clockRoot) {
-      clockRoot.classList.toggle('nav-dev-banner-clock--sim-active', !realTimeActive);
+    const badgeRoot = document.getElementById('nav-dev-banner-apptime-badge');
+    const badgeValueEl = document.getElementById('nav-dev-banner-apptime-badge-value');
+    if (badgeRoot && badgeValueEl) {
+      badgeRoot.classList.remove('nav-dev-banner-apptime-badge--passing', 'nav-dev-banner-apptime-badge--failing');
+      badgeRoot.classList.add(
+        realTimeActive ? 'nav-dev-banner-apptime-badge--passing' : 'nav-dev-banner-apptime-badge--failing'
+      );
+      badgeValueEl.textContent = realTimeActive ? 'real' : 'sim';
+      const aria = 'App time: ' + (realTimeActive ? 'real' : 'sim');
+      badgeRoot.setAttribute('aria-label', aria);
     }
-    if (headingEl) {
-      headingEl.textContent = realTimeActive ? 'App time controls' : 'Using simulated time';
+    const inputEl = document.getElementById('nav-dev-banner-dev-clock-input');
+    if (inputEl && realTimeActive) {
+      inputEl.value = formatDateForDatetimeLocal(getAppDate());
     }
   }
 
@@ -4022,9 +4053,8 @@ function initDevClockControl() {
 
   function bindWhenReady() {
     const input = document.getElementById('nav-dev-banner-dev-clock-input');
-    const realBtn = document.getElementById('nav-dev-banner-clock-mode-real');
-    const simBtn = document.getElementById('nav-dev-banner-clock-mode-sim');
-    if (!input || !realBtn || !simBtn) return;
+    const resetRealBtn = document.getElementById('nav-dev-banner-clock-reset-real-btn');
+    if (!input || !resetRealBtn) return;
 
     input.value = formatDateForDatetimeLocal(getAppDate());
     setModeUi(readDevClockOverrideMs() == null);
@@ -4059,7 +4089,7 @@ function initDevClockControl() {
       openDevClockNativePicker();
     });
 
-    realBtn.addEventListener('click', function () {
+    resetRealBtn.addEventListener('click', function () {
       if (readDevClockOverrideMs() != null) {
         try {
           localStorage.removeItem(DEV_CLOCK_OVERRIDE_MS_KEY);
@@ -4068,11 +4098,6 @@ function initDevClockControl() {
         return;
       }
       setModeUi(true);
-    });
-
-    simBtn.addEventListener('click', function () {
-      setModeUi(false);
-      input.value = formatDateForDatetimeLocal(getAppDate());
     });
 
     const stepSpec = [
@@ -4124,25 +4149,20 @@ function initDevBannerCloudRefresh() {
   requestAnimationFrame(bindWhenReady);
 }
 
-function initDevBannerSupabasePresetToggle() {
+function initDevBannerDbSwitchFlip() {
   if (typeof window === 'undefined' || !isDevBuildContext()) return;
-  if (window.__devBannerPresetToggleBound) return;
-  window.__devBannerPresetToggleBound = true;
+  if (window.__devBannerDbSwitchFlipBound) return;
+  window.__devBannerDbSwitchFlipBound = true;
 
   function bindWhenReady() {
-    const devBtn = document.getElementById('nav-dev-banner-preset-dev-btn');
-    const prodBtn = document.getElementById('nav-dev-banner-preset-prod-btn');
-    if (!devBtn || !prodBtn) return;
+    const btn = document.getElementById('nav-dev-banner-db-switch-toggle');
     const presets = readLocalSupabasePresets();
-    if (!presets) return;
-    devBtn.addEventListener('click', function () {
-      setActiveSupabasePresetId('dev');
-      setSupabaseConfig(presets.dev.url, presets.dev.anonKey);
-      window.location.reload();
-    });
-    prodBtn.addEventListener('click', function () {
-      setActiveSupabasePresetId('prod');
-      setSupabaseConfig(presets.prod.url, presets.prod.anonKey);
+    if (!btn || !presets) return;
+
+    btn.addEventListener('click', function () {
+      const next = isDevBannerSupabaseEffectiveDev() ? 'prod' : 'dev';
+      setActiveSupabasePresetId(next);
+      setSupabaseConfig(presets[next].url, presets[next].anonKey);
       window.location.reload();
     });
   }
@@ -4692,6 +4712,92 @@ function initDevBannerUserSettingsPanel() {
   requestAnimationFrame(bindWhenReady);
 }
 
+/** Map Shields GitHub deployments JSON to badge tone (flat shield green/red/gray). */
+function vercelDeployBadgeToneFromShields(data) {
+  if (!data || typeof data !== 'object') return 'unknown';
+  if (data.isError === true) return 'unknown';
+  const color = String(data.color || '').toLowerCase();
+  const msg = String(data.message || '').toLowerCase();
+  if (
+    color === 'red' ||
+    color === 'critical' ||
+    color === 'important' ||
+    color === 'inactive' ||
+    msg.includes('fail') ||
+    msg.includes('error') ||
+    msg.includes('cancelled') ||
+    msg.includes('canceled')
+  ) {
+    return 'failing';
+  }
+  if (
+    color === 'brightgreen' ||
+    color === 'green' ||
+    color === 'success' ||
+    msg.includes('success') ||
+    msg === 'active' ||
+    msg.includes('complete')
+  ) {
+    return 'passing';
+  }
+  return 'unknown';
+}
+
+/** Fills Vercel deployment badge value from live Shields JSON (same source as shields badge image). */
+function hydrateDevBannerVercelDeployStatus() {
+  if (typeof document === 'undefined' || typeof fetch !== 'function') return;
+  if (!isDevBuildContext()) return;
+  const statusEl = document.getElementById('nav-dev-banner-vercel-deploy-status');
+  const valueWrap = document.getElementById('nav-dev-banner-vercel-deploy-value');
+  if (!statusEl || !valueWrap) return;
+
+  fetch(SHIELDS_GITHUB_DEPLOYMENTS_PRODUCTION_JSON, { credentials: 'omit', cache: 'no-store' })
+    .then(function (r) {
+      if (!r.ok) throw new Error('bad status');
+      return r.json();
+    })
+    .then(function (data) {
+      const tone = vercelDeployBadgeToneFromShields(data);
+      const msg = data && data.message != null ? String(data.message) : 'n/a';
+      statusEl.textContent = msg;
+      valueWrap.classList.remove(
+        'nav-dev-banner-vercel-badge__value--passing',
+        'nav-dev-banner-vercel-badge__value--failing',
+        'nav-dev-banner-vercel-badge__value--unknown'
+      );
+      valueWrap.classList.add('nav-dev-banner-vercel-badge__value--' + tone);
+      const link = statusEl.closest('.nav-dev-banner-vercel-badge');
+      if (link) {
+        link.setAttribute('title', 'Vercel project — Production: ' + msg);
+        link.setAttribute(
+          'aria-label',
+          'Open Vercel project. GitHub Production deployment status: ' + msg + '.'
+        );
+      }
+    })
+    .catch(function () {
+      statusEl.textContent = 'n/a';
+      valueWrap.classList.remove(
+        'nav-dev-banner-vercel-badge__value--passing',
+        'nav-dev-banner-vercel-badge__value--failing',
+        'nav-dev-banner-vercel-badge__value--unknown'
+      );
+      valueWrap.classList.add('nav-dev-banner-vercel-badge__value--unknown');
+      const link = statusEl.closest('.nav-dev-banner-vercel-badge');
+      if (link) {
+        link.setAttribute('title', 'Vercel project — Production deployment status unavailable');
+        link.setAttribute(
+          'aria-label',
+          'Open Vercel project. Production deployment status unavailable (shields.io).'
+        );
+      }
+    });
+}
+
+function initDevBannerVercelDeployStatus() {
+  hydrateDevBannerVercelDeployStatus();
+}
+
 // Initializes day/night theme, click handler, and timer to re-check (when in auto mode)
 function initDayNightTheme() {
   applyDayNightTheme();
@@ -4706,9 +4812,10 @@ function initDayNightTheme() {
   initNavSlumbyBounce();
   initDevClockControl();
   initDevBannerCloudRefresh();
-  initDevBannerSupabasePresetToggle();
+  initDevBannerDbSwitchFlip();
   initDevBannerDrawer();
   initDevBannerUserSettingsPanel();
+  initDevBannerVercelDeployStatus();
   if (typeof window !== 'undefined' && !window.__sleepDayNightThemeIntervalId) {
     window.__sleepDayNightThemeIntervalId = setInterval(function () {
       applyDayNightTheme();
@@ -5020,27 +5127,26 @@ function renderNavBar(currentPage) {
   const devBannerBgClass = useAlertBannerBg ? 'nav-dev-banner--db-prod' : 'nav-dev-banner--db-dev';
   const clockOverrideActive = readDevClockOverrideMs() != null;
   const cloudRefreshDisabled = !getSupabaseConfig().enabled;
-  // Feather-style git-branch (MIT); stroke scales with banner font size.
-  const gitBranchIcon =
-    '<svg class="nav-dev-banner-branch-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>';
-  const githubBannerIcon =
-    '<svg class="nav-dev-banner-deploy-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>';
-  const vercelDeployIcon =
-    '<svg class="nav-dev-banner-deploy-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 1.125 22.5 20.25H1.5L12 1.125z"/></svg>';
-  const supabaseDeployIcon =
-    '<svg class="nav-dev-banner-deploy-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M21.362 9.354H12V.396l9.362 8.958zM12 12.396H3.638L12 21.362v-8.966zM12 0v9.362H0V12h12v12h2.638V12H24V9.362H12V0z"/></svg>';
-  const refreshIconSvg =
-    '<svg class="nav-dev-banner-refresh-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>';
-  const devClockGlobeIcon =
-    '<svg class="nav-dev-banner-clock-mode-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-    '<circle cx="12" cy="12" r="10"/>' +
-    '<line x1="2" y1="12" x2="22" y2="12"/>' +
-    '<path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>' +
+  // Feather-style git-branch (MIT); used inside shields-style GitHub badge.
+  const gitBranchIconBadge =
+    '<svg class="nav-dev-banner-github-badge__icon nav-dev-banner-github-badge__icon--branch" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>';
+  const githubBadgeIcon =
+    '<svg class="nav-dev-banner-github-badge__icon nav-dev-banner-github-badge__icon--github" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>';
+  const vercelBadgeIcon =
+    '<svg class="nav-dev-banner-vercel-badge__icon nav-dev-banner-vercel-badge__icon--logo" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 1.125 22.5 20.25H1.5L12 1.125z"/></svg>';
+  const supabaseBadgeIcon =
+    '<svg class="nav-dev-banner-supabase-badge__icon nav-dev-banner-supabase-badge__icon--logo" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M21.362 9.354H12V.396l9.362 8.958zM12 12.396H3.638L12 21.362v-8.966zM12 0v9.362H0V12h12v12h2.638V12H24V9.362H12V0z"/></svg>';
+  const devAppTimeClockBadgeIcon =
+    '<svg class="nav-dev-banner-apptime-badge__icon nav-dev-banner-apptime-badge__icon--clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<circle cx="12" cy="12" r="9"/>' +
+    '<line x1="12" y1="12" x2="12" y2="8"/>' +
+    '<line x1="12" y1="12" x2="16" y2="12"/>' +
     '</svg>';
-  const devClockSimIcon =
-    '<svg class="nav-dev-banner-clock-mode-icon nav-dev-banner-clock-mode-icon--sim" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-    '<g class="nav-dev-banner-clock-sim-ghost"><circle cx="8" cy="7" r="3.5"/><path d="M4 21v-2a4 4 0 0 1 4-4h0a4 4 0 0 1 4 4v2"/></g>' +
-    '<g><circle cx="15" cy="9" r="3.5"/><path d="M11 21v-2a4 4 0 0 1 4-4h0a4 4 0 0 1 4 4v2"/></g>' +
+  const devClockResetRealIcon =
+    '<svg class="nav-dev-banner-clock-step-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<circle cx="12" cy="12" r="9"/>' +
+    '<line x1="12" y1="12" x2="12" y2="8"/>' +
+    '<line x1="12" y1="12" x2="16" y2="12"/>' +
     '</svg>';
   const devClockStepIconPrevDay =
     '<svg class="nav-dev-banner-clock-step-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="4" x2="5" y2="20"/><polyline points="20 18 14 12 20 6"/><polyline points="14 18 8 12 14 6"/></svg>';
@@ -5054,72 +5160,115 @@ function renderNavBar(currentPage) {
     '<svg class="nav-dev-banner-clock-step-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 18 12 12 6 6"/><polyline points="12 18 18 12 12 6"/></svg>';
   const devClockStepIconNextDay =
     '<svg class="nav-dev-banner-clock-step-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="4 18 10 12 4 6"/><polyline points="10 18 16 12 10 6"/><line x1="19" y1="4" x2="19" y2="20"/></svg>';
-  const githubBannerLink =
+  const branchBadgeDisplay = branchLabel ? escapeHtmlBannerText(branchLabel) : 'unknown';
+  const githubBadgeStateClass = !branchLabel
+    ? ' nav-dev-banner-github-badge--unknown'
+    : devBannerOnMaster
+      ? ' nav-dev-banner-github-badge--failing'
+      : ' nav-dev-banner-github-badge--passing';
+  const githubBadgeAria =
+    'Open GitHub repository' + (branchLabel ? ', branch ' + branchLabel : ', branch unknown');
+  const githubBranchBadge =
     '<a href="' +
     escapeHtmlBannerAttr(GITHUB_REPO_URL) +
-    '" class="nav-dev-banner-deploy-link" target="_blank" rel="noopener noreferrer" title="GitHub repository" aria-label="Open GitHub repository">' +
-    githubBannerIcon +
-    '</a>';
-  const supabaseDashboardLink =
-    '<a href="' +
-    escapeHtmlBannerAttr(supabaseDashboardUrl) +
-    '" class="nav-dev-banner-deploy-link" target="_blank" rel="noopener noreferrer" title="Supabase dashboard" aria-label="Open Supabase dashboard">' +
-    supabaseDeployIcon +
-    '</a>';
-  const vercelAppLink =
-    '<a href="' +
-    escapeHtmlBannerAttr(DEV_VERCEL_APP_URL) +
-    '" class="nav-dev-banner-deploy-link nav-dev-banner-vercel-link" target="_blank" rel="noopener noreferrer" title="Open production deployment (sleep-mu.vercel.app)" aria-label="Open production deployment at sleep-mu.vercel.app">' +
-    vercelDeployIcon +
-    '<span class="nav-dev-banner-vercel-host">Production</span></a>';
-  const vercelLabelsSep = '<span class="nav-dev-banner-vercel-sep" aria-hidden="true">   |   </span>';
-  const vercelProjectLink =
-    '<a href="' +
-    escapeHtmlBannerAttr(DEV_VERCEL_PROJECT_URL) +
-    '" class="nav-dev-banner-deploy-link nav-dev-banner-vercel-link" target="_blank" rel="noopener noreferrer" title="Vercel project dashboard" aria-label="Open Vercel project dashboard">' +
-    '<span class="nav-dev-banner-vercel-host">Project</span></a>';
-  const vercelIconLink = vercelAppLink + vercelLabelsSep + vercelProjectLink;
-  const branchMeta = branchLabel
-    ? '<span class="nav-dev-banner-branch-meta">' +
-      gitBranchIcon +
-      '<span class="nav-dev-banner-branch-name">' +
-      escapeHtmlBannerText(branchLabel) +
-      '</span></span>'
-    : '';
-  const devBannerBranchRow = '<div class="nav-dev-banner-branch-row">' + githubBannerLink + branchMeta + '</div>';
+    '" class="nav-dev-banner-github-badge' +
+    githubBadgeStateClass +
+    '" target="_blank" rel="noopener noreferrer" title="GitHub repository" aria-label="' +
+    escapeHtmlBannerAttr(githubBadgeAria) +
+    '">' +
+    '<span class="nav-dev-banner-github-badge__label">' +
+    githubBadgeIcon +
+    '<span class="nav-dev-banner-github-badge__label-text">github</span>' +
+    '</span>' +
+    '<span class="nav-dev-banner-github-badge__value">' +
+    gitBranchIconBadge +
+    '<span class="nav-dev-banner-github-badge__branch">' +
+    branchBadgeDisplay +
+    '</span></span></a>';
   const cloudRefreshDisabledAttr = cloudRefreshDisabled ? ' disabled' : '';
   const localPresets = readLocalSupabasePresets();
-  const activePresetId = getActiveSupabasePresetId();
-  const presetDevActiveClass = activePresetId === 'dev' ? ' nav-dev-banner-preset-btn--active' : '';
-  const presetProdActiveClass = activePresetId === 'prod' ? ' nav-dev-banner-preset-btn--active' : '';
-  const devBannerPresetStrip = localPresets
-    ? '<div class="nav-dev-banner-preset" role="group" aria-label="Supabase project preset">' +
-      '<button type="button" class="nav-dev-banner-preset-btn' +
-      presetDevActiveClass +
-      '" id="nav-dev-banner-preset-dev-btn" title="Use dev Supabase project" aria-label="Use dev Supabase project" aria-pressed="' +
-      (activePresetId === 'dev' ? 'true' : 'false') +
-      '">Dev</button>' +
-      '<button type="button" class="nav-dev-banner-preset-btn' +
-      presetProdActiveClass +
-      '" id="nav-dev-banner-preset-prod-btn" title="Use prod Supabase project" aria-label="Use prod Supabase project" aria-pressed="' +
-      (activePresetId === 'prod' ? 'true' : 'false') +
-      '">Prod</button>' +
-      '</div>'
-    : '';
+  const supabaseBadgeModel = getSupabaseBannerBadgeModel();
+  const supabaseBadgeStateClass = ' nav-dev-banner-supabase-badge--' + supabaseBadgeModel.state;
+  const supabaseBadgeValueEsc = escapeHtmlBannerText(supabaseBadgeModel.valueText);
+  const supabaseBadgeAria =
+    'Open Supabase dashboard. Active database: ' + supabaseBadgeModel.valueText + '.';
+  const supabaseDashboardBadge =
+    '<a href="' +
+    escapeHtmlBannerAttr(supabaseDashboardUrl) +
+    '" class="nav-dev-banner-supabase-badge' +
+    supabaseBadgeStateClass +
+    '" target="_blank" rel="noopener noreferrer" title="Supabase dashboard" aria-label="' +
+    escapeHtmlBannerAttr(supabaseBadgeAria) +
+    '">' +
+    '<span class="nav-dev-banner-supabase-badge__label">' +
+    supabaseBadgeIcon +
+    '<span class="nav-dev-banner-supabase-badge__label-text">supabase</span>' +
+    '</span>' +
+    '<span class="nav-dev-banner-supabase-badge__value">' +
+    '<span class="nav-dev-banner-supabase-badge__preset">' +
+    supabaseBadgeValueEsc +
+    '</span></span></a>';
+  const appTimeBadgeState = clockOverrideActive ? 'failing' : 'passing';
+  const appTimeValueRaw = clockOverrideActive ? 'sim' : 'real';
+  const appTimeValueEsc = escapeHtmlBannerText(appTimeValueRaw);
+  const appTimeBadgeAria = 'App time: ' + appTimeValueRaw;
+  const appTimeBadge =
+    '<div id="nav-dev-banner-apptime-badge" class="nav-dev-banner-apptime-badge nav-dev-banner-apptime-badge--' +
+    appTimeBadgeState +
+    '" role="group" aria-label="' +
+    escapeHtmlBannerAttr(appTimeBadgeAria) +
+    '">' +
+    '<span class="nav-dev-banner-apptime-badge__label">' +
+    devAppTimeClockBadgeIcon +
+    '<span class="nav-dev-banner-apptime-badge__label-text">app time</span>' +
+    '</span>' +
+    '<span class="nav-dev-banner-apptime-badge__value">' +
+    '<span id="nav-dev-banner-apptime-badge-value" class="nav-dev-banner-apptime-badge__mode" role="status" aria-live="polite">' +
+    appTimeValueEsc +
+    '</span></span></div>';
+  const vercelDeploymentsBadgeAria =
+    'Open Vercel project. GitHub Production deployment status loads from shields.io.';
+  const vercelDeploymentsBadge =
+    '<a href="' +
+    escapeHtmlBannerAttr(DEV_VERCEL_PROJECT_URL) +
+    '" class="nav-dev-banner-vercel-badge" target="_blank" rel="noopener noreferrer" title="Vercel project — Production deployment status" aria-label="' +
+    escapeHtmlBannerAttr(vercelDeploymentsBadgeAria) +
+    '">' +
+    '<span class="nav-dev-banner-vercel-badge__label">' +
+    vercelBadgeIcon +
+    '<span class="nav-dev-banner-vercel-badge__label-text">vercel</span>' +
+    '</span>' +
+    '<span id="nav-dev-banner-vercel-deploy-value" class="nav-dev-banner-vercel-badge__value nav-dev-banner-vercel-badge__value--unknown">' +
+    '<span id="nav-dev-banner-vercel-deploy-status" class="nav-dev-banner-vercel-badge__status" role="status" aria-live="polite">' +
+    escapeHtmlBannerText('…') +
+    '</span></span></a>';
+  const devBannerBadgesRow =
+    '<div class="nav-dev-banner-badges-row">' +
+    githubBranchBadge +
+    supabaseDashboardBadge +
+    vercelDeploymentsBadge +
+    appTimeBadge +
+    '</div>';
+  const devBannerDbSwitch =
+    localPresets
+      ? '<div class="nav-dev-banner-db-switch">' +
+        '<button type="button" class="nav-dev-banner-db-switch-toggle" id="nav-dev-banner-db-switch-toggle"' +
+        ' title="Toggle between dev and prod Supabase project" aria-label="Switch DB: toggle dev or prod Supabase project">' +
+        '<span class="nav-dev-banner-db-switch-toggle-icon" aria-hidden="true">🎚️</span>' +
+        '<span class="nav-dev-banner-db-switch-toggle-label">Switch DB</span>' +
+        '</button></div>'
+      : '';
   const devBannerCloudRow =
     '<div class="nav-dev-banner-cloud-row">' +
-    supabaseDashboardLink +
-    devBannerPresetStrip +
-    '<span class="nav-dev-banner-cloud-hint">Cloud data not synced in dev</span>' +
+    devBannerDbSwitch +
     '<button type="button" class="nav-dev-banner-cloud-refresh" id="nav-dev-banner-cloud-refresh-btn"' +
     cloudRefreshDisabledAttr +
-    ' title="Refresh cloud data and reload page" aria-label="Refresh cloud data and reload page">' +
-    refreshIconSvg +
-    '<span class="nav-dev-banner-cloud-refresh-label">Refresh</span>' +
+    ' title="Sync with cloud and reload page" aria-label="Sync with cloud and reload page">' +
+    '<span class="nav-dev-banner-cloud-refresh-icon" aria-hidden="true">🔄</span>' +
+    '<span class="nav-dev-banner-cloud-refresh-label">Sync with cloud</span>' +
     '</button>' +
     '</div>';
-  const devBannerVercelRow = '<div class="nav-dev-banner-vercel-row">' + vercelIconLink + '</div>';
-  const devBannerLeftInner = devBannerBranchRow + devBannerCloudRow + devBannerVercelRow;
+  const devBannerLeftInner = devBannerBadgesRow + devBannerCloudRow;
   let devBannerWarnings = '';
   if (devBannerDbClass === 'nav-dev-banner--db-prod') {
     devBannerWarnings +=
@@ -5140,39 +5289,9 @@ function renderNavBar(currentPage) {
     '<hr class="nav-dev-banner-title-rule" aria-hidden="true" />' +
     devBannerWarnings +
     '</div>';
-  const clockRealActive = !clockOverrideActive;
-  const clockRealClass = clockRealActive ? ' nav-dev-banner-clock-mode-btn--active' : '';
-  const clockSimClass = clockOverrideActive ? ' nav-dev-banner-clock-mode-btn--active' : '';
-  const clockRootSimClass = clockOverrideActive ? ' nav-dev-banner-clock--sim-active' : '';
-  const clockHeadingText = clockOverrideActive ? 'Using simulated time' : 'App time controls';
   const devClockBlock =
-    '<div id="nav-dev-banner-clock" class="nav-dev-banner-clock' +
-    clockRootSimClass +
-    '" role="group" aria-label="App time controls: real time or simulated override for app logic (development only)">' +
-    '<span id="nav-dev-banner-clock-heading" class="nav-dev-banner-clock-heading" role="status" aria-live="polite">' +
-    escapeHtmlBannerText(clockHeadingText) +
-    '</span>' +
-    '<div class="nav-dev-banner-clock-mode" role="group" aria-label="App time source">' +
-    '<button type="button" class="nav-dev-banner-clock-mode-btn' +
-    clockRealClass +
-    '" id="nav-dev-banner-clock-mode-real" title="Use real time" aria-label="Use real time" aria-pressed="' +
-    (clockRealActive ? 'true' : 'false') +
-    '">' +
-    devClockGlobeIcon +
-    '<span class="nav-dev-banner-clock-mode-label">Real time</span>' +
-    '</button>' +
-    '<button type="button" class="nav-dev-banner-clock-mode-btn' +
-    clockSimClass +
-    '" id="nav-dev-banner-clock-mode-sim" title="Use simulated time" aria-label="Use simulated time" aria-pressed="' +
-    (clockOverrideActive ? 'true' : 'false') +
-    '">' +
-    '<span class="nav-dev-banner-clock-mode-label">Simulated</span>' +
-    devClockSimIcon +
-    '</button>' +
-    '</div>' +
-    '<div class="nav-dev-banner-clock-sim-panel" id="nav-dev-banner-clock-sim-panel"' +
-    (clockOverrideActive ? '' : ' hidden') +
-    '>' +
+    '<div id="nav-dev-banner-clock" class="nav-dev-banner-clock" role="group" aria-label="App time: datetime and step controls (development only)">' +
+    '<div class="nav-dev-banner-clock-sim-panel" id="nav-dev-banner-clock-sim-panel">' +
     '<div class="nav-dev-banner-clock-wall-row">' +
     '<input type="datetime-local" id="nav-dev-banner-dev-clock-input" class="nav-dev-banner-dev-clock-input" autocomplete="off" />' +
     '</div>' +
@@ -5185,6 +5304,10 @@ function renderNavBar(currentPage) {
     '</button>' +
     '<button type="button" class="nav-dev-banner-clock-step-btn" id="nav-dev-banner-clock-step-minus-min" title="Back one minute" aria-label="Back one minute">' +
     devClockStepIconMinusMin +
+    '</button>' +
+    '<button type="button" class="nav-dev-banner-clock-step-btn nav-dev-banner-clock-step-btn--reset" id="nav-dev-banner-clock-reset-real-btn"' +
+    ' title="Use system clock (clear simulated time)" aria-label="Use real time: clear simulated clock override">' +
+    devClockResetRealIcon +
     '</button>' +
     '<button type="button" class="nav-dev-banner-clock-step-btn" id="nav-dev-banner-clock-step-plus-min" title="Forward one minute" aria-label="Forward one minute">' +
     devClockStepIconPlusMin +
@@ -5220,35 +5343,31 @@ function renderNavBar(currentPage) {
     '</span>' +
     '</div>' +
     '<div class="nav-dev-banner-user-settings" role="group" aria-label="User settings (dev; mirrors Settings and user_settings)">' +
-    '<div class="nav-dev-banner-user-settings-row nav-dev-banner-user-settings-row--prefs-grid" role="group" aria-label="Display, quality, and Dashboard in-app tips">' +
+    '<div class="nav-dev-banner-user-settings-row nav-dev-banner-user-settings-row--prefs-grid" role="group" aria-label="Language, clock, theme, palette, and Dashboard in-app tips">' +
     '<div class="nav-dev-banner-user-field nav-dev-banner-user-field--col nav-dev-banner-user-field--pref">' +
-    '<span class="nav-dev-banner-user-label">Language</span>' +
     '<select id="nav-dev-banner-user-lang" class="nav-dev-banner-user-select nav-dev-banner-user-select--field" aria-label="Display language">' +
     '<option value="en">en</option>' +
     '<option value="ja">ja</option>' +
     '</select>' +
     '</div>' +
     '<div class="nav-dev-banner-user-field nav-dev-banner-user-field--col nav-dev-banner-user-field--pref">' +
-    '<span class="nav-dev-banner-user-label">Clock</span>' +
     '<select id="nav-dev-banner-user-clock" class="nav-dev-banner-user-select nav-dev-banner-user-select--field" aria-label="Clock format">' +
     '<option value="12h">12h</option>' +
     '<option value="24h">24h</option>' +
     '</select>' +
     '</div>' +
     '<div class="nav-dev-banner-user-field nav-dev-banner-user-field--col nav-dev-banner-user-field--pref">' +
-    '<span class="nav-dev-banner-user-label">Theme</span>' +
     '<select id="nav-dev-banner-user-theme" class="nav-dev-banner-user-select nav-dev-banner-user-select--field" aria-label="Theme override">' +
-    '<option value="auto">Auto</option>' +
+    '<option value="auto">Auto (theme)</option>' +
     '<option value="day">Day</option>' +
     '<option value="night">Night</option>' +
     '</select>' +
     '</div>' +
     '<div class="nav-dev-banner-user-field nav-dev-banner-user-field--col nav-dev-banner-user-field--pref">' +
-    '<span class="nav-dev-banner-user-label">Palette</span>' +
     '<select id="nav-dev-banner-user-palette" class="nav-dev-banner-user-select nav-dev-banner-user-select--field" aria-label="Quality palette">' +
     '<option value="meadow">Meadow</option>' +
     '<option value="harbor">Harbor</option>' +
-    '<option value="auto">Auto</option>' +
+    '<option value="auto">Auto (palette)</option>' +
     '</select>' +
     '</div>' +
     '<div class="nav-dev-banner-in-app-tips" role="group" aria-label="In-app tips (Dashboard)">' +
@@ -5358,8 +5477,8 @@ function renderNavBar(currentPage) {
   const masterBranchAria = devBannerOnMaster ? ' Current git branch is master.' : '';
   const devBannerAlertAria = prodSupabaseAria + masterBranchAria;
   const devAria = branchLabel
-    ? `Development build, branch ${escapeHtmlBannerAttr(branchLabel)}; App time controls: real or simulated.${devBannerAlertAria}`
-    : `Development build; App time controls: real or simulated.${devBannerAlertAria}`;
+    ? `Development build, branch ${escapeHtmlBannerAttr(branchLabel)}; App time badge and datetime controls.${devBannerAlertAria}`
+    : `Development build; App time badge and datetime controls.${devBannerAlertAria}`;
   const devBanner = isDevBuildContext()
     ? `<div class="nav-dev-banner ${devBannerBgClass}${devBannerCollapsedClass}" role="status" aria-label="${devAria}">${devBannerBody}</div>`
     : '';

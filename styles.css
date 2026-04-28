@@ -277,12 +277,12 @@ body{
   text-transform: none;
 }
 
-.nav-dev-banner-branch-row {
+.nav-dev-banner-badges-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-start;
-  gap: 0.45em 0.6em;
+  gap: 0.45em 0.65em;
   max-width: 100%;
   min-width: 0;
   text-transform: none;
@@ -290,25 +290,212 @@ body{
   align-self: flex-start;
 }
 
-.nav-dev-banner-branch-meta {
+/* shields.io flat-style badges (GitHub, Supabase, app time) + Vercel strip + shields deployment image */
+.nav-dev-banner-github-badge,
+.nav-dev-banner-supabase-badge,
+.nav-dev-banner-apptime-badge {
+  display: inline-flex;
+  align-items: stretch;
+  max-width: 100%;
+  min-width: 0;
+  text-decoration: none;
+  color: inherit;
+  border-radius: 3px;
+  overflow: hidden;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.18);
+  vertical-align: middle;
+}
+
+.nav-dev-banner-github-badge:hover,
+.nav-dev-banner-supabase-badge:hover {
+  filter: brightness(1.06);
+}
+
+.nav-dev-banner-apptime-badge {
+  cursor: default;
+}
+
+.nav-dev-banner-github-badge:focus-visible,
+.nav-dev-banner-supabase-badge:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+  z-index: 1;
+}
+
+.nav-dev-banner-github-badge__label,
+.nav-dev-banner-github-badge__value,
+.nav-dev-banner-supabase-badge__label,
+.nav-dev-banner-supabase-badge__value,
+.nav-dev-banner-apptime-badge__label,
+.nav-dev-banner-apptime-badge__value {
   display: inline-flex;
   align-items: center;
   gap: 0.35em;
+  padding: 5px 8px;
   min-width: 0;
-  flex: 1;
 }
 
-.nav-dev-banner-branch-icon {
-  width: 1.1em;
-  height: 1.1em;
+.nav-dev-banner-github-badge__label,
+.nav-dev-banner-supabase-badge__label,
+.nav-dev-banner-apptime-badge__label {
+  background: #555;
+  color: #fff;
+  text-transform: lowercase;
+}
+
+.nav-dev-banner-github-badge__label-text,
+.nav-dev-banner-supabase-badge__label-text,
+.nav-dev-banner-apptime-badge__label-text {
+  line-height: 1;
+}
+
+.nav-dev-banner-github-badge__value,
+.nav-dev-banner-supabase-badge__value,
+.nav-dev-banner-apptime-badge__value {
+  color: #fff;
+}
+
+.nav-dev-banner-github-badge--passing .nav-dev-banner-github-badge__value,
+.nav-dev-banner-supabase-badge--passing .nav-dev-banner-supabase-badge__value,
+.nav-dev-banner-apptime-badge--passing .nav-dev-banner-apptime-badge__value {
+  background: #44cc11;
+}
+
+.nav-dev-banner-github-badge--failing .nav-dev-banner-github-badge__value,
+.nav-dev-banner-supabase-badge--failing .nav-dev-banner-supabase-badge__value,
+.nav-dev-banner-apptime-badge--failing .nav-dev-banner-apptime-badge__value {
+  background: #e05d44;
+}
+
+.nav-dev-banner-github-badge--unknown .nav-dev-banner-github-badge__value,
+.nav-dev-banner-supabase-badge--unknown .nav-dev-banner-supabase-badge__value,
+.nav-dev-banner-apptime-badge--unknown .nav-dev-banner-apptime-badge__value {
+  background: #9f9f9f;
+}
+
+.nav-dev-banner-github-badge__icon,
+.nav-dev-banner-supabase-badge__icon,
+.nav-dev-banner-apptime-badge__icon {
   flex-shrink: 0;
 }
 
-.nav-dev-banner-branch-name {
+.nav-dev-banner-github-badge__icon--github,
+.nav-dev-banner-supabase-badge__icon--logo,
+.nav-dev-banner-apptime-badge__icon--clock {
+  width: 14px;
+  height: 14px;
+}
+
+.nav-dev-banner-github-badge__icon--branch {
+  width: 13px;
+  height: 13px;
+}
+
+.nav-dev-banner-github-badge__branch {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
+  max-width: min(42vw, 14rem);
+  line-height: 1.2;
+  text-transform: none;
+}
+
+.nav-dev-banner-supabase-badge__preset {
+  line-height: 1.2;
+  text-transform: lowercase;
+}
+
+/* Vercel strip + Production status text (filled from shields.io JSON) */
+.nav-dev-banner-vercel-badge {
+  display: inline-flex;
+  align-items: stretch;
+  max-width: 100%;
+  min-width: 0;
+  text-decoration: none;
+  color: inherit;
+  border-radius: 3px;
+  overflow: hidden;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.18);
+  vertical-align: middle;
+}
+
+.nav-dev-banner-vercel-badge:hover {
+  filter: brightness(1.06);
+}
+
+.nav-dev-banner-vercel-badge:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+  z-index: 1;
+}
+
+.nav-dev-banner-vercel-badge__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  padding: 5px 8px;
+  min-width: 0;
+  background: #555;
+  color: #fff;
+  text-transform: lowercase;
+}
+
+.nav-dev-banner-vercel-badge__label-text {
+  line-height: 1;
+}
+
+.nav-dev-banner-vercel-badge__icon {
+  flex-shrink: 0;
+}
+
+.nav-dev-banner-vercel-badge__icon--logo {
+  width: 14px;
+  height: 14px;
+}
+
+.nav-dev-banner-vercel-badge__value {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  padding: 5px 8px;
+  min-width: 0;
+  color: #fff;
+}
+
+.nav-dev-banner-vercel-badge__value--passing {
+  background: #44cc11;
+}
+
+.nav-dev-banner-vercel-badge__value--failing {
+  background: #e05d44;
+}
+
+.nav-dev-banner-vercel-badge__value--unknown {
+  background: #9f9f9f;
+}
+
+.nav-dev-banner-vercel-badge__status {
+  line-height: 1.2;
+  text-transform: lowercase;
+  white-space: nowrap;
+  max-width: min(38vw, 10rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nav-dev-banner-apptime-badge__mode {
+  line-height: 1.2;
+  text-transform: none;
+  white-space: nowrap;
 }
 
 .nav-dev-banner-cloud-row {
@@ -322,13 +509,6 @@ body{
   text-transform: none;
   font-weight: 400;
   align-self: flex-start;
-}
-
-.nav-dev-banner-cloud-hint {
-  flex: 1;
-  min-width: 0;
-  line-height: 1.35;
-  font-weight: 400;
 }
 
 .nav-dev-banner-deploy-row {
@@ -397,6 +577,12 @@ body{
   color: #ffffff;
   cursor: pointer;
   flex-shrink: 0;
+  margin-left: auto;
+}
+
+.nav-dev-banner-cloud-refresh-icon {
+  font-size: 1.05em;
+  line-height: 1;
 }
 
 .nav-dev-banner-cloud-refresh-label {
@@ -417,51 +603,44 @@ body{
   outline-offset: 2px;
 }
 
-.nav-dev-banner-preset {
-  display: inline-flex;
-  align-items: stretch;
+.nav-dev-banner-db-switch {
+  position: relative;
   flex-shrink: 0;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  overflow: hidden;
 }
 
-.nav-dev-banner-preset-btn {
+.nav-dev-banner-db-switch-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
   font: inherit;
   font-size: 0.65rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  padding: 4px 10px;
-  margin: 0;
-  border: none;
-  background: rgba(255, 255, 255, 0.15);
+  letter-spacing: 0.02em;
+  text-transform: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.22);
   color: #ffffff;
   cursor: pointer;
 }
 
-.nav-dev-banner-preset-btn + .nav-dev-banner-preset-btn {
-  border-left: 1px solid rgba(255, 255, 255, 0.45);
+.nav-dev-banner-db-switch-toggle:hover {
+  background: rgba(255, 255, 255, 0.32);
 }
 
-.nav-dev-banner-preset-btn:hover {
-  background: rgba(255, 255, 255, 0.28);
-}
-
-.nav-dev-banner-preset-btn.nav-dev-banner-preset-btn--active {
-  background: rgba(255, 255, 255, 0.38);
-}
-
-.nav-dev-banner-preset-btn:focus-visible {
+.nav-dev-banner-db-switch-toggle:focus-visible {
   outline: 2px solid #ffffff;
   outline-offset: 2px;
-  z-index: 1;
 }
 
-.nav-dev-banner-refresh-icon {
-  width: 1rem;
-  height: 1rem;
-  flex-shrink: 0;
+.nav-dev-banner-db-switch-toggle-icon {
+  font-size: 1.05em;
+  line-height: 1;
+}
+
+.nav-dev-banner-db-switch-toggle-label {
+  line-height: 1.2;
 }
 
 .nav-dev-banner-deploy-link:hover {
@@ -600,100 +779,6 @@ body{
   letter-spacing: normal;
 }
 
-.nav-dev-banner-clock-heading {
-  display: block;
-  margin: 0;
-  width: 100%;
-  box-sizing: border-box;
-  padding: 4px 8px;
-  border-radius: 5px;
-  font-weight: 600;
-  font-size: 0.68rem;
-  letter-spacing: 0.02em;
-  text-align: center;
-  line-height: 1.25;
-  color: rgba(255, 255, 255, 0.95);
-}
-
-.nav-dev-banner-clock--sim-active .nav-dev-banner-clock-heading {
-  font-weight: 700;
-  font-size: 0.65rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: rgba(255, 251, 235, 0.98);
-  background: rgba(180, 83, 9, 0.5);
-  box-shadow: inset 0 0 0 1px rgba(253, 224, 71, 0.55);
-}
-
-.nav-dev-banner-clock--sim-active .nav-dev-banner-clock-mode-btn:not(.nav-dev-banner-clock-mode-btn--active) {
-  opacity: 0.48;
-}
-
-.nav-dev-banner-clock--sim-active .nav-dev-banner-clock-mode-btn--active {
-  background: rgba(245, 158, 11, 0.42);
-  box-shadow: inset 0 0 0 1px rgba(253, 230, 138, 0.7);
-}
-
-.nav-dev-banner-clock-mode {
-  display: inline-flex;
-  border-radius: 6px;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.55);
-}
-
-.nav-dev-banner-clock-mode-btn {
-  font: inherit;
-  font-size: 0.65rem;
-  letter-spacing: 0.03em;
-  text-transform: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4em;
-  min-width: 0;
-  min-height: 0;
-  padding: 4px 10px;
-  border: none;
-  margin: 0;
-  background: rgba(255, 255, 255, 0.12);
-  color: #ffffff;
-  cursor: pointer;
-  line-height: 1.2;
-}
-
-.nav-dev-banner-clock-mode-label {
-  font-size: 0.65rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-}
-
-.nav-dev-banner-clock-mode-icon {
-  width: 1.2rem;
-  height: 1.2rem;
-  flex-shrink: 0;
-}
-
-.nav-dev-banner-clock-sim-ghost {
-  opacity: 0.38;
-}
-
-.nav-dev-banner-clock-mode-btn + .nav-dev-banner-clock-mode-btn {
-  border-left: 1px solid rgba(255, 255, 255, 0.45);
-}
-
-.nav-dev-banner-clock-mode-btn--active {
-  background: rgba(255, 255, 255, 0.35);
-  font-weight: 700;
-}
-
-.nav-dev-banner-clock-mode-btn:focus-visible {
-  outline: 2px solid #ffffff;
-  outline-offset: 2px;
-  z-index: 1;
-  position: relative;
-}
-
 .nav-dev-banner-clock-sim-panel {
   display: flex;
   flex-direction: column;
@@ -725,7 +810,7 @@ body{
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 2px;
   width: 100%;
 }
 
@@ -733,9 +818,9 @@ body{
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 1.35rem;
-  min-height: 1.35rem;
+  width: 1.42rem;
+  height: 1.2rem;
+  min-height: 1.2rem;
   padding: 0;
   margin: 0;
   border: 1px solid rgba(255, 255, 255, 0.55);
@@ -745,6 +830,12 @@ body{
   cursor: pointer;
   line-height: 0;
   flex-shrink: 0;
+}
+
+.nav-dev-banner-clock-step-btn--reset {
+  width: 2.84rem;
+  min-width: 2.84rem;
+  flex: 0 0 2.84rem;
 }
 
 .nav-dev-banner-clock-step-btn:hover {
@@ -759,8 +850,8 @@ body{
 }
 
 .nav-dev-banner-clock-step-icon {
-  width: 0.9rem;
-  height: 0.9rem;
+  width: 0.76rem;
+  height: 0.76rem;
   flex-shrink: 0;
 }
 
@@ -1365,43 +1456,6 @@ body{
   outline-offset: 2px;
 }
 
-.nav-dev-banner-vercel-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-start;
-  align-self: flex-start;
-  gap: 0.35em 0.5em;
-  max-width: 100%;
-  min-width: 0;
-  text-align: left;
-  text-transform: none;
-  font-weight: 400;
-}
-
-.nav-dev-banner-vercel-link.nav-dev-banner-deploy-link {
-  line-height: normal;
-  gap: 0.35em;
-}
-
-.nav-dev-banner-vercel-host {
-  font-weight: 600;
-  font-size: 0.7rem;
-  letter-spacing: 0.02em;
-  text-transform: none;
-  line-height: 1.2;
-}
-
-.nav-dev-banner-vercel-sep {
-  flex-shrink: 0;
-  font-weight: 600;
-  font-size: 0.7rem;
-  letter-spacing: 0.02em;
-  line-height: 1.2;
-  color: rgba(255, 255, 255, 0.65);
-  white-space: pre;
-}
-
 .nav-dev-banner-dev-clock-input {
   font: inherit;
   font-size: 0.8rem;
@@ -1474,10 +1528,6 @@ body{
 
   .nav-dev-banner-deploy-row {
     justify-content: center;
-  }
-
-  .nav-dev-banner-clock-heading {
-    text-align: center;
   }
 
   .nav-dev-banner-clock {

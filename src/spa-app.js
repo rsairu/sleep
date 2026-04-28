@@ -263,7 +263,7 @@ async function activatePath(pathname, { replaceHash } = {}) {
   if (typeof window !== 'undefined' && window.__restoreUseSpaNav) {
     window.__devClockControlBound = false;
     window.__devBannerCloudRefreshBound = false;
-    window.__devBannerPresetToggleBound = false;
+    window.__devBannerDbSwitchFlipBound = false;
     window.__devBannerDrawerBound = false;
     window.__devBannerUserSettingsBound = false;
   }

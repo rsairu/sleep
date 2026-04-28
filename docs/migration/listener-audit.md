@@ -66,7 +66,7 @@ Guard pattern: `window.__…Bound` booleans — second call is a no-op.
 |-------|------|--------|------------|-------|-------|
 | 3863–3916 | `initDevClockControl` → `bindWhenReady` | datetime input, real/sim, step buttons | `input`, `change`, `click` | App-singleton | Up to **7** step `click` handlers. Often ends in `location.reload()`. |
 | 3935 | `initDevBannerCloudRefresh` | cloud refresh btn | `click` | App-singleton | |
-| 3964–3969 | `initDevBannerSupabasePresetToggle` | dev/prod preset | `click` | App-singleton | |
+| 3964–3969 | `initDevBannerDbSwitchFlip` | Switch DB dev/prod flip | `click` | App-singleton | |
 | 4034–4095 | `initDevBannerDrawer` | drawer handle | `pointerdown/move/up/cancel`, `click` | App-singleton | |
 | 4320–4510 | `initDevBannerUserSettingsPanel` → `bindWhenReady` | lang, clock, theme, palette, RW inputs, tonight targets, guidance, hint checkboxes, defaults | `change`, `blur`, `click` | App-singleton | `tipsRow.dataset.hintBound` for hint row only. |
 
@@ -107,7 +107,7 @@ Supporting **rAF** in these inits: schedules layout (`syncDevBannerFixedLayout`)
 | `sleepDataCache*`, `sleepDataPendingPromise` | Sleep payload cache | App-singleton — correct |
 | `userSettingsCloudHydrateSucceeded`, `userSettingsCloudHydratePromise` | Cloud prefs hydrate | App-singleton |
 | `configRemainingWakeBasis` | Basis for config RW sliders | Set by `initRemainingWakeThresholdsConfig`; stale if days change without re-init |
-| `window.__devClockControlBound`, `__devBannerCloudRefreshBound`, `__devBannerPresetToggleBound`, `__devBannerDrawerBound`, `__devBannerUserSettingsBound`, `__devBannerLayoutResizeBound` | Dev-banner single bind | App-singleton |
+| `window.__devClockControlBound`, `__devBannerCloudRefreshBound`, `__devBannerDbSwitchFlipBound`, `__devBannerDrawerBound`, `__devBannerUserSettingsBound`, `__devBannerLayoutResizeBound` | Dev-banner single bind | App-singleton |
 | `window.__sleepAppRemainingWakeNavTimer`, `__sleepAppNavSlumbyScheduleTimer`, `__sleepAppNavSlumbyEndTimer` | Nav timers | Cleared / rescheduled by design |
 
 ---
