@@ -2045,7 +2045,8 @@ const DEV_CLOCK_OVERRIDE_MS_KEY = 'sleep-app-dev-clock-override-ms';
 const DEV_BANNER_DRAWER_COLLAPSED_KEY = 'sleep-app-dev-banner-drawer-collapsed';
 const DEV_BANNER_EXPANDED_RESERVE_KEY = 'sleep-app-dev-banner-expanded-reserve-px';
 
-// Day/night mode: sunrise and sunset in local time (hours 0-23, minutes 0-59)
+// Day/night mode: sunrise and sunset in local time (hours 0-23, minutes 0-59).
+// index.html (and any inline theme boot) must use the same numeric window for first paint.
 const SUNRISE_MINUTES = 6 * 60;
 const SUNSET_MINUTES = 18 * 60;
 
@@ -5835,4 +5836,12 @@ function showDayPanel(point, clientX, clientY) {
 function hideDayPanel() {
   const dayPanel = document.getElementById('day-panel');
   if (dayPanel) dayPanel.classList.remove('visible');
+}
+
+// Apply auto (time-based) or stored override as soon as this script loads so the first paint
+// matches Settings default Auto, even when SPA boot ran before sleep-utils was available.
+if (typeof document !== 'undefined') {
+  try {
+    applyDayNightTheme();
+  } catch (_) {}
 }

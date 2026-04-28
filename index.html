@@ -4,6 +4,21 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Restore — Sleep Tracker</title>
+<script>
+(function () {
+  try {
+    var o = localStorage.getItem('sleep-app-theme-override');
+    var t = o === 'day' || o === 'night' ? o : null;
+    if (!t) {
+      var d = new Date();
+      var m = d.getHours() * 60 + d.getMinutes();
+      /* Auto (time-based): 360 / 1080 = sleep-utils.js SUNRISE_MINUTES / SUNSET_MINUTES */
+      t = m >= 360 && m < 1080 ? 'day' : 'night';
+    }
+    document.documentElement.setAttribute('data-theme', t);
+  } catch (_) {}
+})();
+</script>
 <link rel="stylesheet" href="/theme-toggle.css">
 <link rel="stylesheet" href="/styles.css">
 <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
