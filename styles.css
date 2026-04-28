@@ -6416,6 +6416,49 @@ body.page-stats .stats-page-shell .container {
   font-size: 11px;
 }
 
+/* Heatmap header flag counters: filter toggle (dashboard + quality) */
+.calendar-heatmap button.calendar-flag-slot--filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin: 0;
+  padding: 1px 4px;
+  border: none;
+  border-radius: 4px;
+  font: inherit;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  vertical-align: baseline;
+}
+
+.calendar-heatmap button.calendar-flag-slot--filter:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--text) 40%, var(--panel-border-color));
+  outline-offset: 2px;
+}
+
+.calendar-heatmap button.calendar-flag-slot--filter-active {
+  background: var(--hover-bg);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--text) 45%, var(--panel-border-color));
+}
+
+.calendar-square.calendar-square--flag-filter-match {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--text) 45%, var(--panel-border-color));
+}
+
+/* With a flag filter on, dim days that do not match (60% transparent → opacity 0.4) */
+.calendar-heatmap:has(.calendar-flag-slot--filter-active)
+  .calendar-square:not(.empty):not(.calendar-square--flag-filter-match) {
+  opacity: 0.4;
+}
+
+.calendar-heatmap:has(.calendar-flag-slot--filter-active)
+  .calendar-square:not(.empty):not(.calendar-square--flag-filter-match):hover {
+  opacity: 1;
+}
+
 .calendar-weekday-cells--in-block {
   margin-bottom: 2px;
   display: flex;

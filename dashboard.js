@@ -510,6 +510,8 @@ let dashboardMountedRoot = null;
 /** @type {(() => void) | null} */
 let dashboardTonightGuidanceHandler = null;
 let dashboardStoreUnsubscribe = null;
+/** @type {AbortController | null} */
+let dashboardCalendarFlagAbort = null;
 
 function bindDashboardResponsiveRerender() {
   if (dashboardResizeRenderBound) return;
@@ -547,6 +549,9 @@ function renderDashboardFromData(sleepData) {
   root.innerHTML = renderDashboardContent(dashboardCurrentDays);
   if (typeof applyTranslations === 'function') applyTranslations(root);
   if (typeof initDeviationFlagChips === 'function') initDeviationFlagChips();
+  if (typeof window.__restoreSyncCalendarHeatmapFlagFilters === 'function') {
+    window.__restoreSyncCalendarHeatmapFlagFilters(root);
+  }
   renderDashboard7DayGraphs(dashboardCurrentDays);
   bindDashboardResponsiveRerender();
 
@@ -628,6 +633,18 @@ function mountDashboard(root, _ctx) {
     if (typeof loadDashboardData === 'function') void loadDashboardData();
   };
   window.addEventListener('tonight-guidance-changed', dashboardTonightGuidanceHandler);
+  if (dashboardCalendarFlagAbort) {
+    try {
+      dashboardCalendarFlagAbort.abort();
+    } catch (e) {
+      /* ignore */
+    }
+    dashboardCalendarFlagAbort = null;
+  }
+  dashboardCalendarFlagAbort = new AbortController();
+  if (typeof window.__restoreBindCalendarHeatmapFlagFilters === 'function') {
+    window.__restoreBindCalendarHeatmapFlagFilters(root, dashboardCalendarFlagAbort.signal);
+  }
   const store = window.__restoreSleepDataStore;
   if (store && typeof store.subscribe === 'function') {
     dashboardStoreUnsubscribe = store.subscribe((snapshot) => {
@@ -647,6 +664,14 @@ function mountDashboard(root, _ctx) {
 
 function unmountDashboard() {
   dashboardMountGeneration++;
+  if (dashboardCalendarFlagAbort) {
+    try {
+      dashboardCalendarFlagAbort.abort();
+    } catch (e) {
+      /* ignore */
+    }
+    dashboardCalendarFlagAbort = null;
+  }
   if (dashboardStoreUnsubscribe) {
     dashboardStoreUnsubscribe();
     dashboardStoreUnsubscribe = null;
@@ -669,6 +694,9 @@ function unmountDashboard() {
     dashboardTonightGuidanceHandler = null;
   }
   if (dashboardMountedRoot) {
+    if (typeof window.__restoreClearCalendarHeatmapFlagFilterState === 'function') {
+      window.__restoreClearCalendarHeatmapFlagFilterState(dashboardMountedRoot);
+    }
     dashboardMountedRoot.innerHTML = '';
   }
   dashboardMountedRoot = null;
