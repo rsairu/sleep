@@ -827,15 +827,93 @@ function calendarSquareTooltip(dayCell) {
   return `${dayCell.dateStr}: normal`;
 }
 
+/** Aria hint per heatmap flag emoji (matches legend wording). */
+const CALENDAR_FLAG_FILTER_ARIA = {
+  '😴': 'asleep late vs average',
+  '⌛': 'shorter duration vs average',
+  '🌅': 'wake vs average',
+  '👁️': 'WASO'
+};
+
+const calendarHeatmapActiveFlagByRoot = new WeakMap();
+
+function syncCalendarHeatmapFlagFilters(root) {
+  if (!root || typeof root.querySelectorAll !== 'function') return;
+  const active = calendarHeatmapActiveFlagByRoot.get(root) || null;
+  root.querySelectorAll('.calendar-square:not(.empty)').forEach((sq) => {
+    const raw = sq.getAttribute('data-flag-types');
+    if (raw == null) {
+      sq.classList.remove('calendar-square--flag-filter-match');
+      return;
+    }
+    let types = [];
+    try {
+      types = JSON.parse(raw);
+    } catch (e) {
+      types = [];
+    }
+    const match = active != null && Array.isArray(types) && types.indexOf(active) !== -1;
+    sq.classList.toggle('calendar-square--flag-filter-match', Boolean(match));
+  });
+  root.querySelectorAll('.calendar-flag-slot--filter').forEach((b) => {
+    const f = b.getAttribute('data-flag-filter');
+    const pressed = active != null && f === active;
+    b.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+    b.classList.toggle('calendar-flag-slot--filter-active', pressed);
+  });
+}
+
+function onCalendarHeatmapFlagFilterClick(root, e) {
+  const btn = e.target && e.target.closest && e.target.closest('.calendar-flag-slot--filter');
+  if (!btn || !root.contains(btn)) return;
+  const flag = btn.getAttribute('data-flag-filter');
+  if (!flag) return;
+  const current = calendarHeatmapActiveFlagByRoot.get(root) || null;
+  const next = current === flag ? null : flag;
+  calendarHeatmapActiveFlagByRoot.set(root, next);
+  syncCalendarHeatmapFlagFilters(root);
+}
+
+function bindCalendarHeatmapFlagFilters(root, abortSignal) {
+  if (!root || !abortSignal) return;
+  const handler = (e) => {
+    onCalendarHeatmapFlagFilterClick(root, e);
+  };
+  root.addEventListener('click', handler, { signal: abortSignal });
+}
+
+function clearCalendarHeatmapFlagFilterState(root) {
+  if (root) calendarHeatmapActiveFlagByRoot.delete(root);
+}
+
+if (typeof window !== 'undefined') {
+  window.__restoreBindCalendarHeatmapFlagFilters = bindCalendarHeatmapFlagFilters;
+  window.__restoreSyncCalendarHeatmapFlagFilters = syncCalendarHeatmapFlagFilters;
+  window.__restoreClearCalendarHeatmapFlagFilterState = clearCalendarHeatmapFlagFilterState;
+}
+
 // Render a single month block (for heatmap). large: true adds --large class for 2x size on dashboard.
-function renderMonthBlock(month, large) {
+/** @param {{ interactiveFlagFilters?: boolean }} [options] */
+function renderMonthBlock(month, large, options) {
+  const interactive = Boolean(options && options.interactiveFlagFilters);
   const flagSlots = [
     { emoji: '😴', count: month.flagCounts['😴'] },
     { emoji: '⌛', count: month.flagCounts['⌛'] },
     { emoji: '🌅', count: month.flagCounts['🌅'] },
     { emoji: '👁️', count: month.flagCounts['👁️'] }
   ];
-  const flagHtml = flagSlots.map(f => `<span class="calendar-flag-slot"><span class="calendar-flag-emoji">${f.emoji}</span><span class="calendar-flag-num">${f.count}</span></span>`).join('');
+  const flagHtml = interactive
+    ? flagSlots
+        .map((f) => {
+          const hint = CALENDAR_FLAG_FILTER_ARIA[f.emoji] || 'this flag';
+          const aria = escapeHtmlAttr(`Highlight days: ${hint}. ${f.count} in this month.`);
+          const emojiAttr = escapeHtmlAttr(f.emoji);
+          return `<button type="button" class="calendar-flag-slot calendar-flag-slot--filter" data-flag-filter="${emojiAttr}" aria-pressed="false" aria-label="${aria}"><span class="calendar-flag-emoji" aria-hidden="true">${f.emoji}</span><span class="calendar-flag-num">${f.count}</span></button>`;
+        })
+        .join('')
+    : flagSlots
+        .map((f) => `<span class="calendar-flag-slot"><span class="calendar-flag-emoji">${f.emoji}</span><span class="calendar-flag-num">${f.count}</span></span>`)
+        .join('');
   const weekdayLabels = ['Su', 'M', 'T', 'W', 'R', 'F', 'Sa'].map(w => `<div class="calendar-weekday-label">${w}</div>`).join('');
   const blockClass = 'calendar-month-block' + (large ? ' calendar-month-block--large' : '');
   const monthTitleHtml = `<div class="calendar-month-name">${month.name}</div>`;
@@ -855,7 +933,10 @@ function renderMonthBlock(month, large) {
               }
               const colorClass = getCalendarSquareColorClass(day);
               const tooltip = calendarSquareTooltip(day);
-              return `<div class="calendar-square ${colorClass}" data-tooltip="${tooltip}" title="${tooltip}"><span class="calendar-square-day">${day.day}</span></div>`;
+              const typesAttr = interactive
+                ? ` data-flag-types="${escapeHtmlAttr(JSON.stringify(day.flagTypes || []))}"`
+                : '';
+              return `<div class="calendar-square ${colorClass}"${typesAttr} data-tooltip="${tooltip}" title="${tooltip}"><span class="calendar-square-day">${day.day}</span></div>`;
             }).join('')}
           </div>
         </div>
@@ -924,7 +1005,8 @@ function renderCalendarCurrentMonthOnlyBlock(year, flagMap, latestDataDate) {
   const now = getAppDate();
   const isCurrentYear = year === now.getFullYear();
   const currentMonthIndex = isCurrentYear ? now.getMonth() : null;
-  const currentMonthBlock = currentMonthIndex !== null ? renderMonthBlock(months[currentMonthIndex], true) : '';
+  const currentMonthBlock =
+    currentMonthIndex !== null ? renderMonthBlock(months[currentMonthIndex], true, { interactiveFlagFilters: true }) : '';
   if (!currentMonthBlock) return '';
   return `
     <div class="calendar-heatmap calendar-heatmap--inline calendar-heatmap--dashboard-month">
@@ -943,7 +1025,7 @@ function renderCalendarHeatmapFullHistory(year, flagMap, latestDataDate) {
       ${renderCalendarHeatmapHeader({ qualityPage: true })}
       <div class="calendar-heatmap">
         <div class="calendar-month-grid">
-          ${months.map((month) => renderMonthBlock(month, false)).join('')}
+          ${months.map((month) => renderMonthBlock(month, false, { interactiveFlagFilters: true })).join('')}
         </div>
       </div>
     </div>
@@ -959,7 +1041,7 @@ function renderCalendarHeatmapFullHistoryMulti(years, flagMap, latestDataDate) {
       const months = generateCalendarHeatmap(year, flagMap, latestDataDate);
       const yearHeading =
         yList.length > 1 ? `<h3 class="calendar-heatmap-year-heading">${year}</h3>` : '';
-      const gridInner = months.map((m) => renderMonthBlock(m, false)).join('');
+      const gridInner = months.map((m) => renderMonthBlock(m, false, { interactiveFlagFilters: true })).join('');
       return `<div class="calendar-heatmap-year-block">${yearHeading}<div class="calendar-month-grid">${gridInner}</div></div>`;
     })
     .join('');

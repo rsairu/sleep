@@ -9,6 +9,8 @@
   var qualityMountGeneration = 0;
   var qualityMountedRoot = null;
   var qualityUnsubscribeStore = null;
+  /** @type {AbortController | null} */
+  var qualityCalendarFlagAbort = null;
 
   function applyLoadedData(root, sleepData, gen) {
     if (gen !== qualityMountGeneration || qualityMountedRoot !== root) return;
@@ -16,6 +18,9 @@
     var latestDataDate = getLatestDataDate(sleepData.days);
     var years = getSleepDataYearsPresentDescending(sleepData.days);
     root.innerHTML = renderCalendarHeatmapFullHistoryMulti(years, flagMap, latestDataDate);
+    if (typeof window.__restoreSyncCalendarHeatmapFlagFilters === 'function') {
+      window.__restoreSyncCalendarHeatmapFlagFilters(root);
+    }
   }
 
   function applyError(root, gen) {
@@ -44,6 +49,18 @@
     var gen = qualityMountGeneration;
     qualityMountedRoot = root;
     root.innerHTML = '';
+    if (qualityCalendarFlagAbort) {
+      try {
+        qualityCalendarFlagAbort.abort();
+      } catch (e) {
+        /* ignore */
+      }
+      qualityCalendarFlagAbort = null;
+    }
+    qualityCalendarFlagAbort = new AbortController();
+    if (typeof window.__restoreBindCalendarHeatmapFlagFilters === 'function') {
+      window.__restoreBindCalendarHeatmapFlagFilters(root, qualityCalendarFlagAbort.signal);
+    }
     if (qualityUnsubscribeStore) {
       qualityUnsubscribeStore();
       qualityUnsubscribeStore = null;
@@ -76,11 +93,22 @@
 
   function unmount() {
     qualityMountGeneration++;
+    if (qualityCalendarFlagAbort) {
+      try {
+        qualityCalendarFlagAbort.abort();
+      } catch (e) {
+        /* ignore */
+      }
+      qualityCalendarFlagAbort = null;
+    }
     if (qualityUnsubscribeStore) {
       qualityUnsubscribeStore();
       qualityUnsubscribeStore = null;
     }
     if (qualityMountedRoot) {
+      if (typeof window.__restoreClearCalendarHeatmapFlagFilterState === 'function') {
+        window.__restoreClearCalendarHeatmapFlagFilterState(qualityMountedRoot);
+      }
       qualityMountedRoot.innerHTML = '';
     }
     qualityMountedRoot = null;
