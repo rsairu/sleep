@@ -4618,6 +4618,20 @@ body{
   white-space: nowrap;
 }
 
+/* Bed → sleep latency after sleep time (SKP bed) */
+.stat-bed-to-sleep-emoji{
+  cursor: help;
+  margin-left: 0.15em;
+  color: var(--color-bed);
+  white-space: nowrap;
+}
+
+.stat-bed-to-sleep-delay{
+  margin-left: 0.15em;
+  color: var(--color-bed);
+  white-space: nowrap;
+}
+
 .quick-add-labels-row.quick-add-log-pair > .quick-add-label-chips-wrap {
   justify-self: end;
   width: 100%;
