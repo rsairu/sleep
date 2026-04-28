@@ -354,6 +354,36 @@ function ensureDevSupabasePresetApplied() {
   setSupabaseConfig(pair.url, pair.anonKey);
 }
 
+/** Dev-banner Supabase shields badge: passing = dev, failing = prod, unknown otherwise. */
+function getSupabaseBannerBadgeModel() {
+  const presets = readLocalSupabasePresets();
+  if (!presets) {
+    return { state: 'unknown', valueText: 'n/a' };
+  }
+  let id = getActiveSupabasePresetId();
+  if (!id) {
+    const cur = getSupabaseConfig();
+    if (cur.url === presets.dev.url) id = 'dev';
+    else if (cur.url === presets.prod.url) id = 'prod';
+  }
+  if (id === 'dev') return { state: 'passing', valueText: 'dev' };
+  if (id === 'prod') return { state: 'failing', valueText: 'prod' };
+  return { state: 'unknown', valueText: 'unknown' };
+}
+
+/** Presets loaded and current URL/storage resolve to dev (else prod or unknown counts as non-dev). */
+function isDevBannerSupabaseEffectiveDev() {
+  const presets = readLocalSupabasePresets();
+  if (!presets) return false;
+  let id = getActiveSupabasePresetId();
+  if (!id) {
+    const cur = getSupabaseConfig();
+    if (cur.url === presets.dev.url) id = 'dev';
+    else if (cur.url === presets.prod.url) id = 'prod';
+  }
+  return id === 'dev';
+}
+
 function getDataSourceState() {
   const config = getSupabaseConfig();
   if (config.enabled && isSleepDataForcedLocal()) return 'local';
@@ -3993,7 +4023,13 @@ function initDevClockControl() {
       clockRoot.classList.toggle('nav-dev-banner-clock--sim-active', !realTimeActive);
     }
     if (headingEl) {
-      headingEl.textContent = realTimeActive ? 'App time controls' : 'Using simulated time';
+      if (realTimeActive) {
+        headingEl.textContent = '';
+        headingEl.setAttribute('aria-hidden', 'true');
+      } else {
+        headingEl.textContent = 'Using simulated time';
+        headingEl.removeAttribute('aria-hidden');
+      }
     }
   }
 
@@ -4118,25 +4154,20 @@ function initDevBannerCloudRefresh() {
   requestAnimationFrame(bindWhenReady);
 }
 
-function initDevBannerSupabasePresetToggle() {
+function initDevBannerDbSwitchFlip() {
   if (typeof window === 'undefined' || !isDevBuildContext()) return;
-  if (window.__devBannerPresetToggleBound) return;
-  window.__devBannerPresetToggleBound = true;
+  if (window.__devBannerDbSwitchFlipBound) return;
+  window.__devBannerDbSwitchFlipBound = true;
 
   function bindWhenReady() {
-    const devBtn = document.getElementById('nav-dev-banner-preset-dev-btn');
-    const prodBtn = document.getElementById('nav-dev-banner-preset-prod-btn');
-    if (!devBtn || !prodBtn) return;
+    const btn = document.getElementById('nav-dev-banner-db-switch-toggle');
     const presets = readLocalSupabasePresets();
-    if (!presets) return;
-    devBtn.addEventListener('click', function () {
-      setActiveSupabasePresetId('dev');
-      setSupabaseConfig(presets.dev.url, presets.dev.anonKey);
-      window.location.reload();
-    });
-    prodBtn.addEventListener('click', function () {
-      setActiveSupabasePresetId('prod');
-      setSupabaseConfig(presets.prod.url, presets.prod.anonKey);
+    if (!btn || !presets) return;
+
+    btn.addEventListener('click', function () {
+      const next = isDevBannerSupabaseEffectiveDev() ? 'prod' : 'dev';
+      setActiveSupabasePresetId(next);
+      setSupabaseConfig(presets[next].url, presets[next].anonKey);
       window.location.reload();
     });
   }
@@ -4700,7 +4731,7 @@ function initDayNightTheme() {
   initNavSlumbyBounce();
   initDevClockControl();
   initDevBannerCloudRefresh();
-  initDevBannerSupabasePresetToggle();
+  initDevBannerDbSwitchFlip();
   initDevBannerDrawer();
   initDevBannerUserSettingsPanel();
   if (typeof window !== 'undefined' && !window.__sleepDayNightThemeIntervalId) {
@@ -5014,17 +5045,15 @@ function renderNavBar(currentPage) {
   const devBannerBgClass = useAlertBannerBg ? 'nav-dev-banner--db-prod' : 'nav-dev-banner--db-dev';
   const clockOverrideActive = readDevClockOverrideMs() != null;
   const cloudRefreshDisabled = !getSupabaseConfig().enabled;
-  // Feather-style git-branch (MIT); stroke scales with banner font size.
-  const gitBranchIcon =
-    '<svg class="nav-dev-banner-branch-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>';
-  const githubBannerIcon =
-    '<svg class="nav-dev-banner-deploy-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>';
+  // Feather-style git-branch (MIT); used inside shields-style GitHub badge.
+  const gitBranchIconBadge =
+    '<svg class="nav-dev-banner-github-badge__icon nav-dev-banner-github-badge__icon--branch" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>';
+  const githubBadgeIcon =
+    '<svg class="nav-dev-banner-github-badge__icon nav-dev-banner-github-badge__icon--github" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>';
   const vercelDeployIcon =
     '<svg class="nav-dev-banner-deploy-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 1.125 22.5 20.25H1.5L12 1.125z"/></svg>';
-  const supabaseDeployIcon =
-    '<svg class="nav-dev-banner-deploy-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M21.362 9.354H12V.396l9.362 8.958zM12 12.396H3.638L12 21.362v-8.966zM12 0v9.362H0V12h12v12h2.638V12H24V9.362H12V0z"/></svg>';
-  const refreshIconSvg =
-    '<svg class="nav-dev-banner-refresh-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>';
+  const supabaseBadgeIcon =
+    '<svg class="nav-dev-banner-supabase-badge__icon nav-dev-banner-supabase-badge__icon--logo" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M21.362 9.354H12V.396l9.362 8.958zM12 12.396H3.638L12 21.362v-8.966zM12 0v9.362H0V12h12v12h2.638V12H24V9.362H12V0z"/></svg>';
   const devClockGlobeIcon =
     '<svg class="nav-dev-banner-clock-mode-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
     '<circle cx="12" cy="12" r="10"/>' +
@@ -5048,18 +5077,31 @@ function renderNavBar(currentPage) {
     '<svg class="nav-dev-banner-clock-step-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 18 12 12 6 6"/><polyline points="12 18 18 12 12 6"/></svg>';
   const devClockStepIconNextDay =
     '<svg class="nav-dev-banner-clock-step-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="4 18 10 12 4 6"/><polyline points="10 18 16 12 10 6"/><line x1="19" y1="4" x2="19" y2="20"/></svg>';
-  const githubBannerLink =
+  const branchBadgeDisplay = branchLabel ? escapeHtmlBannerText(branchLabel) : 'unknown';
+  const githubBadgeStateClass = !branchLabel
+    ? ' nav-dev-banner-github-badge--unknown'
+    : devBannerOnMaster
+      ? ' nav-dev-banner-github-badge--failing'
+      : ' nav-dev-banner-github-badge--passing';
+  const githubBadgeAria =
+    'Open GitHub repository' + (branchLabel ? ', branch ' + branchLabel : ', branch unknown');
+  const githubBranchBadge =
     '<a href="' +
     escapeHtmlBannerAttr(GITHUB_REPO_URL) +
-    '" class="nav-dev-banner-deploy-link" target="_blank" rel="noopener noreferrer" title="GitHub repository" aria-label="Open GitHub repository">' +
-    githubBannerIcon +
-    '</a>';
-  const supabaseDashboardLink =
-    '<a href="' +
-    escapeHtmlBannerAttr(supabaseDashboardUrl) +
-    '" class="nav-dev-banner-deploy-link" target="_blank" rel="noopener noreferrer" title="Supabase dashboard" aria-label="Open Supabase dashboard">' +
-    supabaseDeployIcon +
-    '</a>';
+    '" class="nav-dev-banner-github-badge' +
+    githubBadgeStateClass +
+    '" target="_blank" rel="noopener noreferrer" title="GitHub repository" aria-label="' +
+    escapeHtmlBannerAttr(githubBadgeAria) +
+    '">' +
+    '<span class="nav-dev-banner-github-badge__label">' +
+    githubBadgeIcon +
+    '<span class="nav-dev-banner-github-badge__label-text">github</span>' +
+    '</span>' +
+    '<span class="nav-dev-banner-github-badge__value">' +
+    gitBranchIconBadge +
+    '<span class="nav-dev-banner-github-badge__branch">' +
+    branchBadgeDisplay +
+    '</span></span></a>';
   const vercelAppLink =
     '<a href="' +
     escapeHtmlBannerAttr(DEV_VERCEL_APP_URL) +
@@ -5073,43 +5115,48 @@ function renderNavBar(currentPage) {
     '" class="nav-dev-banner-deploy-link nav-dev-banner-vercel-link" target="_blank" rel="noopener noreferrer" title="Vercel project dashboard" aria-label="Open Vercel project dashboard">' +
     '<span class="nav-dev-banner-vercel-host">Project</span></a>';
   const vercelIconLink = vercelAppLink + vercelLabelsSep + vercelProjectLink;
-  const branchMeta = branchLabel
-    ? '<span class="nav-dev-banner-branch-meta">' +
-      gitBranchIcon +
-      '<span class="nav-dev-banner-branch-name">' +
-      escapeHtmlBannerText(branchLabel) +
-      '</span></span>'
-    : '';
-  const devBannerBranchRow = '<div class="nav-dev-banner-branch-row">' + githubBannerLink + branchMeta + '</div>';
+  const devBannerBranchRow = '<div class="nav-dev-banner-branch-row">' + githubBranchBadge + '</div>';
   const cloudRefreshDisabledAttr = cloudRefreshDisabled ? ' disabled' : '';
   const localPresets = readLocalSupabasePresets();
-  const activePresetId = getActiveSupabasePresetId();
-  const presetDevActiveClass = activePresetId === 'dev' ? ' nav-dev-banner-preset-btn--active' : '';
-  const presetProdActiveClass = activePresetId === 'prod' ? ' nav-dev-banner-preset-btn--active' : '';
-  const devBannerPresetStrip = localPresets
-    ? '<div class="nav-dev-banner-preset" role="group" aria-label="Supabase project preset">' +
-      '<button type="button" class="nav-dev-banner-preset-btn' +
-      presetDevActiveClass +
-      '" id="nav-dev-banner-preset-dev-btn" title="Use dev Supabase project" aria-label="Use dev Supabase project" aria-pressed="' +
-      (activePresetId === 'dev' ? 'true' : 'false') +
-      '">Dev</button>' +
-      '<button type="button" class="nav-dev-banner-preset-btn' +
-      presetProdActiveClass +
-      '" id="nav-dev-banner-preset-prod-btn" title="Use prod Supabase project" aria-label="Use prod Supabase project" aria-pressed="' +
-      (activePresetId === 'prod' ? 'true' : 'false') +
-      '">Prod</button>' +
-      '</div>'
-    : '';
+  const supabaseBadgeModel = getSupabaseBannerBadgeModel();
+  const supabaseBadgeStateClass = ' nav-dev-banner-supabase-badge--' + supabaseBadgeModel.state;
+  const supabaseBadgeValueEsc = escapeHtmlBannerText(supabaseBadgeModel.valueText);
+  const supabaseBadgeAria =
+    'Open Supabase dashboard. Active database: ' + supabaseBadgeModel.valueText + '.';
+  const supabaseDashboardBadge =
+    '<a href="' +
+    escapeHtmlBannerAttr(supabaseDashboardUrl) +
+    '" class="nav-dev-banner-supabase-badge' +
+    supabaseBadgeStateClass +
+    '" target="_blank" rel="noopener noreferrer" title="Supabase dashboard" aria-label="' +
+    escapeHtmlBannerAttr(supabaseBadgeAria) +
+    '">' +
+    '<span class="nav-dev-banner-supabase-badge__label">' +
+    supabaseBadgeIcon +
+    '<span class="nav-dev-banner-supabase-badge__label-text">supabase</span>' +
+    '</span>' +
+    '<span class="nav-dev-banner-supabase-badge__value">' +
+    '<span class="nav-dev-banner-supabase-badge__preset">' +
+    supabaseBadgeValueEsc +
+    '</span></span></a>';
+  const devBannerDbSwitch =
+    localPresets
+      ? '<div class="nav-dev-banner-db-switch">' +
+        '<button type="button" class="nav-dev-banner-db-switch-toggle" id="nav-dev-banner-db-switch-toggle"' +
+        ' title="Toggle between dev and prod Supabase project" aria-label="Switch DB: toggle dev or prod Supabase project">' +
+        '<span class="nav-dev-banner-db-switch-toggle-icon" aria-hidden="true">🎚️</span>' +
+        '<span class="nav-dev-banner-db-switch-toggle-label">Switch DB</span>' +
+        '</button></div>'
+      : '';
   const devBannerCloudRow =
     '<div class="nav-dev-banner-cloud-row">' +
-    supabaseDashboardLink +
-    devBannerPresetStrip +
-    '<span class="nav-dev-banner-cloud-hint">Cloud data not synced in dev</span>' +
+    supabaseDashboardBadge +
+    devBannerDbSwitch +
     '<button type="button" class="nav-dev-banner-cloud-refresh" id="nav-dev-banner-cloud-refresh-btn"' +
     cloudRefreshDisabledAttr +
-    ' title="Refresh cloud data and reload page" aria-label="Refresh cloud data and reload page">' +
-    refreshIconSvg +
-    '<span class="nav-dev-banner-cloud-refresh-label">Refresh</span>' +
+    ' title="Sync with cloud and reload page" aria-label="Sync with cloud and reload page">' +
+    '<span class="nav-dev-banner-cloud-refresh-icon" aria-hidden="true">🔄</span>' +
+    '<span class="nav-dev-banner-cloud-refresh-label">Sync with cloud</span>' +
     '</button>' +
     '</div>';
   const devBannerVercelRow = '<div class="nav-dev-banner-vercel-row">' + vercelIconLink + '</div>';
@@ -5138,12 +5185,15 @@ function renderNavBar(currentPage) {
   const clockRealClass = clockRealActive ? ' nav-dev-banner-clock-mode-btn--active' : '';
   const clockSimClass = clockOverrideActive ? ' nav-dev-banner-clock-mode-btn--active' : '';
   const clockRootSimClass = clockOverrideActive ? ' nav-dev-banner-clock--sim-active' : '';
-  const clockHeadingText = clockOverrideActive ? 'Using simulated time' : 'App time controls';
+  const clockHeadingText = clockOverrideActive ? 'Using simulated time' : '';
+  const clockHeadingAriaHidden = clockOverrideActive ? '' : ' aria-hidden="true"';
   const devClockBlock =
     '<div id="nav-dev-banner-clock" class="nav-dev-banner-clock' +
     clockRootSimClass +
     '" role="group" aria-label="App time controls: real time or simulated override for app logic (development only)">' +
-    '<span id="nav-dev-banner-clock-heading" class="nav-dev-banner-clock-heading" role="status" aria-live="polite">' +
+    '<span id="nav-dev-banner-clock-heading" class="nav-dev-banner-clock-heading" role="status" aria-live="polite"' +
+    clockHeadingAriaHidden +
+    '>' +
     escapeHtmlBannerText(clockHeadingText) +
     '</span>' +
     '<div class="nav-dev-banner-clock-mode" role="group" aria-label="App time source">' +

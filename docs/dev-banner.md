@@ -10,7 +10,7 @@ The banner setup has four layers:
 
 1. **Visibility gate**: `isDevBuildContext()` decides whether banner logic is active.
 2. **Render layer**: `renderNavBar()` builds banner HTML (warnings, links, clock controls).
-3. **Interaction layer**: init functions bind controls (`initDevClockControl`, `initDevBannerCloudRefresh`, `initDevBannerSupabasePresetToggle`, `initDevBannerDrawer`).
+3. **Interaction layer**: init functions bind controls (`initDevClockControl`, `initDevBannerCloudRefresh`, `initDevBannerDbSwitchFlip`, `initDevBannerDrawer`).
 4. **Layout reserve**: `syncDevBannerFixedLayout()` keeps fixed banner from overlapping content.
 
 ---
@@ -41,15 +41,15 @@ When visible, `renderNavBar()` calls `ensureDevSupabasePresetApplied()` first (d
 
 Main content blocks:
 
-- **Branch row**: GitHub icon + branch label from `window.__DEV_GIT_BRANCH__`.
-- **Cloud row**: Supabase dashboard link + optional **Dev** / **Prod** preset toggle (when `local-supabase-presets.js` defines valid `window.__RESTORE_SUPABASE_PRESETS__`) + hint text + "Refresh" button (`loadSleepData({ forceRefresh: true })` then reload).
+- **Branch row**: shields.io-style flat badge linking to the repo (`nav-dev-banner-github-badge`): left segment is GitHub mark + **github**; right segment is git-branch icon + branch name from `window.__DEV_GIT_BRANCH__`. Value background is green (**passing**) when the branch is set and not `master`, red (**failing**) when the branch is `master` (case-insensitive), gray (**unknown**) when no branch was injected (value text **unknown**).
+- **Cloud row**: shields.io-style Supabase dashboard link (`nav-dev-banner-supabase-badge`): left segment is Supabase mark + **supabase**; right segment is lowercase active target (**dev**, **prod**, **n/a**, or **unknown**). Value background is green (**passing**) for dev, red (**failing**) for prod, gray (**unknown**) when presets are missing or state cannot be inferred. When `local-supabase-presets.js` defines valid `window.__RESTORE_SUPABASE_PRESETS__`, **Switch DB** (`#nav-dev-banner-db-switch-toggle`, 🎚️ + label) flips the active preset: **dev → prod**, otherwise **→ dev** (prod and unresolved **unknown** both switch to dev). **Sync with cloud** (`#nav-dev-banner-cloud-refresh-btn`, 🔄 + label) runs `loadSleepData({ forceRefresh: true })` then reloads; disabled when Supabase is not configured.
 - **Vercel row**: Production app link + project dashboard link.
 - **Warnings**:
   - Supabase URL includes prod ref (`lsaguxfovamihwnicpkk`) -> red warning; copy uses 🛑 and class `nav-dev-banner-prod-warning--prod-data` (uppercase, inset strip) at the same `0.7rem` as other warning lines.
   - Branch is `master` -> branch warning (⚠️, base `nav-dev-banner-prod-warning` only).
 - **App time controls**:
-  - **Real time** is the default: the single heading line (`#nav-dev-banner-clock-heading`, `role="status"`, `aria-live="polite"`) reads **App time controls**.
-  - When **simulated** time is active (`sleep-app-dev-clock-override-ms` set), that same heading reads **Using simulated time** and picks up amber emphasis (`nav-dev-banner-clock--sim-active` on `#nav-dev-banner-clock`); no extra line is added so the block height stays stable. The simulated side of the rocker uses a stronger tinted fill and the inactive side is faded (`opacity`).
+  - **Real time** is the default: `#nav-dev-banner-clock-heading` (`role="status"`, `aria-live="polite"`) is empty and hidden (no label above the Real time / Simulated rocker; `aria-hidden="true"` on the heading span).
+  - When **simulated** time is active (`sleep-app-dev-clock-override-ms` set), that heading reads **Using simulated time** and picks up amber emphasis (`nav-dev-banner-clock--sim-active` on `#nav-dev-banner-clock`); no extra line is added so the block height stays stable. The simulated side of the rocker uses a stronger tinted fill and the inactive side is faded (`opacity`).
   - Real time mode (no override key)
   - Simulated mode (`datetime-local` + +/- minute/hour/day step buttons)
 - **User / settings (dev)** (below the main row, inside the drawer):
@@ -58,7 +58,7 @@ Main content blocks:
   - **Display row**: `nav-dev-banner-user-settings-row--prefs-grid` (`role="group"`, aria “Display and quality”) with Language / Clock / Theme / Palette only (`align-self: flex-end` on pref columns). The row uses `flex-wrap: nowrap` and `overflow-x: auto` with a thin scrollbar only if the viewport is too narrow.
   - On **Settings** / **About**, the phase-change heads-up slider’s **30 min** tick shows a read-only **Default** pill (not a button); choose 30 on the slider to match the default (the dev banner labels that duration **30m**).
   - **Tonight** chunk (Dashboard wording): `nav-dev-banner-user-chunk nav-dev-banner-user-chunk--tonight` with section heading `#nav-dev-banner-tonight-heading` (`nav-dev-banner-user-chunk-heading`, copy **Tonight**). Inner row `nav-dev-banner-user-settings-row--prefs-grid nav-dev-banner-user-settings-row--night-grid` holds **Sleep** / **Wake** (`input[type=time]`, `#nav-dev-banner-tonight-sleep`, `#nav-dev-banner-tonight-wake`, class `nav-dev-banner-user-input-time`), **Sleep G** (`#nav-dev-banner-tonight-guidance-sleep-enabled`, Off/On), **Wake G** (`#nav-dev-banner-tonight-guidance-wake-enabled`, Off/On), and **Pace** (`#nav-dev-banner-tonight-guidance-pace`). The inner row uses `flex-wrap: wrap` and `overflow-x: visible` so fields wrap instead of widening the drawer. **Sleep / wake semantics**: an empty time field means there is **no explicit target** for that pole—the app follows **recent averages** for that side. A filled value is a **stored tonight target** for that pole. Either pole may be set alone or together; clearing both removes the saved window (`sleep-app-tonight-target-window`). If a saved target exists and one field is left incomplete on blur, those inputs re-sync from storage. Pace options display **6m**, **10m**, **15m** (stored values `gentle`, `normal`, `steady`).
-  - **Remaining time** chunk: `nav-dev-banner-user-chunk--remaining` (sibling under `nav-dev-banner-user-chunks-row`) wraps `nav-dev-banner-user-remaining-time` (`role="group"`, `aria-labelledby="nav-dev-banner-remaining-time-heading"`). Heading **Remaining time** (`nav-dev-banner-user-remaining-time-heading`, `#nav-dev-banner-remaining-time-heading`) with `border-bottom`; under it, **Winding** / **Pre-sleep** / **Heads-up** in `nav-dev-banner-user-remaining-time-controls` (plain labels, no emoji). Winding and pre-sleep mirror `remaining_wake_open_min` and `remaining_wake_winding_min`. **Heads-up** is `remaining_wake_phase_heads_up_mins`; the select shows **60m**, **45m**, **30m**, **15m**, **Off**. Each control uses `nav-dev-banner-user-field--col`. Panel copy uses the same inherited font size as the branch / cloud hint rows (`0.75rem` on `nav-dev-banner-user-panel`). Pref `<select>` and time inputs stay content-sized (`width: max-content`, `min-width: 0` on pref rows).
+  - **Remaining time** chunk: `nav-dev-banner-user-chunk--remaining` (sibling under `nav-dev-banner-user-chunks-row`) wraps `nav-dev-banner-user-remaining-time` (`role="group"`, `aria-labelledby="nav-dev-banner-remaining-time-heading"`). Heading **Remaining time** (`nav-dev-banner-user-remaining-time-heading`, `#nav-dev-banner-remaining-time-heading`) with `border-bottom`; under it, **Winding** / **Pre-sleep** / **Heads-up** in `nav-dev-banner-user-remaining-time-controls` (plain labels, no emoji). Winding and pre-sleep mirror `remaining_wake_open_min` and `remaining_wake_winding_min`. **Heads-up** is `remaining_wake_phase_heads_up_mins`; the select shows **60m**, **45m**, **30m**, **15m**, **Off**. Each control uses `nav-dev-banner-user-field--col`. Panel copy uses the same inherited font size as the branch row (`0.75rem` on `nav-dev-banner-user-panel`). Pref `<select>` and time inputs stay content-sized (`width: max-content`, `min-width: 0` on pref rows).
   - Tonight and remaining-time controls use the same preference setters and `syncUserSettingsRowToCloud()` as Settings when cloud sleep data is active. **Tonight guidance** mirrors `getTonightGuidanceSleepEnabled` / `setTonightGuidanceSleepEnabled`, `getTonightGuidanceWakeEnabled` / `setTonightGuidanceWakeEnabled`, and `getTonightGuidancePaceId` / `setTonightGuidancePaceId` (`sleep-app-tonight-guidance-sleep-enabled`, `sleep-app-tonight-guidance-wake-enabled`, `sleep-app-tonight-guidance-pace`); updates sync to `user_settings`, dispatch `tonight-guidance-changed`, and refresh the dev-banner panel.
 
 Banner background class:
@@ -107,9 +107,11 @@ Important: app logic should use `getAppNowMs()` / `getAppDate()` when it must ho
 
 ### Supabase dev/prod presets (local file)
 
-- Optional script `local-supabase-presets.js` (gitignored; copy from `local-supabase-presets.example.js`) sets `window.__RESTORE_SUPABASE_PRESETS__` with `dev` and `prod` objects, each `{ url, anonKey }` (all four strings required for the toggle to appear).
+- Optional script `local-supabase-presets.js` (gitignored; copy from `local-supabase-presets.example.js`) sets `window.__RESTORE_SUPABASE_PRESETS__` with `dev` and `prod` objects, each `{ url, anonKey }` (all four strings required for **Switch DB** to appear).
 - Key: `sleep-app-active-supabase-preset` (`ACTIVE_SUPABASE_PRESET_KEY`) — `dev` or `prod` selects preset mode; empty means custom credentials from Settings only.
-- **Dev** / **Prod** buttons set the key, call `setSupabaseConfig` with the chosen pair, and reload. While preset mode is active, `ensureDevSupabasePresetApplied()` keeps `restore_supabase_*` aligned on each page load.
+- **Switch DB** sets the key to the flipped target, calls `setSupabaseConfig` with that pair, and reloads. While preset mode is active, `ensureDevSupabasePresetApplied()` keeps `restore_supabase_*` aligned on each page load.
+- `initDevBannerDbSwitchFlip()` binds `#nav-dev-banner-db-switch-toggle` only. Flip uses `isDevBannerSupabaseEffectiveDev()` (same resolution as the badge: storage id, else URL match to dev/prod; unresolved counts as non-dev so the next flip chooses **dev**).
+- `getSupabaseBannerBadgeModel()` drives the Supabase shields badge: **n/a** when presets are missing; else resolves active id from storage or by matching current `getSupabaseConfig().url` to the dev/prod pair.
 - Saving or clearing Supabase credentials in **Settings** clears `sleep-app-active-supabase-preset` so manual config is not overwritten on the next navigation.
 
 ---
@@ -155,8 +157,8 @@ During transitions:
 | App time override read/accessors | `readDevClockOverrideMs`, `getAppNowMs`, `getAppDate` - `sleep-utils.js` |
 | Banner markup and warnings | `renderNavBar` - `sleep-utils.js` |
 | Clock mode + datetime/step controls | `initDevClockControl` - `sleep-utils.js` |
-| Cloud refresh button | `initDevBannerCloudRefresh` - `sleep-utils.js` |
-| Supabase dev/prod preset toggle | `initDevBannerSupabasePresetToggle`, `readLocalSupabasePresets`, `ensureDevSupabasePresetApplied` - `sleep-utils.js` |
+| Cloud sync button | `initDevBannerCloudRefresh` - `sleep-utils.js` |
+| Supabase badge + Switch DB flip | `getSupabaseBannerBadgeModel`, `isDevBannerSupabaseEffectiveDev`, `initDevBannerDbSwitchFlip`, `readLocalSupabasePresets`, `ensureDevSupabasePresetApplied` - `sleep-utils.js` |
 | Drawer pointer/click behavior | `initDevBannerDrawer` - `sleep-utils.js` |
 | Expanded reserve measurement/caching | `measureDevBannerExpandedHeightPx`, `syncDevBannerFixedLayout` - `sleep-utils.js` |
 | User settings defaults (dev panel) | `applyDevBannerUserSettingsDefaults`, `initDevBannerUserSettingsPanel` - `sleep-utils.js` |
@@ -175,4 +177,5 @@ Update this doc when you change:
 - drawer drag thresholds or collapse persistence behavior,
 - fixed layout reserve strategy (`syncDevBannerFixedLayout`),
 - prod/dev warning conditions or banner background-class rules,
+- cloud row Supabase badge / Switch DB / sync-with-cloud copy or IDs,
 - dev user panel chunk layout, Tonight / Remaining time row, header reset button copy, or compact **m** minute labels on pace / heads-up selects.

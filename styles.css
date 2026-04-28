@@ -290,25 +290,109 @@ body{
   align-self: flex-start;
 }
 
-.nav-dev-banner-branch-meta {
+/* shields.io flat-style badges (GitHub repo + Supabase dashboard links) */
+.nav-dev-banner-github-badge,
+.nav-dev-banner-supabase-badge {
+  display: inline-flex;
+  align-items: stretch;
+  max-width: 100%;
+  min-width: 0;
+  text-decoration: none;
+  color: inherit;
+  border-radius: 3px;
+  overflow: hidden;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.18);
+  vertical-align: middle;
+}
+
+.nav-dev-banner-github-badge:hover,
+.nav-dev-banner-supabase-badge:hover {
+  filter: brightness(1.06);
+}
+
+.nav-dev-banner-github-badge:focus-visible,
+.nav-dev-banner-supabase-badge:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+  z-index: 1;
+}
+
+.nav-dev-banner-github-badge__label,
+.nav-dev-banner-github-badge__value,
+.nav-dev-banner-supabase-badge__label,
+.nav-dev-banner-supabase-badge__value {
   display: inline-flex;
   align-items: center;
   gap: 0.35em;
+  padding: 5px 8px;
   min-width: 0;
-  flex: 1;
 }
 
-.nav-dev-banner-branch-icon {
-  width: 1.1em;
-  height: 1.1em;
+.nav-dev-banner-github-badge__label,
+.nav-dev-banner-supabase-badge__label {
+  background: #555;
+  color: #fff;
+  text-transform: lowercase;
+}
+
+.nav-dev-banner-github-badge__label-text,
+.nav-dev-banner-supabase-badge__label-text {
+  line-height: 1;
+}
+
+.nav-dev-banner-github-badge__value,
+.nav-dev-banner-supabase-badge__value {
+  color: #fff;
+}
+
+.nav-dev-banner-github-badge--passing .nav-dev-banner-github-badge__value,
+.nav-dev-banner-supabase-badge--passing .nav-dev-banner-supabase-badge__value {
+  background: #44cc11;
+}
+
+.nav-dev-banner-github-badge--failing .nav-dev-banner-github-badge__value,
+.nav-dev-banner-supabase-badge--failing .nav-dev-banner-supabase-badge__value {
+  background: #e05d44;
+}
+
+.nav-dev-banner-github-badge--unknown .nav-dev-banner-github-badge__value,
+.nav-dev-banner-supabase-badge--unknown .nav-dev-banner-supabase-badge__value {
+  background: #9f9f9f;
+}
+
+.nav-dev-banner-github-badge__icon,
+.nav-dev-banner-supabase-badge__icon {
   flex-shrink: 0;
 }
 
-.nav-dev-banner-branch-name {
+.nav-dev-banner-github-badge__icon--github,
+.nav-dev-banner-supabase-badge__icon--logo {
+  width: 14px;
+  height: 14px;
+}
+
+.nav-dev-banner-github-badge__icon--branch {
+  width: 13px;
+  height: 13px;
+}
+
+.nav-dev-banner-github-badge__branch {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
+  max-width: min(42vw, 14rem);
+  line-height: 1.2;
+  text-transform: none;
+}
+
+.nav-dev-banner-supabase-badge__preset {
+  line-height: 1.2;
+  text-transform: lowercase;
 }
 
 .nav-dev-banner-cloud-row {
@@ -322,13 +406,6 @@ body{
   text-transform: none;
   font-weight: 400;
   align-self: flex-start;
-}
-
-.nav-dev-banner-cloud-hint {
-  flex: 1;
-  min-width: 0;
-  line-height: 1.35;
-  font-weight: 400;
 }
 
 .nav-dev-banner-deploy-row {
@@ -397,6 +474,12 @@ body{
   color: #ffffff;
   cursor: pointer;
   flex-shrink: 0;
+  margin-left: auto;
+}
+
+.nav-dev-banner-cloud-refresh-icon {
+  font-size: 1.05em;
+  line-height: 1;
 }
 
 .nav-dev-banner-cloud-refresh-label {
@@ -417,51 +500,44 @@ body{
   outline-offset: 2px;
 }
 
-.nav-dev-banner-preset {
-  display: inline-flex;
-  align-items: stretch;
+.nav-dev-banner-db-switch {
+  position: relative;
   flex-shrink: 0;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  overflow: hidden;
 }
 
-.nav-dev-banner-preset-btn {
+.nav-dev-banner-db-switch-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
   font: inherit;
   font-size: 0.65rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  padding: 4px 10px;
-  margin: 0;
-  border: none;
-  background: rgba(255, 255, 255, 0.15);
+  letter-spacing: 0.02em;
+  text-transform: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.22);
   color: #ffffff;
   cursor: pointer;
 }
 
-.nav-dev-banner-preset-btn + .nav-dev-banner-preset-btn {
-  border-left: 1px solid rgba(255, 255, 255, 0.45);
+.nav-dev-banner-db-switch-toggle:hover {
+  background: rgba(255, 255, 255, 0.32);
 }
 
-.nav-dev-banner-preset-btn:hover {
-  background: rgba(255, 255, 255, 0.28);
-}
-
-.nav-dev-banner-preset-btn.nav-dev-banner-preset-btn--active {
-  background: rgba(255, 255, 255, 0.38);
-}
-
-.nav-dev-banner-preset-btn:focus-visible {
+.nav-dev-banner-db-switch-toggle:focus-visible {
   outline: 2px solid #ffffff;
   outline-offset: 2px;
-  z-index: 1;
 }
 
-.nav-dev-banner-refresh-icon {
-  width: 1rem;
-  height: 1rem;
-  flex-shrink: 0;
+.nav-dev-banner-db-switch-toggle-icon {
+  font-size: 1.05em;
+  line-height: 1;
+}
+
+.nav-dev-banner-db-switch-toggle-label {
+  line-height: 1.2;
 }
 
 .nav-dev-banner-deploy-link:hover {
@@ -613,6 +689,11 @@ body{
   text-align: center;
   line-height: 1.25;
   color: rgba(255, 255, 255, 0.95);
+}
+
+.nav-dev-banner-clock-heading:empty {
+  display: none;
+  padding: 0;
 }
 
 .nav-dev-banner-clock--sim-active .nav-dev-banner-clock-heading {
