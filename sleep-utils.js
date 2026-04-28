@@ -2034,6 +2034,9 @@ const DEV_VERCEL_PROJECT_URL = 'https://vercel.com/rsairu-5429s-projects/sleep';
 const SHIELDS_GITHUB_DEPLOYMENTS_PRODUCTION_BASE =
   'https://img.shields.io/github/deployments/rsairu/sleep/Production';
 const SHIELDS_GITHUB_DEPLOYMENTS_PRODUCTION_JSON = SHIELDS_GITHUB_DEPLOYMENTS_PRODUCTION_BASE + '.json';
+/** When Shields reports Production deployment passing, skip re-fetch until this expires. */
+const VERCEL_DEPLOY_SHIELDS_PASS_CACHE_KEY = 'sleep-app-vercel-deploy-shields-pass-cache';
+const VERCEL_DEPLOY_SHIELDS_PASS_CACHE_MS = 30 * 60 * 1000;
 const SUPABASE_PROJECT_REF_PROD = 'lsaguxfovamihwnicpkk';
 const SUPABASE_PROJECT_REF_DEV = 'pjpzxkyflmzzbfdkujan';
 // Dev banner + app-time simulation spec: docs/dev-banner.md
@@ -4743,13 +4746,75 @@ function vercelDeployBadgeToneFromShields(data) {
   return 'unknown';
 }
 
-/** Fills Vercel deployment badge value from live Shields JSON (same source as shields badge image). */
+function formatVercelDeployDisplayLabel(tone, rawMessage) {
+  if (tone === 'passing') return 'pass';
+  if (tone === 'failing') return 'fail';
+  const m = String(rawMessage || '').trim();
+  return m || 'n/a';
+}
+
+function readVercelDeployShieldsPassCache() {
+  if (typeof localStorage === 'undefined') return false;
+  try {
+    const raw = localStorage.getItem(VERCEL_DEPLOY_SHIELDS_PASS_CACHE_KEY);
+    if (!raw) return false;
+    const o = JSON.parse(raw);
+    if (!o || typeof o.expiresAt !== 'number') return false;
+    if (Date.now() > o.expiresAt) {
+      localStorage.removeItem(VERCEL_DEPLOY_SHIELDS_PASS_CACHE_KEY);
+      return false;
+    }
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+function writeVercelDeployShieldsPassCache() {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.setItem(
+      VERCEL_DEPLOY_SHIELDS_PASS_CACHE_KEY,
+      JSON.stringify({ expiresAt: Date.now() + VERCEL_DEPLOY_SHIELDS_PASS_CACHE_MS })
+    );
+  } catch (_) {}
+}
+
+function clearVercelDeployShieldsPassCache() {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.removeItem(VERCEL_DEPLOY_SHIELDS_PASS_CACHE_KEY);
+  } catch (_) {}
+}
+
+function applyVercelDeployBadgeUI(statusEl, valueWrap, tone, displayText, detailForTitle) {
+  const detail = detailForTitle != null && String(detailForTitle).trim() !== '' ? String(detailForTitle).trim() : displayText;
+  statusEl.textContent = displayText;
+  valueWrap.classList.remove(
+    'nav-dev-banner-vercel-badge__value--passing',
+    'nav-dev-banner-vercel-badge__value--failing',
+    'nav-dev-banner-vercel-badge__value--unknown'
+  );
+  valueWrap.classList.add('nav-dev-banner-vercel-badge__value--' + tone);
+  const link = statusEl.closest('.nav-dev-banner-vercel-badge');
+  if (link) {
+    link.setAttribute('title', 'Vercel project — Production: ' + detail);
+    link.setAttribute('aria-label', 'Open Vercel project. GitHub Production deployment status: ' + detail + '.');
+  }
+}
+
+/** Fills Vercel deployment badge from Shields JSON; skips network when pass is cached (30 min). */
 function hydrateDevBannerVercelDeployStatus() {
   if (typeof document === 'undefined' || typeof fetch !== 'function') return;
   if (!isDevBuildContext()) return;
   const statusEl = document.getElementById('nav-dev-banner-vercel-deploy-status');
   const valueWrap = document.getElementById('nav-dev-banner-vercel-deploy-value');
   if (!statusEl || !valueWrap) return;
+
+  if (readVercelDeployShieldsPassCache()) {
+    applyVercelDeployBadgeUI(statusEl, valueWrap, 'passing', 'pass', 'pass');
+    return;
+  }
 
   fetch(SHIELDS_GITHUB_DEPLOYMENTS_PRODUCTION_JSON, { credentials: 'omit', cache: 'no-store' })
     .then(function (r) {
@@ -4758,39 +4823,14 @@ function hydrateDevBannerVercelDeployStatus() {
     })
     .then(function (data) {
       const tone = vercelDeployBadgeToneFromShields(data);
-      const msg = data && data.message != null ? String(data.message) : 'n/a';
-      statusEl.textContent = msg;
-      valueWrap.classList.remove(
-        'nav-dev-banner-vercel-badge__value--passing',
-        'nav-dev-banner-vercel-badge__value--failing',
-        'nav-dev-banner-vercel-badge__value--unknown'
-      );
-      valueWrap.classList.add('nav-dev-banner-vercel-badge__value--' + tone);
-      const link = statusEl.closest('.nav-dev-banner-vercel-badge');
-      if (link) {
-        link.setAttribute('title', 'Vercel project — Production: ' + msg);
-        link.setAttribute(
-          'aria-label',
-          'Open Vercel project. GitHub Production deployment status: ' + msg + '.'
-        );
-      }
+      const raw = data && data.message != null ? String(data.message) : 'n/a';
+      const display = formatVercelDeployDisplayLabel(tone, raw);
+      applyVercelDeployBadgeUI(statusEl, valueWrap, tone, display, raw);
+      if (tone === 'passing') writeVercelDeployShieldsPassCache();
+      else clearVercelDeployShieldsPassCache();
     })
     .catch(function () {
-      statusEl.textContent = 'n/a';
-      valueWrap.classList.remove(
-        'nav-dev-banner-vercel-badge__value--passing',
-        'nav-dev-banner-vercel-badge__value--failing',
-        'nav-dev-banner-vercel-badge__value--unknown'
-      );
-      valueWrap.classList.add('nav-dev-banner-vercel-badge__value--unknown');
-      const link = statusEl.closest('.nav-dev-banner-vercel-badge');
-      if (link) {
-        link.setAttribute('title', 'Vercel project — Production deployment status unavailable');
-        link.setAttribute(
-          'aria-label',
-          'Open Vercel project. Production deployment status unavailable (shields.io).'
-        );
-      }
+      applyVercelDeployBadgeUI(statusEl, valueWrap, 'unknown', 'n/a', 'unavailable');
     });
 }
 
@@ -5269,26 +5309,12 @@ function renderNavBar(currentPage) {
     '</button>' +
     '</div>';
   const devBannerLeftInner = devBannerBadgesRow + devBannerCloudRow;
-  let devBannerWarnings = '';
-  if (devBannerDbClass === 'nav-dev-banner--db-prod') {
-    devBannerWarnings +=
-      '<p class="nav-dev-banner-prod-warning nav-dev-banner-prod-warning--prod-data">🛑 You are using PROD data!</p>';
-  }
-  if (devBannerOnMaster) {
-    devBannerWarnings +=
-      '<p class="nav-dev-banner-prod-warning">⚠️ You are on the master branch.</p>';
-  }
   const devDrawerCollapsed = readDevBannerDrawerCollapsed();
   const devBannerCollapsedClass = devDrawerCollapsed ? ' nav-dev-banner--collapsed' : '';
   const devToggleAriaExpanded = devDrawerCollapsed ? 'false' : 'true';
   const devToggleAriaLabel = devDrawerCollapsed
     ? 'Expand dev banner (drag down or tap)'
     : 'Collapse dev banner (drag up or tap)';
-  const devTitleExtras =
-    '<div class="nav-dev-banner-title-row">' +
-    '<hr class="nav-dev-banner-title-rule" aria-hidden="true" />' +
-    devBannerWarnings +
-    '</div>';
   const devClockBlock =
     '<div id="nav-dev-banner-clock" class="nav-dev-banner-clock" role="group" aria-label="App time: datetime and step controls (development only)">' +
     '<div class="nav-dev-banner-clock-sim-panel" id="nav-dev-banner-clock-sim-panel">' +
@@ -5340,10 +5366,18 @@ function renderNavBar(currentPage) {
     '</code>' +
     '<button type="button" class="nav-dev-banner-user-defaults-btn" id="nav-dev-banner-user-use-default"' +
     ' aria-label="Use all default settings: reset language, clock, theme, palette, remaining wake thresholds, heads-up, tonight target, and per-pole tonight guidance (plus shared pace) to app defaults">Use all default settings</button>' +
+    '<div class="nav-dev-banner-in-app-tips nav-dev-banner-in-app-tips--header" role="group" aria-label="In-app tips (Dashboard)">' +
+    '<span class="nav-dev-banner-tips-label">Tips</span>' +
+    '<span class="nav-dev-banner-hint-checks" role="group" aria-label="Show Dashboard in-app tips">' +
+    '<label class="nav-dev-banner-hint-check-label"><input type="checkbox" id="nav-dev-banner-hint-all" /> All</label>' +
+    '<label class="nav-dev-banner-hint-check-label"><input type="checkbox" id="nav-dev-banner-hint-quick" /> Quick</label>' +
+    '<label class="nav-dev-banner-hint-check-label"><input type="checkbox" id="nav-dev-banner-hint-tonight" /> Tonight</label>' +
+    '</span>' +
+    '</div>' +
     '</span>' +
     '</div>' +
     '<div class="nav-dev-banner-user-settings" role="group" aria-label="User settings (dev; mirrors Settings and user_settings)">' +
-    '<div class="nav-dev-banner-user-settings-row nav-dev-banner-user-settings-row--prefs-grid" role="group" aria-label="Language, clock, theme, palette, and Dashboard in-app tips">' +
+    '<div class="nav-dev-banner-user-settings-row nav-dev-banner-user-settings-row--prefs-grid" role="group" aria-label="Language and display">' +
     '<div class="nav-dev-banner-user-field nav-dev-banner-user-field--col nav-dev-banner-user-field--pref">' +
     '<select id="nav-dev-banner-user-lang" class="nav-dev-banner-user-select nav-dev-banner-user-select--field" aria-label="Display language">' +
     '<option value="en">en</option>' +
@@ -5358,38 +5392,27 @@ function renderNavBar(currentPage) {
     '</div>' +
     '<div class="nav-dev-banner-user-field nav-dev-banner-user-field--col nav-dev-banner-user-field--pref">' +
     '<select id="nav-dev-banner-user-theme" class="nav-dev-banner-user-select nav-dev-banner-user-select--field" aria-label="Theme override">' +
-    '<option value="auto">Auto (theme)</option>' +
+    '<option value="auto">Auto theme</option>' +
     '<option value="day">Day</option>' +
     '<option value="night">Night</option>' +
     '</select>' +
     '</div>' +
     '<div class="nav-dev-banner-user-field nav-dev-banner-user-field--col nav-dev-banner-user-field--pref">' +
     '<select id="nav-dev-banner-user-palette" class="nav-dev-banner-user-select nav-dev-banner-user-select--field" aria-label="Quality palette">' +
+    '<option value="auto">Auto palette</option>' +
     '<option value="meadow">Meadow</option>' +
     '<option value="harbor">Harbor</option>' +
-    '<option value="auto">Auto (palette)</option>' +
     '</select>' +
     '</div>' +
-    '<div class="nav-dev-banner-in-app-tips" role="group" aria-label="In-app tips (Dashboard)">' +
-    '<span class="nav-dev-banner-tips-label">Tips</span>' +
-    '<span class="nav-dev-banner-hint-checks" role="group" aria-label="Show Dashboard in-app tips">' +
-    '<label class="nav-dev-banner-hint-check-label"><input type="checkbox" id="nav-dev-banner-hint-all" /> All</label>' +
-    '<label class="nav-dev-banner-hint-check-label"><input type="checkbox" id="nav-dev-banner-hint-quick" /> Quick</label>' +
-    '<label class="nav-dev-banner-hint-check-label"><input type="checkbox" id="nav-dev-banner-hint-tonight" /> Tonight</label>' +
-    '</span>' +
     '</div>' +
-    '</div>' +
-    '<div class="nav-dev-banner-user-chunks-row">' +
-    '<div class="nav-dev-banner-user-chunk nav-dev-banner-user-chunk--tonight" role="group" aria-labelledby="nav-dev-banner-tonight-heading">' +
-    '<span class="nav-dev-banner-user-chunk-heading" id="nav-dev-banner-tonight-heading">Tonight</span>' +
-    '<div class="nav-dev-banner-user-settings-row nav-dev-banner-user-settings-row--prefs-grid nav-dev-banner-user-settings-row--night-grid" role="group" aria-label="Tonight sleep, wake, per-pole guidance, and pace">' +
+    '<div class="nav-dev-banner-user-settings-row nav-dev-banner-user-settings-row--prefs-grid nav-dev-banner-user-settings-row--night-grid nav-dev-banner-user-settings-row--secondary" role="group" aria-label="Tonight targets, guidance, pace, winding, pre-sleep, heads-up">' +
     '<div class="nav-dev-banner-user-field nav-dev-banner-user-field--col nav-dev-banner-user-field--pref">' +
-    '<span class="nav-dev-banner-user-label">Sleep</span>' +
-    '<input type="time" id="nav-dev-banner-tonight-sleep" class="nav-dev-banner-user-input-time" step="60" aria-label="Sleep time (tonight)" />' +
+    '<span class="nav-dev-banner-user-label">Sleep target</span>' +
+    '<input type="time" id="nav-dev-banner-tonight-sleep" class="nav-dev-banner-user-input-time" step="60" aria-label="Sleep target (tonight)" />' +
     '</div>' +
     '<div class="nav-dev-banner-user-field nav-dev-banner-user-field--col nav-dev-banner-user-field--pref">' +
-    '<span class="nav-dev-banner-user-label">Wake</span>' +
-    '<input type="time" id="nav-dev-banner-tonight-wake" class="nav-dev-banner-user-input-time" step="60" aria-label="Wake time (tomorrow)" />' +
+    '<span class="nav-dev-banner-user-label">Wake target</span>' +
+    '<input type="time" id="nav-dev-banner-tonight-wake" class="nav-dev-banner-user-input-time" step="60" aria-label="Wake target (tomorrow)" />' +
     '</div>' +
     '<div class="nav-dev-banner-user-field nav-dev-banner-user-field--col nav-dev-banner-user-field--pref">' +
     '<span class="nav-dev-banner-user-label">Sleep G</span>' +
@@ -5413,24 +5436,16 @@ function renderNavBar(currentPage) {
     '<option value="steady">15m</option>' +
     '</select>' +
     '</div>' +
-    '</div>' +
-    '</div>' +
-    '<div class="nav-dev-banner-user-chunk nav-dev-banner-user-chunk--remaining">' +
-    '<div class="nav-dev-banner-user-remaining-time" role="group" aria-labelledby="nav-dev-banner-remaining-time-heading">' +
-    '<span class="nav-dev-banner-user-remaining-time-heading" id="nav-dev-banner-remaining-time-heading">Remaining time</span>' +
-    '<div class="nav-dev-banner-user-remaining-time-controls">' +
     '<div class="nav-dev-banner-user-field nav-dev-banner-user-field--col nav-dev-banner-user-field--rw">' +
-    '<span class="nav-dev-banner-user-label nav-dev-banner-user-label--rw">Winding</span>' +
+    '<span class="nav-dev-banner-user-label nav-dev-banner-user-label--rw">Winding %</span>' +
     '<span class="nav-dev-banner-user-pct-row">' +
-    '<input type="number" id="nav-dev-banner-rw-open" class="nav-dev-banner-user-input-num nav-dev-banner-user-input-num--pct" min="1" max="99" step="1" aria-label="Winding: percent of wake time remaining when the active phase ends (winding begins below this)" />' +
-    '<span class="nav-dev-banner-user-pct-suffix" aria-hidden="true">%</span>' +
+    '<input type="number" id="nav-dev-banner-rw-open" class="nav-dev-banner-user-input-num nav-dev-banner-user-input-num--pct" min="1" max="99" step="1" aria-label="Winding: percent of wake time remaining when the open phase ends (winding begins below this)" />' +
     '</span>' +
     '</div>' +
     '<div class="nav-dev-banner-user-field nav-dev-banner-user-field--col nav-dev-banner-user-field--rw">' +
-    '<span class="nav-dev-banner-user-label nav-dev-banner-user-label--rw">Pre-sleep</span>' +
+    '<span class="nav-dev-banner-user-label nav-dev-banner-user-label--rw">Pre-sleep %</span>' +
     '<span class="nav-dev-banner-user-pct-row">' +
     '<input type="number" id="nav-dev-banner-rw-winding" class="nav-dev-banner-user-input-num nav-dev-banner-user-input-num--pct" min="0" max="98" step="1" aria-label="Pre-sleep: percent of wake time remaining when winding ends (pre-sleep begins below this)" />' +
-    '<span class="nav-dev-banner-user-pct-suffix" aria-hidden="true">%</span>' +
     '</span>' +
     '</div>' +
     '<div class="nav-dev-banner-user-field nav-dev-banner-user-field--col nav-dev-banner-user-field--rw">' +
@@ -5445,9 +5460,6 @@ function renderNavBar(currentPage) {
     '</div>' +
     '</div>' +
     '</div>' +
-    '</div>' +
-    '</div>' +
-    '</div>' +
     '</div>';
   const devTitleStrip =
     '<div class="nav-dev-banner-title-strip">' +
@@ -5455,7 +5467,6 @@ function renderNavBar(currentPage) {
     '</div>';
   const devDrawerPanel =
     '<div class="nav-dev-banner-drawer" id="nav-dev-banner-drawer" role="region" aria-label="Development build details">' +
-    devTitleExtras +
     devBannerMainRow +
     devBannerUserPanel +
     '</div>';
