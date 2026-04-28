@@ -208,7 +208,7 @@
         "saveTargetInline": "🎯 Set target",
         "saveGuidedInline": "🧭 Set guided target",
         "matrix": {
-          "ariaGrid": "Tonight schedule matrix: natural average, guided time, pace, and saved target per pole.",
+          "ariaGrid": "Tonight schedule matrix: natural average, guided time, pace, and saved target per pole. One of natural, guided, or target is visually emphasized per row for the active schedule.",
           "headerNatural": "Natural",
           "headerGuided": "Guided",
           "headerPace": "Pace",
@@ -521,7 +521,7 @@
         "saveTargetInline": "🎯 目標を保存",
         "saveGuidedInline": "🧭 ガイド付きで目標を保存",
         "matrix": {
-          "ariaGrid": "今夜の予定マトリクス：各極について、自然平均・ガイド時刻・ペース・保存した目標。",
+          "ariaGrid": "今夜の予定マトリクス：各極について、自然平均・ガイド時刻・ペース・保存した目標。行ごとに、自然・ガイド・目標のいずれかが現在有効なスケジュールとして強調されます。",
           "headerNatural": "自然",
           "headerGuided": "ガイド",
           "headerPace": "ペース",

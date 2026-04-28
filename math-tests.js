@@ -286,6 +286,7 @@ async function runTests() {
   });
   expectEqual(mEmpty.rowMode, 'empty', 'no natural → empty row');
   expectEqual(mEmpty.phase, 'none', 'no natural → phase none');
+  expectEqual(mEmpty.activeColumn, 'natural', 'empty row → highlight natural');
 
   const mNoTgt = u.buildTonightMatrixViewModel({
     pole: 'wake',
@@ -297,6 +298,7 @@ async function runTests() {
   });
   expectEqual(mNoTgt.rowMode, 'no_target', 'no saved target → no_target');
   expectEqual(mNoTgt.showPaceWave, false, 'no target → no pace wave');
+  expectEqual(mNoTgt.activeColumn, 'natural', 'no target → highlight natural');
 
   const mTgtOff = u.buildTonightMatrixViewModel({
     pole: 'sleep',
@@ -308,6 +310,7 @@ async function runTests() {
   });
   expectEqual(mTgtOff.rowMode, 'target_no_guidance', 'target with guidance off');
   expectEqual(mTgtOff.showPaceWave, false, 'hard target mode → no pace wave');
+  expectEqual(mTgtOff.activeColumn, 'target', 'target only → highlight target');
 
   const mOnTarget = u.buildTonightMatrixViewModel({
     pole: 'wake',
@@ -319,7 +322,19 @@ async function runTests() {
   });
   expectEqual(mOnTarget.phase, 'on_target', 'guided equals target → on_target MAINTAIN');
   expectEqual(mOnTarget.showPaceWave, true, 'MAINTAIN keeps pace wave active');
+  expectEqual(mOnTarget.activeColumn, 'guided', 'MAINTAIN → highlight guided');
   expectTruthy(mOnTarget.callout != null, 'on_target still emits callout vars');
+
+  const mFullGuidanceNoGuidedClock = u.buildTonightMatrixViewModel({
+    pole: 'sleep',
+    naturalMinutes: 1380,
+    savedTargetMinutes: 1320,
+    guidanceEnabled: true,
+    guidedMinutes: null,
+    paceId: 'gentle'
+  });
+  expectEqual(mFullGuidanceNoGuidedClock.rowMode, 'full_guidance', 'guidance on, no guided clock yet');
+  expectEqual(mFullGuidanceNoGuidedClock.activeColumn, 'target', 'full guidance without guided minute → target');
 
   const mInitBoundary = u.buildTonightMatrixViewModel({
     pole: 'sleep',
@@ -331,6 +346,7 @@ async function runTests() {
   });
   expectEqual(mInitBoundary.remainingRatio, 0.7, 'remainingRatio boundary 70%');
   expectEqual(mInitBoundary.phase, 'initiating', 'exactly 0.70 remaining → initiating');
+  expectEqual(mInitBoundary.activeColumn, 'guided', 'guided clock set → highlight guided');
 
   const mLockBoundary = u.buildTonightMatrixViewModel({
     pole: 'sleep',
@@ -344,6 +360,7 @@ async function runTests() {
   expectEqual(mLockBoundary.currentGap, 6, 'fixture current gap 6');
   expectEqual(mLockBoundary.remainingRatio, 0.1, 'remaining ratio 0.1');
   expectEqual(mLockBoundary.phase, 'locking_in', 'exactly below 0.15 → locking_in');
+  expectEqual(mLockBoundary.activeColumn, 'guided', 'locking in still guided column');
 
   const mSnapNoJump = u.buildTonightMatrixViewModel({
     pole: 'sleep',

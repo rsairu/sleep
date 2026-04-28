@@ -1876,6 +1876,21 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
       paceId: paceIdLive
     });
 
+    function applyTonightMatrixTimeHighlight(vm, natEl, guidedEl, tgtEl) {
+      const ac = vm.activeColumn === 'guided' || vm.activeColumn === 'target' ? vm.activeColumn : 'natural';
+      const poleSleep = vm.pole === 'sleep';
+      const cols = [natEl, guidedEl, tgtEl];
+      const keys = ['natural', 'guided', 'target'];
+      for (let i = 0; i < 3; i++) {
+        const el = cols[i];
+        const isActive = keys[i] === ac;
+        el.classList.toggle('dashboard-tonight-matrix-cell--active', isActive);
+        el.classList.toggle('dashboard-tonight-matrix-cell--muted', !isActive);
+        el.classList.toggle('dashboard-tonight-matrix-cell--pole-sleep', isActive && poleSleep);
+        el.classList.toggle('dashboard-tonight-matrix-cell--pole-wake', isActive && !poleSleep);
+      }
+    }
+
     function fillRow(vm, ids) {
       const nat = document.getElementById(ids.nat);
       const guided = document.getElementById(ids.guided);
@@ -1890,6 +1905,7 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
         tgt.textContent = TONIGHT_MATRIX_EM;
         dash.hidden = false;
         waveHost.hidden = true;
+        applyTonightMatrixTimeHighlight(vm, nat, guided, tgt);
         return;
       }
       nat.textContent = tonightMatrixFormatCell(vm.cellNatural);
@@ -1898,6 +1914,7 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
         tgt.textContent = TONIGHT_MATRIX_EM;
         dash.hidden = false;
         waveHost.hidden = true;
+        applyTonightMatrixTimeHighlight(vm, nat, guided, tgt);
         return;
       }
       if (vm.rowMode === 'target_no_guidance') {
@@ -1905,6 +1922,7 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
         tgt.textContent = tonightMatrixFormatCell(vm.cellTarget);
         dash.hidden = false;
         waveHost.hidden = true;
+        applyTonightMatrixTimeHighlight(vm, nat, guided, tgt);
         return;
       }
       guided.textContent = tonightMatrixFormatCell(vm.cellGuided);
@@ -1917,6 +1935,7 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
         dash.hidden = false;
         waveHost.hidden = true;
       }
+      applyTonightMatrixTimeHighlight(vm, nat, guided, tgt);
     }
 
     fillRow(sleepVm, {
