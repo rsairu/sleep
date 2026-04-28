@@ -299,8 +299,8 @@ function checkDeviations(day, recentAverages) {
     warnings.push({
       severity: t.asleepSeverity,
       emoji: '😴',
-      plainSummary: `Asleep: ${detail}`,
-      bodyHtml: `<strong>Asleep</strong>: ${detail}`
+      plainSummary: `Sleep: ${detail}`,
+      bodyHtml: `<strong>Sleep</strong>: ${detail}`
     });
   }
 
@@ -463,6 +463,21 @@ function highlightKeyword(label, keywords) {
   return result;
 }
 
+/** Inline 🛌 +Xm after sleep time (bed→sleep latency; SKP bed-colored via CSS). */
+function bedToSleepStatSuffixHtml(delayMinutes) {
+  const dur = formatDuration(Math.round(delayMinutes));
+  const title = `Time from bed to sleep: ${dur}`;
+  return (
+    ' <span class="stat-bed-to-sleep-emoji" role="img" aria-label="' +
+    escapeHtmlAttr(title) +
+    '" title="' +
+    escapeHtmlAttr(title) +
+    '">🛌</span> <span class="stat-bed-to-sleep-delay">+' +
+    dur +
+    '</span>'
+  );
+}
+
 // Render a single day
 // options: { showTicks } - when true (e.g. on dashboard), bar shows time tick labels
 function renderDay(day, days, dayIndex, options) {
@@ -512,6 +527,8 @@ function renderDay(day, days, dayIndex, options) {
       ' <span class="stat-wake-alarm-emoji" role="img" aria-label="Alarm set" title="Alarm">⏰</span>';
   }
 
+  const sleepValueSuffix = bedToSleepStatSuffixHtml(calculateSleepDelay(day));
+
   // Convert times to timeline positions
   const sleepStartPos = timeToTimelinePosition(sleepStart);
   const sleepEndPos = timeToTimelinePosition(sleepEnd);
@@ -530,8 +547,7 @@ function renderDay(day, days, dayIndex, options) {
           ${dayFlagsRow}
           <div class="day-metrics">
             <div class="day-metrics-phases day-stats">
-              <div class="stat-row"><span class="stat-label">${highlightKeyword('bed:', 'bed')}</span><span class="stat-value">${day.bed}</span></div>
-              <div class="stat-row"><span class="stat-label">${highlightKeyword('asleep:', 'asleep')}</span><span class="stat-value">${day.sleepStart}</span></div>
+              <div class="stat-row"><span class="stat-label">${highlightKeyword('sleep:', 'sleep')}</span><span class="stat-value">${day.sleepStart}${sleepValueSuffix}</span></div>
               <div class="stat-row"><span class="stat-label">${highlightKeyword('wake:', 'wake')}</span><span class="stat-value">${day.sleepEnd}${wakeValueSuffix}</span></div>
             </div>
             <div class="day-metrics-calcs day-stats">
@@ -595,10 +611,12 @@ function calculateAverages(days) {
   let firstAlarmToWakeCount = 0;
   let sleepStartSum = 0;
   let sleepEndSum = 0;
+  let bedToSleepDelaySum = 0;
   
   days.forEach(day => {
     sleepDurationSum += calculateTotalSleep(day);
     longestUninterruptedSum += calculateLongestUninterrupted(day);
+    bedToSleepDelaySum += calculateSleepDelay(day);
     const firstAlarmToWake = calculateFirstAlarmToWake(day);
     if (firstAlarmToWake !== null) {
       firstAlarmToWakeSum += firstAlarmToWake;
@@ -610,20 +628,23 @@ function calculateAverages(days) {
     sleepEndSum += normalizeWakeTimeForAveraging(ss, timeToMinutes(day.sleepEnd));
   });
   
+  const n = days.length;
   return {
-    sampleSize: days.length,
-    avgSleepStart: denormalizeTimeForAveraging(Math.round(sleepStartSum / days.length)),
-    avgSleepEnd: denormalizeTimeForAveraging(Math.round(sleepEndSum / days.length)),
-    avgSleepDuration: Math.round(sleepDurationSum / days.length),
-    avgLongestUninterrupted: Math.round(longestUninterruptedSum / days.length),
+    sampleSize: n,
+    avgSleepStart: denormalizeTimeForAveraging(Math.round(sleepStartSum / n)),
+    avgSleepEnd: denormalizeTimeForAveraging(Math.round(sleepEndSum / n)),
+    avgSleepDuration: Math.round(sleepDurationSum / n),
+    avgLongestUninterrupted: Math.round(longestUninterruptedSum / n),
+    avgBedToSleepDelay: n > 0 ? Math.round(bedToSleepDelaySum / n) : 0,
     avgFirstAlarmToWake: firstAlarmToWakeCount > 0 ? Math.round(firstAlarmToWakeSum / firstAlarmToWakeCount) : null
   };
 }
 
 // Render averages stats HTML (inner content only)
 function renderAveragesStats(averages) {
+  const sleepAvgSuffix = bedToSleepStatSuffixHtml(averages.avgBedToSleepDelay);
   return `
-        <div class="stat-row"><span class="stat-label">${highlightKeyword('asleep:', 'asleep')}</span><span class="stat-value">${formatTime(averages.avgSleepStart)}</span></div>
+        <div class="stat-row"><span class="stat-label">${highlightKeyword('sleep:', 'sleep')}</span><span class="stat-value">${formatTime(averages.avgSleepStart)}${sleepAvgSuffix}</span></div>
     <div class="stat-row"><span class="stat-label">${highlightKeyword('duration:', 'duration')}</span><span class="stat-value">${formatDuration(averages.avgSleepDuration)}</span></div>
     <div class="stat-row"><span class="stat-label">uninterrupted:</span><span class="stat-value">${formatDuration(averages.avgLongestUninterrupted)}</span></div>
     ${averages.avgFirstAlarmToWake !== null ? `<div class="stat-row"><span class="stat-label">${highlightKeyword('Wake delay (avg):', 'wake')}</span><span class="stat-value ${averages.avgFirstAlarmToWake > ALARM_TO_WAKE_WARNING_THRESHOLD ? 'stat-warning' : ''}">${averages.avgFirstAlarmToWake < 0 ? '−' + formatDuration(-averages.avgFirstAlarmToWake) : formatDuration(averages.avgFirstAlarmToWake)}</span></div>` : ''}
@@ -829,7 +850,7 @@ function calendarSquareTooltip(dayCell) {
 
 /** Aria hint per heatmap flag emoji (matches legend wording). */
 const CALENDAR_FLAG_FILTER_ARIA = {
-  '😴': 'asleep late vs average',
+  '😴': 'sleep late vs average',
   '⌛': 'shorter duration vs average',
   '🌅': 'wake vs average',
   '👁️': 'WASO'
@@ -987,7 +1008,7 @@ function renderCalendarHeatmapHeader(options) {
         </div>
         <span class="legend-divider">·</span>
         <div class="legend-meaning legend-meaning--inline">
-          <span class="legend-meaning-item">😴 asleep late vs avg</span>
+          <span class="legend-meaning-item">😴 sleep late vs avg</span>
           <span class="legend-meaning-item">⌛ shorter duration vs avg</span>
           <span class="legend-meaning-item">🌅 wake vs avg</span>
           <span class="legend-meaning-item">👁️ WASO</span>
