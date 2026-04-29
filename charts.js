@@ -109,7 +109,10 @@ function initGraphChartModeRockerListeners() {
 function graphOuterWidth() {
   const el = document.getElementById('graph-container');
   const w = el && el.clientWidth;
-  return Math.max(320, w || 800);
+  if (w > 0) {
+    return Math.max(1, Math.floor(w) - 1);
+  }
+  return Math.max(320, 800);
 }
 
 function debounceGraph(fn, ms) {
