@@ -75,11 +75,14 @@ function buildPoints(days) {
   });
 }
 
+/** SVG width for 7-day dashboard charts: never wider than the container (avoids horizontal micro-scroll). */
 function getResponsiveDashboardChartWidth(container, pointCount) {
-  const minWidth = 320;
-  const pointDrivenWidth = Math.max(minWidth, pointCount * 36);
-  const containerWidth = container ? Math.floor(container.clientWidth || 0) : 0;
-  return Math.max(pointDrivenWidth, containerWidth);
+  const fallbackWidth = Math.max(320, pointCount * 36);
+  const cw = container ? Math.floor(container.clientWidth || 0) : 0;
+  if (cw > 0) {
+    return Math.max(1, cw - 1);
+  }
+  return fallbackWidth;
 }
 
 function timeSeriesLineClass(key) {
@@ -119,7 +122,7 @@ function render7DayTimeGraph(container, points, seriesKeys) {
   const keys = Array.isArray(seriesKeys) && seriesKeys.length
     ? seriesKeys
     : ['bedTimeMinutes', 'sleepStartMinutes', 'getUpMinutes'];
-  const margin = { top: 24, right: 24, bottom: 36, left: 48 };
+  const margin = { top: 24, right: 40, bottom: 36, left: 48 };
   const width = getResponsiveDashboardChartWidth(container, points.length);
   const height = 280;
   const graphWidth = width - margin.left - margin.right;
@@ -329,7 +332,7 @@ function render7DayTimeGraph(container, points, seriesKeys) {
 
 function render7DayDurationChart(container, points) {
   if (!points.length) return;
-  const margin = { top: 24, right: 24, bottom: 36, left: 48 };
+  const margin = { top: 24, right: 40, bottom: 36, left: 48 };
   const width = getResponsiveDashboardChartWidth(container, points.length);
   const height = 280;
   const graphWidth = width - margin.left - margin.right;

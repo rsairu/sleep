@@ -2444,7 +2444,8 @@ body{
   border-radius: var(--panel-radius);
   border: 1px solid var(--panel-border-color);
   box-shadow: var(--panel-shadow);
-  overflow: auto;
+  overflow-x: clip;
+  overflow-y: hidden;
   min-height: 280px;
 }
 
@@ -5108,7 +5109,7 @@ h1,
   position: relative;
   width: 100%;
   min-width: 0;
-  overflow-x: auto;
+  overflow-x: clip;
   overflow-y: visible;
 }
 
