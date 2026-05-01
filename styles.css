@@ -591,6 +591,17 @@ body{
   background: rgba(255, 255, 255, 0.32);
 }
 
+.nav-dev-banner-db-switch-toggle:disabled {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.6);
+  cursor: not-allowed;
+}
+
+.nav-dev-banner-db-switch-toggle:disabled:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
 .nav-dev-banner-db-switch-toggle:focus-visible {
   outline: 2px solid #ffffff;
   outline-offset: 2px;
