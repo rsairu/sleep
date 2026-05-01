@@ -259,6 +259,7 @@ async function activatePath(pathname, { replaceHash } = {}) {
   const nav = document.getElementById('nav-container');
   if (nav && typeof renderNavBar === 'function') {
     nav.innerHTML = renderNavBar(cfg.navPage);
+    rewriteMpaAnchors(nav);
   }
   if (typeof window !== 'undefined' && window.__restoreUseSpaNav) {
     window.__devClockControlBound = false;

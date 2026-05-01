@@ -4889,6 +4889,8 @@ function initNavMenu() {
   const trigger = document.getElementById('nav-menu-trigger');
   const dropdown = document.getElementById('nav-menu-dropdown');
   if (!trigger || !dropdown) return;
+  if (trigger.dataset.sleepNavMenuBound === '1') return;
+  trigger.dataset.sleepNavMenuBound = '1';
 
   function closeMenu() {
     trigger.setAttribute('aria-expanded', 'false');

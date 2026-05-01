@@ -34,6 +34,11 @@ That uses `hooks/post-checkout` and `hooks/post-merge`, which invoke `scripts/st
 
 Pages load `local-supabase-presets.js`, then `routes-data.mjs` (canonical nav routes, ES module + `defer`), then `sleep-utils.js` so the dev banner can offer a **Dev** / **Prod** toggle and `renderNavBar` stays aligned with the SPA migration route table. The file is **gitignored**; copy `local-supabase-presets.example.js` to `local-supabase-presets.js` and fill in both project URLs and anon keys. If the file is absent (e.g. production deploy), the script request fails harmlessly and the toggle is hidden. See `docs/dev-banner.md`.
 
+## Cleanup guardrails (Phase 0)
+
+- Phase 0 baseline + hard-cut acceptance criteria live in `docs/spa-hard-cut-checklist.md`.
+- Use that checklist as the verification gate for Phase 1 (fragment source replacement) and Phase 2 (legacy shell/boot deletion).
+
 ## npm scripts
 
 - `npm run dev` — Vite dev server (SPA shell + path routes).
