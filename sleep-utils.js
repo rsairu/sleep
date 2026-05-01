@@ -4161,7 +4161,13 @@ function initDevBannerDbSwitchFlip() {
   function bindWhenReady() {
     const btn = document.getElementById('nav-dev-banner-db-switch-toggle');
     const presets = readLocalSupabasePresets();
-    if (!btn || !presets) return;
+    if (!btn) return;
+    if (!presets) {
+      btn.disabled = true;
+      btn.title = 'Please see local-supabase-presets.example.js';
+      btn.setAttribute('aria-label', 'Switch DB unavailable. Please see local-supabase-presets.example.js');
+      return;
+    }
 
     btn.addEventListener('click', function () {
       const next = isDevBannerSupabaseEffectiveDev() ? 'prod' : 'dev';
@@ -5228,6 +5234,14 @@ function renderNavBar(currentPage) {
     '</span></span></a>';
   const cloudRefreshDisabledAttr = cloudRefreshDisabled ? ' disabled' : '';
   const localPresets = readLocalSupabasePresets();
+  const dbSwitchDisabled = !localPresets;
+  const dbSwitchDisabledAttr = dbSwitchDisabled ? ' disabled' : '';
+  const dbSwitchTitle = dbSwitchDisabled
+    ? 'Please see local-supabase-presets.example.js'
+    : 'Toggle between dev and prod Supabase project';
+  const dbSwitchAria = dbSwitchDisabled
+    ? 'Switch DB unavailable. Please see local-supabase-presets.example.js'
+    : 'Switch DB: toggle dev or prod Supabase project';
   const supabaseBadgeModel = getSupabaseBannerBadgeModel();
   const supabaseBadgeStateClass = ' nav-dev-banner-supabase-badge--' + supabaseBadgeModel.state;
   const supabaseBadgeValueEsc = escapeHtmlBannerText(supabaseBadgeModel.valueText);
@@ -5291,14 +5305,17 @@ function renderNavBar(currentPage) {
     appTimeBadge +
     '</div>';
   const devBannerDbSwitch =
-    localPresets
-      ? '<div class="nav-dev-banner-db-switch">' +
-        '<button type="button" class="nav-dev-banner-db-switch-toggle" id="nav-dev-banner-db-switch-toggle"' +
-        ' title="Toggle between dev and prod Supabase project" aria-label="Switch DB: toggle dev or prod Supabase project">' +
-        '<span class="nav-dev-banner-db-switch-toggle-icon" aria-hidden="true">🎚️</span>' +
-        '<span class="nav-dev-banner-db-switch-toggle-label">Switch DB</span>' +
-        '</button></div>'
-      : '';
+    '<div class="nav-dev-banner-db-switch">' +
+    '<button type="button" class="nav-dev-banner-db-switch-toggle" id="nav-dev-banner-db-switch-toggle"' +
+    dbSwitchDisabledAttr +
+    ' title="' +
+    escapeHtmlBannerAttr(dbSwitchTitle) +
+    '" aria-label="' +
+    escapeHtmlBannerAttr(dbSwitchAria) +
+    '">' +
+    '<span class="nav-dev-banner-db-switch-toggle-icon" aria-hidden="true">🎚️</span>' +
+    '<span class="nav-dev-banner-db-switch-toggle-label">Switch DB</span>' +
+    '</button></div>';
   const devBannerCloudRow =
     '<div class="nav-dev-banner-cloud-row">' +
     devBannerDbSwitch +
