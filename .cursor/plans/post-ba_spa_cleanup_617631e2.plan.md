@@ -7,10 +7,10 @@ todos:
     status: completed
   - id: phase1-replace-fragment-source
     content: Replace SPA dependence on legacy route HTML shells with canonical template/fragment sources and centralize route mapping.
-    status: pending
+    status: completed
   - id: phase2-hard-cut-legacy
     content: Delete legacy root HTML/boot artifacts and remove related build/deploy wiring in Vite and Vercel config.
-    status: pending
+    status: completed
   - id: phase3-consolidate-docs
     content: Merge migration-doc content into permanent docs, update README, and remove docs/migration with one-ADR fallback only if needed.
     status: pending
@@ -118,6 +118,23 @@ flowchart TD
 - Treat `docs/spa-hard-cut-checklist.md` as the live gate document during fragment-source replacement.
 - Update that checklist with parity-check outcomes once `src/spa-app.js` no longer fetches legacy shell HTML.
 - Keep Phase 1 scoped to replacing route content sources + route map centralization; do not hard-delete legacy shells/boot files until Phase 2.
+
+### Phase 1 completion notes (May 2, 2026)
+- Replaced SPA route content source in `src/spa-app.js` with canonical fragment imports under `src/spa-fragments/` (no runtime fetch of root legacy shells).
+- Centralized `.html` to SPA path mapping usage through `routes-data.mjs` helpers (`spaPathFromMpaFile` and related maps), removing duplicated in-router maps.
+- Verified route parity manually across tab routes, hamburger routes, and hash deep-links.
+
+### Phase 2 completion notes (May 2, 2026)
+- Removed legacy root route shells: `dashboard.html`, `log.html`, `quality.html`, `nightly.html`, `charts.html`, `stats.html`, `about.html`, `settings.html`.
+- Removed legacy boot artifacts: `dashboard-boot.js`, `log-boot.js`, `quality-boot.js`, `nightly-boot.js`, `charts-boot.js`, `stats-boot.js`, `about-boot.js`, `settings-boot.js`.
+- Removed legacy static-copy/deploy compatibility wiring:
+  - `vite.config.js`: removed boot/shell copy targets.
+  - `vercel.json`: removed direct `*.html` redirect compatibility rules; kept SPA rewrite to `index.html`.
+
+### Notes to next agent (Phase 3)
+- Consolidate `docs/migration/*` content into permanent docs and retire `docs/migration` per plan.
+- Update README and permanent docs to remove stale migration/in-progress wording and any legacy MPA framing.
+- Preserve at most one historical ADR only if a clean synthesis is not possible.
 
 ## Acceptance Criteria
 - No runtime dependency on root legacy route shells or `*-boot.js`.

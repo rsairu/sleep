@@ -8,14 +8,14 @@ Status: Temporary verification checklist. Keep until Phase 2 completes and rollo
 
 | Route | Current content source in SPA | Expected lifecycle mount root | Route script preload chain |
 |------|-------------------------------|-------------------------------|----------------------------|
-| `/dashboard` | `dashboard.html` fragment (`#dashboard-container`) | `#dashboard-container` via `__restoreDashboardLifecycle` | `nightly.js`, `quick-actions.js`, `dashboard.js` |
-| `/log` | `log.html` fragment (`#log-page-root`) | `#log-page-root` via `__restoreLogLifecycle` | `nightly.js`, `entry-modal.js`, `log.js` |
-| `/quality` | `quality.html` fragment (`#quality-container`) | `#quality-container` via `__restoreQualityLifecycle` | `nightly.js`, `quality.js` |
-| `/timeline` | `nightly.html` fragment (`#timeline-section`) | `#timeline-section` via `__restoreNightlyTimelineLifecycle` | `nightly.js` |
-| `/charts` | `charts.html` fragment (`#charts-page-root`) | `#charts-page-root` via `__restoreChartsLifecycle` | `charts.js` |
-| `/stats` | `stats.html` fragment (`#stats-page-root`) | `#stats-page-root` via `__restoreStatsLifecycle` | `stats-aggregates.js`, `stats.js` |
-| `/about` | `about.html` fragment (`#about-page-root`) | `#about-page-root` via `__restoreAboutLifecycle` | `about.js` |
-| `/settings` | `settings.html` fragment (`#settings-page-root`) | `#settings-page-root` via `__restoreSettingsLifecycle` | `settings.js` |
+| `/dashboard` | `src/spa-fragments/dashboard.html` (`#dashboard-container`) | `#dashboard-container` via `__restoreDashboardLifecycle` | `nightly.js`, `quick-actions.js`, `dashboard.js` |
+| `/log` | `src/spa-fragments/log.html` (`#log-page-root`) | `#log-page-root` via `__restoreLogLifecycle` | `nightly.js`, `entry-modal.js`, `log.js` |
+| `/quality` | `src/spa-fragments/quality.html` (`#quality-container`) | `#quality-container` via `__restoreQualityLifecycle` | `nightly.js`, `quality.js` |
+| `/timeline` | `src/spa-fragments/timeline.html` (`#timeline-section`) | `#timeline-section` via `__restoreNightlyTimelineLifecycle` | `nightly.js` |
+| `/charts` | `src/spa-fragments/charts.html` (`#charts-page-root`) | `#charts-page-root` via `__restoreChartsLifecycle` | `charts.js` |
+| `/stats` | `src/spa-fragments/stats.html` (`#stats-page-root`) | `#stats-page-root` via `__restoreStatsLifecycle` | `stats-aggregates.js`, `stats.js` |
+| `/about` | `src/spa-fragments/about.html` (`#about-page-root`) | `#about-page-root` via `__restoreAboutLifecycle` | `about.js` |
+| `/settings` | `src/spa-fragments/settings.html` (`#settings-page-root`) | `#settings-page-root` via `__restoreSettingsLifecycle` | `settings.js` |
 
 ## Runtime baseline checks (manual smoke pass)
 
@@ -37,18 +37,24 @@ Status: Temporary verification checklist. Keep until Phase 2 completes and rollo
 
 ### Phase 1 (replace fragment source)
 
-- [ ] Replace route content loading in `src/spa-app.js` so route activation no longer depends on legacy shell HTML files.
-- [ ] Keep route mapping canonical (single route table source) and remove duplicated route/path maps where possible.
-- [ ] Re-run runtime baseline checks and record any regressions before hard cut.
+- [x] Replace route content loading in `src/spa-app.js` so route activation no longer depends on legacy shell HTML files.
+- [x] Keep route mapping canonical (single route table source) and remove duplicated route/path maps where possible.
+- [x] Re-run runtime baseline checks and record any regressions before hard cut.
 
 ### Phase 2 (hard cut legacy)
 
-- [ ] Remove legacy root route shells and `*-boot.js` files only after Phase 1 parity is confirmed.
-- [ ] Remove static copy/deploy compatibility wiring in `vite.config.js` and `vercel.json` for removed artifacts.
-- [ ] Run build + preview smoke pass to confirm no missing runtime assets.
+- [x] Remove legacy root route shells and `*-boot.js` files only after Phase 1 parity is confirmed.
+- [x] Remove static copy/deploy compatibility wiring in `vite.config.js` and `vercel.json` for removed artifacts.
+- [x] Run build + preview smoke pass to confirm no missing runtime assets.
 
-## Notes for the next agent (Phase 1)
+## Phase completion notes
 
-- Keep this file as the authoritative Phase 0 gate while implementing Phase 1.
-- During Phase 1, update this document with a short "parity check results" note after refactoring route content sources.
-- Do not delete this checklist until after Phase 2 has shipped and verification is complete.
+- Phase 1 parity validated by manual click-through across tab routes and hamburger routes, including hash deep-links.
+- Phase 2 hard cut completed: root legacy route shells and `*-boot.js` artifacts removed.
+- Build/deploy wiring updated so no legacy shell/boot copy or `*.html` redirect compatibility remains.
+
+## Notes for the next agent (Phase 3)
+
+- Begin documentation consolidation from `docs/migration/*` into permanent docs (`docs/routing.md`, `docs/lifecycle-contract.md`, `docs/architecture-decisions.md`), then retire `docs/migration`.
+- Update README wording to remove stale migration-progress framing and legacy MPA references.
+- Keep exactly one historical ADR only if a meaningful decision cannot be cleanly merged into permanent docs.
