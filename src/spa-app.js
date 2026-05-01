@@ -1,8 +1,16 @@
 /**
- * Vite SPA entry: History API router, modifier-safe link interception, fetch MPA shells for markup.
+ * Vite SPA entry: History API router, modifier-safe link interception, mount canonical route fragments.
  * Sets globalThis.__restoreUseSpaNav so sleep-utils / nightly use path hrefs via routes-data internalNavHref.
  */
-import '../routes-data.mjs';
+import { spaPathFromMpaFile } from '../routes-data.mjs';
+import dashboardFragment from './spa-fragments/dashboard.html?raw';
+import logFragment from './spa-fragments/log.html?raw';
+import qualityFragment from './spa-fragments/quality.html?raw';
+import timelineFragment from './spa-fragments/timeline.html?raw';
+import chartsFragment from './spa-fragments/charts.html?raw';
+import statsFragment from './spa-fragments/stats.html?raw';
+import aboutFragment from './spa-fragments/about.html?raw';
+import settingsFragment from './spa-fragments/settings.html?raw';
 
 globalThis.__restoreUseSpaNav = true;
 
@@ -27,31 +35,7 @@ function loadClassicScript(relativePath) {
   return scriptLoaded[path];
 }
 
-async function fetchDocHtml(filename) {
-  const name = filename.replace(/^\//, '');
-  /* Production: shells live under /mpa/ so root *.html can 308 to path routes without breaking fetch */
-  const path = (import.meta.env.PROD ? 'mpa/' : '') + name;
-  const res = await fetch(scriptBase() + path);
-  if (!res.ok) throw new Error('[spa-app] fetch failed: ' + path + ' (' + res.status + ')');
-  return res.text();
-}
-
-function parseHtml(html) {
-  return new DOMParser().parseFromString(html, 'text/html');
-}
-
 function rewriteMpaAnchors(rootEl) {
-  const fileToPath = {
-    'dashboard.html': '/dashboard',
-    'log.html': '/log',
-    'quality.html': '/quality',
-    'nightly.html': '/timeline',
-    'charts.html': '/charts',
-    'stats.html': '/stats',
-    'about.html': '/about',
-    'settings.html': '/settings',
-    'index.html': '/dashboard'
-  };
   rootEl.querySelectorAll('a[href]').forEach((a) => {
     const raw = a.getAttribute('href');
     if (!raw || raw.startsWith('#') || raw.startsWith('mailto:') || raw.startsWith('javascript:')) return;
@@ -59,7 +43,7 @@ function rewriteMpaAnchors(rootEl) {
       const abs = new URL(raw, window.location.origin);
       if (abs.origin !== window.location.origin) return;
       const file = abs.pathname.split('/').pop() || '';
-      const spa = fileToPath[file];
+      const spa = spaPathFromMpaFile(file);
       if (spa) {
         a.setAttribute('href', spa + (abs.hash || ''));
       }
@@ -87,13 +71,8 @@ function unmountRoute() {
 const ROUTES = {
   '/dashboard': {
     navPage: 'dashboard',
-    mpaFile: 'dashboard.html',
+    fragmentHtml: dashboardFragment,
     bodyClass: '',
-    extract(doc) {
-      const inner = doc.querySelector('#dashboard-container');
-      if (!inner) return '';
-      return '<div class="container">' + inner.outerHTML + '</div>';
-    },
     mountSelector: '#dashboard-container',
     lifecycleProp: '__restoreDashboardLifecycle',
     async preload() {
@@ -105,13 +84,8 @@ const ROUTES = {
   },
   '/log': {
     navPage: 'log',
-    mpaFile: 'log.html',
+    fragmentHtml: logFragment,
     bodyClass: '',
-    extract(doc) {
-      const el = doc.querySelector('#log-page-root');
-      if (!el) return '';
-      return '<div class="container">' + el.outerHTML + '</div>';
-    },
     mountSelector: '#log-page-root',
     lifecycleProp: '__restoreLogLifecycle',
     async preload() {
@@ -123,13 +97,8 @@ const ROUTES = {
   },
   '/quality': {
     navPage: 'quality',
-    mpaFile: 'quality.html',
+    fragmentHtml: qualityFragment,
     bodyClass: 'quality-page',
-    extract(doc) {
-      const inner = doc.querySelector('#quality-container');
-      if (!inner) return '';
-      return '<div class="container">' + inner.outerHTML + '</div>';
-    },
     mountSelector: '#quality-container',
     lifecycleProp: '__restoreQualityLifecycle',
     async preload() {
@@ -140,12 +109,8 @@ const ROUTES = {
   },
   '/timeline': {
     navPage: 'timeline',
-    mpaFile: 'nightly.html',
+    fragmentHtml: timelineFragment,
     bodyClass: '',
-    extract(doc) {
-      const el = doc.querySelector('#timeline-section');
-      return el ? el.outerHTML : '';
-    },
     mountSelector: '#timeline-section',
     lifecycleProp: '__restoreNightlyTimelineLifecycle',
     async preload() {
@@ -155,17 +120,8 @@ const ROUTES = {
   },
   '/charts': {
     navPage: 'charts',
-    mpaFile: 'charts.html',
+    fragmentHtml: chartsFragment,
     bodyClass: '',
-    extract(doc) {
-      const el = doc.querySelector('#charts-page-root');
-      if (!el) return '';
-      const clone = el.cloneNode(true);
-      clone.querySelectorAll('#tooltip, #day-panel').forEach(function (n) {
-        n.remove();
-      });
-      return clone.outerHTML;
-    },
     mountSelector: '#charts-page-root',
     lifecycleProp: '__restoreChartsLifecycle',
     async preload() {
@@ -182,12 +138,8 @@ const ROUTES = {
   },
   '/stats': {
     navPage: 'stats',
-    mpaFile: 'stats.html',
+    fragmentHtml: statsFragment,
     bodyClass: 'page-stats',
-    extract(doc) {
-      const el = doc.querySelector('#stats-page-root');
-      return el ? el.outerHTML : '';
-    },
     mountSelector: '#stats-page-root',
     lifecycleProp: '__restoreStatsLifecycle',
     async preload() {
@@ -198,12 +150,8 @@ const ROUTES = {
   },
   '/about': {
     navPage: 'about',
-    mpaFile: 'about.html',
+    fragmentHtml: aboutFragment,
     bodyClass: '',
-    extract(doc) {
-      const el = doc.querySelector('#about-page-root');
-      return el ? el.outerHTML : '';
-    },
     mountSelector: '#about-page-root',
     lifecycleProp: '__restoreAboutLifecycle',
     async preload() {
@@ -213,12 +161,8 @@ const ROUTES = {
   },
   '/settings': {
     navPage: 'settings',
-    mpaFile: 'settings.html',
+    fragmentHtml: settingsFragment,
     bodyClass: '',
-    extract(doc) {
-      const el = doc.querySelector('#settings-page-root');
-      return el ? el.outerHTML : '';
-    },
     mountSelector: '#settings-page-root',
     lifecycleProp: '__restoreSettingsLifecycle',
     async preload() {
@@ -241,9 +185,7 @@ async function activatePath(pathname, { replaceHash } = {}) {
 
   unmountRoute();
 
-  const htmlText = await fetchDocHtml(cfg.mpaFile);
-  const doc = parseHtml(htmlText);
-  const fragment = cfg.extract(doc);
+  const fragment = cfg.fragmentHtml || '';
   const outlet = document.getElementById('spa-outlet');
   if (!outlet) throw new Error('[spa-app] #spa-outlet missing');
   outlet.innerHTML = fragment;
@@ -332,19 +274,7 @@ function interceptClick(e) {
   const file = url.pathname.split('/').pop() || '';
   let path = normalizePath(url.pathname);
   if (/\.html$/i.test(file)) {
-    const map = {
-      dashboard: '/dashboard',
-      log: '/log',
-      quality: '/quality',
-      nightly: '/timeline',
-      charts: '/charts',
-      stats: '/stats',
-      about: '/about',
-      settings: '/settings',
-      index: '/dashboard'
-    };
-    const base = file.replace(/\.html$/i, '');
-    path = map[base] ? map[base] : '/dashboard';
+    path = spaPathFromMpaFile(file) || '/dashboard';
   }
   e.preventDefault();
   const dest = path + url.search + url.hash;

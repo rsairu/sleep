@@ -25,6 +25,26 @@ export const navTabs = [
   { id: 'stats', key: 'nav.tabs.stats', defaultName: 'Stats', url: 'stats.html', icon: '🔢' }
 ];
 
+/** Canonical legacy shell file -> SPA path map (used for rewrite/intercept compatibility). */
+export const spaPathByMpaFile = {
+  'dashboard.html': '/dashboard',
+  'log.html': '/log',
+  'quality.html': '/quality',
+  'nightly.html': '/timeline',
+  'charts.html': '/charts',
+  'stats.html': '/stats',
+  'about.html': '/about',
+  'settings.html': '/settings',
+  'index.html': '/dashboard'
+};
+
+/** Reverse map used by compatibility helpers. */
+export const mpaFileBySpaPath = Object.keys(spaPathByMpaFile).reduce((acc, file) => {
+  const path = spaPathByMpaFile[file];
+  if (!acc[path]) acc[path] = file;
+  return acc;
+}, {});
+
 export const href = {
   about: 'about.html',
   settings: 'settings.html',
@@ -110,6 +130,16 @@ export function spaPathForTabId(id) {
   return p || null;
 }
 
+export function spaPathFromMpaFile(fileName) {
+  if (!fileName || typeof fileName !== 'string') return null;
+  return spaPathByMpaFile[fileName] || null;
+}
+
+export function mpaFileFromSpaPath(pathname) {
+  if (!pathname || typeof pathname !== 'string') return null;
+  return mpaFileBySpaPath[pathname] || null;
+}
+
 export function spaHref(key) {
   const spec = INTERNAL_MPA_LINKS[key];
   if (!spec) {
@@ -159,9 +189,13 @@ export function installRoutesData(globalObj) {
     href,
     spaHrefMenu,
     spaPathByTabId,
+    spaPathByMpaFile,
+    mpaFileBySpaPath,
     mpaHref,
     spaHref,
     spaPathForTabId,
+    spaPathFromMpaFile,
+    mpaFileFromSpaPath,
     internalNavHref
   };
 }
