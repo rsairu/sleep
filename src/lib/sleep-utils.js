@@ -4107,8 +4107,10 @@ function initDevClockControl() {
     const stepSpec = [
       { id: 'nav-dev-banner-clock-step-prev-day', apply: function (d) { d.setDate(d.getDate() - 1); } },
       { id: 'nav-dev-banner-clock-step-minus-hour', apply: function (d) { d.setHours(d.getHours() - 1); } },
+      { id: 'nav-dev-banner-clock-step-minus-five-min', apply: function (d) { d.setMinutes(d.getMinutes() - 5); } },
       { id: 'nav-dev-banner-clock-step-minus-min', apply: function (d) { d.setMinutes(d.getMinutes() - 1); } },
       { id: 'nav-dev-banner-clock-step-plus-min', apply: function (d) { d.setMinutes(d.getMinutes() + 1); } },
+      { id: 'nav-dev-banner-clock-step-plus-five-min', apply: function (d) { d.setMinutes(d.getMinutes() + 5); } },
       { id: 'nav-dev-banner-clock-step-plus-hour', apply: function (d) { d.setHours(d.getHours() + 1); } },
       { id: 'nav-dev-banner-clock-step-next-day', apply: function (d) { d.setDate(d.getDate() + 1); } }
     ];
@@ -5199,14 +5201,18 @@ function renderNavBar(currentPage) {
     '</svg>';
   const devClockStepIconPrevDay =
     '<svg class="nav-dev-banner-clock-step-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="4" x2="5" y2="20"/><polyline points="20 18 14 12 20 6"/><polyline points="14 18 8 12 14 6"/></svg>';
-  const devClockStepIconMinusHour =
+  const devClockStepIconMinusTripleHour =
+    '<svg class="nav-dev-banner-clock-step-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 18 16 12 22 6"/><polyline points="16 18 10 12 16 6"/><polyline points="10 18 4 12 10 6"/></svg>';
+  const devClockStepIconMinusFiveMin =
     '<svg class="nav-dev-banner-clock-step-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="18 18 12 12 18 6"/><polyline points="12 18 6 12 12 6"/></svg>';
   const devClockStepIconMinusMin =
     '<svg class="nav-dev-banner-clock-step-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="14 18 8 12 14 6"/></svg>';
   const devClockStepIconPlusMin =
     '<svg class="nav-dev-banner-clock-step-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="10 18 16 12 10 6"/></svg>';
-  const devClockStepIconPlusHour =
+  const devClockStepIconPlusFiveMin =
     '<svg class="nav-dev-banner-clock-step-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 18 12 12 6 6"/><polyline points="12 18 18 12 12 6"/></svg>';
+  const devClockStepIconPlusTripleHour =
+    '<svg class="nav-dev-banner-clock-step-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="2 18 8 12 2 6"/><polyline points="8 18 14 12 8 6"/><polyline points="14 18 20 12 14 6"/></svg>';
   const devClockStepIconNextDay =
     '<svg class="nav-dev-banner-clock-step-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="4 18 10 12 4 6"/><polyline points="10 18 16 12 10 6"/><line x1="19" y1="4" x2="19" y2="20"/></svg>';
   const branchBadgeDisplay = branchLabel ? escapeHtmlBannerText(branchLabel) : 'unknown';
@@ -5346,7 +5352,10 @@ function renderNavBar(currentPage) {
     devClockStepIconPrevDay +
     '</button>' +
     '<button type="button" class="nav-dev-banner-clock-step-btn" id="nav-dev-banner-clock-step-minus-hour" title="Back one hour" aria-label="Back one hour">' +
-    devClockStepIconMinusHour +
+    devClockStepIconMinusTripleHour +
+    '</button>' +
+    '<button type="button" class="nav-dev-banner-clock-step-btn" id="nav-dev-banner-clock-step-minus-five-min" title="Back five minutes" aria-label="Back five minutes">' +
+    devClockStepIconMinusFiveMin +
     '</button>' +
     '<button type="button" class="nav-dev-banner-clock-step-btn" id="nav-dev-banner-clock-step-minus-min" title="Back one minute" aria-label="Back one minute">' +
     devClockStepIconMinusMin +
@@ -5358,8 +5367,11 @@ function renderNavBar(currentPage) {
     '<button type="button" class="nav-dev-banner-clock-step-btn" id="nav-dev-banner-clock-step-plus-min" title="Forward one minute" aria-label="Forward one minute">' +
     devClockStepIconPlusMin +
     '</button>' +
+    '<button type="button" class="nav-dev-banner-clock-step-btn" id="nav-dev-banner-clock-step-plus-five-min" title="Forward five minutes" aria-label="Forward five minutes">' +
+    devClockStepIconPlusFiveMin +
+    '</button>' +
     '<button type="button" class="nav-dev-banner-clock-step-btn" id="nav-dev-banner-clock-step-plus-hour" title="Forward one hour" aria-label="Forward one hour">' +
-    devClockStepIconPlusHour +
+    devClockStepIconPlusTripleHour +
     '</button>' +
     '<button type="button" class="nav-dev-banner-clock-step-btn" id="nav-dev-banner-clock-step-next-day" title="Next day" aria-label="Next day">' +
     devClockStepIconNextDay +

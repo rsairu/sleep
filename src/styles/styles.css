@@ -786,18 +786,21 @@ body{
 
 .nav-dev-banner-clock-step-toolbar {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 2px;
   width: 100%;
+  box-sizing: border-box;
 }
 
 .nav-dev-banner-clock-step-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.42rem;
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;
   height: 1.2rem;
   min-height: 1.2rem;
   padding: 0;
@@ -808,13 +811,11 @@ body{
   color: #ffffff;
   cursor: pointer;
   line-height: 0;
-  flex-shrink: 0;
 }
 
 .nav-dev-banner-clock-step-btn--reset {
-  width: 2.84rem;
-  min-width: 2.84rem;
-  flex: 0 0 2.84rem;
+  flex: 1.28 1 0;
+  min-width: 0;
 }
 
 .nav-dev-banner-clock-step-btn:hover {
