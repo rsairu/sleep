@@ -26,6 +26,12 @@
   /* Nightly: woke before first alarm — cool teal (not --color-bed sky blue) vs warm +delay */
   --stat-wake-before-alarm-cool: #2dd4bf;
 
+  /* Remaining-wake nav: phase tints (top/bottom gradient; --color-up / sunset / sleep-adjacent read) */
+  --nav-phase-tint-open: rgba(134, 239, 172, 0.18);
+  --nav-phase-tint-winding: rgba(253, 230, 138, 0.22);
+  --nav-phase-tint-presleep: rgba(196, 181, 253, 0.2);
+  --nav-phase-tint-sleep: rgba(99, 102, 241, 0.16);
+
   /* Common overlays */
   --hover-bg: rgba(255, 255, 255, 0.05);
   --tooltip-bg: rgba(0, 0, 0, 0.9);
@@ -780,18 +786,21 @@ body{
 
 .nav-dev-banner-clock-step-toolbar {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 2px;
   width: 100%;
+  box-sizing: border-box;
 }
 
 .nav-dev-banner-clock-step-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.42rem;
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;
   height: 1.2rem;
   min-height: 1.2rem;
   padding: 0;
@@ -802,13 +811,11 @@ body{
   color: #ffffff;
   cursor: pointer;
   line-height: 0;
-  flex-shrink: 0;
 }
 
 .nav-dev-banner-clock-step-btn--reset {
-  width: 2.84rem;
-  min-width: 2.84rem;
-  flex: 0 0 2.84rem;
+  flex: 1.28 1 0;
+  min-width: 0;
 }
 
 .nav-dev-banner-clock-step-btn:hover {
@@ -2384,21 +2391,42 @@ body{
   }
 }
 
-/* Phase-colored header (remaining wake in bar) */
-.nav-wrapper--phase-open .nav-header {
-  background: rgba(134, 239, 172, 0.18);
+/* Phase-colored header: flat until heads-up; then top → next-phase blend ( --nav-header-mid from JS ) */
+.nav-wrapper--phase-open {
+  --nav-header-from: var(--nav-phase-tint-open);
+  --nav-header-to: var(--nav-phase-tint-winding);
 }
 
-.nav-wrapper--phase-winding .nav-header {
-  background: rgba(253, 230, 138, 0.22);
+.nav-wrapper--phase-winding {
+  --nav-header-from: var(--nav-phase-tint-winding);
+  --nav-header-to: var(--nav-phase-tint-presleep);
 }
 
+.nav-wrapper--phase-presleep {
+  --nav-header-from: var(--nav-phase-tint-presleep);
+  --nav-header-to: var(--nav-phase-tint-sleep);
+}
+
+.nav-wrapper--phase-open .nav-header,
+.nav-wrapper--phase-winding .nav-header,
 .nav-wrapper--phase-presleep .nav-header {
-  background: rgba(196, 181, 253, 0.2);
+  background: var(--nav-header-from);
+  transition: background 0.85s ease;
+}
+
+.nav-wrapper--rw-heads-up-blend.nav-wrapper--phase-open .nav-header,
+.nav-wrapper--rw-heads-up-blend.nav-wrapper--phase-winding .nav-header {
+  background: linear-gradient(
+    to bottom,
+    var(--nav-header-from) 0%,
+    color-mix(in srgb, var(--nav-header-from) 50%, var(--nav-header-to) 50%) var(--nav-header-mid, 45%),
+    var(--nav-header-to) 100%
+  );
 }
 
 .nav-wrapper--phase-sleep .nav-header {
-  background: rgba(99, 102, 241, 0.16);
+  background: var(--nav-phase-tint-sleep);
+  transition: background 0.5s ease;
 }
 
 .dashboard-projection {
