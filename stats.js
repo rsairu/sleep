@@ -1,5 +1,5 @@
 // Sleep statistics: period-scoped matrix (see stats-aggregates.js for shared helpers).
-// Lifecycle (SPA prep): mount / unmount on #stats-page-root — see docs/migration/lifecycle-contract.md
+// Lifecycle (SPA prep): mount / unmount on #stats-page-root — see docs/lifecycle-contract.md
 
 function calculateMonthlyAverages(monthDays) {
   if (monthDays.length === 0) {
@@ -489,7 +489,7 @@ function renderStatsPage(allDays) {
   container.innerHTML = renderStatsMatrix(periodDays);
 }
 
-// Lifecycle (SPA prep): mount / unmount on #stats-page-root — see docs/migration/lifecycle-contract.md
+// Lifecycle (SPA prep): mount / unmount on #stats-page-root — see docs/lifecycle-contract.md
 let statsMountGeneration = 0;
 /** @type {HTMLElement | null} */
 let statsMountedRoot = null;

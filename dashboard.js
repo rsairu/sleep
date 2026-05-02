@@ -3,7 +3,7 @@
 // Includes 7-day graphs: bed/sleep-start and wake time (left column), duration chart (right).
 // Requires: sleep-utils.js (timeToMinutes, getDateFromString, calculateTotalSleep, formatDuration, formatTime)
 //
-// Lifecycle (SPA prep): mount / unmount on #dashboard-container — see docs/migration/lifecycle-contract.md
+// Lifecycle (SPA prep): mount / unmount on #dashboard-container — see docs/lifecycle-contract.md
 
 // --- 7-day graph helpers ---
 function regressionDegree(pointCount) {

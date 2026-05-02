@@ -1,15 +1,13 @@
 # Sleep Tracking Web App
 
-Restore is a lightweight sleep tracking web app for logging and visualizing sleep (bed time, sleep start/end, naps, interruptions). The UI is vanilla HTML/CSS/JS with a **Vite-built SPA** at the site root and **legacy per-page `*.html`** shells still available for direct opens.
+Restore is a lightweight sleep tracking web app for logging and visualizing sleep (bed time, sleep start/end, naps, interruptions). The UI is vanilla HTML/CSS/JS with a **Vite-built SPA** at the site root.
 
-**Run (SPA, recommended):** `npm install` then `npm run dev` and open the printed local URL (path routes such as `/dashboard`). Production: `npm run build` and deploy the `dist/` folder (see [`vercel.json`](vercel.json)).
-
-**Run (legacy MPA):** Open `dashboard.html` (or another `*.html` page) in a browser or static server.
+**Run:** `npm install` then `npm run dev` and open the printed local URL (path routes such as `/dashboard`). Production: `npm run build` and deploy the `dist/` folder (see [`vercel.json`](vercel.json)).
 
 ## Cloud Sync + Direct Entry (MVP)
 
-- Add nights directly in the app from the Dashboard via the `+ Night` button.
-- Configure Supabase in `Settings` (`settings.html`) under **Cloud sync**.
+- Add sleep data directly in the app from the Dashboard via Quick Actions.
+- Configure Supabase in `Settings` (`/settings#cloud-sync`) under **Cloud sync**.
 - The top nav now shows a source badge (`☁️ Cloud` or `💾 Local`) so you can see at a glance where data is coming from.
 - If Supabase is not configured (or unreachable), pages read from local `data/sleep-data.json` as fallback.
 - One-time import from JSON to Supabase: create the table with `supabase/schema.sql`, then load rows with your own tool or the Supabase dashboard (no npm script in this repo).
@@ -34,15 +32,15 @@ That uses `hooks/post-checkout` and `hooks/post-merge`, which invoke `scripts/st
 
 Pages load `local-supabase-presets.js`, then `routes-data.mjs` (canonical nav routes, ES module + `defer`), then `sleep-utils.js` so the dev banner can offer a **Dev** / **Prod** toggle and `renderNavBar` stays aligned with the SPA migration route table. The file is **gitignored**; copy `local-supabase-presets.example.js` to `local-supabase-presets.js` and fill in both project URLs and anon keys. If the file is absent (e.g. production deploy), the script request fails harmlessly and the toggle is hidden. See `docs/dev-banner.md`.
 
-## Cleanup guardrails (Phase 0)
+## Documentation
 
-- Phase 0 baseline + hard-cut acceptance criteria live in `docs/spa-hard-cut-checklist.md`.
-- Use that checklist as the verification gate for Phase 1 (fragment source replacement) and Phase 2 (legacy shell/boot deletion).
+- Routing, lifecycle, and architecture: [`docs/routing.md`](docs/routing.md), [`docs/lifecycle-contract.md`](docs/lifecycle-contract.md), [`docs/architecture-decisions.md`](docs/architecture-decisions.md).
+- Historical verification notes from the post-migration cleanup (phases 0–3): [`docs/spa-hard-cut-checklist.md`](docs/spa-hard-cut-checklist.md).
 
 ## npm scripts
 
 - `npm run dev` — Vite dev server (SPA shell + path routes).
-- `npm run build` — production build to `dist/` (copies assets, data template, classic JS, and MPA shells under `dist/mpa/` for SPA fragment fetch; Vercel redirects root `*.html` to path routes — see `docs/migration/decisions.md` Phase 9b).
+- `npm run build` — production build to `dist/` (SPA shell + route fragments + runtime scripts/assets).
 - `npm run preview` — local preview of the `dist/` output.
 - `npm run test:math` — deterministic math and dataset invariant checks (`math-tests.js`).
 
@@ -85,28 +83,28 @@ Time is normalized as **minutes from midnight** (0–1440) everywhere, with expl
 
 ## Pages & Responsibilities
 
-### 1. Dashboard (`dashboard.html` + `dashboard.js` + `entry-modal.js` + `daily.js`)
+### 1. Dashboard (`/dashboard`)
 - Loads shared sleep data (Supabase when configured, local JSON fallback).
 - Renders recent/lifetime averages, last few nights as timeline rows, and the **current month** of the sleep-quality calendar heatmap.
 - Uses `renderDashboardContent()`, `renderCalendarHeatmapCurrentMonthOnly()` from `daily.js`; `entry-modal.js` powers **+ Night** and related quick entry.
 
-### 2. Sleep Quality (`quality.html` + `quality.js` + `daily.js`)
+### 2. Sleep Quality (`/quality`)
 - Loads shared sleep data (Supabase when configured, local JSON fallback).
 - Renders the **full** sleep quality history: all months in a calendar heatmap of "flag" days (deviations vs 7-day avg).
 - Uses `renderCalendarHeatmapFullHistory()`, `buildFlagCountMap()`, `getLatestDataDate()` from `daily.js`.
 
-### 3. Daily Timeline (`daily.html` + `daily.js`)
+### 3. Daily Timeline (`/timeline`)
 - Timeline from **22:00 previous day** to **24:00 current day** (config in `daily.js`: `TIMELINE_START_MINUTES`, `TIME_TICKS`).
 - Renders **weeks** (expandable), each day as a horizontal bar: bed, sleep, nap, bathroom, alarm, sick, get-up.
 - Week grouping is **Monday–Sunday** (ISO-style); current/previous week start expanded.
 
-### 4. Graphs (`graph.html` + `graph.js`)
+### 4. Graphs (`/charts`)
 - Loads shared sleep data; no `daily.js`, only `sleep-utils.js`.
 - **Line chart:** bed time, fell-asleep time, get-up time over days (Y = time 17:00→17:00 next day); **quadratic regression** (polynomial regression + Gaussian elimination in `graph.js`) for trend lines; toggles to show/hide series.
 - **Bar charts:** sleep duration and "delay" (e.g. bed-to-sleep) per day.
 - All charts are **SVG** drawn in code.
 
-### 5. Stats (`stats.html` + `stats.js`)
+### 5. Stats (`/stats`)
 - **Monthly** stats: total sleep, averages, longest uninterrupted stretch, alarm-to-wake, bed-to-sleep delay, nap stats.
 - Uses `groupDaysByMonth()`, `calculateLongestUninterrupted()`, `calculateFirstAlarmToWake()`, `calculateBedToSleepDelay()`, `calculateNapDuration()` in `stats.js`.
 - Renders comparison vs other months (e.g. "higher/lower than average").
@@ -140,10 +138,9 @@ Time is normalized as **minutes from midnight** (0–1440) everywhere, with expl
 
 | Path | Role |
 |------|------|
-| `index.html` | Redirects to `dashboard.html` (entry point) |
-| `dashboard.html`, `quality.html`, `daily.html`, `graph.html`, `stats.html` | Main app pages (see **Pages & Responsibilities**) |
-| `settings.html` | Settings (themes, Supabase cloud sync) |
-| `about.html` | About / project meta |
+| `index.html` | SPA shell entry point |
+| `src/spa-app.js` | SPA History router and route activation |
+| `src/spa-fragments/` | Canonical route markup fragments |
 | `data/sleep-data.json` | Local fallback dataset (`{ days: [...] }`); gitignored |
 | `data/backup/` | Manual restore exports (e.g. CSV); gitignored |
 | `data/.gitkeep` | Keeps `data/` in version control without committing datasets |
@@ -162,6 +159,9 @@ Time is normalized as **minutes from midnight** (0–1440) everywhere, with expl
 | `math-tests.js` | Math and dataset invariant harness (see **Math Regression Checks**) |
 | `styles.css` | Global styles and CSS variables |
 | `package.json` | npm script: `test:math` |
+| `docs/routing.md` | Canonical route mapping and link policy |
+| `docs/lifecycle-contract.md` | Route mount/unmount lifecycle contract |
+| `docs/architecture-decisions.md` | Permanent ADR summary |
 
 ---
 

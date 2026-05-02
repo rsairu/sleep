@@ -1,5 +1,5 @@
 // Log page: full night entry form (moved from dashboard drawer).
-// Lifecycle (SPA prep): mount / unmount on #log-page-root — see docs/migration/lifecycle-contract.md
+// Lifecycle (SPA prep): mount / unmount on #log-page-root — see docs/lifecycle-contract.md
 
 (function () {
   'use strict';

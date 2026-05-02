@@ -2971,7 +2971,7 @@ function toggleWeek(weekId) {
   }
 }
 
-// Nightly timeline page: mount / unmount on #timeline-section — see docs/migration/lifecycle-contract.md
+// Nightly timeline page: mount / unmount on #timeline-section — see docs/lifecycle-contract.md
 // initDeviationFlagChips() below is an app singleton (document-level); not tied to timeline mount.
 (function () {
   var nightlyTimelineMountGen = 0;

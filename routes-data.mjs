@@ -60,7 +60,7 @@ export const spaHrefMenu = {
   dashboard: '/dashboard'
 };
 
-/** Semantic key → resolver spec (see mpaHref). Registry also listed in docs/migration/route-table.md */
+/** Semantic key → resolver spec (see mpaHref). Registry also listed in docs/routing.md */
 const INTERNAL_MPA_LINKS = {
   'tab.dashboard': { tab: 'dashboard' },
   'tab.log': { tab: 'log' },

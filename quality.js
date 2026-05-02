@@ -1,7 +1,7 @@
 // Sleep Quality History: full calendar heatmap (all months).
 // Uses renderCalendarHeatmapFullHistory() and shared helpers from nightly.js.
 //
-// Lifecycle (SPA prep): mount(root) / unmount() on #quality-container — see docs/migration/lifecycle-contract.md
+// Lifecycle (SPA prep): mount(root) / unmount() on #quality-container — see docs/lifecycle-contract.md
 
 (function () {
   'use strict';
