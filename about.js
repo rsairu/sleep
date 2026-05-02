@@ -1,5 +1,5 @@
 // About page lifecycle (Phase 6): extract inline init from about.html.
-// See docs/migration/lifecycle-contract.md
+// See docs/lifecycle-contract.md
 
 (function () {
   'use strict';

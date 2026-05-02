@@ -1,18 +1,4 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sleep charts</title>
-<link rel="stylesheet" href="theme-toggle.css">
-<link rel="stylesheet" href="styles.css">
-<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png">
-<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
-</head>
-<body>
-  <div id="nav-container"></div>
-  <div id="charts-page-root">
+<div id="charts-page-root">
   <div class="container">
     <div class="graph-page-header">
       <h1 class="page-title">Sleep charts</h1>
@@ -165,15 +151,4 @@
       <svg id="sol-chart-svg"></svg>
     </div>
   </div>
-  <div class="tooltip" id="tooltip"></div>
-  <div class="day-panel" id="day-panel"></div>
-  </div>
-
-  <script defer src="dev-git-branch.js"></script>
-  <script defer src="local-supabase-presets.js"></script>
-  <script defer type="module" src="routes-data.mjs"></script>
-  <script defer src="sleep-utils.js"></script>
-  <script defer src="charts.js"></script>
-  <script defer src="charts-boot.js"></script>
-</body>
-</html>
+</div>

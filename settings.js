@@ -1,5 +1,5 @@
 // Settings page lifecycle (Phase 6): extract inline init from settings.html.
-// See docs/migration/lifecycle-contract.md
+// See docs/lifecycle-contract.md
 
 (function () {
   'use strict';

@@ -1,5 +1,5 @@
 // Graph page rendering. Shared math/time helpers live in sleep-utils.js.
-// Lifecycle (SPA prep): mount / unmount on #charts-page-root — see docs/migration/lifecycle-contract.md
+// Lifecycle (SPA prep): mount / unmount on #charts-page-root — see docs/lifecycle-contract.md
 
 function graphRangeDays(key) {
   const map = { '30d': 30, '90d': 90, '180d': 180, '365d': 365 };
