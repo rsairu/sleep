@@ -5695,9 +5695,25 @@ function updateRemainingWakeNav(display) {
       'nav-wrapper--phase-open',
       'nav-wrapper--phase-winding',
       'nav-wrapper--phase-presleep',
-      'nav-wrapper--phase-sleep'
+      'nav-wrapper--phase-sleep',
+      'nav-wrapper--rw-heads-up-blend'
     );
     wrapper.classList.add('nav-wrapper--phase-' + display.phase);
+    const hu = display.phaseHeadsUp;
+    const windowMins = getRemainingWakePhaseHeadsUpMinutes();
+    if (
+      hu &&
+      hu.minutes > 0 &&
+      windowMins > 0 &&
+      display.phase !== 'sleep' &&
+      (display.phase === 'open' || display.phase === 'winding')
+    ) {
+      wrapper.classList.add('nav-wrapper--rw-heads-up-blend');
+      const t = hu.minutes / windowMins;
+      wrapper.style.setProperty('--nav-header-mid', 8 + t * 82 + '%');
+    } else {
+      wrapper.style.removeProperty('--nav-header-mid');
+    }
   }
 }
 
