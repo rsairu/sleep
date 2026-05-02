@@ -1,6 +1,6 @@
 # Dev banner and app-time controls
 
-Reference for the development banner in the shared nav, including when it appears, what it renders, and how simulated app time affects logic. Implementation lives primarily in `sleep-utils.js` with styling in `styles.css`.
+Reference for the development banner in the shared nav, including when it appears, what it renders, and how simulated app time affects logic. Implementation lives primarily in `src/lib/sleep-utils.js` with styling in `src/styles/styles.css`.
 
 ---
 
@@ -111,7 +111,7 @@ Important: app logic should use `getAppNowMs()` / `getAppDate()` when it must ho
 
 ## Layer 4 - fixed layout and motion
 
-The banner is `position: fixed` in `styles.css`, so `syncDevBannerFixedLayout()` is required after:
+The banner is `position: fixed` in `src/styles/styles.css`, so `syncDevBannerFixedLayout()` is required after:
 
 - initial render (including double-RAF in dev),
 - drawer toggles,
@@ -151,18 +151,18 @@ During transitions:
 
 | Concept | Primary location |
 |--------|-------------------|
-| Visibility gate and override precedence | `isDevBuildContext` - `sleep-utils.js` |
-| App time override read/accessors | `readDevClockOverrideMs`, `getAppNowMs`, `getAppDate` - `sleep-utils.js` |
-| Banner markup and warnings | `renderNavBar` - `sleep-utils.js` |
-| Clock mode + datetime/step controls | `initDevClockControl` - `sleep-utils.js` |
-| Cloud sync button | `initDevBannerCloudRefresh` - `sleep-utils.js` |
-| Supabase badge + Switch DB flip | `getSupabaseBannerBadgeModel`, `isDevBannerSupabaseEffectiveDev`, `initDevBannerDbSwitchFlip`, `readLocalSupabasePresets`, `ensureDevSupabasePresetApplied` - `sleep-utils.js` |
-| Vercel deployment badge (JSON + pass cache) | `DEV_VERCEL_PROJECT_URL`, `SHIELDS_GITHUB_DEPLOYMENTS_PRODUCTION_JSON`, `VERCEL_DEPLOY_SHIELDS_PASS_CACHE_*`, `hydrateDevBannerVercelDeployStatus`, `initDevBannerVercelDeployStatus`, `renderNavBar` - `sleep-utils.js` |
-| Drawer pointer/click behavior | `initDevBannerDrawer` - `sleep-utils.js` |
-| Expanded reserve measurement/caching | `measureDevBannerExpandedHeightPx`, `syncDevBannerFixedLayout` - `sleep-utils.js` |
-| User settings defaults (dev panel) | `applyDevBannerUserSettingsDefaults`, `initDevBannerUserSettingsPanel` - `sleep-utils.js` |
-| Branch stamp source | `scripts/stamp-dev-branch.js` -> `dev-git-branch.js` |
-| Banner visual system and responsive behavior | `.nav-dev-banner*` selectors in `styles.css` |
+| Visibility gate and override precedence | `isDevBuildContext` - `src/lib/sleep-utils.js` |
+| App time override read/accessors | `readDevClockOverrideMs`, `getAppNowMs`, `getAppDate` - `src/lib/sleep-utils.js` |
+| Banner markup and warnings | `renderNavBar` - `src/lib/sleep-utils.js` |
+| Clock mode + datetime/step controls | `initDevClockControl` - `src/lib/sleep-utils.js` |
+| Cloud sync button | `initDevBannerCloudRefresh` - `src/lib/sleep-utils.js` |
+| Supabase badge + Switch DB flip | `getSupabaseBannerBadgeModel`, `isDevBannerSupabaseEffectiveDev`, `initDevBannerDbSwitchFlip`, `readLocalSupabasePresets`, `ensureDevSupabasePresetApplied` - `src/lib/sleep-utils.js` |
+| Vercel deployment badge (JSON + pass cache) | `DEV_VERCEL_PROJECT_URL`, `SHIELDS_GITHUB_DEPLOYMENTS_PRODUCTION_JSON`, `VERCEL_DEPLOY_SHIELDS_PASS_CACHE_*`, `hydrateDevBannerVercelDeployStatus`, `initDevBannerVercelDeployStatus`, `renderNavBar` - `src/lib/sleep-utils.js` |
+| Drawer pointer/click behavior | `initDevBannerDrawer` - `src/lib/sleep-utils.js` |
+| Expanded reserve measurement/caching | `measureDevBannerExpandedHeightPx`, `syncDevBannerFixedLayout` - `src/lib/sleep-utils.js` |
+| User settings defaults (dev panel) | `applyDevBannerUserSettingsDefaults`, `initDevBannerUserSettingsPanel` - `src/lib/sleep-utils.js` |
+| Branch stamp source | `local/stamp-dev-branch.js` -> `local/dev-git-branch.js` |
+| Banner visual system and responsive behavior | `.nav-dev-banner*` selectors in `src/styles/styles.css` |
 
 ---
 

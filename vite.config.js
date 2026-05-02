@@ -2,32 +2,32 @@ import fs from 'fs';
 import { defineConfig } from 'vite';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 
-const rootScripts = [
-  'sleep-utils.js',
-  'nightly.js',
-  'quick-actions.js',
-  'dashboard.js',
-  'quality.js',
-  'log.js',
-  'entry-modal.js',
-  'charts.js',
-  'stats.js',
-  'stats-aggregates.js',
-  'settings.js',
-  'about.js',
-  'local-supabase-presets.js',
-  'routes-data.mjs',
-  'math-tests.js'
-].filter((f) => fs.existsSync(f));
+const libScripts = ['src/lib/sleep-utils.js', 'src/lib/stats-aggregates.js', 'src/lib/nightly.js'];
+const routeScripts = [
+  'src/routes/dashboard.js',
+  'src/routes/log.js',
+  'src/routes/quality.js',
+  'src/routes/charts.js',
+  'src/routes/stats.js',
+  'src/routes/settings.js',
+  'src/routes/about.js',
+  'src/routes/quick-actions.js',
+  'src/routes/entry-modal.js'
+];
 
 const staticCopyTargets = [
   { src: 'data', dest: 'data' },
-  { src: 'theme-toggle.css', dest: '.' },
-  { src: 'styles.css', dest: '.' },
-  ...rootScripts.map((f) => ({ src: f, dest: '.' }))
+  { src: 'src/styles/theme-toggle.css', dest: '.' },
+  { src: 'src/styles/styles.css', dest: '.' },
+  ...[...libScripts, ...routeScripts]
+    .filter((f) => fs.existsSync(f))
+    .map((f) => ({ src: f, dest: '.' }))
 ];
-if (fs.existsSync('dev-git-branch.js')) {
-  staticCopyTargets.push({ src: 'dev-git-branch.js', dest: '.' });
+if (fs.existsSync('local/dev-git-branch.js')) {
+  staticCopyTargets.push({ src: 'local/dev-git-branch.js', dest: '.' });
+}
+if (fs.existsSync('local/local-supabase-presets.js')) {
+  staticCopyTargets.push({ src: 'local/local-supabase-presets.js', dest: '.' });
 }
 
 export default defineConfig({

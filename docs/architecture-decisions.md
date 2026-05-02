@@ -11,7 +11,7 @@ This is the permanent ADR summary for the current SPA-first architecture.
 ## ADR-002: Centralized route metadata and semantic link helpers
 
 - **Status:** accepted
-- **Decision:** Keep route metadata and link helpers in `routes-data.mjs` and consume through `__restoreRoutesData`.
+- **Decision:** Keep route metadata and link helpers in `src/routes-data.mjs` and consume through `__restoreRoutesData`.
 - **Consequence:** Route table changes happen in one place and are reused by nav rendering and router compatibility helpers.
 
 ## ADR-003: Fragment-based route markup source
@@ -37,3 +37,9 @@ This is the permanent ADR summary for the current SPA-first architecture.
 - **Status:** accepted
 - **Decision:** Remove root per-page `*.html`, remove `*-boot.js`, remove shell/boot copy wiring from build/deploy config.
 - **Consequence:** Production/runtime architecture is SPA-only with simpler build/deploy wiring.
+
+## ADR-007: Group app source under src, tests, and local
+
+- **Status:** accepted
+- **Decision:** Keep runtime app code under `src/` (`src/lib`, `src/routes`, `src/styles`, `src/routes-data.mjs`), test harnesses in `tests/`, and local/dev environment helpers in `local/`.
+- **Consequence:** Source layout is conventional and easier to navigate while runtime URLs stay unchanged through static-copy wiring (`dest: '.'`).
