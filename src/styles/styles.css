@@ -7562,6 +7562,33 @@ body.page-stats .stats-page-shell .container {
   margin-top: 0.85rem;
 }
 
+/* About → Settings hints (reusable; emoji scales with font-size) */
+.about-settings-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 6px;
+  border-left: 3px solid color-mix(in srgb, var(--text) 22%, transparent);
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.about-settings-hint__glyph {
+  flex-shrink: 0;
+  font-size: 1.15em;
+  line-height: 1.4;
+}
+
+.about-settings-hint__text {
+  flex: 1;
+  min-width: 0;
+  opacity: 0.95;
+}
+
 /* About page — Remaining Wake Time section */
 .section-title {
   margin-top: 2.5rem;
@@ -7569,12 +7596,6 @@ body.page-stats .stats-page-shell .container {
   font-size: 1.25rem;
   font-weight: 600;
   color: var(--text);
-}
-
-.about-rw-thresholds-heading {
-  margin-top: 1.75rem;
-  margin-bottom: 0.4rem;
-  font-size: 1.1rem;
 }
 
 .about-daily-flags-subheading.section-title {

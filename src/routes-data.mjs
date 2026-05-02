@@ -68,7 +68,6 @@ const INTERNAL_MPA_LINKS = {
   'about.dailyFlags': { hrefKey: 'about', hash: 'daily-flags', fallback: 'about.html' },
   'about.quickActions': { hrefKey: 'about', hash: 'quick-actions', fallback: 'about.html' },
   'about.tonightBarSymbols': { hrefKey: 'about', hash: 'tonight-bar-symbols', fallback: 'about.html' },
-  'about.remainingWakeTime': { hrefKey: 'about', hash: 'remaining-wake-time', fallback: 'about.html' },
   'about.sleepStatistics': { hrefKey: 'about', hash: 'sleep-statistics', fallback: 'about.html' },
   'about.tonightGuidance': { hrefKey: 'about', hash: 'tonight-guidance', fallback: 'about.html' },
   'settings.page': { hrefKey: 'settings', fallback: 'settings.html' },

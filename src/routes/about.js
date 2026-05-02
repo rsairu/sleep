@@ -24,20 +24,12 @@
     if (typeof initDayNightTheme === 'function') initDayNightTheme();
     if (typeof initRemainingWakeNav === 'function') initRemainingWakeNav();
 
-    var rwMount = document.getElementById('about-remaining-wake-mount');
-    if (rwMount && typeof getRemainingWakeThresholdsControlHTML === 'function') {
-      rwMount.innerHTML = getRemainingWakeThresholdsControlHTML('about-remaining-wake-thresholds');
-    }
-
     if (gen !== aboutMountGeneration || aboutMountedRoot !== root) return;
-    if (typeof initRemainingWakeThresholdsConfig === 'function') initRemainingWakeThresholdsConfig();
     if (typeof initAboutDashboardHintDismissButtons === 'function') initAboutDashboardHintDismissButtons();
   }
 
   function unmount() {
     aboutMountGeneration++;
-    var rwMount = document.getElementById('about-remaining-wake-mount');
-    if (rwMount) rwMount.innerHTML = '';
     aboutMountedRoot = null;
   }
 

@@ -35,6 +35,7 @@ Pages load `local-supabase-presets.js`, then `src/routes-data.mjs` (canonical na
 ## Documentation
 
 - Routing, lifecycle, and architecture: [`docs/routing.md`](docs/routing.md), [`docs/lifecycle-contract.md`](docs/lifecycle-contract.md), [`docs/architecture-decisions.md`](docs/architecture-decisions.md).
+- Remaining wake behavior and backlog: [`docs/remaining-wake.md`](docs/remaining-wake.md).
 - Historical verification notes from the post-migration cleanup (phases 0–3): [`docs/spa-hard-cut-checklist.md`](docs/spa-hard-cut-checklist.md).
 
 ## npm scripts
@@ -183,6 +184,7 @@ Time is normalized as **minutes from midnight** (0–1440) in logic, with explic
 | `docs/routing.md` | Canonical route mapping and link policy |
 | `docs/lifecycle-contract.md` | Route mount/unmount lifecycle contract |
 | `docs/architecture-decisions.md` | Permanent ADR summary |
+| `docs/remaining-wake.md` | Remaining wake feature reference and backlog |
 
 ---
 
