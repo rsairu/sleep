@@ -3,7 +3,7 @@ description: Points to the canonical spec for dev banner visibility, controls, a
 globs:
   - "**/sleep-utils.js"
   - "**/styles.css"
-  - "**/scripts/stamp-dev-branch.js"
+  - "**/local/stamp-dev-branch.js"
 alwaysApply: false
 ---
 

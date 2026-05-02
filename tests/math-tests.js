@@ -7,7 +7,7 @@ const vm = require('vm');
 const { pathToFileURL } = require('url');
 
 async function loadSleepUtils() {
-  const filePath = path.join(__dirname, 'sleep-utils.js');
+  const filePath = path.join(__dirname, '..', 'src', 'lib', 'sleep-utils.js');
   const code = fs.readFileSync(filePath, 'utf8');
   const lsStore = Object.create(null);
   const context = {
@@ -32,11 +32,11 @@ async function loadSleepUtils() {
   context.window = context;
   context.globalThis = context;
   vm.createContext(context);
-  const { installRoutesData } = await import(pathToFileURL(path.join(__dirname, 'routes-data.mjs')));
+  const { installRoutesData } = await import(pathToFileURL(path.join(__dirname, '..', 'src', 'routes-data.mjs')));
   installRoutesData(context);
-  vm.runInContext(code, context, { filename: 'sleep-utils.js' });
-  const aggPath = path.join(__dirname, 'stats-aggregates.js');
-  vm.runInContext(fs.readFileSync(aggPath, 'utf8'), context, { filename: 'stats-aggregates.js' });
+  vm.runInContext(code, context, { filename: 'src/lib/sleep-utils.js' });
+  const aggPath = path.join(__dirname, '..', 'src', 'lib', 'stats-aggregates.js');
+  vm.runInContext(fs.readFileSync(aggPath, 'utf8'), context, { filename: 'src/lib/stats-aggregates.js' });
   return context;
 }
 
@@ -468,7 +468,7 @@ async function runTests() {
   expectEqual(filtered7.length, 1, 'filterDaysByPeriod 7-day window inclusive end');
 
   // Dataset invariants on current data (guardrails for regressions)
-  const dataPath = path.join(__dirname, 'data', 'sleep-data.json');
+  const dataPath = path.join(__dirname, '..', 'data', 'sleep-data.json');
   if (fs.existsSync(dataPath)) {
     const days = JSON.parse(fs.readFileSync(dataPath, 'utf8')).days || [];
     if (process.env.STATS_MID_VERIFY === '1' && u.StatsAggregates) {

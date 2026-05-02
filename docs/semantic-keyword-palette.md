@@ -4,7 +4,7 @@
 
 ## Source of truth
 
-All SKP variables are defined on `:root` and overridden for light UI on `[data-theme="day"]` in [`styles.css`](../styles.css). Do not copy hex values into other files as a second source; reference the variables.
+All SKP variables are defined on `:root` and overridden for light UI on `[data-theme="day"]` in [`src/styles/styles.css`](../src/styles/styles.css). Do not copy hex values into other files as a second source; reference the variables.
 
 ## Canonical variables
 

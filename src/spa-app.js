@@ -2,7 +2,7 @@
  * Vite SPA entry: History API router, modifier-safe link interception, mount canonical route fragments.
  * Sets globalThis.__restoreUseSpaNav so sleep-utils / nightly use path hrefs via routes-data internalNavHref.
  */
-import { spaPathFromMpaFile } from '../routes-data.mjs';
+import { spaPathFromMpaFile } from './routes-data.mjs';
 import dashboardFragment from './spa-fragments/dashboard.html?raw';
 import logFragment from './spa-fragments/log.html?raw';
 import qualityFragment from './spa-fragments/quality.html?raw';
