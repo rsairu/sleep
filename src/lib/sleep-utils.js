@@ -1355,14 +1355,7 @@ function resolveDefaultQuickAddNightDateMd(days) {
       const fb = getFallbackWakeBasis();
       return recordDateMdForSleepPeriod(getAppDate(), fb.avgSleepEnd);
     }
-    const display = getRemainingWakeDisplayFromBasis(basis, liveDays);
-    const phase = display && display.phase ? display.phase : 'open';
-    const openNight = recordDateMdForSleepPeriod(getAppDate(), basis.avgSleepEnd);
-    if (phase === 'winding' || phase === 'presleep' || phase === 'sleep') {
-      const next = addCalendarDaysToSleepDateKey(openNight, 1);
-      return next || openNight;
-    }
-    return openNight;
+    return recordDateMdForSleepPeriod(getAppDate(), basis.avgSleepEnd);
   });
 }
 
@@ -3468,8 +3461,12 @@ function isNightWakeLogged(nightMd) {
   return Boolean(e && e.wake);
 }
 
-/** Bed or fell-asleep logged (QA flags or row differs from stub + recent wall clock). */
-function isNightBedOrSleepLogged(nightMd, liveDays, now, averagesFallback) {
+/**
+ * Bed or fell-asleep logged for this wake-day row (QA flags or user values differ from stub).
+ * Stub diff alone counts: remaining-wake nav must not depend on wall-clock recency (backfill / evening
+ * row-key mismatch vs recordDateMdForSleepPeriod).
+ */
+function isNightBedOrSleepLoggedCore(nightMd, liveDays, averagesFallback) {
   const qa = readNightQaSleepFlagMap()[nightMd];
   if (qa && (qa.bed || qa.sleep)) return true;
   const day = pickDayForNightMdNav(nightMd, liveDays);
@@ -3478,9 +3475,23 @@ function isNightBedOrSleepLogged(nightMd, liveDays, now, averagesFallback) {
   if (!stub) return false;
   const bedDiff = String(day.bed || '') !== String(stub.bed || '');
   const sleepDiff = String(day.sleepStart || '') !== String(stub.sleepStart || '');
-  const bedOk = bedDiff && isWallClockWithinRecentHoursNav(now, day.bed, 12);
-  const sleepOk = sleepDiff && isWallClockWithinRecentHoursNav(now, day.sleepStart, 12);
-  return Boolean(bedOk || sleepOk);
+  return Boolean(bedDiff || sleepDiff);
+}
+
+/**
+ * Same as core, plus evening alignment: after local calendar evening, `recordDateMdForSleepPeriod` uses
+ * tomorrow's wake-day key while the user may still have bed/sleep on today's row — treat that as logged.
+ */
+function isNightBedOrSleepLogged(nightMd, liveDays, now, averagesFallback) {
+  if (isNightBedOrSleepLoggedCore(nightMd, liveDays, averagesFallback)) return true;
+  const todayIso = formatIsoDateFromLocalDate(now);
+  const tomorrowIso = addCalendarDaysToSleepDateKey(todayIso, 1);
+  const n = normalizeSleepDateKey(nightMd);
+  const t = normalizeSleepDateKey(tomorrowIso);
+  if (n && t && n === t) {
+    return isNightBedOrSleepLoggedCore(todayIso, liveDays, averagesFallback);
+  }
+  return false;
 }
 
 /**
@@ -5693,14 +5704,14 @@ function updateRemainingWakeNav(display) {
         : '';
     const ariaEsc = escapeHtmlBannerAttr(ariaLabel);
     const rd = getRestoreRoutesData();
-    const remainingWakeAboutHref =
+    const remainingWakeSettingsHref =
       rd && typeof rd.internalNavHref === 'function'
-        ? rd.internalNavHref('about.remainingWakeTime')
+        ? rd.internalNavHref('settings.remainingWake')
         : rd && typeof rd.mpaHref === 'function'
-          ? rd.mpaHref('about.remainingWakeTime')
-          : 'about.html#remaining-wake-time';
+          ? rd.mpaHref('settings.remainingWake')
+          : 'settings.html#remaining-wake';
     slot.innerHTML =
-      `<a href="${remainingWakeAboutHref}" class="nav-remaining-wake-link" title="${ariaEsc}" aria-label="${ariaEsc}"><span class="nav-remaining-wake-main"><span class="nav-remaining-wake-icon" aria-hidden="true">${display.icon}</span><span class="${timeClass}">${display.timeLabel}</span>${headsUpHtml}</span>${progressBar}</a>`;
+      `<a href="${remainingWakeSettingsHref}" class="nav-remaining-wake-link" title="${ariaEsc}" aria-label="${ariaEsc}"><span class="nav-remaining-wake-main"><span class="nav-remaining-wake-icon" aria-hidden="true">${display.icon}</span><span class="${timeClass}">${display.timeLabel}</span>${headsUpHtml}</span>${progressBar}</a>`;
   }
   if (wrapper) {
     wrapper.classList.remove(
