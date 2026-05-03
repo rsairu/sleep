@@ -95,8 +95,9 @@ Once phase is **`wake`**, **`sleep`**, or **`mid`**, each button has its own pre
 
 | Action        | Phase | Shown when |
 |---------------|-------|------------|
-| Wake up       | wake  | Always in wake phase |
-| Log alarm     | wake  | Recent nights include computable first-alarm-to-wake data (`avgFirstAlarmToWake != null` from `calculateAverages` on up to 7 recent days) |
+| Wake up       | wake  | Wake phase **and** wake not yet logged for the save target row: `wakeLoggedForWakeDayMd` is false (QA wake flag or `sleepEnd` differs from stub). Row key uses **`resolveRecordDateMdForWake`** with **`getAveragesFromDays`** `avgSleepEnd` — same as the Wake up persist path (not `sharedContext.basis`). |
+| Log alarm     | wake  | Same `avgFirstAlarmToWake` gate, **and** the wake-day row (plus cloud draft for that key) has **not** already recorded an alarm choice: no alarm times on the row/draft and no **🔕** night label. **Does not** persist from the dashboard: stores `restore_log_prefill_v1` in `sessionStorage`, navigates to Log (`internalNavHref('tab.log')`); Log loads that wake-day row and **appends** an alarm row set to **app now** so the form is dirty until the user saves. |
+| No alarm was set | wake  | Same gates as Log alarm (both hide together once either alarm times or 🔕 exist on that wake-day row/draft). Persists night label **🔕** (`SLEEP_DAY_LABEL_OPTIONS`, “No alarm”) on the wake-day row via `resolveRecordDateMdForWake`. |
 | Get in bed    | sleep | Bed not already logged for the sleep-period row (QA flag or non-stub `bed` within last **12** h wall-clock window) |
 | Go to sleep   | sleep | Fell-asleep not already logged (same 12 h / stub / QA rules) |
 | Sleep in 10 min | sleep | Neither fell-asleep logged nor **both** bed and fell-asleep complete for the row |
@@ -148,6 +149,8 @@ Values match `sleep-utils.js` (and inline `120` where noted). Update this table 
 | Wake-day key / wake correction | `recordDateMdForSleepPeriod`, `resolveRecordDateMdForWake`, `nightRowAwaitingWake` — `sleep-utils.js` |
 | QA flags (bed / sleep / wake) | `readNightQaSleepFlagMap`, `markNightQaSleepFlag` — `sleep-utils.js` |
 | Seven-day basis vs dashboard averages | `getTonightWakePhaseBasisFromDays`, `computeRecentSevenDayWakeBasis` vs `getAveragesFromDays` / `calculateAverages` — `sleep-utils.js` / `quick-actions.js` / `nightly.js` |
+| Wake logged (quick actions) | `wakeLoggedForWakeDayMd` — `sleep-utils.js` |
+| Log alarm prefill | `restore_log_prefill_v1`, `tryConsumeLogAlarmPrefill`, `appendListTimeNow('quick-add-alarm-list')` — `quick-actions.js` / `entry-modal.js` |
 
 ---
 

@@ -21,6 +21,7 @@ if (typeof window !== 'undefined') window.HOLIDAYS_BY_YEAR = HOLIDAYS_BY_YEAR;
 
 /** Fixed emoji keys for optional per-night labels (log + daily display). Order is canonical storage order. */
 const SLEEP_DAY_LABEL_OPTIONS = [
+  { emoji: '🔕', title: 'No alarm' },
   { emoji: '👶', title: 'Kids' },
   { emoji: '🐶', title: 'Pet' },
   { emoji: '🍺', title: 'Alcohol' },
@@ -3474,6 +3475,17 @@ function buildStubDayForNightMd(dateMd, days, averagesFallback) {
 function isNightWakeLogged(nightMd) {
   const e = readNightQaSleepFlagMap()[nightMd];
   return Boolean(e && e.wake);
+}
+
+/** Wake time logged for this wake-day row: QA flag or sleepEnd differs from stub (no wall-clock window). */
+function wakeLoggedForWakeDayMd(nightMd, liveDays, averagesFallback) {
+  if (!nightMd) return false;
+  if (isNightWakeLogged(nightMd)) return true;
+  const day = pickDayForNightMdNav(nightMd, liveDays);
+  if (!day) return false;
+  const stub = buildStubDayForNightMd(nightMd, liveDays, averagesFallback);
+  if (!stub) return false;
+  return String(day.sleepEnd || '') !== String(stub.sleepEnd || '');
 }
 
 /**

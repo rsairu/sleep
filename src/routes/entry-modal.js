@@ -68,6 +68,23 @@
     loadQuickAddFormForDate(next);
   }
 
+  function tryConsumeLogAlarmPrefill() {
+    try {
+      const raw = sessionStorage.getItem('restore_log_prefill_v1');
+      if (!raw) return null;
+      const o = JSON.parse(raw);
+      sessionStorage.removeItem('restore_log_prefill_v1');
+      return o;
+    } catch (_e) {
+      try {
+        sessionStorage.removeItem('restore_log_prefill_v1');
+      } catch (_e2) {
+        /* ignore */
+      }
+      return null;
+    }
+  }
+
   function hydrateQuickAddDefaultDateForLogPage() {
     const dateInput = document.getElementById('quick-add-date');
     if (!dateInput) return Promise.resolve();
@@ -810,6 +827,21 @@
     bindQuickAddHostOnce();
     wireQuickAddDrawerSliders();
     if (isQuickAddLogPage()) {
+      const prefill = tryConsumeLogAlarmPrefill();
+      if (prefill && prefill.alarmAppendNow && prefill.wakeDayMd) {
+        const md =
+          typeof normalizeSleepDateKey === 'function'
+            ? normalizeSleepDateKey(prefill.wakeDayMd)
+            : String(prefill.wakeDayMd || '').trim();
+        if (md) {
+          const dateInput = document.getElementById('quick-add-date');
+          if (dateInput) dateInput.value = sleepDateKeyToDateInputValue(md);
+          return loadQuickAddFormForDate(md).then(function () {
+            appendListTimeNow('quick-add-alarm-list');
+            refreshQuickAddSaveHud();
+          });
+        }
+      }
       hydrateQuickAddDefaultDateForLogPage();
       return;
     }

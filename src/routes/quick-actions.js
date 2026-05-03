@@ -1,6 +1,7 @@
 // Spec: docs/quick-actions.md — time-aware dashboard quick actions (wake / nap / sleep); persists via upsertSleepDay.
 (function () {
   const NAP_STORAGE_KEY = 'restore_quick_nap_v1';
+  const LOG_PREFILL_KEY = 'restore_log_prefill_v1';
 
   let quickActionsIntervalId = null;
   let boundClickHandler = null;
@@ -155,6 +156,19 @@
     return findDayByDateMd(days, md);
   }
 
+  /** Wake-day row already has alarm times and/or the no-alarm night label — hide both alarm QAs. */
+  function alarmQuickActionsAddressedForDay(dayOrDraft) {
+    if (!dayOrDraft) return false;
+    if (Array.isArray(dayOrDraft.alarm) && dayOrDraft.alarm.length > 0) return true;
+    if (typeof normalizeSleepDayLabels === 'function' && dayOrDraft.labels) {
+      const n = normalizeSleepDayLabels(dayOrDraft.labels);
+      for (let i = 0; i < n.length; i++) {
+        if (n[i] === '🔕') return true;
+      }
+    }
+    return false;
+  }
+
   function cloneDayBase(d) {
     return {
       date: d.date,
@@ -264,20 +278,41 @@
     });
   }
 
-  function handleAlarmNow(days, averages, onReload, now) {
+  function handleAlarmNavigateToLog(days, averages, now) {
     const md =
       typeof resolveRecordDateMdForWake === 'function'
         ? resolveRecordDateMdForWake(now, averages.avgSleepEnd, days)
         : recordDateMdForSleepPeriod(now, averages.avgSleepEnd);
-    const alarmNow = formatTimeFromDate(now);
-    return getEditableDayByMd(md, days).then(function (day) {
-      const existingAlarm = day && Array.isArray(day.alarm) ? day.alarm : [];
-      return persistPartial(
-        md,
-        { alarm: mergeUniqueTimeStrings(existingAlarm, alarmNow) },
-        onReload,
-        '⏰ Alarm logged'
+    const key = typeof normalizeSleepDateKey === 'function' ? normalizeSleepDateKey(md) : md;
+    try {
+      sessionStorage.setItem(
+        LOG_PREFILL_KEY,
+        JSON.stringify({ wakeDayMd: key, alarmAppendNow: true })
       );
+    } catch (_e) {
+      /* ignore */
+    }
+    const rd = typeof window !== 'undefined' && window.__restoreRoutesData;
+    const href =
+      rd && typeof rd.internalNavHref === 'function' ? rd.internalNavHref('tab.log') : '/log';
+    const a = document.createElement('a');
+    a.setAttribute('href', href);
+    a.style.cssText = 'position:absolute;left:-9999px;';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  function handleNoAlarmSet(days, averages, onReload, now) {
+    const md =
+      typeof resolveRecordDateMdForWake === 'function'
+        ? resolveRecordDateMdForWake(now, averages.avgSleepEnd, days)
+        : recordDateMdForSleepPeriod(now, averages.avgSleepEnd);
+    return getEditableDayByMd(md, days).then(function (day) {
+      const raw = day && Array.isArray(day.labels) ? day.labels.slice() : [];
+      const withNoAlarm = raw.indexOf('🔕') === -1 ? raw.concat(['🔕']) : raw;
+      const labels = normalizeSleepDayLabels(withNoAlarm);
+      return persistPartial(md, { labels: labels }, onReload, '🔕 No alarm was set');
     });
   }
 
@@ -396,8 +431,23 @@
   const QUICK_ACTIONS_BY_PHASE = {
     wake: [
       { qa: 'nap-end', emoji: '🥱', label: 'End your nap', when: function (ctx) { return ctx.napActive; } },
-      { qa: 'wake', emoji: '🌅', label: 'Wake up' },
-      { qa: 'alarm', emoji: '⏰', label: 'Log alarm', when: function (ctx) { return ctx.showAlarm; } }
+      { qa: 'wake', emoji: '🌅', label: 'Wake up', when: function (ctx) { return !ctx.wakeLoggedForNight; } },
+      {
+        qa: 'alarm',
+        emoji: '🔔',
+        label: 'Log alarm',
+        when: function (ctx) {
+          return ctx.showAlarm && !ctx.alarmQuickActionsAddressed;
+        }
+      },
+      {
+        qa: 'alarm-none',
+        emoji: '🔕',
+        label: 'No alarm was set',
+        when: function (ctx) {
+          return ctx.showAlarm && !ctx.alarmQuickActionsAddressed;
+        }
+      }
     ],
     sleep: [
       { qa: 'nap-end', emoji: '🥱', label: 'End your nap', when: function (ctx) { return ctx.napActive; } },
@@ -463,6 +513,17 @@
       phase === 'sleep' && sleepLoggedForSleepPeriod(nightMd, days, nightAverages, now);
     const bedSleepLogged =
       phase === 'sleep' && bedAndSleepCompleteForSleepPeriod(nightMd, days, nightAverages, now);
+    const wakeQuickMd =
+      typeof resolveRecordDateMdForWake === 'function'
+        ? resolveRecordDateMdForWake(now, averages.avgSleepEnd, days)
+        : recordDateMdForSleepPeriod(now, averages.avgSleepEnd);
+    const averagesFb =
+      typeof QUICK_ADD_FALLBACK_AVERAGES !== 'undefined' ? QUICK_ADD_FALLBACK_AVERAGES : null;
+    const wakeLoggedForNight =
+      typeof wakeLoggedForWakeDayMd === 'function'
+        ? wakeLoggedForWakeDayMd(wakeQuickMd, days, averagesFb)
+        : false;
+    const alarmQuickActionsAddressed = alarmQuickActionsAddressedForDay(findDayByMd(days, wakeQuickMd));
     let napStartAllowed = false;
     if (sharedContext && sharedContext.navDisplay) {
       const pr = sharedContext.navDisplay.percentRemaining;
@@ -471,7 +532,11 @@
         napStartAllowed = pr >= openMin;
       }
     }
-    function paintQuickActionButtons(napActive) {
+    function paintQuickActionButtons(napActive, alarmAddressedOverride) {
+      const alarmAddr =
+        typeof alarmAddressedOverride === 'boolean'
+          ? alarmAddressedOverride
+          : alarmQuickActionsAddressed;
       const buttonContext = {
         showAlarm: showAlarm,
         napActive: napActive,
@@ -480,7 +545,9 @@
         implicitPostWakeQuiet: Boolean(sharedContext && sharedContext.implicitPostWakeQuiet),
         bedLoggedForNight: bedLogged,
         sleepLoggedForNight: sleepLogged,
-        bedSleepLoggedForNight: bedSleepLogged
+        bedSleepLoggedForNight: bedSleepLogged,
+        wakeLoggedForNight: wakeLoggedForNight,
+        alarmQuickActionsAddressed: alarmAddr
       };
       mount.innerHTML = renderButtons(phase, buttonContext);
     }
@@ -489,10 +556,21 @@
       paintQuickActionButtons(napActiveSync);
       return;
     }
-    getSleepDraftByDate(calendarNapMd)
-      .then(function (draft) {
-        const fromDraft = napOpenOnDay(draft);
-        paintQuickActionButtons(napActiveSync || fromDraft);
+    Promise.all([
+      getSleepDraftByDate(calendarNapMd).catch(function () {
+        return null;
+      }),
+      getSleepDraftByDate(wakeQuickMd).catch(function () {
+        return null;
+      })
+    ])
+      .then(function (results) {
+        const napDraft = results[0];
+        const wakeDraft = results[1];
+        const fromDraft = napOpenOnDay(napDraft);
+        const alarmAddr =
+          alarmQuickActionsAddressed || alarmQuickActionsAddressedForDay(wakeDraft);
+        paintQuickActionButtons(napActiveSync || fromDraft, alarmAddr);
       })
       .catch(function () {
         paintQuickActionButtons(napActiveSync);
@@ -506,7 +584,9 @@
     if (!btn || !btn.getAttribute || !mount.contains(btn)) return;
     const qa = btn.getAttribute('data-qa');
     if (!qa) return;
-    if (!ensureCloudForPersist()) return;
+    if (qa !== 'alarm') {
+      if (!ensureCloudForPersist()) return;
+    }
     const days = getDays();
     const averages = getAveragesFromDays(days);
     const now = getAppDate();
@@ -515,7 +595,10 @@
       handleWakeUp(days, averages, onReload, now);
     } else if (qa === 'alarm') {
       e.preventDefault();
-      handleAlarmNow(days, averages, onReload, now);
+      handleAlarmNavigateToLog(days, averages, now);
+    } else if (qa === 'alarm-none') {
+      e.preventDefault();
+      handleNoAlarmSet(days, averages, onReload, now);
     } else if (qa === 'bed-now') {
       e.preventDefault();
       handleBedNow(days, averages, onReload, now);
