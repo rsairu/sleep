@@ -115,18 +115,20 @@ Dynamic Sleep uses `isNightBedOrSleepLogged`, built on **`isNightBedOrSleepLogge
 - QA flags (`readNightQaSleepFlagMap`) for bed or sleep on that wake-day row, **or**
 - The loaded day row differs from the **stub** built by `buildStubDayForNightMd` for bed or `sleepStart` (same idea as `nightRowAwaitingWake`).
 
-Nav does **not** require wall-clock recency here: backfilled or older entries still count so the nav does not stay stuck on **go to bed soon** when the row is genuinely filled in.
+Nav does **not** require wall-clock recency here: backfilled or older entries still count so the nav does not stay stuck on **get in bed soon** when the row is genuinely filled in.
 
-**Evening wake-day alignment:** After local evening, `recordDateMdForSleepPeriod(now, avgWake)` uses **tomorrow’s** ISO wake-day key (`nightMd`), while the user may still have saved bed/sleep on **today’s** row. When `nightMd` equals **tomorrow** (calendar), `isNightBedOrSleepLogged` also treats **today’s** row as logged if core checks pass there. That keeps nav aligned with `recordDateMdForSleepPeriod` / quick-actions row rules (see `docs/quick-actions.md` Layer 4).
+**Evening wake-day alignment:** After local evening, `recordDateMdForSleepPeriod(now, avgWake)` uses **tomorrow’s** ISO wake-day key (`nightMd`), while the user may still have saved bed/sleep on **today’s** row. When `nightMd` equals **tomorrow** (calendar), `isNightBedOrSleepLogged` also treats **today’s** row as logged if core checks pass there **and** `nightRowAwaitingWake(today)` — i.e. today’s wake-day row is still an open night (morning wake not finalized). A **completed** prior row must not satisfy “logged” for the upcoming sleep period.
 
 **Quick actions are separate:** Dashboard buttons still use stub diff **plus** a **12-hour** wall-clock window where applicable (`docs/quick-actions.md`). Only remaining-wake Dynamic Sleep uses the relaxed nav rules above.
 
-### "Go to bed soon" soft state
+### "Get in bed soon" / "Start sleep soon" soft states
+
+See **`docs/remaining-time.md`** for the full split (including Dynamic Sleep vs soft labels). In short: overnight limbo uses **`get in bed soon`** when bed is not logged yet, and **`start sleep soon`** after bed is logged but fell-asleep / sleep intent is not.
 
 If `shouldShowGoToBedSoonWakeNav(...)` is true and wake has not been logged for the current sleep period row, **and** Dynamic Sleep is not active (bed/sleep not treated as logged per the previous section):
 
 - phase is derived from `getRemainingWakePhase(0, totalWakeMins)` (typically `presleep`)
-- label is `"go to bed soon"`
+- label is `"get in bed soon"` (or `"start sleep soon"` when the bed-logged rule from remaining-time applies)
 - `timeLabelSoft: true`
 - `percentRemaining: 0`
 
@@ -209,7 +211,7 @@ Read/hydrate path:
 ## Accessibility and links
 
 - Nav chip is rendered as a link to Settings Remaining wake time (`settings.remainingWake` route key); About `#remaining-wake-time` stays the narrative deep link from Settings.
-- ARIA label changes by state (remaining time, sleep, go-to-bed-soon, heads-up announcement).
+- ARIA label changes by state (remaining time, sleep, get-in-bed-soon / start-sleep-soon, heads-up announcement).
 - Settings controls provide ARIA labels on sliders and heads-up selectors.
 
 ---
@@ -249,7 +251,7 @@ Current code/docs mostly say "Remaining wake time" while product direction is "R
 
 ### 2) i18n completion for nav runtime strings
 
-Some nav labels are still hard-coded English in display/render paths (for example `sweet dreams`, `go to bed soon`, and heads-up text formatting).
+Some nav labels are still hard-coded English in display/render paths (for example `sweet dreams`, `get in bed soon`, `start sleep soon`, and heads-up text formatting).
 
 - Move remaining hard-coded nav strings to translation keys.
 - Confirm ARIA text and visible text both localize correctly.

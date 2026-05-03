@@ -29,9 +29,10 @@
   function getQuickAddDefaultNightDate() {
     const wrapper = document.querySelector('.nav-wrapper');
     const presleep = wrapper && wrapper.classList.contains('nav-wrapper--phase-presleep');
+    const sleepSoon = wrapper && wrapper.classList.contains('nav-wrapper--phase-sleepSoon');
     const inSleepPhase = wrapper && wrapper.classList.contains('nav-wrapper--phase-sleep');
     const d = getAppDate();
-    if (presleep || inSleepPhase) d.setDate(d.getDate() + 1);
+    if (presleep || sleepSoon || inSleepPhase) d.setDate(d.getDate() + 1);
     return d;
   }
 
@@ -65,6 +66,23 @@
     if (!next) return;
     dateInput.value = sleepDateKeyToDateInputValue(next);
     loadQuickAddFormForDate(next);
+  }
+
+  function tryConsumeLogAlarmPrefill() {
+    try {
+      const raw = sessionStorage.getItem('restore_log_prefill_v1');
+      if (!raw) return null;
+      const o = JSON.parse(raw);
+      sessionStorage.removeItem('restore_log_prefill_v1');
+      return o;
+    } catch (_e) {
+      try {
+        sessionStorage.removeItem('restore_log_prefill_v1');
+      } catch (_e2) {
+        /* ignore */
+      }
+      return null;
+    }
   }
 
   function hydrateQuickAddDefaultDateForLogPage() {
@@ -809,6 +827,21 @@
     bindQuickAddHostOnce();
     wireQuickAddDrawerSliders();
     if (isQuickAddLogPage()) {
+      const prefill = tryConsumeLogAlarmPrefill();
+      if (prefill && prefill.alarmAppendNow && prefill.wakeDayMd) {
+        const md =
+          typeof normalizeSleepDateKey === 'function'
+            ? normalizeSleepDateKey(prefill.wakeDayMd)
+            : String(prefill.wakeDayMd || '').trim();
+        if (md) {
+          const dateInput = document.getElementById('quick-add-date');
+          if (dateInput) dateInput.value = sleepDateKeyToDateInputValue(md);
+          return loadQuickAddFormForDate(md).then(function () {
+            appendListTimeNow('quick-add-alarm-list');
+            refreshQuickAddSaveHud();
+          });
+        }
+      }
       hydrateQuickAddDefaultDateForLogPage();
       return;
     }

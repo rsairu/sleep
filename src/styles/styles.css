@@ -30,7 +30,15 @@
   --nav-phase-tint-open: rgba(134, 239, 172, 0.18);
   --nav-phase-tint-winding: rgba(253, 230, 138, 0.22);
   --nav-phase-tint-presleep: rgba(196, 181, 253, 0.2);
+  /* Post–start-sleep / “sweet dreams” header: near-midnight, sleep-tinted (see SKP --color-sleep) */
   --nav-phase-tint-sleep: rgba(99, 102, 241, 0.16);
+  --nav-phase-tint-midnight: color-mix(in srgb, var(--bg) 90%, var(--color-sleep) 10%);
+  /* Between pre-sleep and midnight (“start sleep soon”) */
+  --nav-phase-tint-sleep-soon: color-mix(
+    in srgb,
+    var(--nav-phase-tint-presleep) 44%,
+    var(--nav-phase-tint-midnight) 56%
+  );
 
   /* Common overlays */
   --hover-bg: rgba(255, 255, 255, 0.05);
@@ -156,6 +164,14 @@
 
   /* Nav app title: darker blue for light mode (softer than icon blue) */
   --nav-app-text-color: #25408a;
+
+  /* Light chrome: midnight strip uses body text hue so sleep tint stays legible on pale bg */
+  --nav-phase-tint-midnight: color-mix(in srgb, var(--text) 92%, var(--color-sleep) 8%);
+  --nav-phase-tint-sleep-soon: color-mix(
+    in srgb,
+    var(--nav-phase-tint-presleep) 48%,
+    var(--nav-phase-tint-midnight) 52%
+  );
 
   --panel-border-color: rgba(15, 23, 42, 0.1);
   --panel-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
@@ -2374,7 +2390,8 @@ body{
   --nav-rw-phase-color: rgb(253, 230, 138);
 }
 
-.nav-remaining-wake-progress--presleep {
+.nav-remaining-wake-progress--presleep,
+.nav-remaining-wake-progress--sleepSoon {
   --nav-rw-phase-color: rgb(196, 181, 253);
 }
 
@@ -2407,9 +2424,15 @@ body{
   --nav-header-to: var(--nav-phase-tint-sleep);
 }
 
+.nav-wrapper--phase-sleepSoon {
+  --nav-header-from: var(--nav-phase-tint-sleep-soon);
+  --nav-header-to: var(--nav-phase-tint-midnight);
+}
+
 .nav-wrapper--phase-open .nav-header,
 .nav-wrapper--phase-winding .nav-header,
-.nav-wrapper--phase-presleep .nav-header {
+.nav-wrapper--phase-presleep .nav-header,
+.nav-wrapper--phase-sleepSoon .nav-header {
   background: var(--nav-header-from);
   transition: background 0.85s ease;
 }
@@ -2425,8 +2448,42 @@ body{
 }
 
 .nav-wrapper--phase-sleep .nav-header {
-  background: var(--nav-phase-tint-sleep);
+  background: var(--nav-phase-tint-midnight);
   transition: background 0.5s ease;
+}
+
+/* Readable chrome on midnight / sleep-soon header strips (whole row shares background) */
+.nav-wrapper--phase-sleep .nav-header .nav-app-name,
+.nav-wrapper--phase-sleep .nav-header .nav-app-subtitle,
+.nav-wrapper--phase-sleepSoon .nav-header .nav-app-name,
+.nav-wrapper--phase-sleepSoon .nav-header .nav-app-subtitle {
+  color: color-mix(in srgb, var(--text) 96%, var(--color-sleep) 4%);
+}
+
+.nav-wrapper--phase-sleep .nav-header .nav-menu-trigger,
+.nav-wrapper--phase-sleepSoon .nav-header .nav-menu-trigger {
+  color: color-mix(in srgb, var(--text) 96%, var(--color-sleep) 4%);
+}
+
+.nav-wrapper--phase-sleep .nav-header .nav-remaining-wake-link,
+.nav-wrapper--phase-sleepSoon .nav-header .nav-remaining-wake-link {
+  color: color-mix(in srgb, var(--text) 96%, var(--color-sleep) 4%);
+}
+
+[data-theme="day"] .nav-wrapper--phase-sleep .nav-header .nav-app-name,
+[data-theme="day"] .nav-wrapper--phase-sleep .nav-header .nav-app-subtitle,
+[data-theme="day"] .nav-wrapper--phase-sleepSoon .nav-header .nav-app-name,
+[data-theme="day"] .nav-wrapper--phase-sleepSoon .nav-header .nav-app-subtitle,
+[data-theme="day"] .nav-wrapper--phase-sleep .nav-header .nav-menu-trigger,
+[data-theme="day"] .nav-wrapper--phase-sleepSoon .nav-header .nav-menu-trigger,
+[data-theme="day"] .nav-wrapper--phase-sleep .nav-header .nav-remaining-wake-link,
+[data-theme="day"] .nav-wrapper--phase-sleepSoon .nav-header .nav-remaining-wake-link {
+  color: var(--tooltip-fg);
+}
+
+[data-theme="day"] .nav-wrapper--phase-sleep .nav-header .nav-menu-trigger:hover,
+[data-theme="day"] .nav-wrapper--phase-sleepSoon .nav-header .nav-menu-trigger:hover {
+  background: rgba(255, 255, 255, 0.14);
 }
 
 .dashboard-projection {
