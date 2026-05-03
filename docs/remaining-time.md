@@ -1,6 +1,6 @@
-# Remaining wake feature reference
+# Remaining time feature reference
 
-Reference for the remaining-wake implementation (product UI label is often **Remaining time** / legacy **Remaining wake time**) across nav, dashboard behavior, settings/about controls, and cloud sync. This is the master source for current behavior and upcoming work.
+Reference for the Remaining time (currently named "Remaining wake time" in UI/code) feature across nav, dashboard behavior, settings/about controls, and cloud sync. This is the master source for current behavior and upcoming work.
 
 Implementation lives mainly in `src/lib/sleep-utils.js`, with route integration in `src/spa-app.js`, `src/routes/dashboard.js`, `src/routes/log.js`, `src/routes/settings.js`, and `src/routes/about.js`.
 
@@ -8,8 +8,8 @@ Implementation lives mainly in `src/lib/sleep-utils.js`, with route integration 
 
 ## Scope and terminology
 
-- **Feature name (product):** Remaining time (see backlog item 1 for naming scope).
-- **Implementation name:** Remaining wake / remaining-wake (selectors, helpers, storage keys, docs, i18n namespaces).
+- **Feature name (product):** Remaining time.
+- **Current implementation name:** Remaining wake / remaining-wake (selectors, helpers, storage keys, docs, i18n namespaces).
 - **Primary UI surface:** Nav chip in the top header (`#nav-remaining-wake`) showing icon, label, optional heads-up, and progress bar.
 - **Secondary surfaces:** Threshold controls in Settings and About pages via `getRemainingWakeThresholdsControlHTML(...)`.
 
@@ -48,7 +48,7 @@ Core split:
 
 ---
 
-## Basis selection (what clock model remaining wake uses)
+## Basis selection (what clock model Remaining time uses)
 
 Canonical basis comes from `getTonightWakePhaseBasisFromDays(days)`:
 
@@ -70,7 +70,7 @@ Fallback behavior:
 
 ## Phase model and display outputs
 
-Remaining wake nav uses four display phases:
+Remaining time uses four display phases:
 
 - `open` (sun icon)
 - `winding` (sunset icon)
@@ -101,38 +101,31 @@ Before normal remaining-minute math, `getRemainingWakeDisplayFromBasis(...)` che
 
 - `shouldShowDynamicSleepNavPhase(days, basis, now, nightMd)`
 
-If true, display returns:
+If true **and** fell-asleep or sleep intent is logged on the row (`isNightSleepOrIntentLoggedNav`), display returns:
 
 - `phase: "sleep"`
 - `timeLabel: "sweet dreams"`
 - `timeLabelSoft: true`
 - `percentRemaining: null`
 
-#### Bed / fell-asleep considered “logged” for Dynamic Sleep (nav)
+If true **but** only bed is logged (no fell-asleep / no sleep intent within the quick-actions wall-clock rules), display uses the **start sleep soon** soft state below instead of `"sweet dreams"`.
 
-Dynamic Sleep uses `isNightBedOrSleepLogged`, built on **`isNightBedOrSleepLoggedCore`**:
+### "Start sleep soon" / "Get in bed soon" soft states
 
-- QA flags (`readNightQaSleepFlagMap`) for bed or sleep on that wake-day row, **or**
-- The loaded day row differs from the **stub** built by `buildStubDayForNightMd` for bed or `sleepStart` (same idea as `nightRowAwaitingWake`).
+Wake not logged for the current sleep-period row.
 
-Nav does **not** require wall-clock recency here: backfilled or older entries still count so the nav does not stay stuck on **get in bed soon** when the row is genuinely filled in.
-
-**Evening wake-day alignment:** After local evening, `recordDateMdForSleepPeriod(now, avgWake)` uses **tomorrow’s** ISO wake-day key (`nightMd`), while the user may still have saved bed/sleep on **today’s** row. When `nightMd` equals **tomorrow** (calendar), `isNightBedOrSleepLogged` also treats **today’s** row as logged if core checks pass there. That keeps nav aligned with `recordDateMdForSleepPeriod` / quick-actions row rules (see `docs/quick-actions.md` Layer 4).
-
-**Quick actions are separate:** Dashboard buttons still use stub diff **plus** a **12-hour** wall-clock window where applicable (`docs/quick-actions.md`). Only remaining-wake Dynamic Sleep uses the relaxed nav rules above.
-
-### "Get in bed soon" / "Start sleep soon" soft states
-
-See **`docs/remaining-time.md`** for the full split (including Dynamic Sleep vs soft labels). In short: overnight limbo uses **`get in bed soon`** when bed is not logged yet, and **`start sleep soon`** after bed is logged but fell-asleep / sleep intent is not.
-
-If `shouldShowGoToBedSoonWakeNav(...)` is true and wake has not been logged for the current sleep period row, **and** Dynamic Sleep is not active (bed/sleep not treated as logged per the previous section):
+**Start sleep soon:** Bed is logged (`isNightBedLogged`) and neither fell-asleep nor sleep intent is logged yet (`!isNightSleepOrIntentLoggedNav`). Applies both inside Dynamic Sleep (replacing `"sweet dreams"` when only bed is recorded) and in the overnight-limbo branch when `shouldShowGoToBedSoonWakeNav(...)` is true.
 
 - phase is derived from `getRemainingWakePhase(0, totalWakeMins)` (typically `presleep`)
-- label is `"get in bed soon"` (or `"start sleep soon"` when the bed-logged rule from remaining-time applies)
+- label is `"start sleep soon"`
 - `timeLabelSoft: true`
 - `percentRemaining: 0`
 
-### Normal remaining-wake state
+**Get in bed soon:** Same phase math as above, but when bed is **not** logged (or sleep/intent is already logged so the “start sleep soon” rule does not apply).
+
+- label is `"get in bed soon"`
+
+### Normal remaining-time state
 
 Otherwise:
 
@@ -140,12 +133,6 @@ Otherwise:
 - Label is `formatDuration(remainingMins)`.
 - `percentRemaining` drives the progress bar.
 - Optional heads-up comes from `computeRemainingWakePhaseHeadsUp(...)`.
-
----
-
-## Default Log / quick-add wake-day key
-
-`resolveDefaultQuickAddNightDateMd(days)` chooses an incomplete draft first if any, otherwise **`recordDateMdForSleepPeriod(getAppDate(), basis.avgSleepEnd)`** from `getEffectiveRemainingWakeBasis`. It does **not** add an extra calendar day based on nav phase (that previously could advance the default two days ahead in the evening).
 
 ---
 
@@ -218,7 +205,7 @@ Read/hydrate path:
 
 ## Styling notes
 
-- Remaining wake nav and controls are styled in `src/styles/styles.css` (`.nav-remaining-wake-*`, `.config-remaining-wake-*`).
+- Remaining time nav and controls are styled in `src/styles/styles.css` (`.nav-remaining-wake-*`, `.config-remaining-wake-*`).
 - Sleep-domain colors should follow SKP tokens from `docs/semantic-keyword-palette.md` (`--color-sleep`, `--color-bed`, `--color-up`, etc.) for any future phase visuals.
 
 ---
@@ -231,11 +218,10 @@ Read/hydrate path:
 | Heads-up storage + conversion | `REMAINING_WAKE_PHASE_HEADS_UP_KEY`, `REMAINING_WAKE_PHASE_HEADS_UP_ALLOWED`, `getRemainingWakePhaseHeadsUpMinutes`, `setRemainingWakePhaseHeadsUpMinutes`, slider conversion helpers |
 | Basis selection | `computeRecentSevenDayWakeBasis`, `getTonightWakePhaseBasisFromDays`, `getEffectiveRemainingWakeBasis`, `getFallbackWakeBasis` |
 | Phase/time inference | `getRemainingWakePhase`, `computeRemainingWakePhaseHeadsUp`, `shouldShowGoToBedSoonWakeNav` |
-| Dynamic sleep logic | `shouldShowDynamicSleepNavPhase`, `isNightBedOrSleepLogged`, `isNightBedOrSleepLoggedCore`, `isNightWakeLogged`, `inferNavSleepWindowPhase` |
+| Dynamic sleep logic | `shouldShowDynamicSleepNavPhase`, `isNightBedOrSleepLogged`, `isNightBedLogged`, `isNightSleepOrIntentLoggedNav`, `isNightWakeLogged`, `inferNavSleepWindowPhase` |
 | Display object | `getRemainingWakeDisplayFromBasis`, `getRemainingWakeDisplayFromDays` |
 | Nav render | `updateRemainingWakeNav`, wrapper phase classes, heads-up blend class |
 | Lifecycle/init | `initRemainingWakeNav`, route config `remainingWake` in `src/spa-app.js` |
-| Default log date | `resolveDefaultQuickAddNightDateMd`, `recordDateMdForSleepPeriod` |
 
 ---
 
@@ -258,7 +244,7 @@ Some nav labels are still hard-coded English in display/render paths (for exampl
 
 ### 3) Single-source refresh model
 
-Remaining wake updates currently come from mixed paths (global init interval + page-level updates/timers).
+Remaining time updates currently come from mixed paths (global init interval + page-level updates/timers).
 
 - Decide one canonical refresh ownership model (shared store subscription vs per-route timers).
 - Remove duplicate timing logic once ownership is consolidated.
@@ -279,16 +265,16 @@ Behavior depends on minute/percent thresholds and dynamic sleep overrides.
 
 ### 6) Documentation convergence
 
-Remaining-wake behavior is split across multiple docs (`quick-actions`, `user-data-cloud`, settings/about copy).
+Remaining-time behavior is currently split across multiple docs (`quick-actions`, `user-data-cloud`, settings/about copy).
 
-- Keep `docs/remaining-wake.md` as canonical and cross-link from related docs.
+- Keep this file as canonical and cross-link from related docs.
 - When phase constants or thresholds change, update this doc in the same PR.
 
 ---
 
 ## Change checklist (for future PRs touching this feature)
 
-- Update `docs/remaining-wake.md` with behavior changes.
+- Update this document with behavior changes.
 - Verify Settings and About threshold controls stay in sync.
 - Verify nav ARIA + visible labels in both themes.
 - Verify cloud/local persistence paths for thresholds and heads-up.

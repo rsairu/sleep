@@ -29,9 +29,10 @@
   function getQuickAddDefaultNightDate() {
     const wrapper = document.querySelector('.nav-wrapper');
     const presleep = wrapper && wrapper.classList.contains('nav-wrapper--phase-presleep');
+    const sleepSoon = wrapper && wrapper.classList.contains('nav-wrapper--phase-sleepSoon');
     const inSleepPhase = wrapper && wrapper.classList.contains('nav-wrapper--phase-sleep');
     const d = getAppDate();
-    if (presleep || inSleepPhase) d.setDate(d.getDate() + 1);
+    if (presleep || sleepSoon || inSleepPhase) d.setDate(d.getDate() + 1);
     return d;
   }
 

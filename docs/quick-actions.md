@@ -81,9 +81,9 @@ Active only when Layer 1’s session precondition holds **and** at least one of:
 - **Wake proximity** — `wakeProximity`: within **105** minutes of average get-up (circular). Phase = **`wake`**.
 - **Fallback** — `inferSharedSleepContextPhase(now, basis.avgSleepStart, basis.avgSleepEnd)` → **`wake`**, **`sleep`**, or **`mid`** (105 min / 120 before / 240 after rules).
 
-### Nav “go to bed soon” vs quick-action phase
+### Nav “get in bed soon” vs quick-action phase
 
-The header can show the soft **go to bed soon** state (`getRemainingWakeDisplayFromBasis`) in overnight limbo **without** Dynamic Sleep—for example when bed/sleep are not logged yet. Quick actions **do not** map that nav label to phase **`sleep`**; they continue down the chain and may end in **`mid`**. So the nav can say “go to bed soon” while **mid** actions (e.g. start a nap) remain eligible.
+The header can show the soft **get in bed soon** state (`getRemainingWakeDisplayFromBasis`) in overnight limbo **without** Dynamic Sleep—for example when bed/sleep are not logged yet. Quick actions **do not** map that nav label to phase **`sleep`**; they continue down the chain and may end in **`mid`**. So the nav can say “get in bed soon” while **mid** actions (e.g. start a nap) remain eligible.
 
 ---
 
