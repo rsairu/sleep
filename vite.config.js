@@ -2,7 +2,7 @@ import fs from 'fs';
 import { defineConfig } from 'vite';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 
-const libScripts = ['src/lib/sleep-utils.js', 'src/lib/stats-aggregates.js', 'src/lib/nightly.js'];
+const libScripts = ['src/lib/time-utils.js', 'src/lib/sleep-utils.js', 'src/lib/stats-aggregates.js', 'src/lib/nightly.js'];
 const routeScripts = [
   'src/routes/dashboard.js',
   'src/routes/log.js',

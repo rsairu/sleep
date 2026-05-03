@@ -102,7 +102,7 @@ function formatWeekRange(monday) {
   return `${formatDate(monday)} - ${formatDate(sunday)}`;
 }
 
-// Note: timeToMinutes is now in sleep-utils.js
+// Note: timeToMinutes lives in time-utils.js (global).
 
 // Convert time (minutes from midnight) to timeline position
 // Timeline runs 21:00 to 21:00 (24h). Times >= 21:00 (1260) → 0–179; times < 21:00 → 180–1439
@@ -121,12 +121,12 @@ function bedMinutesForTimeline(bedMinutes) {
   return timeToTimelinePosition(bedMinutes);
 }
 
-// Note: formatDuration and formatTime are now in sleep-utils.js
+// Note: formatDuration and formatTime are in time-utils.js (global).
 
 // Note: calculateTotalSleep is now in sleep-utils.js
 
-// Note: normalizeTimeForComparison, normalizeTimeForAveraging, and denormalizeTimeForAveraging 
-// are now in sleep-utils.js
+// Note: normalizeTimeForComparison, normalizeTimeForAveraging, and denormalizeTimeForAveraging
+// are in time-utils.js (global).
 
 function blendedVariationPercent(diffMinutes, avgSleepDurationMinutes) {
   const sleepBase = Math.max(avgSleepDurationMinutes, 1);
@@ -601,7 +601,7 @@ function renderDay(day, days, dayIndex, options) {
   return html;
 }
 
-// Note: normalizeTimeForAveraging and denormalizeTimeForAveraging are now in sleep-utils.js
+// Note: normalizeTimeForAveraging and denormalizeTimeForAveraging are in time-utils.js (global).
 
 // Calculate average stats
 function calculateAverages(days) {

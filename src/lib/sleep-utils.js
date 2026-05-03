@@ -1,4 +1,5 @@
-// Shared utility functions for sleep tracking application
+// Shared utility functions for sleep tracking application.
+// Pure time/date helpers live in time-utils.js (load before this script).
 
 // Holiday calendar: { year: { month: [day, ...] } }. Exposed on window for pages that need the reference.
 const HOLIDAYS_BY_YEAR = {
@@ -448,43 +449,6 @@ function mapSupabaseRowToDay(row) {
     WASO: Number.isFinite(row.waso) ? row.waso : 0,
     labels: normalizeSleepDayLabels(row.labels)
   };
-}
-
-/**
- * Parse a wall-clock string to minutes from midnight (0–1439).
- * Accepts 24-hour "HH:MM" / "H:MM" and 12-hour "h:mm AM/PM" (case-insensitive).
- */
-function parseWallClockToMinutes(timeStr) {
-  if (timeStr == null || timeStr === '') return NaN;
-  const s = String(timeStr).trim();
-  const m12 = s.match(/^(\d{1,2}):(\d{2})\s*([AaPp][Mm])$/);
-  if (m12) {
-    let h = parseInt(m12[1], 10);
-    const min = parseInt(m12[2], 10);
-    const ap = m12[3].toUpperCase();
-    if (h < 1 || h > 12 || min < 0 || min > 59) return NaN;
-    if (ap === 'AM') {
-      h = h === 12 ? 0 : h;
-    } else {
-      h = h === 12 ? 12 : h + 12;
-    }
-    return h * 60 + min;
-  }
-  const m24 = s.match(/^(\d{1,2}):(\d{2})$/);
-  if (m24) {
-    const h = parseInt(m24[1], 10);
-    const min = parseInt(m24[2], 10);
-    if (h < 0 || h > 23 || min < 0 || min > 59) return NaN;
-    return h * 60 + min;
-  }
-  return NaN;
-}
-
-function formatMinutesTo24hString(minutes) {
-  const total = ((Math.round(Number(minutes)) % 1440) + 1440) % 1440;
-  const hours = Math.floor(total / 60);
-  const mins = total % 60;
-  return String(hours).padStart(2, '0') + ':' + String(mins).padStart(2, '0');
 }
 
 /** Canonicalize time text for Supabase (always HH:MM 24-hour). */
@@ -1264,16 +1228,6 @@ function getSleepDraftByDate(dateMd) {
   });
 }
 
-/** Advance ISO sleep night key by whole local calendar days (±). */
-function addCalendarDaysToSleepDateKey(isoKey, deltaDays) {
-  const iso = normalizeSleepDateKey(isoKey);
-  if (!iso || !Number.isFinite(deltaDays)) return '';
-  const d = parseIsoLocalDate(iso);
-  if (!d) return '';
-  d.setDate(d.getDate() + deltaDays);
-  return formatIsoDateFromLocalDate(d);
-}
-
 function draftRowTrim(s) {
   return s == null ? '' : String(s).trim();
 }
@@ -1606,43 +1560,6 @@ function initSupabaseConfigForm() {
   });
 }
 
-function timeToMinutes(time) {
-  return parseWallClockToMinutes(time);
-}
-
-// Minutes between start and end, handling midnight crossover
-function durationMinutes(startMinutes, endMinutes) {
-  return endMinutes >= startMinutes ? endMinutes - startMinutes : endMinutes + 1440 - startMinutes;
-}
-
-// Format minutes as "Xh Ym" or "Xh" or "Ym"
-function formatDuration(minutes) {
-  const m = Math.round(minutes);
-  const hours = Math.floor(m / 60);
-  const mins = m % 60;
-  if (hours === 0) return `${mins}m`;
-  if (mins === 0) return `${hours}h`;
-  return `${hours}h ${mins}m`;
-}
-
-// Format minutes from midnight as "HH:MM"
-// Optionally return "00" for midnight (for graph display)
-function formatTime(minutes, shortMidnight = false) {
-  const total = ((Math.round(minutes) % 1440) + 1440) % 1440;
-  const hours = Math.floor(total / 60);
-  const mins = total % 60;
-  const clockFormat = getClockFormatPreference();
-  if (clockFormat === '24h' && shortMidnight && hours === 0) {
-    return `00`;
-  }
-  if (clockFormat === '12h') {
-    const hour12 = hours % 12 || 12;
-    const ampm = hours < 12 ? 'AM' : 'PM';
-    return `${hour12}:${String(mins).padStart(2, '0')} ${ampm}`;
-  }
-  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
-}
-
 // Calculate sleep duration (including naps)
 function calculateTotalSleep(day) {
   const sleepStart = timeToMinutes(day.sleepStart);
@@ -1685,59 +1602,6 @@ function appendSvgSleepBarFragmentation(parentG, x, y, width, height, level) {
   div.className = `sleep-bar-frag-fill sleep-fragmentation sleep-fragmentation--${level}`;
   fo.appendChild(div);
   parentG.appendChild(fo);
-}
-
-function isIsoSleepDateString(s) {
-  return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s.trim());
-}
-
-function parseIsoLocalDate(iso) {
-  const m = String(iso)
-    .trim()
-    .match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!m) return null;
-  const y = parseInt(m[1], 10);
-  const mo = parseInt(m[2], 10);
-  const d = parseInt(m[3], 10);
-  const dt = new Date(y, mo - 1, d);
-  if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return null;
-  return dt;
-}
-
-function formatIsoDateFromLocalDate(d) {
-  const y = d.getFullYear();
-  const mo = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return y + '-' + mo + '-' + day;
-}
-
-/**
- * Canonical sleep row key YYYY-MM-DD. Strict ISO calendar dates only (`YYYY-MM-DD`).
- * @param {string} input
- */
-function normalizeSleepDateKey(input) {
-  if (input == null || input === '') return '';
-  const s = String(input).trim();
-  if (!s) return '';
-  if (!isIsoSleepDateString(s)) return '';
-  const d = parseIsoLocalDate(s);
-  return d ? formatIsoDateFromLocalDate(d) : '';
-}
-
-/** Local midnight Date from sleep night key (ISO `YYYY-MM-DD` only). */
-function parseSleepDateToLocalDate(dateString) {
-  if (!dateString) return new Date(NaN);
-  const iso = normalizeSleepDateKey(dateString);
-  if (!iso) return new Date(NaN);
-  const d = parseIsoLocalDate(iso);
-  return d || new Date(NaN);
-}
-
-/** Month/day display (e.g. `4/8`) for tooltips and headers; `isoOrKey` must be ISO `YYYY-MM-DD`. */
-function formatSleepDateMonthDay(isoOrKey) {
-  const d = parseSleepDateToLocalDate(isoOrKey);
-  if (Number.isNaN(d.getTime())) return String(isoOrKey || '');
-  return d.getMonth() + 1 + '/' + d.getDate();
 }
 
 /** Years present in sleep rows (newest first), for multi-year heatmaps. */
@@ -1804,57 +1668,6 @@ function isHoliday(dateOrString, holidays) {
   const yearHolidays = h[y];
   if (!yearHolidays) return false;
   return yearHolidays[month] && yearHolidays[month].includes(day);
-}
-
-// Normalize time for averaging (handles times that cross midnight)
-// Times before noon (00:00-11:59) are treated as next day (add 1440)
-// This ensures early morning fell asleep times are averaged correctly with late night times
-function normalizeTimeForAveraging(minutes) {
-  if (minutes < 720) { // Before noon (12:00)
-    return minutes + 1440; // Add 24 hours
-  }
-  return minutes;
-}
-
-/**
- * Wake clock (sleepEnd) on the same extended timeline as fell-asleep averaging.
- * After an overnight span (wake clock before sleep-start clock), wake is next calendar segment (+1440).
- * Same-calendar-day segment uses normalizeTimeForAveraging(wake) so morning naps stay compatible with night sleep.
- * Overnight wrap uses sleep-start clock; same-calendar segment defers to normalizeTimeForAveraging.
- */
-function normalizeWakeTimeForAveraging(sleepStartMinutes, wakeMinutes) {
-  if (wakeMinutes < sleepStartMinutes) {
-    return wakeMinutes + 1440;
-  }
-  if (sleepStartMinutes < 360 && wakeMinutes >= 600) {
-    return wakeMinutes + 1440;
-  }
-  return normalizeTimeForAveraging(wakeMinutes);
-}
-
-// Denormalize time back to 0-1440 range
-function denormalizeTimeForAveraging(normalizedMinutes) {
-  return normalizedMinutes % 1440;
-}
-
-// Normalize time for comparison (handles times that cross midnight)
-// For bed times: times at/after noon (12:00-23:59) are normalized to negative values
-// This allows correct comparison with times after midnight (00:00-11:59)
-function normalizeTimeForComparison(minutes) {
-  // If time is at or after noon (720 minutes), it's before midnight
-  // Normalize by subtracting 1440 to make it negative for comparison
-  if (minutes >= 720) {
-    return minutes - 1440;
-  }
-  return minutes;
-}
-
-// Normalize time for Y-axis positioning where chart starts at 17:00.
-function normalizeTimeForYAxis(minutes) {
-  if (minutes < 1020) {
-    return minutes + 1440;
-  }
-  return minutes;
 }
 
 // Calculate longest uninterrupted sleep (ignoring bathroom; alarms count as interruptions)
@@ -2656,15 +2469,6 @@ function initConfigThemeSelector() {
   });
 }
 
-// 0–1440 modular arithmetic (JavaScript % can be negative).
-function modMinutes1440(n) {
-  return ((n % 1440) + 1440) % 1440;
-}
-
-function isValidClockMinute(n) {
-  return Number.isInteger(n) && n >= 0 && n <= 1439;
-}
-
 function getTonightProjectionAdjustment() {
   try {
     const raw = localStorage.getItem(TONIGHT_PROJECTION_ADJUSTMENT_KEY);
@@ -2813,21 +2617,6 @@ function clearTonightTargetWindow() {
   try {
     document.dispatchEvent(new CustomEvent('tonight-guidance-changed'));
   } catch (_) {}
-}
-
-/** Shortest signed difference `to − from` on the 24h circle, in [-720, 720]. */
-function shortestSignedClockDelta(fromMin, toMin) {
-  const f = modMinutes1440(fromMin);
-  const t = modMinutes1440(toMin);
-  let d = t - f;
-  if (d > 720) d -= 1440;
-  if (d < -720) d += 1440;
-  return d;
-}
-
-/** Shortest distance between two clock times on the 24h circle, in minutes ∈ [0, 720]. */
-function shortestClockGapMinutes(a, b) {
-  return Math.abs(shortestSignedClockDelta(a, b));
 }
 
 function clampSignedDelta(delta, cap) {
@@ -4167,7 +3956,17 @@ function initDevClockControl() {
     try {
       localStorage.setItem(DEV_CLOCK_OVERRIDE_MS_KEY, String(t.getTime()));
     } catch (_) {}
-    window.location.reload();
+    setModeUi(false);
+    const inputEl = document.getElementById('nav-dev-banner-dev-clock-input');
+    if (inputEl) inputEl.value = formatDateForDatetimeLocal(t);
+    try {
+      document.dispatchEvent(new CustomEvent('dev-clock-changed', { detail: { appNowMs: t.getTime() } }));
+    } catch (_) {}
+    try {
+      applyDayNightTheme();
+      updateDayNightIcon();
+      if (typeof initRemainingWakeNav === 'function') initRemainingWakeNav({ interval: false });
+    } catch (_) {}
   }
 
   function persistDevClockFromInput(inputEl) {
@@ -4221,7 +4020,15 @@ function initDevClockControl() {
         try {
           localStorage.removeItem(DEV_CLOCK_OVERRIDE_MS_KEY);
         } catch (_) {}
-        window.location.reload();
+        setModeUi(true);
+        try {
+          document.dispatchEvent(new CustomEvent('dev-clock-changed', { detail: { appNowMs: Date.now(), realTime: true } }));
+        } catch (_) {}
+        try {
+          applyDayNightTheme();
+          updateDayNightIcon();
+          if (typeof initRemainingWakeNav === 'function') initRemainingWakeNav({ interval: false });
+        } catch (_) {}
         return;
       }
       setModeUi(true);

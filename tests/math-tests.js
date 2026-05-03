@@ -15,6 +15,7 @@ async function loadSleepUtils() {
     Math,
     Date,
     JSON,
+    fetch: () => Promise.resolve({ ok: false }),
     setInterval: () => {},
     clearInterval: () => {},
     localStorage: {
@@ -34,6 +35,8 @@ async function loadSleepUtils() {
   vm.createContext(context);
   const { installRoutesData } = await import(pathToFileURL(path.join(__dirname, '..', 'src', 'routes-data.mjs')));
   installRoutesData(context);
+  const timeUtilsPath = path.join(__dirname, '..', 'src', 'lib', 'time-utils.js');
+  vm.runInContext(fs.readFileSync(timeUtilsPath, 'utf8'), context, { filename: 'src/lib/time-utils.js' });
   vm.runInContext(code, context, { filename: 'src/lib/sleep-utils.js' });
   const aggPath = path.join(__dirname, '..', 'src', 'lib', 'stats-aggregates.js');
   vm.runInContext(fs.readFileSync(aggPath, 'utf8'), context, { filename: 'src/lib/stats-aggregates.js' });

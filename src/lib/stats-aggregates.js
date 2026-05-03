@@ -1,8 +1,8 @@
 /**
  * Pure stats helpers for the matrix page (and math-tests).
- * Depends on globals from sleep-utils.js: timeToMinutes, normalizeTimeForAveraging,
- * denormalizeTimeForAveraging, normalizeWakeTimeForAveraging, isWeekend, isHoliday,
- * parseSleepDateToLocalDate, isNaturalWakeDay.
+ * Depends on time-utils.js globals: timeToMinutes, normalizeTimeForAveraging,
+ * denormalizeTimeForAveraging, normalizeWakeTimeForAveraging, parseSleepDateToLocalDate.
+ * Depends on sleep-utils.js: isWeekend, isHoliday, isNaturalWakeDay.
  */
 (function (root) {
   'use strict';

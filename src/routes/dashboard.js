@@ -1,7 +1,7 @@
 // Dashboard: recent average, lifetime average, recent nights (timeline rows), sleep quality history.
 // Uses renderDashboardContent() and shared helpers from nightly.js.
 // Includes 7-day graphs: bed/sleep-start and wake time (left column), duration chart (right).
-// Requires: sleep-utils.js (timeToMinutes, getDateFromString, calculateTotalSleep, formatDuration, formatTime)
+// Requires: time-utils.js (timeToMinutes, formatDuration, formatTime) + sleep-utils.js (getDateFromString, calculateTotalSleep)
 //
 // Lifecycle (SPA prep): mount / unmount on #dashboard-container — see docs/lifecycle-contract.md
 
