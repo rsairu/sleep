@@ -43,6 +43,13 @@
       if (sharedContext.isDynamicSleepPhase) return 'sleep';
       if (sharedContext.wakeInLast3Hours) return 'wake';
       if (sharedContext.wakeProximity) return 'wake';
+      const nd = sharedContext.navDisplay;
+      const navBedtimePrep =
+        nd.phase === 'presleep' ||
+        nd.phase === 'sleepSoon' ||
+        (nd.timeLabelSoft &&
+          (nd.timeLabel === 'get in bed soon' || nd.timeLabel === 'start sleep soon'));
+      if (navBedtimePrep) return 'sleep';
       const b = sharedContext.basis;
       if (b && Number.isFinite(b.avgSleepStart) && Number.isFinite(b.avgSleepEnd)) {
         return inferPhase(now, { avgSleepStart: b.avgSleepStart, avgSleepEnd: b.avgSleepEnd });

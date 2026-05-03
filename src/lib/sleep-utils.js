@@ -3504,6 +3504,9 @@ function isNightBedOrSleepLogged(nightMd, liveDays, now, averagesFallback) {
   const n = normalizeSleepDateKey(nightMd);
   const t = normalizeSleepDateKey(tomorrowIso);
   if (n && t && n === t) {
+    // Align to today's row only while that night is still open (bed/sleep without wake). A
+    // completed prior wake-day row must not count as "logged" for the upcoming sleep period.
+    if (!nightRowAwaitingWake(todayIso, liveDays, averagesFallback)) return false;
     return isNightBedOrSleepLoggedCore(todayIso, liveDays, averagesFallback);
   }
   return false;
@@ -3527,6 +3530,7 @@ function isNightBedLogged(nightMd, liveDays, now, averagesFallback) {
   const n = normalizeSleepDateKey(nightMd);
   const t = normalizeSleepDateKey(tomorrowIso);
   if (n && t && n === t) {
+    if (!nightRowAwaitingWake(todayIso, liveDays, averagesFallback)) return false;
     return isNightBedLoggedCore(todayIso, liveDays, averagesFallback);
   }
   return false;
@@ -3561,6 +3565,7 @@ function isNightSleepOrIntentLoggedNav(nightMd, liveDays, now, averagesFallback)
   const n = normalizeSleepDateKey(nightMd);
   const t = normalizeSleepDateKey(tomorrowIso);
   if (n && t && n === t) {
+    if (!nightRowAwaitingWake(todayIso, liveDays, averagesFallback)) return false;
     const coreToday = isNightSleepOrIntentLoggedNavCore(todayIso, liveDays, now, averagesFallback);
     // #region agent log
     fetch('http://127.0.0.1:7327/ingest/43d221e4-65c5-4b33-a02d-46ec836863c2',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'72442d'},body:JSON.stringify({sessionId:'72442d',runId:'initial',hypothesisId:'H1',location:'sleep-utils.js:isNightSleepOrIntentLoggedNav',message:'tomorrow fallback evaluated for sleep/intent',data:{nightMd:nightMd,todayIso:todayIso,tomorrowIso:tomorrowIso,coreToday:coreToday},timestamp:Date.now()})}).catch(()=>{});

@@ -83,7 +83,9 @@ Active only when Layer 1’s session precondition holds **and** at least one of:
 
 ### Nav “get in bed soon” vs quick-action phase
 
-The header can show the soft **get in bed soon** state (`getRemainingWakeDisplayFromBasis`) in overnight limbo **without** Dynamic Sleep—for example when bed/sleep are not logged yet. Quick actions **do not** map that nav label to phase **`sleep`**; they continue down the chain and may end in **`mid`**. So the nav can say “get in bed soon” while **mid** actions (e.g. start a nap) remain eligible.
+The header can show the soft **get in bed soon** state (`getRemainingWakeDisplayFromBasis`) in overnight limbo **without** Dynamic Sleep—for example when bed/sleep are not logged yet. Quick-action phase still respects **recent wake** and **wake proximity** first; when those do not apply, the chain below can map nav bedtime cues to **`sleep`**.
+
+**Remaining-wake alignment:** After Dynamic Sleep, recent-wake, and wake proximity, if the nav display is normal **presleep** (`phase === 'presleep'`), **`sleepSoon`**, or the soft labels **get in bed soon** / **start sleep soon**, quick actions use phase **`sleep`** so bedtime actions stay available even when the clock is still outside the ±120/240 minute average-sleep window (see `getQuickActionsPhaseFromSharedContext`). Otherwise inference falls through to **`mid`** or **`wake`** (e.g. open/winding nav with **Start a nap** when allowed).
 
 ---
 

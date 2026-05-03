@@ -117,7 +117,7 @@ Dynamic Sleep uses `isNightBedOrSleepLogged`, built on **`isNightBedOrSleepLogge
 
 Nav does **not** require wall-clock recency here: backfilled or older entries still count so the nav does not stay stuck on **get in bed soon** when the row is genuinely filled in.
 
-**Evening wake-day alignment:** After local evening, `recordDateMdForSleepPeriod(now, avgWake)` uses **tomorrow’s** ISO wake-day key (`nightMd`), while the user may still have saved bed/sleep on **today’s** row. When `nightMd` equals **tomorrow** (calendar), `isNightBedOrSleepLogged` also treats **today’s** row as logged if core checks pass there. That keeps nav aligned with `recordDateMdForSleepPeriod` / quick-actions row rules (see `docs/quick-actions.md` Layer 4).
+**Evening wake-day alignment:** After local evening, `recordDateMdForSleepPeriod(now, avgWake)` uses **tomorrow’s** ISO wake-day key (`nightMd`), while the user may still have saved bed/sleep on **today’s** row. When `nightMd` equals **tomorrow** (calendar), `isNightBedOrSleepLogged` also treats **today’s** row as logged if core checks pass there **and** `nightRowAwaitingWake(today)` — i.e. today’s wake-day row is still an open night (morning wake not finalized). A **completed** prior row must not satisfy “logged” for the upcoming sleep period.
 
 **Quick actions are separate:** Dashboard buttons still use stub diff **plus** a **12-hour** wall-clock window where applicable (`docs/quick-actions.md`). Only remaining-wake Dynamic Sleep uses the relaxed nav rules above.
 
