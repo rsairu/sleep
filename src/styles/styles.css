@@ -1469,6 +1469,7 @@ body{
 }
 
 .nav-header--remaining-wake {
+  position: relative;
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
@@ -1491,6 +1492,122 @@ body{
 
 .nav-header--remaining-wake .nav-right {
   justify-self: end;
+}
+
+/* Sweet dreams (dynamic sleep): twinkling stars behind nav chrome */
+.nav-header-twinkle-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.nav-header--remaining-wake .nav-app-block,
+.nav-header--remaining-wake .nav-remaining-wake,
+.nav-header--remaining-wake .nav-right {
+  position: relative;
+  z-index: 1;
+}
+
+.nav-header-twinkle-star {
+  position: absolute;
+  color: color-mix(in srgb, var(--color-sleep) 42%, white 58%);
+  opacity: 0;
+  animation: nav-header-twinkle 2.4s ease-in-out infinite;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.nav-header-twinkle-star svg {
+  display: block;
+}
+
+@keyframes nav-header-twinkle {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.4) rotate(0deg);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1) rotate(20deg);
+  }
+}
+
+.nav-header-twinkle-s1 {
+  top: 18%;
+  left: 12%;
+}
+
+.nav-header-twinkle-s2 {
+  top: 28%;
+  left: 78%;
+}
+
+.nav-header-twinkle-s3 {
+  top: 70%;
+  left: 18%;
+}
+
+.nav-header-twinkle-s4 {
+  top: 62%;
+  left: 82%;
+}
+
+.nav-header-twinkle-s5 {
+  top: 12%;
+  left: 46%;
+}
+
+.nav-header-twinkle-s6 {
+  top: 80%;
+  left: 50%;
+}
+
+.nav-header-twinkle-s7 {
+  top: 40%;
+  left: 6%;
+}
+
+.nav-header-twinkle-s8 {
+  top: 50%;
+  left: 92%;
+}
+
+.nav-header-twinkle-s9 {
+  top: 8%;
+  left: 28%;
+}
+
+.nav-header-twinkle-s10 {
+  top: 86%;
+  left: 70%;
+}
+
+.nav-header-twinkle-star--small svg {
+  width: 10px;
+  height: 10px;
+}
+
+.nav-header-twinkle-star--med svg {
+  width: 16px;
+  height: 16px;
+}
+
+.nav-header-twinkle-star--large svg {
+  width: 22px;
+  height: 22px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-header-twinkle-star {
+    animation: none;
+    opacity: 0.55;
+    transform: scale(0.85);
+  }
 }
 
 .nav-app-block {
