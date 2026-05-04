@@ -5097,7 +5097,10 @@ function renderNavBar(currentPage) {
     escapeHtmlBannerAttr(t('nav.app.subtitle', 'Sleep Tracker')) +
     '</span></a>';
   const remainingWakeSlot = `<div class="nav-remaining-wake" id="nav-remaining-wake"></div>`;
-  const headerRow = `<div class="nav-header nav-header--remaining-wake">${appName}${remainingWakeSlot}${navRight}</div>`;
+  const headerTwinkleLayer =
+    '<div class="nav-header-twinkle-layer" id="nav-header-twinkle" aria-hidden="true"></div>';
+  const headerRow =
+    `<div class="nav-header nav-header--remaining-wake">${headerTwinkleLayer}${appName}${remainingWakeSlot}${navRight}</div>`;
   const tabsRow = `<div class="nav-tabs-row"><div class="nav-tabs">${navItems}</div></div>`;
   const branchLabel = getDevGitBranchLabel();
   const supabaseDashboardUrl = resolveSupabaseDashboardUrl();
@@ -5610,11 +5613,39 @@ function getRemainingWakeDisplayFromDays(days) {
   return getRemainingWakeDisplayFromBasis(basis, days);
 }
 
+/** Decorative twinkle stars for “sweet dreams” (dynamic sleep) nav phase; CSS positions in `styles.css`. */
+function getNavHeaderTwinkleStarsHtml() {
+  const path = 'M12 0 L14 10 L24 12 L14 14 L12 24 L10 14 L0 12 L10 10 Z';
+  const stars = [
+    ['nav-header-twinkle-s1', 'nav-header-twinkle-star--large', '0s'],
+    ['nav-header-twinkle-s2', 'nav-header-twinkle-star--med', '0.4s'],
+    ['nav-header-twinkle-s3', 'nav-header-twinkle-star--med', '0.8s'],
+    ['nav-header-twinkle-s4', 'nav-header-twinkle-star--large', '1.2s'],
+    ['nav-header-twinkle-s5', 'nav-header-twinkle-star--small', '1.6s'],
+    ['nav-header-twinkle-s6', 'nav-header-twinkle-star--small', '2s'],
+    ['nav-header-twinkle-s7', 'nav-header-twinkle-star--med', '0.6s'],
+    ['nav-header-twinkle-s8', 'nav-header-twinkle-star--small', '1.4s'],
+    ['nav-header-twinkle-s9', 'nav-header-twinkle-star--small', '1s'],
+    ['nav-header-twinkle-s10', 'nav-header-twinkle-star--large', '0.2s']
+  ];
+  return stars
+    .map(
+      ([pos, size, delay]) =>
+        `<span class="nav-header-twinkle-star ${pos} ${size}" style="animation-delay:${delay}">` +
+        `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="${path}"/></svg></span>`
+    )
+    .join('');
+}
+
 /** Injects remaining wake into nav and sets phase class on wrapper. */
 function updateRemainingWakeNav(display) {
   if (!display) return;
   const slot = document.getElementById('nav-remaining-wake');
+  const twinkleLayer = document.getElementById('nav-header-twinkle');
   const wrapper = document.querySelector('.nav-wrapper');
+  if (twinkleLayer) {
+    twinkleLayer.innerHTML = display.phase === 'sleep' ? getNavHeaderTwinkleStarsHtml() : '';
+  }
   if (slot) {
     const { openMin, windingMin } = getRemainingWakeThresholds();
     const p1 = 100 - openMin;
