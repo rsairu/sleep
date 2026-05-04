@@ -5241,13 +5241,12 @@ function renderNavBar(currentPage) {
   const devBannerBadgesRow =
     '<div class="nav-dev-banner-badges-row">' +
     githubBranchBadge +
-    supabaseDashboardBadge +
     vercelDeploymentsBadge +
     appTimeBadge +
     '</div>';
   const devBannerDbSwitch =
     '<div class="nav-dev-banner-db-switch">' +
-    '<button type="button" class="nav-dev-banner-db-switch-toggle" id="nav-dev-banner-db-switch-toggle"' +
+    '<button type="button" class="nav-dev-banner-db-switch-toggle nav-dev-banner-db-switch-toggle--icon-only" id="nav-dev-banner-db-switch-toggle"' +
     dbSwitchDisabledAttr +
     ' title="' +
     escapeHtmlBannerAttr(dbSwitchTitle) +
@@ -5255,16 +5254,15 @@ function renderNavBar(currentPage) {
     escapeHtmlBannerAttr(dbSwitchAria) +
     '">' +
     '<span class="nav-dev-banner-db-switch-toggle-icon" aria-hidden="true">🎚️</span>' +
-    '<span class="nav-dev-banner-db-switch-toggle-label">Switch DB</span>' +
     '</button></div>';
   const devBannerCloudRow =
     '<div class="nav-dev-banner-cloud-row">' +
+    supabaseDashboardBadge +
     devBannerDbSwitch +
-    '<button type="button" class="nav-dev-banner-cloud-refresh" id="nav-dev-banner-cloud-refresh-btn"' +
+    '<button type="button" class="nav-dev-banner-cloud-refresh nav-dev-banner-cloud-refresh--icon-only" id="nav-dev-banner-cloud-refresh-btn"' +
     cloudRefreshDisabledAttr +
     ' title="Sync with cloud and reload page" aria-label="Sync with cloud and reload page">' +
     '<span class="nav-dev-banner-cloud-refresh-icon" aria-hidden="true">🔄</span>' +
-    '<span class="nav-dev-banner-cloud-refresh-label">Sync with cloud</span>' +
     '</button>' +
     '</div>';
   const devBannerLeftInner = devBannerBadgesRow + devBannerCloudRow;

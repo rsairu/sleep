@@ -561,16 +561,21 @@ body{
   color: #ffffff;
   cursor: pointer;
   flex-shrink: 0;
-  margin-left: auto;
+}
+
+.nav-dev-banner-cloud-refresh--icon-only {
+  gap: 0;
+  padding: 4px 6px;
+  line-height: 1;
+  justify-content: center;
+  min-width: 1.75rem;
+  min-height: 1.75rem;
+  box-sizing: border-box;
 }
 
 .nav-dev-banner-cloud-refresh-icon {
   font-size: 1.05em;
   line-height: 1;
-}
-
-.nav-dev-banner-cloud-refresh-label {
-  line-height: 1.2;
 }
 
 .nav-dev-banner-cloud-refresh:disabled {
@@ -634,8 +639,14 @@ body{
   line-height: 1;
 }
 
-.nav-dev-banner-db-switch-toggle-label {
-  line-height: 1.2;
+.nav-dev-banner-db-switch-toggle--icon-only {
+  gap: 0;
+  padding: 4px 6px;
+  line-height: 1;
+  justify-content: center;
+  min-width: 1.75rem;
+  min-height: 1.75rem;
+  box-sizing: border-box;
 }
 
 .nav-dev-banner-deploy-link:hover {
