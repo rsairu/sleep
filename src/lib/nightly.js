@@ -1031,7 +1031,7 @@ function renderCalendarCurrentMonthOnlyBlock(year, flagMap, latestDataDate) {
   if (!currentMonthBlock) return '';
   return `
     <div class="calendar-heatmap calendar-heatmap--inline calendar-heatmap--dashboard-month">
-      <h2 class="dashboard-section-title"><a class="dashboard-section-title__link" href="${restoreMpaHref('tab.quality')}"><span class="dashboard-section-title__emoji" aria-hidden="true">💜</span> <span data-i18n="dashboard.sectionSleepQuality">Sleep quality</span></a></h2>
+      <h2 class="dashboard-section-title"><a class="dashboard-section-title__link" href="${restoreMpaHref('tab.quality')}"><span class="dashboard-section-title__emoji" aria-hidden="true">📅</span> <span data-i18n="dashboard.sectionSleepQuality">Sleep quality</span></a></h2>
       <div class="calendar-current-month-row">${currentMonthBlock}</div>
     </div>
   `;
@@ -2807,7 +2807,7 @@ function renderDashboardContent(days) {
   const recentNightsCount = Math.min(3, days.length);
   const recentNightsHtml = recentNightsCount > 0
     ? `
-    <h2 class="dashboard-section-title"><a class="dashboard-section-title__link" href="${restoreMpaHref('tab.timeline')}"><span class="dashboard-section-title__emoji" aria-hidden="true">📅</span> Recent nightlies</a></h2>
+    <h2 class="dashboard-section-title"><a class="dashboard-section-title__link" href="${restoreMpaHref('tab.timeline')}"><span class="dashboard-section-title__emoji" aria-hidden="true">⏱️</span> Recent nightlies</a></h2>
     <section class="dashboard-past-nights">
       <div class="week-days">
         ${Array.from({ length: recentNightsCount }, (_, i) => renderDay(days[i], days, i, { showTicks: true })).join('')}
