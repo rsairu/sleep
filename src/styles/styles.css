@@ -3626,65 +3626,54 @@ body{
   z-index: 5;
 }
 
-.dashboard-tonight-adjust-slider--main .dashboard-tonight-goal-links {
-  z-index: 2;
-}
-
 .dashboard-tonight-adjust-slider--main .dashboard-tonight-knob-actions {
   z-index: 60;
 }
 
-/* Curved dotted “working toward” guides from live thumb to saved / committed marker */
-.dashboard-tonight-goal-links {
-  position: absolute;
-  inset: 0;
+/* Directional three-arrow pace indicator next to the guided time label. */
+.dashboard-tonight-pace-arrows {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  flex: 0 0 auto;
+  pointer-events: none;
+  color: var(--color-sleep);
+}
+
+.dashboard-tonight-pace-arrows--wake {
+  color: var(--color-up);
+}
+
+.dashboard-tonight-pace-arrows--hidden {
+  display: none;
+}
+
+.dashboard-tonight-pace-arrows--earlier {
+  order: -1;
+  transform: scaleX(-1);
+}
+
+.dashboard-tonight-pace-arrows--later {
+  order: 99;
+}
+
+.dashboard-tonight-pace-arrows-svg {
+  display: block;
   width: 100%;
-  height: 100%;
-  overflow: visible;
-  pointer-events: none;
-  z-index: 4;
+  height: auto;
 }
 
-/* Outline paths kept in DOM for compatibility; not painted (single dotted path only). */
-.dashboard-tonight-goal-path-outline {
-  fill: none;
-  pointer-events: none;
-  stroke: none;
-  opacity: 0;
+.dashboard-tonight-pace-arrow {
+  fill: currentColor;
+  opacity: 0.12;
+  transition: opacity 0.45s ease-out;
 }
 
-.dashboard-tonight-goal-path {
-  stroke-width: 1.65;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  /* Denser dotted stroke: short stamp + shorter gap (~2× dots vs 0.1 9) */
-  stroke-dasharray: 0.08 4.25;
-  stroke-opacity: 0.62;
-  paint-order: stroke fill;
-}
-
-.dashboard-tonight-goal-path--sleep {
-  stroke: var(--color-sleep);
-}
-
-.dashboard-tonight-goal-path--wake {
-  stroke: var(--color-up);
-}
-
-/* Filled arrow (separate from dotted path): always vertical into bottom-mid of chip; dotted cubic leaves knob L/R then up */
-.dashboard-tonight-goal-arrow {
-  stroke: none;
-  paint-order: stroke fill;
-}
-
-.dashboard-tonight-goal-arrow--sleep {
-  fill: var(--color-sleep);
-  fill-opacity: 0.72;
-}
-
-.dashboard-tonight-goal-arrow--wake {
-  fill: var(--color-up);
-  fill-opacity: 0.72;
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-tonight-pace-arrow {
+    transition: none;
+  }
 }
 
 /* Live knob times directly under the track; previous times live in .dashboard-tonight-adjust-top-band */
