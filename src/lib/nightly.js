@@ -1679,11 +1679,11 @@ function renderDashboardProjection(recentAverages) {
   const projection = getTonightProjectionState(recentAverages);
   const base = projection.base;
   const durationMins = durationMinutes(projection.sleepClock, projection.wakeClock);
-  const paceWaveCircles = Array.from({ length: 13 }, (_, i) => {
-    const cx = 2 + i * 4;
-    return `<circle class="dashboard-tonight-pace-dot" cx="${cx}" cy="4" r="0.9" style="--i:${i}"></circle>`;
+  const trackWaveBars = Array.from({ length: 160 }, (_, i) => {
+    const x = i * 5;
+    return `<rect class="dashboard-tonight-track-wave-bar" x="${x}" y="6" width="2" height="12" rx="1" style="--i:${i}"></rect>`;
   }).join('');
-  const paceWaveSvg = `<svg class="dashboard-tonight-pace-wave-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 8" preserveAspectRatio="none" aria-hidden="true">${paceWaveCircles}</svg>`;
+  const trackWaveSvg = `<svg class="dashboard-tonight-track-wave-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 24" preserveAspectRatio="xMinYMid slice" aria-hidden="true"><defs><linearGradient id="dashboardTonightTrackWaveGradient" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="200" y2="0"><stop class="dashboard-tonight-track-wave-stop dashboard-tonight-track-wave-stop--sleep" offset="0"></stop><stop class="dashboard-tonight-track-wave-stop dashboard-tonight-track-wave-stop--wake" offset="1"></stop></linearGradient></defs>${trackWaveBars}</svg>`;
   const savedSleepPct =
     projection.savedTargetSleepPct != null ? `${projection.savedTargetSleepPct}%` : `${projection.committedSleepPct}%`;
   const savedWakePct =
@@ -1698,6 +1698,11 @@ function renderDashboardProjection(recentAverages) {
         <h2 class="dashboard-section-title"><span class="dashboard-section-title__static"><span class="dashboard-section-title__emoji" aria-hidden="true">🛌</span> <span data-i18n="dashboard.sectionTonight">Tonight</span></span></h2>
         ${tonightInfoHtml}
       </div>
+      <p class="dashboard-tonight-estimated-sleep" id="dashboard-tonight-estimated-sleep">
+        <span class="dashboard-tonight-estimated-sleep-ico" aria-hidden="true">⏳</span>
+        <span class="dashboard-tonight-estimated-sleep-label" data-i18n="dashboard.tonight.sleepDurationLabel">Sleep duration:</span>
+        <span class="dashboard-tonight-estimated-sleep-value" id="dashboard-tonight-estimated-sleep-value">~${formatDuration(durationMins)}</span>
+      </p>
       <div class="dashboard-tonight-adjust">
         <div class="dashboard-tonight-adjust-panel" id="dashboard-tonight-adjust-panel">
           <div
@@ -1728,22 +1733,12 @@ function renderDashboardProjection(recentAverages) {
             </div>
             <div class="dashboard-tonight-adjust-slider-core">
               <div class="dashboard-tonight-adjust-track">
-                <div class="dashboard-tonight-adjust-range-fill" aria-hidden="true"></div>
-                <div class="dashboard-tonight-adjust-recommended-window" aria-hidden="true">
-                  <span class="dashboard-tonight-adjust-recommended-text dashboard-tonight-adjust-recommended-text--main" id="dashboard-tonight-recommended-duration">~${formatDuration(durationMins)}</span>
-                </div>
+                <div class="dashboard-tonight-adjust-range-fill" aria-hidden="true">${trackWaveSvg}</div>
+                <div class="dashboard-tonight-adjust-recommended-window" aria-hidden="true"></div>
               </div>
               <input type="range" id="dashboard-tonight-sleep-slider" min="${base.scopeStartNorm}" max="${base.scopeEndNorm}" step="1" value="${projection.sleepNorm}" aria-label="Tonight sleep target" title="Sleep" data-i18n-title="dashboard.tonight.sleepKnobTooltip">
               <input type="range" id="dashboard-tonight-wake-slider" min="${base.scopeStartNorm}" max="${base.scopeEndNorm}" step="1" value="${projection.wakeNorm}" aria-label="Tomorrow wake target" title="Wake" data-i18n-title="dashboard.tonight.wakeKnobTooltip">
               <div class="dashboard-tonight-adjust-overlay" id="dashboard-tonight-adjust-overlay" aria-hidden="true"></div>
-              <svg class="dashboard-tonight-goal-links" id="dashboard-tonight-goal-links-svg" width="100%" height="100%" preserveAspectRatio="none" aria-hidden="true" focusable="false">
-                <path class="dashboard-tonight-goal-path-outline dashboard-tonight-goal-path-outline--sleep" id="dashboard-tonight-goal-path-sleep-outline" fill="none" />
-                <path class="dashboard-tonight-goal-path-outline dashboard-tonight-goal-path-outline--wake" id="dashboard-tonight-goal-path-wake-outline" fill="none" />
-                <path class="dashboard-tonight-goal-path dashboard-tonight-goal-path--sleep" id="dashboard-tonight-goal-path-sleep" fill="none" />
-                <path class="dashboard-tonight-goal-path dashboard-tonight-goal-path--wake" id="dashboard-tonight-goal-path-wake" fill="none" />
-                <polygon class="dashboard-tonight-goal-arrow dashboard-tonight-goal-arrow--sleep" id="dashboard-tonight-goal-arrow-sleep" />
-                <polygon class="dashboard-tonight-goal-arrow dashboard-tonight-goal-arrow--wake" id="dashboard-tonight-goal-arrow-wake" />
-              </svg>
               <div class="dashboard-tonight-adjust-thumb-pack dashboard-tonight-adjust-thumb-pack--sleep" id="dashboard-tonight-sleep-thumb-pack">
                 <button
                   type="button"
@@ -1757,6 +1752,13 @@ function renderDashboardProjection(recentAverages) {
                 <div class="dashboard-tonight-adjust-thumb-inner">
                   <span class="dashboard-tonight-adjust-thumb-emoji" id="dashboard-tonight-sleep-thumb-icon" aria-hidden="true">🍃</span>
                   <div class="dashboard-tonight-adjust-thumb-label dashboard-tonight-adjust-thumb-label--sleep" id="dashboard-tonight-sleep-thumb-label">${formatTime(projection.sleepClock)}</div>
+                  <span class="dashboard-tonight-pace-arrows dashboard-tonight-pace-arrows--sleep dashboard-tonight-pace-arrows--hidden" id="dashboard-tonight-pace-arrows-sleep" aria-hidden="true">
+                    <svg class="dashboard-tonight-pace-arrows-svg" viewBox="0 0 38 12" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" focusable="false">
+                      <polygon class="dashboard-tonight-pace-arrow" data-index="0" points="0,0 11,6 0,12 3,6" />
+                      <polygon class="dashboard-tonight-pace-arrow" data-index="1" points="13,0 24,6 13,12 16,6" />
+                      <polygon class="dashboard-tonight-pace-arrow" data-index="2" points="26,0 37,6 26,12 29,6" />
+                    </svg>
+                  </span>
                 </div>
                 <button
                   type="button"
@@ -1781,6 +1783,13 @@ function renderDashboardProjection(recentAverages) {
                 <div class="dashboard-tonight-adjust-thumb-inner">
                   <span class="dashboard-tonight-adjust-thumb-emoji" id="dashboard-tonight-wake-thumb-icon" aria-hidden="true">🍃</span>
                   <div class="dashboard-tonight-adjust-thumb-label dashboard-tonight-adjust-thumb-label--wake" id="dashboard-tonight-wake-thumb-label">${formatTime(projection.wakeClock)}</div>
+                  <span class="dashboard-tonight-pace-arrows dashboard-tonight-pace-arrows--wake dashboard-tonight-pace-arrows--hidden" id="dashboard-tonight-pace-arrows-wake" aria-hidden="true">
+                    <svg class="dashboard-tonight-pace-arrows-svg" viewBox="0 0 38 12" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" focusable="false">
+                      <polygon class="dashboard-tonight-pace-arrow" data-index="0" points="0,0 11,6 0,12 3,6" />
+                      <polygon class="dashboard-tonight-pace-arrow" data-index="1" points="13,0 24,6 13,12 16,6" />
+                      <polygon class="dashboard-tonight-pace-arrow" data-index="2" points="26,0 37,6 26,12 29,6" />
+                    </svg>
+                  </span>
                 </div>
                 <button
                   type="button"
@@ -1809,12 +1818,11 @@ function renderDashboardProjection(recentAverages) {
               class="dashboard-tonight-matrix-grid"
               role="grid"
               data-i18n-aria-label="dashboard.tonight.matrix.ariaGrid"
-              aria-label="Tonight schedule matrix: natural average, guided time, pace, and saved target per pole."
+              aria-label="Tonight schedule matrix: natural average, guided time, and saved target per pole."
             >
               <div class="dashboard-tonight-matrix-corner" aria-hidden="true"></div>
               <div class="dashboard-tonight-matrix-h" data-i18n="dashboard.tonight.matrix.headerNatural"><span class="dashboard-tonight-matrix-h-ico" aria-hidden="true">🍃</span> Natural</div>
               <div class="dashboard-tonight-matrix-h" data-i18n="dashboard.tonight.matrix.headerGuided"><span class="dashboard-tonight-matrix-h-ico" aria-hidden="true">🧭</span> Guided</div>
-              <div class="dashboard-tonight-matrix-h" data-i18n="dashboard.tonight.matrix.headerPace"><span class="dashboard-tonight-matrix-h-ico" aria-hidden="true">🧭</span> Pace</div>
               <div class="dashboard-tonight-matrix-h" data-i18n="dashboard.tonight.matrix.headerTarget"><span class="dashboard-tonight-matrix-h-ico" aria-hidden="true">🎯</span> Target</div>
               <div class="dashboard-tonight-matrix-rh dashboard-tonight-matrix-rh--sleep">
                 <span class="dashboard-tonight-matrix-rh-emoji" aria-hidden="true">🌙</span>
@@ -1822,10 +1830,6 @@ function renderDashboardProjection(recentAverages) {
               </div>
               <div class="dashboard-tonight-matrix-cell" id="dashboard-tonight-matrix-sleep-natural"></div>
               <div class="dashboard-tonight-matrix-cell" id="dashboard-tonight-matrix-sleep-guided"></div>
-              <div class="dashboard-tonight-matrix-cell dashboard-tonight-matrix-cell--pace" id="dashboard-tonight-matrix-sleep-pace">
-                <span class="dashboard-tonight-matrix-dash" id="dashboard-tonight-matrix-sleep-pace-dash" hidden>—</span>
-                <div class="dashboard-tonight-pace-wave-host dashboard-tonight-pace-wave-host--sleep" id="dashboard-tonight-matrix-sleep-pace-wave" hidden>${paceWaveSvg}</div>
-              </div>
               <div class="dashboard-tonight-matrix-cell" id="dashboard-tonight-matrix-sleep-target"></div>
               <div class="dashboard-tonight-matrix-rh dashboard-tonight-matrix-rh--wake">
                 <span class="dashboard-tonight-matrix-rh-emoji" aria-hidden="true">🌅</span>
@@ -1833,10 +1837,6 @@ function renderDashboardProjection(recentAverages) {
               </div>
               <div class="dashboard-tonight-matrix-cell" id="dashboard-tonight-matrix-wake-natural"></div>
               <div class="dashboard-tonight-matrix-cell" id="dashboard-tonight-matrix-wake-guided"></div>
-              <div class="dashboard-tonight-matrix-cell dashboard-tonight-matrix-cell--pace" id="dashboard-tonight-matrix-wake-pace">
-                <span class="dashboard-tonight-matrix-dash" id="dashboard-tonight-matrix-wake-pace-dash" hidden>—</span>
-                <div class="dashboard-tonight-pace-wave-host dashboard-tonight-pace-wave-host--wake" id="dashboard-tonight-matrix-wake-pace-wave" hidden>${paceWaveSvg}</div>
-              </div>
               <div class="dashboard-tonight-matrix-cell" id="dashboard-tonight-matrix-wake-target"></div>
             </div>
             <div class="dashboard-tonight-matrix-callouts" id="dashboard-tonight-matrix-callouts"></div>
@@ -1878,7 +1878,9 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
   const sleepPlusBtn = document.getElementById('dashboard-tonight-sleep-plus');
   const wakeMinusBtn = document.getElementById('dashboard-tonight-wake-minus');
   const wakePlusBtn = document.getElementById('dashboard-tonight-wake-plus');
-  const recommendedDurationEl = document.getElementById('dashboard-tonight-recommended-duration');
+  const estimatedSleepValueEl = document.getElementById('dashboard-tonight-estimated-sleep-value');
+  const trackWaveGradientEl = document.getElementById('dashboardTonightTrackWaveGradient');
+  const trackRangeFillEl = document.querySelector('#dashboard-tonight-adjust-slider .dashboard-tonight-adjust-range-fill');
   const knobActionsSleep = document.getElementById('dashboard-tonight-knob-actions-sleep');
   const knobActionsWake = document.getElementById('dashboard-tonight-knob-actions-wake');
   const sleepSaveTargetBtn = document.getElementById('dashboard-tonight-sleep-save-target');
@@ -1898,13 +1900,8 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
   const clearTargetCancel = document.getElementById('dashboard-tonight-clear-target-cancel');
   const confirmDialogTitle = document.getElementById('dashboard-tonight-confirm-dialog-title');
   const confirmDialogSkp = document.getElementById('dashboard-tonight-confirm-dialog-skp');
-  const goalLinksSvg = document.getElementById('dashboard-tonight-goal-links-svg');
-  const goalPathSleepOutline = document.getElementById('dashboard-tonight-goal-path-sleep-outline');
-  const goalPathWakeOutline = document.getElementById('dashboard-tonight-goal-path-wake-outline');
-  const goalPathSleep = document.getElementById('dashboard-tonight-goal-path-sleep');
-  const goalPathWake = document.getElementById('dashboard-tonight-goal-path-wake');
-  const goalArrowSleep = document.getElementById('dashboard-tonight-goal-arrow-sleep');
-  const goalArrowWake = document.getElementById('dashboard-tonight-goal-arrow-wake');
+  const paceArrowsSleep = document.getElementById('dashboard-tonight-pace-arrows-sleep');
+  const paceArrowsWake = document.getElementById('dashboard-tonight-pace-arrows-wake');
   if (
     !root ||
     !panel ||
@@ -1969,15 +1966,129 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
     wakeSlider.max = String(base.scopeEndNorm);
   }
 
-  function syncTonightPaceWaveHost(hostEl, paceId) {
-    if (!hostEl) return;
-    hostEl.classList.remove(
-      'dashboard-tonight-pace-wave-host--gentle',
-      'dashboard-tonight-pace-wave-host--normal',
-      'dashboard-tonight-pace-wave-host--steady'
-    );
+  const TONIGHT_PACE_ARROW_OFF = 0.12;
+  const TONIGHT_PACE_ARROW_RESTING = 0.55;
+  const TONIGHT_PACE_ARROW_PEAK = 1.0;
+  const TONIGHT_PACE_BEAT_FAST = 280;
+  const TONIGHT_PACE_BEAT_MED = TONIGHT_PACE_BEAT_FAST * 2;
+  const TONIGHT_PACE_BEAT_SLOW = TONIGHT_PACE_BEAT_FAST * 3;
+  const TONIGHT_PACE_FRAMES = {
+    gentle: [
+      { states: [TONIGHT_PACE_ARROW_PEAK, TONIGHT_PACE_ARROW_OFF, TONIGHT_PACE_ARROW_OFF], hold: TONIGHT_PACE_BEAT_SLOW },
+      { states: [TONIGHT_PACE_ARROW_RESTING, TONIGHT_PACE_ARROW_OFF, TONIGHT_PACE_ARROW_OFF], hold: TONIGHT_PACE_BEAT_SLOW }
+    ],
+    normal: [
+      { states: [TONIGHT_PACE_ARROW_PEAK, TONIGHT_PACE_ARROW_OFF, TONIGHT_PACE_ARROW_OFF], hold: TONIGHT_PACE_BEAT_MED },
+      { states: [TONIGHT_PACE_ARROW_RESTING, TONIGHT_PACE_ARROW_PEAK, TONIGHT_PACE_ARROW_OFF], hold: TONIGHT_PACE_BEAT_MED },
+      { states: [TONIGHT_PACE_ARROW_RESTING, TONIGHT_PACE_ARROW_RESTING, TONIGHT_PACE_ARROW_OFF], hold: TONIGHT_PACE_BEAT_MED * 1.6 },
+      { states: [TONIGHT_PACE_ARROW_OFF, TONIGHT_PACE_ARROW_OFF, TONIGHT_PACE_ARROW_OFF], hold: TONIGHT_PACE_BEAT_MED * 0.9 }
+    ],
+    steady: [
+      { states: [TONIGHT_PACE_ARROW_PEAK, TONIGHT_PACE_ARROW_OFF, TONIGHT_PACE_ARROW_OFF], hold: TONIGHT_PACE_BEAT_FAST },
+      { states: [TONIGHT_PACE_ARROW_RESTING, TONIGHT_PACE_ARROW_PEAK, TONIGHT_PACE_ARROW_OFF], hold: TONIGHT_PACE_BEAT_FAST },
+      { states: [TONIGHT_PACE_ARROW_RESTING, TONIGHT_PACE_ARROW_RESTING, TONIGHT_PACE_ARROW_PEAK], hold: TONIGHT_PACE_BEAT_FAST },
+      { states: [TONIGHT_PACE_ARROW_RESTING, TONIGHT_PACE_ARROW_RESTING, TONIGHT_PACE_ARROW_RESTING], hold: TONIGHT_PACE_BEAT_FAST * 1.6 },
+      { states: [TONIGHT_PACE_ARROW_OFF, TONIGHT_PACE_ARROW_OFF, TONIGHT_PACE_ARROW_OFF], hold: TONIGHT_PACE_BEAT_FAST * 0.9 }
+    ]
+  };
+
+  let tonightPaceArrowTimer = null;
+  let tonightPaceArrowFrameIdx = 0;
+  let tonightPaceArrowActivePace = null;
+
+  function getTonightPaceArrowGroups() {
+    const groups = [];
+    if (paceArrowsSleep && !paceArrowsSleep.classList.contains('dashboard-tonight-pace-arrows--hidden')) {
+      groups.push(paceArrowsSleep.querySelectorAll('.dashboard-tonight-pace-arrow'));
+    }
+    if (paceArrowsWake && !paceArrowsWake.classList.contains('dashboard-tonight-pace-arrows--hidden')) {
+      groups.push(paceArrowsWake.querySelectorAll('.dashboard-tonight-pace-arrow'));
+    }
+    return groups;
+  }
+
+  function applyTonightPaceArrowFrame(frame) {
+    const groups = getTonightPaceArrowGroups();
+    for (let g = 0; g < groups.length; g++) {
+      const arrows = groups[g];
+      for (let i = 0; i < arrows.length && i < frame.states.length; i++) {
+        arrows[i].style.opacity = String(frame.states[i]);
+      }
+    }
+  }
+
+  function tickTonightPaceArrows() {
+    const sleepConnected = paceArrowsSleep && paceArrowsSleep.isConnected;
+    const wakeConnected = paceArrowsWake && paceArrowsWake.isConnected;
+    if (!sleepConnected && !wakeConnected) {
+      stopTonightPaceArrowAnimator();
+      return;
+    }
+    const cfg = TONIGHT_PACE_FRAMES[tonightPaceArrowActivePace] || TONIGHT_PACE_FRAMES.gentle;
+    const frame = cfg[tonightPaceArrowFrameIdx % cfg.length];
+    applyTonightPaceArrowFrame(frame);
+    tonightPaceArrowFrameIdx++;
+    tonightPaceArrowTimer = setTimeout(tickTonightPaceArrows, frame.hold);
+  }
+
+  function stopTonightPaceArrowAnimator() {
+    if (tonightPaceArrowTimer) {
+      clearTimeout(tonightPaceArrowTimer);
+      tonightPaceArrowTimer = null;
+    }
+    tonightPaceArrowActivePace = null;
+  }
+
+  function syncTonightPaceArrowAnimator(paceId) {
+    const anyVisible =
+      (paceArrowsSleep && !paceArrowsSleep.classList.contains('dashboard-tonight-pace-arrows--hidden')) ||
+      (paceArrowsWake && !paceArrowsWake.classList.contains('dashboard-tonight-pace-arrows--hidden'));
+    if (!anyVisible) {
+      stopTonightPaceArrowAnimator();
+      return;
+    }
     const pid = paceId === 'normal' || paceId === 'steady' ? paceId : 'gentle';
-    hostEl.classList.add('dashboard-tonight-pace-wave-host--' + pid);
+    if (tonightPaceArrowActivePace === pid && tonightPaceArrowTimer) return;
+    if (tonightPaceArrowTimer) {
+      clearTimeout(tonightPaceArrowTimer);
+      tonightPaceArrowTimer = null;
+    }
+    tonightPaceArrowActivePace = pid;
+    tonightPaceArrowFrameIdx = 0;
+    tickTonightPaceArrows();
+  }
+
+  function updateTonightPaceArrowIndicator(host, mergeDirty, poleGuided, savedTargetMinutes, guidedClockMinutes) {
+    if (!host) return;
+    const show =
+      !mergeDirty &&
+      poleGuided &&
+      savedTargetMinutes != null &&
+      guidedClockMinutes != null &&
+      typeof shortestSignedClockDelta === 'function';
+    if (!show) {
+      host.classList.add('dashboard-tonight-pace-arrows--hidden');
+      host.classList.remove('dashboard-tonight-pace-arrows--earlier', 'dashboard-tonight-pace-arrows--later');
+      const arrows = host.querySelectorAll('.dashboard-tonight-pace-arrow');
+      for (let i = 0; i < arrows.length; i++) arrows[i].style.opacity = '';
+      return;
+    }
+    const signed = shortestSignedClockDelta(guidedClockMinutes, savedTargetMinutes);
+    if (signed === 0) {
+      host.classList.add('dashboard-tonight-pace-arrows--hidden');
+      host.classList.remove('dashboard-tonight-pace-arrows--earlier', 'dashboard-tonight-pace-arrows--later');
+      const arrows = host.querySelectorAll('.dashboard-tonight-pace-arrow');
+      for (let i = 0; i < arrows.length; i++) arrows[i].style.opacity = '';
+      return;
+    }
+    host.classList.remove('dashboard-tonight-pace-arrows--hidden');
+    if (signed < 0) {
+      host.classList.add('dashboard-tonight-pace-arrows--earlier');
+      host.classList.remove('dashboard-tonight-pace-arrows--later');
+    } else {
+      host.classList.add('dashboard-tonight-pace-arrows--later');
+      host.classList.remove('dashboard-tonight-pace-arrows--earlier');
+    }
   }
 
   function syncTonightMatrix() {
@@ -2021,17 +2132,13 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
     function fillRow(vm, ids) {
       const nat = document.getElementById(ids.nat);
       const guided = document.getElementById(ids.guided);
-      const dash = document.getElementById(ids.paceDash);
-      const waveHost = document.getElementById(ids.paceWave);
       const tgt = document.getElementById(ids.target);
-      if (!nat || !guided || !dash || !waveHost || !tgt) return;
+      if (!nat || !guided || !tgt) return;
 
       if (vm.rowMode === 'empty') {
         nat.textContent = TONIGHT_MATRIX_EM;
         guided.textContent = TONIGHT_MATRIX_EM;
         tgt.textContent = TONIGHT_MATRIX_EM;
-        dash.hidden = false;
-        waveHost.hidden = true;
         applyTonightMatrixTimeHighlight(vm, nat, guided, tgt);
         return;
       }
@@ -2039,44 +2146,28 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
       if (vm.rowMode === 'no_target') {
         guided.textContent = TONIGHT_MATRIX_EM;
         tgt.textContent = TONIGHT_MATRIX_EM;
-        dash.hidden = false;
-        waveHost.hidden = true;
         applyTonightMatrixTimeHighlight(vm, nat, guided, tgt);
         return;
       }
       if (vm.rowMode === 'target_no_guidance') {
         guided.textContent = TONIGHT_MATRIX_EM;
         tgt.textContent = tonightMatrixFormatCell(vm.cellTarget);
-        dash.hidden = false;
-        waveHost.hidden = true;
         applyTonightMatrixTimeHighlight(vm, nat, guided, tgt);
         return;
       }
       guided.textContent = tonightMatrixFormatCell(vm.cellGuided);
       tgt.textContent = tonightMatrixFormatCell(vm.cellTarget);
-      if (vm.showPaceWave) {
-        dash.hidden = true;
-        waveHost.hidden = false;
-        syncTonightPaceWaveHost(waveHost, vm.paceId);
-      } else {
-        dash.hidden = false;
-        waveHost.hidden = true;
-      }
       applyTonightMatrixTimeHighlight(vm, nat, guided, tgt);
     }
 
     fillRow(sleepVm, {
       nat: 'dashboard-tonight-matrix-sleep-natural',
       guided: 'dashboard-tonight-matrix-sleep-guided',
-      paceDash: 'dashboard-tonight-matrix-sleep-pace-dash',
-      paceWave: 'dashboard-tonight-matrix-sleep-pace-wave',
       target: 'dashboard-tonight-matrix-sleep-target'
     });
     fillRow(wakeVm, {
       nat: 'dashboard-tonight-matrix-wake-natural',
       guided: 'dashboard-tonight-matrix-wake-guided',
-      paceDash: 'dashboard-tonight-matrix-wake-pace-dash',
-      paceWave: 'dashboard-tonight-matrix-wake-pace-wave',
       target: 'dashboard-tonight-matrix-wake-target'
     });
 
@@ -2223,8 +2314,13 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
 
     const duration = durationMinutes(state.sleepClock, state.wakeClock);
     const durationLabel = `~${formatDuration(duration)}`;
-    if (recommendedDurationEl) {
-      recommendedDurationEl.textContent = durationLabel;
+    if (estimatedSleepValueEl) {
+      estimatedSleepValueEl.textContent = durationLabel;
+    }
+
+    if (trackWaveGradientEl && trackRangeFillEl) {
+      const fillW = Math.round(trackRangeFillEl.getBoundingClientRect().width);
+      if (fillW > 0) trackWaveGradientEl.setAttribute('x2', String(fillW));
     }
 
     root.classList.toggle('dashboard-tonight-projection--adjusted', state.isAdjusted);
@@ -2291,129 +2387,21 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
     if (wakeGuidanceOn) wakeSaveGuidedBtn.setAttribute('inert', '');
     else wakeSaveGuidedBtn.removeAttribute('inert');
 
-    if (goalLinksSvg && goalPathSleep && goalPathWake && goalArrowSleep && goalArrowWake) {
-      requestAnimationFrame(function updateTonightGoalLinks() {
-        if (!goalLinksSvg || !goalPathSleep || !goalPathWake || !goalArrowSleep || !goalArrowWake || !sliderWrap) return;
-        const svgRect = goalLinksSvg.getBoundingClientRect();
-        if (svgRect.width < 1 || svgRect.height < 1) return;
-
-        function thumbCenterToSvg(sliderEl) {
-          const r = sliderEl.getBoundingClientRect();
-          const min = parseFloat(sliderEl.min, 10);
-          const max = parseFloat(sliderEl.max, 10);
-          const val = parseFloat(sliderEl.value, 10);
-          const span = max - min || 1;
-          const t = (val - min) / span;
-          return {
-            x: r.left + t * r.width - svgRect.left,
-            y: r.top + r.height / 2 - svgRect.top
-          };
-        }
-
-        function ghostTimeVisible(el) {
-          return (
-            el &&
-            !el.classList.contains('dashboard-tonight-adjust-committed-ghost--hidden') &&
-            String(el.textContent || '').trim() !== ''
-          );
-        }
-
-        function chipTimeRect(hostEl) {
-          if (!hostEl) return null;
-          const span = hostEl.querySelector('.dashboard-tonight-saved-target-time, .dashboard-tonight-committed-ghost-time');
-          const el = span || hostEl;
-          return el.getBoundingClientRect();
-        }
-
-        /**
-         * Vertical arrow aims at the rendered clock string (not chip center). Dotted arc: duplicate outline path
-         * for a thin halo; leaves knob horizontally then sweeps up to the arrow base.
-         */
-        function setGoalLink(pathOutline, path, arrow, mergeDirty, poleGuided, savedNorm, sliderEl, targetBtn, ghostEl) {
-          const btnOk =
-            targetBtn && savedNorm != null && !targetBtn.classList.contains('dashboard-tonight-saved-target-btn--hidden');
-          const show = !mergeDirty && poleGuided && btnOk;
-          if (!show) {
-            path.setAttribute('d', '');
-            path.setAttribute('opacity', '0');
-            if (pathOutline) {
-              pathOutline.setAttribute('d', '');
-              pathOutline.setAttribute('opacity', '0');
-            }
-            arrow.setAttribute('points', '');
-            arrow.setAttribute('opacity', '0');
-            return;
-          }
-          const K = thumbCenterToSvg(sliderEl);
-          const arEl = ghostTimeVisible(ghostEl) ? ghostEl : targetBtn;
-          const tr = chipTimeRect(arEl);
-          if (!tr || tr.width < 1) {
-            path.setAttribute('d', '');
-            path.setAttribute('opacity', '0');
-            if (pathOutline) {
-              pathOutline.setAttribute('d', '');
-              pathOutline.setAttribute('opacity', '0');
-            }
-            arrow.setAttribute('points', '');
-            arrow.setAttribute('opacity', '0');
-            return;
-          }
-          const arrowLen = 9;
-          const halfW = 5.5;
-          const inset = 0.75;
-
-          const mx = tr.left + tr.width / 2 - svgRect.left;
-          const tipY = tr.bottom - svgRect.top - inset;
-          const T = { x: mx, y: tipY };
-          const B = { x: mx, y: tipY + arrowLen };
-          const arrowPoints = `${T.x},${T.y} ${T.x - halfW},${B.y} ${T.x + halfW},${B.y}`;
-
-          const arcMidSvg = tr.left + tr.width / 2 - svgRect.left;
-          const leaveLeft = arcMidSvg <= K.x;
-          const sideSign = leaveLeft ? -1 : 1;
-          const dist = Math.hypot(B.x - K.x, B.y - K.y) || 1;
-          const horizontalLead = Math.min(56, Math.max(22, dist * 0.32));
-          const verticalLead = Math.min(52, Math.max(18, dist * 0.28));
-          const c1x = K.x + sideSign * horizontalLead;
-          const c1y = K.y;
-          const c2x = B.x;
-          const c2y = B.y + verticalLead;
-
-          const dPath = `M ${K.x} ${K.y} C ${c1x} ${c1y} ${c2x} ${c2y} ${B.x} ${B.y}`;
-          path.setAttribute('d', dPath);
-          path.setAttribute('opacity', '0.7');
-          if (pathOutline) {
-            pathOutline.setAttribute('d', '');
-            pathOutline.setAttribute('opacity', '0');
-          }
-          arrow.setAttribute('points', arrowPoints);
-          arrow.setAttribute('opacity', '0.85');
-        }
-
-        setGoalLink(
-          goalPathSleepOutline,
-          goalPathSleep,
-          goalArrowSleep,
-          sleepMergeDirty,
-          sleepPoleGuided,
-          base.savedTargetSleep,
-          sleepSlider,
-          savedTargetSleepBtn,
-          committedSleepTop
-        );
-        setGoalLink(
-          goalPathWakeOutline,
-          goalPathWake,
-          goalArrowWake,
-          wakeMergeDirty,
-          wakePoleGuided,
-          base.savedTargetWake,
-          wakeSlider,
-          savedTargetWakeBtn,
-          committedWakeTop
-        );
-      });
-    }
+    updateTonightPaceArrowIndicator(
+      paceArrowsSleep,
+      sleepMergeDirty,
+      sleepPoleGuided,
+      base.savedTargetSleep,
+      state.sleepClock
+    );
+    updateTonightPaceArrowIndicator(
+      paceArrowsWake,
+      wakeMergeDirty,
+      wakePoleGuided,
+      base.savedTargetWake,
+      state.wakeClock
+    );
+    syncTonightPaceArrowAnimator(base.paceId);
 
     if (persistOverride && typeof setTonightProjectionAdjustment === 'function' && typeof clearTonightProjectionAdjustment === 'function') {
       if (state.isAdjusted) {
