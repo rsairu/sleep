@@ -8,7 +8,7 @@
         "dashboard": "Dashboard",
         "log": "Log",
         "quality": "Quality",
-        "daily": "Nightly",
+        "daily": "Timeline",
         "graphs": "Charts",
         "stats": "Stats"
       },

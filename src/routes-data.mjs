@@ -20,7 +20,7 @@ export const navTabs = [
   { id: 'dashboard', key: 'nav.tabs.dashboard', defaultName: 'Dashboard', url: 'dashboard.html', icon: '🛌' },
   { id: 'log', key: 'nav.tabs.log', defaultName: 'Log', url: 'log.html', icon: '✏️' },
   { id: 'quality', key: 'nav.tabs.quality', defaultName: 'Quality', url: 'quality.html', icon: '📅' },
-  { id: 'timeline', key: 'nav.tabs.daily', defaultName: 'Nightly', url: 'nightly.html', icon: '⏱️' },
+  { id: 'timeline', key: 'nav.tabs.daily', defaultName: 'Timeline', url: 'nightly.html', icon: '⏱️' },
   { id: 'charts', key: 'nav.tabs.graphs', defaultName: 'Charts', url: 'charts.html', icon: '📊' },
   { id: 'stats', key: 'nav.tabs.stats', defaultName: 'Stats', url: 'stats.html', icon: '🔢' }
 ];

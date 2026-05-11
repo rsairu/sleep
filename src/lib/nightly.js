@@ -2831,7 +2831,7 @@ function renderDashboardContent(days) {
   const recentNightsCount = Math.min(3, days.length);
   const recentNightsHtml = recentNightsCount > 0
     ? `
-    <h2 class="dashboard-section-title"><a class="dashboard-section-title__link" href="${restoreMpaHref('tab.timeline')}"><span class="dashboard-section-title__emoji" aria-hidden="true">⏱️</span> Recent nightlies</a></h2>
+    <h2 class="dashboard-section-title"><a class="dashboard-section-title__link" href="${restoreMpaHref('tab.timeline')}"><span class="dashboard-section-title__emoji" aria-hidden="true">⏱️</span> Recent timelines</a></h2>
     <section class="dashboard-past-nights">
       <div class="week-days">
         ${Array.from({ length: recentNightsCount }, (_, i) => renderDay(days[i], days, i, { showTicks: true })).join('')}
@@ -2841,7 +2841,7 @@ function renderDashboardContent(days) {
     : '';
 
   const sevenDaySectionHtml = `
-    <h2 class="dashboard-section-title"><a class="dashboard-section-title__link" href="${restoreMpaHref('tab.charts')}"><span class="dashboard-section-title__emoji" aria-hidden="true">📊</span> Weekly charts</a></h2>
+    <h2 class="dashboard-section-title"><a class="dashboard-section-title__link" href="${restoreMpaHref('tab.charts')}"><span class="dashboard-section-title__emoji" aria-hidden="true">📊</span> Recent charts</a></h2>
     <div class="dashboard-7d-row">
       <div class="dashboard-7d-col">
         <div class="dashboard-7d-time-stack">
