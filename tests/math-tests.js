@@ -300,7 +300,6 @@ async function runTests() {
     paceId: 'normal'
   });
   expectEqual(mNoTgt.rowMode, 'no_target', 'no saved target → no_target');
-  expectEqual(mNoTgt.showPaceWave, false, 'no target → no pace wave');
   expectEqual(mNoTgt.activeColumn, 'natural', 'no target → highlight natural');
 
   const mTgtOff = u.buildTonightMatrixViewModel({
@@ -312,7 +311,6 @@ async function runTests() {
     paceId: 'steady'
   });
   expectEqual(mTgtOff.rowMode, 'target_no_guidance', 'target with guidance off');
-  expectEqual(mTgtOff.showPaceWave, false, 'hard target mode → no pace wave');
   expectEqual(mTgtOff.activeColumn, 'target', 'target only → highlight target');
 
   const mOnTarget = u.buildTonightMatrixViewModel({
@@ -324,7 +322,6 @@ async function runTests() {
     paceId: 'gentle'
   });
   expectEqual(mOnTarget.phase, 'on_target', 'guided equals target → on_target MAINTAIN');
-  expectEqual(mOnTarget.showPaceWave, true, 'MAINTAIN keeps pace wave active');
   expectEqual(mOnTarget.activeColumn, 'guided', 'MAINTAIN → highlight guided');
   expectTruthy(mOnTarget.callout != null, 'on_target still emits callout vars');
 

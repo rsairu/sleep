@@ -1679,11 +1679,11 @@ function renderDashboardProjection(recentAverages) {
   const projection = getTonightProjectionState(recentAverages);
   const base = projection.base;
   const durationMins = durationMinutes(projection.sleepClock, projection.wakeClock);
-  const paceWaveCircles = Array.from({ length: 13 }, (_, i) => {
-    const cx = 2 + i * 4;
-    return `<circle class="dashboard-tonight-pace-dot" cx="${cx}" cy="4" r="0.9" style="--i:${i}"></circle>`;
+  const trackWaveBars = Array.from({ length: 160 }, (_, i) => {
+    const x = i * 5;
+    return `<rect class="dashboard-tonight-track-wave-bar" x="${x}" y="6" width="2" height="12" rx="1" style="--i:${i}"></rect>`;
   }).join('');
-  const paceWaveSvg = `<svg class="dashboard-tonight-pace-wave-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 8" preserveAspectRatio="none" aria-hidden="true">${paceWaveCircles}</svg>`;
+  const trackWaveSvg = `<svg class="dashboard-tonight-track-wave-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 24" preserveAspectRatio="xMinYMid slice" aria-hidden="true"><defs><linearGradient id="dashboardTonightTrackWaveGradient" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="200" y2="0"><stop class="dashboard-tonight-track-wave-stop dashboard-tonight-track-wave-stop--sleep" offset="0"></stop><stop class="dashboard-tonight-track-wave-stop dashboard-tonight-track-wave-stop--wake" offset="1"></stop></linearGradient></defs>${trackWaveBars}</svg>`;
   const savedSleepPct =
     projection.savedTargetSleepPct != null ? `${projection.savedTargetSleepPct}%` : `${projection.committedSleepPct}%`;
   const savedWakePct =
@@ -1698,6 +1698,11 @@ function renderDashboardProjection(recentAverages) {
         <h2 class="dashboard-section-title"><span class="dashboard-section-title__static"><span class="dashboard-section-title__emoji" aria-hidden="true">🛌</span> <span data-i18n="dashboard.sectionTonight">Tonight</span></span></h2>
         ${tonightInfoHtml}
       </div>
+      <p class="dashboard-tonight-estimated-sleep" id="dashboard-tonight-estimated-sleep">
+        <span class="dashboard-tonight-estimated-sleep-ico" aria-hidden="true">⏳</span>
+        <span class="dashboard-tonight-estimated-sleep-label" data-i18n="dashboard.tonight.sleepDurationLabel">Sleep duration:</span>
+        <span class="dashboard-tonight-estimated-sleep-value" id="dashboard-tonight-estimated-sleep-value">~${formatDuration(durationMins)}</span>
+      </p>
       <div class="dashboard-tonight-adjust">
         <div class="dashboard-tonight-adjust-panel" id="dashboard-tonight-adjust-panel">
           <div
@@ -1728,10 +1733,8 @@ function renderDashboardProjection(recentAverages) {
             </div>
             <div class="dashboard-tonight-adjust-slider-core">
               <div class="dashboard-tonight-adjust-track">
-                <div class="dashboard-tonight-adjust-range-fill" aria-hidden="true"></div>
-                <div class="dashboard-tonight-adjust-recommended-window" aria-hidden="true">
-                  <span class="dashboard-tonight-adjust-recommended-text dashboard-tonight-adjust-recommended-text--main" id="dashboard-tonight-recommended-duration">~${formatDuration(durationMins)}</span>
-                </div>
+                <div class="dashboard-tonight-adjust-range-fill" aria-hidden="true">${trackWaveSvg}</div>
+                <div class="dashboard-tonight-adjust-recommended-window" aria-hidden="true"></div>
               </div>
               <input type="range" id="dashboard-tonight-sleep-slider" min="${base.scopeStartNorm}" max="${base.scopeEndNorm}" step="1" value="${projection.sleepNorm}" aria-label="Tonight sleep target" title="Sleep" data-i18n-title="dashboard.tonight.sleepKnobTooltip">
               <input type="range" id="dashboard-tonight-wake-slider" min="${base.scopeStartNorm}" max="${base.scopeEndNorm}" step="1" value="${projection.wakeNorm}" aria-label="Tomorrow wake target" title="Wake" data-i18n-title="dashboard.tonight.wakeKnobTooltip">
@@ -1815,12 +1818,11 @@ function renderDashboardProjection(recentAverages) {
               class="dashboard-tonight-matrix-grid"
               role="grid"
               data-i18n-aria-label="dashboard.tonight.matrix.ariaGrid"
-              aria-label="Tonight schedule matrix: natural average, guided time, pace, and saved target per pole."
+              aria-label="Tonight schedule matrix: natural average, guided time, and saved target per pole."
             >
               <div class="dashboard-tonight-matrix-corner" aria-hidden="true"></div>
               <div class="dashboard-tonight-matrix-h" data-i18n="dashboard.tonight.matrix.headerNatural"><span class="dashboard-tonight-matrix-h-ico" aria-hidden="true">🍃</span> Natural</div>
               <div class="dashboard-tonight-matrix-h" data-i18n="dashboard.tonight.matrix.headerGuided"><span class="dashboard-tonight-matrix-h-ico" aria-hidden="true">🧭</span> Guided</div>
-              <div class="dashboard-tonight-matrix-h" data-i18n="dashboard.tonight.matrix.headerPace"><span class="dashboard-tonight-matrix-h-ico" aria-hidden="true">🧭</span> Pace</div>
               <div class="dashboard-tonight-matrix-h" data-i18n="dashboard.tonight.matrix.headerTarget"><span class="dashboard-tonight-matrix-h-ico" aria-hidden="true">🎯</span> Target</div>
               <div class="dashboard-tonight-matrix-rh dashboard-tonight-matrix-rh--sleep">
                 <span class="dashboard-tonight-matrix-rh-emoji" aria-hidden="true">🌙</span>
@@ -1828,10 +1830,6 @@ function renderDashboardProjection(recentAverages) {
               </div>
               <div class="dashboard-tonight-matrix-cell" id="dashboard-tonight-matrix-sleep-natural"></div>
               <div class="dashboard-tonight-matrix-cell" id="dashboard-tonight-matrix-sleep-guided"></div>
-              <div class="dashboard-tonight-matrix-cell dashboard-tonight-matrix-cell--pace" id="dashboard-tonight-matrix-sleep-pace">
-                <span class="dashboard-tonight-matrix-dash" id="dashboard-tonight-matrix-sleep-pace-dash" hidden>—</span>
-                <div class="dashboard-tonight-pace-wave-host dashboard-tonight-pace-wave-host--sleep" id="dashboard-tonight-matrix-sleep-pace-wave" hidden>${paceWaveSvg}</div>
-              </div>
               <div class="dashboard-tonight-matrix-cell" id="dashboard-tonight-matrix-sleep-target"></div>
               <div class="dashboard-tonight-matrix-rh dashboard-tonight-matrix-rh--wake">
                 <span class="dashboard-tonight-matrix-rh-emoji" aria-hidden="true">🌅</span>
@@ -1839,10 +1837,6 @@ function renderDashboardProjection(recentAverages) {
               </div>
               <div class="dashboard-tonight-matrix-cell" id="dashboard-tonight-matrix-wake-natural"></div>
               <div class="dashboard-tonight-matrix-cell" id="dashboard-tonight-matrix-wake-guided"></div>
-              <div class="dashboard-tonight-matrix-cell dashboard-tonight-matrix-cell--pace" id="dashboard-tonight-matrix-wake-pace">
-                <span class="dashboard-tonight-matrix-dash" id="dashboard-tonight-matrix-wake-pace-dash" hidden>—</span>
-                <div class="dashboard-tonight-pace-wave-host dashboard-tonight-pace-wave-host--wake" id="dashboard-tonight-matrix-wake-pace-wave" hidden>${paceWaveSvg}</div>
-              </div>
               <div class="dashboard-tonight-matrix-cell" id="dashboard-tonight-matrix-wake-target"></div>
             </div>
             <div class="dashboard-tonight-matrix-callouts" id="dashboard-tonight-matrix-callouts"></div>
@@ -1884,7 +1878,9 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
   const sleepPlusBtn = document.getElementById('dashboard-tonight-sleep-plus');
   const wakeMinusBtn = document.getElementById('dashboard-tonight-wake-minus');
   const wakePlusBtn = document.getElementById('dashboard-tonight-wake-plus');
-  const recommendedDurationEl = document.getElementById('dashboard-tonight-recommended-duration');
+  const estimatedSleepValueEl = document.getElementById('dashboard-tonight-estimated-sleep-value');
+  const trackWaveGradientEl = document.getElementById('dashboardTonightTrackWaveGradient');
+  const trackRangeFillEl = document.querySelector('#dashboard-tonight-adjust-slider .dashboard-tonight-adjust-range-fill');
   const knobActionsSleep = document.getElementById('dashboard-tonight-knob-actions-sleep');
   const knobActionsWake = document.getElementById('dashboard-tonight-knob-actions-wake');
   const sleepSaveTargetBtn = document.getElementById('dashboard-tonight-sleep-save-target');
@@ -1968,17 +1964,6 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
     sleepSlider.max = String(base.scopeEndNorm);
     wakeSlider.min = String(base.scopeStartNorm);
     wakeSlider.max = String(base.scopeEndNorm);
-  }
-
-  function syncTonightPaceWaveHost(hostEl, paceId) {
-    if (!hostEl) return;
-    hostEl.classList.remove(
-      'dashboard-tonight-pace-wave-host--gentle',
-      'dashboard-tonight-pace-wave-host--normal',
-      'dashboard-tonight-pace-wave-host--steady'
-    );
-    const pid = paceId === 'normal' || paceId === 'steady' ? paceId : 'gentle';
-    hostEl.classList.add('dashboard-tonight-pace-wave-host--' + pid);
   }
 
   const TONIGHT_PACE_ARROW_OFF = 0.12;
@@ -2147,17 +2132,13 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
     function fillRow(vm, ids) {
       const nat = document.getElementById(ids.nat);
       const guided = document.getElementById(ids.guided);
-      const dash = document.getElementById(ids.paceDash);
-      const waveHost = document.getElementById(ids.paceWave);
       const tgt = document.getElementById(ids.target);
-      if (!nat || !guided || !dash || !waveHost || !tgt) return;
+      if (!nat || !guided || !tgt) return;
 
       if (vm.rowMode === 'empty') {
         nat.textContent = TONIGHT_MATRIX_EM;
         guided.textContent = TONIGHT_MATRIX_EM;
         tgt.textContent = TONIGHT_MATRIX_EM;
-        dash.hidden = false;
-        waveHost.hidden = true;
         applyTonightMatrixTimeHighlight(vm, nat, guided, tgt);
         return;
       }
@@ -2165,44 +2146,28 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
       if (vm.rowMode === 'no_target') {
         guided.textContent = TONIGHT_MATRIX_EM;
         tgt.textContent = TONIGHT_MATRIX_EM;
-        dash.hidden = false;
-        waveHost.hidden = true;
         applyTonightMatrixTimeHighlight(vm, nat, guided, tgt);
         return;
       }
       if (vm.rowMode === 'target_no_guidance') {
         guided.textContent = TONIGHT_MATRIX_EM;
         tgt.textContent = tonightMatrixFormatCell(vm.cellTarget);
-        dash.hidden = false;
-        waveHost.hidden = true;
         applyTonightMatrixTimeHighlight(vm, nat, guided, tgt);
         return;
       }
       guided.textContent = tonightMatrixFormatCell(vm.cellGuided);
       tgt.textContent = tonightMatrixFormatCell(vm.cellTarget);
-      if (vm.showPaceWave) {
-        dash.hidden = true;
-        waveHost.hidden = false;
-        syncTonightPaceWaveHost(waveHost, vm.paceId);
-      } else {
-        dash.hidden = false;
-        waveHost.hidden = true;
-      }
       applyTonightMatrixTimeHighlight(vm, nat, guided, tgt);
     }
 
     fillRow(sleepVm, {
       nat: 'dashboard-tonight-matrix-sleep-natural',
       guided: 'dashboard-tonight-matrix-sleep-guided',
-      paceDash: 'dashboard-tonight-matrix-sleep-pace-dash',
-      paceWave: 'dashboard-tonight-matrix-sleep-pace-wave',
       target: 'dashboard-tonight-matrix-sleep-target'
     });
     fillRow(wakeVm, {
       nat: 'dashboard-tonight-matrix-wake-natural',
       guided: 'dashboard-tonight-matrix-wake-guided',
-      paceDash: 'dashboard-tonight-matrix-wake-pace-dash',
-      paceWave: 'dashboard-tonight-matrix-wake-pace-wave',
       target: 'dashboard-tonight-matrix-wake-target'
     });
 
@@ -2349,8 +2314,13 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
 
     const duration = durationMinutes(state.sleepClock, state.wakeClock);
     const durationLabel = `~${formatDuration(duration)}`;
-    if (recommendedDurationEl) {
-      recommendedDurationEl.textContent = durationLabel;
+    if (estimatedSleepValueEl) {
+      estimatedSleepValueEl.textContent = durationLabel;
+    }
+
+    if (trackWaveGradientEl && trackRangeFillEl) {
+      const fillW = Math.round(trackRangeFillEl.getBoundingClientRect().width);
+      if (fillW > 0) trackWaveGradientEl.setAttribute('x2', String(fillW));
     }
 
     root.classList.toggle('dashboard-tonight-projection--adjusted', state.isAdjusted);

@@ -2854,7 +2854,6 @@ function resolveTonightScheduledWindow(avgSleep, avgWake, savedTw) {
  *   cellNatural: number|null,
  *   cellGuided: number|null,
  *   cellTarget: number|null,
- *   showPaceWave: boolean,
  *   activeColumn: 'natural'|'guided'|'target',
  *   callout: null|{ phase: string, pole: 'sleep'|'wake', deltaMins: number, gapMins: number, targetMins: number, directionEarlier: boolean }
  * }}
@@ -2884,7 +2883,6 @@ function buildTonightMatrixViewModel(input) {
   let cellNatural = null;
   let cellGuided = null;
   let cellTarget = null;
-  let showPaceWave = false;
   let callout = null;
 
   if (naturalMinutes == null) {
@@ -2900,7 +2898,6 @@ function buildTonightMatrixViewModel(input) {
       cellNatural,
       cellGuided,
       cellTarget,
-      showPaceWave,
       activeColumn: 'natural',
       callout
     };
@@ -2920,7 +2917,6 @@ function buildTonightMatrixViewModel(input) {
       cellNatural,
       cellGuided,
       cellTarget,
-      showPaceWave,
       activeColumn: 'natural',
       callout
     };
@@ -2940,7 +2936,6 @@ function buildTonightMatrixViewModel(input) {
       cellNatural,
       cellGuided,
       cellTarget,
-      showPaceWave,
       activeColumn: 'target',
       callout
     };
@@ -2959,13 +2954,11 @@ function buildTonightMatrixViewModel(input) {
       cellNatural,
       cellGuided,
       cellTarget,
-      showPaceWave,
       activeColumn: 'target',
       callout
     };
   }
   cellGuided = guidedMinutes;
-  showPaceWave = true;
 
   initialGap = shortestClockGapMinutes(naturalMinutes, savedTargetMinutes);
   currentGap = shortestClockGapMinutes(guidedMinutes, savedTargetMinutes);
@@ -3008,7 +3001,6 @@ function buildTonightMatrixViewModel(input) {
     cellNatural,
     cellGuided,
     cellTarget,
-    showPaceWave,
     activeColumn: 'guided',
     callout
   };

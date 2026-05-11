@@ -2878,6 +2878,31 @@ body{
   margin-bottom: 0;
 }
 
+.dashboard-tonight-estimated-sleep {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 10px 0;
+  padding: 0;
+  font-size: 0.85rem;
+  line-height: 1.2;
+  color: color-mix(in srgb, var(--text) 75%, transparent);
+}
+
+.dashboard-tonight-estimated-sleep-ico {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.dashboard-tonight-estimated-sleep-label {
+  font-weight: 500;
+}
+
+.dashboard-tonight-estimated-sleep-value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
 .about-hint-dismiss-wrap {
   margin-top: 0.75rem;
   transition: opacity 0.65s ease;
@@ -3149,7 +3174,7 @@ body{
 
 .dashboard-tonight-matrix-grid {
   display: grid;
-  grid-template-columns: auto repeat(4, minmax(0, 1fr));
+  grid-template-columns: auto repeat(3, minmax(0, 1fr));
   gap: 0;
   min-width: 0;
   width: 100%;
@@ -3233,77 +3258,8 @@ body{
   color: color-mix(in srgb, var(--color-up) 78%, var(--text));
 }
 
-.dashboard-tonight-matrix-cell--pace {
-  padding-left: 2px;
-  padding-right: 2px;
-}
-
-.dashboard-tonight-matrix-dash {
-  color: color-mix(in srgb, var(--text) 45%, transparent);
-  font-weight: 500;
-  font-size: 14px;
-  font-variant-numeric: tabular-nums;
-}
-
-.dashboard-tonight-pace-wave-host {
-  width: 100%;
-  max-width: 100%;
-  height: 14px;
-  color: var(--color-sleep);
-  box-sizing: border-box;
-}
-
-.dashboard-tonight-pace-wave-host--wake {
-  color: var(--color-up);
-}
-
-.dashboard-tonight-pace-wave-svg {
-  display: block;
-  width: 100%;
-  height: 14px;
-}
-
-.dashboard-tonight-pace-dot {
-  fill: currentColor;
-  transform-box: fill-box;
-  transform-origin: center;
-  animation-name: tonightPaceWaveDot;
-  animation-timing-function: ease-in-out;
-  animation-iteration-count: infinite;
-  animation-duration: var(--tonight-wave-cycle, 1.45s);
-  animation-delay: calc(var(--i, 0) * var(--tonight-wave-stagger, 0.09s));
-}
-
-.dashboard-tonight-pace-wave-host--gentle {
-  --tonight-wave-cycle: 1.55s;
-  --tonight-wave-stagger: 0.1s;
-}
-
-.dashboard-tonight-pace-wave-host--normal {
-  --tonight-wave-cycle: 1.05s;
-  --tonight-wave-stagger: 0.066s;
-}
-
-.dashboard-tonight-pace-wave-host--steady {
-  --tonight-wave-cycle: 0.72s;
-  --tonight-wave-stagger: 0.045s;
-}
-
-@keyframes tonightPaceWaveDot {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-1.6px);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .dashboard-tonight-pace-dot {
-    animation: none !important;
-    transform: translateY(0);
-  }
+.dashboard-tonight-matrix-cell--active {
+  font-size: 15px;
 }
 
 .dashboard-tonight-matrix-callouts {
@@ -3503,26 +3459,7 @@ body{
 
 .dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-recommended-window {
   z-index: 3;
-  background: color-mix(in srgb, var(--color-sleep) 22%, transparent);
-}
-
-.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-recommended-text--main {
-  font-size: 0.78rem;
-  font-weight: 600;
-  line-height: 1.15;
-  letter-spacing: 0.02em;
-  /* Override .dashboard-tonight-adjust-recommended-text { font-variant: small-caps } */
-  font-variant: normal;
-  font-variant-numeric: tabular-nums;
-  text-transform: lowercase;
-  color: #ffffff;
-  text-shadow: 0 0 1px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.4);
-  opacity: 0.98;
-  white-space: nowrap;
-  padding: 0 6px;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  background: transparent;
 }
 
 /* Input box height matches visual track so the native track lines up with .dashboard-tonight-adjust-track */
@@ -3635,7 +3572,7 @@ body{
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
+  width: 36px;
   flex: 0 0 auto;
   pointer-events: none;
   color: var(--color-sleep);
@@ -3661,7 +3598,8 @@ body{
 .dashboard-tonight-pace-arrows-svg {
   display: block;
   width: 100%;
-  height: auto;
+  height: 15px;
+  max-width: 40px;
 }
 
 .dashboard-tonight-pace-arrow {
@@ -3904,26 +3842,6 @@ body{
   color: color-mix(in srgb, var(--color-up) 72%, var(--text));
 }
 
-.dashboard-tonight-adjust-duration-row {
-  display: flex;
-  justify-content: center;
-  width: 100%;
-  margin-top: 6px;
-  padding: 0 4px;
-  box-sizing: border-box;
-  text-align: center;
-}
-
-.dashboard-tonight-adjust-center-duration {
-  font-size: 0.82rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.2;
-  color: var(--text);
-  opacity: 0.92;
-  white-space: nowrap;
-}
-
 .dashboard-tonight-adjust-track {
   position: relative;
   height: 10px;
@@ -3933,7 +3851,7 @@ body{
   overflow: hidden;
 }
 
-/* Fell-asleep → wake span (follows thumb CSS variables) */
+/* Fell-asleep → wake span (follows thumb CSS variables). Hosts the gradient wave. */
 .dashboard-tonight-adjust-range-fill {
   position: absolute;
   top: 0;
@@ -3941,9 +3859,12 @@ body{
   left: var(--tonight-sleep-pct);
   width: max(0%, calc(var(--tonight-wake-pct) - var(--tonight-sleep-pct)));
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-sleep) 62%, transparent);
+  background: transparent;
   pointer-events: none;
   z-index: 2;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
 }
 
 .dashboard-tonight-adjust-recommended-window {
@@ -3953,23 +3874,54 @@ body{
   left: var(--tonight-rec-start-pct);
   width: calc(var(--tonight-rec-end-pct) - var(--tonight-rec-start-pct));
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-sleep) 34%, transparent);
+  background: transparent;
   pointer-events: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
   z-index: 1;
 }
 
-.dashboard-tonight-adjust-recommended-text {
-  font-size: 0.52rem;
-  line-height: 1;
-  font-variant: small-caps;
-  letter-spacing: 0.04em;
-  color: color-mix(in srgb, var(--text) 78%, transparent);
-  white-space: nowrap;
-  opacity: 0.85;
+/* Sleep→wake gradient wave inside the range-fill: vertical bars at constant pixel size; the
+   SVG viewBox uses 1:1 user-to-pixel mapping so bar size/spacing is independent of the fill width,
+   and the parent (range-fill) clips bars beyond the sleep→wake span via overflow:hidden. */
+.dashboard-tonight-track-wave-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.dashboard-tonight-track-wave-stop--sleep {
+  stop-color: var(--color-sleep);
+}
+
+.dashboard-tonight-track-wave-stop--wake {
+  stop-color: var(--color-up);
+}
+
+.dashboard-tonight-track-wave-bar {
+  fill: url(#dashboardTonightTrackWaveGradient);
+  transform-box: fill-box;
+  transform-origin: center;
+  animation-name: tonightTrackWaveBar;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-duration: 2.4s;
+  animation-delay: calc(var(--i, 0) * 0.07s);
+}
+
+@keyframes tonightTrackWaveBar {
+  0%,
+  100% {
+    transform: scaleY(0.4);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-tonight-track-wave-bar {
+    animation: none !important;
+    transform: scaleY(0.8);
+  }
 }
 
 .dashboard-tonight-adjust-thumb-icon {
