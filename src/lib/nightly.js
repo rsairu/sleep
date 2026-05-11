@@ -779,8 +779,26 @@ function generateCalendarHeatmap(year, flagMap, latestDataDate) {
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, monthIndex, day);
       date.setHours(0, 0, 0, 0);
-      if (date > cutoff) {
-        flatDays.push(null);
+      if (date > today) {
+        flatDays.push({
+          isFuture: true,
+          date: date,
+          dateStr: formatDateShort(date),
+          day: day,
+          insufficient: false,
+          qualitySeverity: 'none',
+          flagTypes: []
+        });
+      } else if (date > cutoff) {
+        flatDays.push({
+          isNoData: true,
+          date: date,
+          dateStr: formatDateShort(date),
+          day: day,
+          insufficient: false,
+          qualitySeverity: 'none',
+          flagTypes: []
+        });
       } else {
         const dateStr = formatIsoDateFromLocalDate(date);
         const flagData = flagMap.get(dateStr) || { insufficient: false, qualitySeverity: 'none', types: [] };
@@ -832,6 +850,8 @@ function generateCalendarHeatmap(year, flagMap, latestDataDate) {
 
 function getCalendarSquareColorClass(dayCell) {
   if (!dayCell) return 'empty';
+  if (dayCell.isFuture) return 'calendar-square--future';
+  if (dayCell.isNoData) return 'calendar-square--no-data';
   if (dayCell.insufficient) return 'flag-insufficient';
   const s = dayCell.qualitySeverity || 'none';
   if (s === 'none') return 'flag-none';
@@ -841,6 +861,8 @@ function getCalendarSquareColorClass(dayCell) {
 }
 
 function calendarSquareTooltip(dayCell) {
+  if (dayCell.isFuture) return '';
+  if (dayCell.isNoData) return `${dayCell.dateStr}: no data recorded`;
   if (dayCell.insufficient) return `${dayCell.dateStr}: not enough data`;
   if (dayCell.flagTypes && dayCell.flagTypes.length > 0) {
     return `${dayCell.dateStr}: ${dayCell.flagTypes.join(' ')}`;
@@ -955,9 +977,11 @@ function renderMonthBlock(month, large, options) {
               const colorClass = getCalendarSquareColorClass(day);
               const tooltip = calendarSquareTooltip(day);
               const typesAttr = interactive
-                ? ` data-flag-types="${escapeHtmlAttr(JSON.stringify(day.flagTypes || []))}"`
+                ? ` data-flag-types="${escapeHtmlAttr(JSON.stringify(day.isFuture || day.isNoData ? [] : (day.flagTypes || [])))}"`
                 : '';
-              return `<div class="calendar-square ${colorClass}"${typesAttr} data-tooltip="${tooltip}" title="${tooltip}"><span class="calendar-square-day">${day.day}</span></div>`;
+              const tipAttr = tooltip ? ` data-tooltip="${escapeHtmlAttr(tooltip)}" title="${escapeHtmlAttr(tooltip)}"` : '';
+              const inner = `<div class="calendar-square ${colorClass}"${typesAttr}${tipAttr}><span class="calendar-square-day">${day.day}</span></div>`;
+              return `<div class="calendar-day-slot">${inner}</div>`;
             }).join('')}
           </div>
         </div>

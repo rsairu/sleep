@@ -46,6 +46,11 @@
   --previous-day-overlay: rgba(0, 0, 0, 0.3);
   --weekend-bg: rgba(96, 165, 250, 0.15);
   --weekend-border: rgba(96, 165, 250, 0.4);
+  /* Chart / heatmap / nightly row recession fills (holiday wins when both; see charts.js) */
+  --recession-weekend-fill: rgba(96, 165, 250, 0.25);
+  --recession-holiday-fill: rgba(251, 191, 36, 0.3);
+  --calendar-future-fill: rgba(148, 163, 184, 0.38);
+  --calendar-future-fill-quality: rgba(148, 163, 184, 0.42);
   --weekend-lip-width: 6px;
   --deviation-lip-width: 6px;
   --warning-bg: rgba(251, 191, 36, 0.1);
@@ -2833,9 +2838,10 @@ body{
   min-width: 0;
   justify-content: center;
   gap: 6px;
+  align-items: stretch;
 }
 
-.dashboard-top-col--calendar .calendar-month-block--large .calendar-square {
+.dashboard-top-col--calendar .calendar-month-block--large .calendar-day-slot .calendar-square {
   flex: 0 0 auto;
   width: 28px;
   height: 28px;
@@ -4262,8 +4268,9 @@ body{
   padding: var(--panel-padding);
 }
 
-/* On dashboard only: no blue band behind Sat/Sun */
-.dashboard-past-nights .day.weekend{
+/* On dashboard only: no recession bands behind Sat/Sun or holidays */
+.dashboard-past-nights .day.weekend,
+.dashboard-past-nights .day.holiday {
   background: transparent;
   border-left: none;
 }
@@ -4465,9 +4472,12 @@ body{
 }
 
 .day.weekend{
-  background: transparent;
-  border-left: var(--weekend-lip-width) solid var(--weekend-border);
-  padding-left: calc(var(--space-3) - var(--weekend-lip-width));
+  background: var(--recession-weekend-fill);
+  border-left: none;
+}
+
+.day.holiday {
+  background: var(--recession-holiday-fill);
 }
 
 .week-days .day:last-child {
@@ -5926,12 +5936,12 @@ svg {
 }
 
 .recession-bar {
-  fill: rgba(96, 165, 250, 0.25);
+  fill: var(--recession-weekend-fill);
   stroke: none;
 }
 
 .recession-bar.holiday {
-  fill: rgba(251, 191, 36, 0.3);
+  fill: var(--recession-holiday-fill);
 }
 
 .sleep-bar {
@@ -6512,15 +6522,18 @@ body.page-stats .stats-page-shell .container {
 
 .calendar-month-block--large .calendar-days-row {
   gap: 6px;
+  align-items: stretch;
 }
 
-.calendar-month-block--large .calendar-square {
+.calendar-month-block--large .calendar-day-slot .calendar-square {
   width: 24px;
   height: 24px;
+  min-width: 24px;
+  min-height: 24px;
   border-radius: 4px;
 }
 
-.calendar-month-block--large .calendar-square-day {
+.calendar-month-block--large .calendar-day-slot .calendar-square-day {
   font-size: 14px;
 }
 
@@ -6623,6 +6636,36 @@ body.page-stats .stats-page-shell .container {
   color: #0f172a;
 }
 
+.quality-page .calendar-month-block .calendar-weekday-cells--in-block {
+  gap: 6px;
+}
+
+.quality-page .calendar-month-block .calendar-days-row {
+  gap: 6px;
+}
+
+.quality-page .calendar-month-block .calendar-day-slot .calendar-square {
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  min-height: 26px;
+  border-radius: 50%;
+}
+
+.quality-page .calendar-month-block .calendar-square-day {
+  font-size: 11px;
+}
+
+.quality-page .calendar-square.calendar-square--future,
+.quality-page .calendar-square.calendar-square--no-data {
+  background: var(--calendar-future-fill-quality);
+}
+
+.quality-page .calendar-square.calendar-square--future .calendar-square-day,
+.quality-page .calendar-square.calendar-square--no-data .calendar-square-day {
+  color: rgba(15, 23, 42, 0.72);
+}
+
 .calendar-month-header {
   display: flex;
   flex-direction: column;
@@ -6689,12 +6732,12 @@ body.page-stats .stats-page-shell .container {
 
 /* With a flag filter on, dim days that do not match (60% transparent → opacity 0.4) */
 .calendar-heatmap:has(.calendar-flag-slot--filter-active)
-  .calendar-square:not(.empty):not(.calendar-square--flag-filter-match) {
+  .calendar-square:not(.empty):not(.calendar-square--flag-filter-match):not(.calendar-square--future):not(.calendar-square--no-data) {
   opacity: 0.4;
 }
 
 .calendar-heatmap:has(.calendar-flag-slot--filter-active)
-  .calendar-square:not(.empty):not(.calendar-square--flag-filter-match):hover {
+  .calendar-square:not(.empty):not(.calendar-square--flag-filter-match):not(.calendar-square--future):not(.calendar-square--no-data):hover {
   opacity: 1;
 }
 
@@ -6725,6 +6768,7 @@ body.page-stats .stats-page-shell .container {
   width: 100%;
   gap: 3px;
   flex-wrap: nowrap;
+  align-items: stretch;
 }
 
 .calendar-days-row {
@@ -6733,11 +6777,35 @@ body.page-stats .stats-page-shell .container {
   flex-wrap: nowrap;
 }
 
-.calendar-month-block .calendar-square {
+.calendar-month-block .calendar-days-row > .calendar-square.empty {
   flex: 1 1 0;
   min-width: 0;
   width: auto;
   aspect-ratio: 1;
+  min-height: 12px;
+  align-self: stretch;
+}
+
+.calendar-day-slot {
+  box-sizing: border-box;
+}
+
+.calendar-month-block .calendar-day-slot {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  padding: 1px;
+}
+
+.calendar-month-block .calendar-day-slot .calendar-square {
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  width: 12px;
+  height: 12px;
+  min-width: 12px;
   min-height: 12px;
 }
 
@@ -6767,6 +6835,19 @@ body.page-stats .stats-page-shell .container {
   cursor: default;
 }
 
+.calendar-square.calendar-square--future {
+  background: var(--calendar-future-fill);
+  cursor: default;
+}
+
+.calendar-square.calendar-square--future .calendar-square-day {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.calendar-square.calendar-square--no-data {
+  background: var(--calendar-future-fill);
+}
+
 .calendar-square.flag-none {
   background: var(--flag-none);
 }
@@ -6787,7 +6868,7 @@ body.page-stats .stats-page-shell .container {
   background: var(--flag-insufficient);
 }
 
-.calendar-square:not(.empty):hover {
+.calendar-square:not(.empty):not(.calendar-square--future):hover {
   outline: 1px solid rgba(255, 255, 255, 0.5);
   outline-offset: 1px;
   transform: scale(1.2);
