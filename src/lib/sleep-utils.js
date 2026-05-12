@@ -1916,6 +1916,28 @@ const QUALITY_PALETTE_CSS_VARS = [
   '--quality-moderate',
   '--quality-severe'
 ];
+const QUALITY_PALETTE_CALENDAR_PREVIEW_CLASSES = [
+  'flag-none',
+  'flag-one',
+  'flag-none',
+  'flag-two',
+  'flag-none',
+  'flag-three-plus',
+  'flag-one',
+  'flag-none',
+  'flag-two',
+  'flag-none',
+  'flag-three-plus',
+  'flag-one',
+  'flag-none',
+  'flag-two',
+  'flag-none',
+  'flag-one',
+  'flag-three-plus',
+  'flag-none',
+  'flag-two',
+  'flag-none'
+];
 
 // Percent of wake time remaining: active while >= openMin; winding while >= windingMin and < openMin; pre-sleep while < windingMin. (Dev banner: Winding % = openMin, Pre-sleep % = windingMin.)
 const DEFAULT_REMAINING_WAKE_OPEN_MIN = 35;
@@ -2100,6 +2122,35 @@ function hydrateQualityPalettePreviewBars() {
   });
 }
 
+function hydrateQualityPaletteCalendarPreview() {
+  const mount = document.getElementById('config-quality-calendar-preview-days');
+  if (!mount || mount.getAttribute('data-hydrated') === '1') return;
+  const slots = [];
+  for (let i = 0; i < 2; i++) slots.push(null);
+  for (let day = 1; day <= 30; day++) {
+    const colorClass =
+      day > 20 ? 'calendar-square--future' : QUALITY_PALETTE_CALENDAR_PREVIEW_CLASSES[day - 1] || 'flag-none';
+    slots.push(colorClass);
+  }
+  while (slots.length % 7 !== 0) slots.push(null);
+
+  let html = '';
+  for (let i = 0; i < slots.length; i += 7) {
+    html +=
+      '<div class="calendar-month-row"><div class="calendar-days-row">' +
+      slots
+        .slice(i, i + 7)
+        .map(function (colorClass) {
+          if (!colorClass) return '<div class="calendar-square empty"></div>';
+          return '<div class="calendar-day-slot"><div class="calendar-square ' + colorClass + '"></div></div>';
+        })
+        .join('') +
+      '</div></div>';
+  }
+  mount.innerHTML = html;
+  mount.setAttribute('data-hydrated', '1');
+}
+
 function updateQualityPaletteSelector() {
   const wrap = document.getElementById('config-quality-palette');
   if (!wrap) return;
@@ -2113,6 +2164,7 @@ function updateQualityPaletteSelector() {
 
 function initQualityPaletteSelector() {
   hydrateQualityPalettePreviewBars();
+  hydrateQualityPaletteCalendarPreview();
   updateQualityPaletteSelector();
   const wrap = document.getElementById('config-quality-palette');
   if (!wrap) return;
@@ -2397,19 +2449,45 @@ function updateThemeSelectors() {
 
 function updateClockFormatSelector() {
   const wrap = document.getElementById('config-clock');
-  if (!wrap) return;
   const selected = getClockFormatPreference();
-  wrap.querySelectorAll('.about-theme-option').forEach(btn => {
-    const isActive = btn.getAttribute('data-clock-format') === selected;
-    btn.classList.toggle('active', isActive);
-    btn.setAttribute('aria-pressed', isActive);
-  });
+  if (wrap) {
+    wrap.querySelectorAll('.about-theme-option').forEach(btn => {
+      const isActive = btn.getAttribute('data-clock-format') === selected;
+      btn.classList.toggle('active', isActive);
+      btn.setAttribute('aria-pressed', isActive);
+    });
+  }
+  updateClockFormatPreview(selected);
+}
+
+function updateClockFormatPreview(format) {
+  const face = document.getElementById('config-clock-preview-face');
+  const hour = document.getElementById('config-clock-preview-hour');
+  const minute = document.getElementById('config-clock-preview-minute');
+  const period = document.getElementById('config-clock-preview-period');
+  if (!face || !hour || !minute || !period) return;
+  const is12h = format === '12h';
+  const previousFormat = face.getAttribute('data-clock-format');
+  hour.textContent = is12h ? '6' : '18';
+  minute.textContent = '13';
+  period.textContent = is12h ? 'PM' : '';
+  face.setAttribute('data-clock-format', format);
+  face.setAttribute('aria-label', is12h ? '6:13 PM' : '18:13');
+  face.classList.toggle('config-clock-preview-face--24h', !is12h);
+  if (previousFormat && previousFormat !== format) {
+    face.classList.remove('config-clock-preview-face--swapping');
+    void face.offsetWidth;
+    face.classList.add('config-clock-preview-face--swapping');
+    window.setTimeout(function () {
+      face.classList.remove('config-clock-preview-face--swapping');
+    }, 720);
+  }
 }
 
 function initClockFormatSelector() {
   const wrap = document.getElementById('config-clock');
-  if (!wrap) return;
   updateClockFormatSelector();
+  if (!wrap) return;
   wrap.addEventListener('click', function (e) {
     const btn = e.target.closest('.about-theme-option');
     if (!btn) return;
