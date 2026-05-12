@@ -286,8 +286,8 @@ function checkDeviations(day, recentAverages) {
   if (!recentAverages || recentAverages.insufficient) {
     return [{
       severity: 'insufficient',
-      plainSummary: 'Not enough data (need 7 prior nights in the log).',
-      bodyHtml: 'Not enough data (need 7 prior nights in the log).'
+      plainSummary: 'Learning your sleep habits (Based on your last 7 nights)',
+      bodyHtml: 'Learning your sleep habits<br><span class="deviation-flag-chip-note">(Based on your last 7 nights)</span>'
     }];
   }
 
@@ -385,14 +385,14 @@ function deviationWarningMarkup(w) {
   }
   if (typeof w === 'string') {
     return slotify(
-      `<button type="button" class="deviation-flag-chip deviation-flag-chip--insufficient" aria-expanded="false" aria-label="${escapeHtmlAttr(w)}"><span class="deviation-flag-chip-icon" aria-hidden="true">⋯</span><span class="deviation-flag-chip-text">${escapeHtmlText(w)}</span></button>`
+      `<button type="button" class="deviation-flag-chip deviation-flag-chip--insufficient" aria-expanded="false" aria-label="${escapeHtmlAttr(w)}"><span class="deviation-flag-chip-icon" aria-hidden="true">🌱</span><span class="deviation-flag-chip-text">${escapeHtmlText(w)}</span></button>`
     );
   }
   const label = w.plainSummary || '';
   const aria = escapeHtmlAttr(label);
   if (w.severity === 'insufficient') {
     return slotify(
-      `<button type="button" class="deviation-flag-chip deviation-flag-chip--insufficient" aria-expanded="false" aria-label="${aria}"><span class="deviation-flag-chip-icon" aria-hidden="true">⋯</span><span class="deviation-flag-chip-text">${w.bodyHtml}</span></button>`
+      `<button type="button" class="deviation-flag-chip deviation-flag-chip--insufficient" aria-expanded="false" aria-label="${aria}"><span class="deviation-flag-chip-icon" aria-hidden="true">🌱</span><span class="deviation-flag-chip-text">${w.bodyHtml}</span></button>`
     );
   }
   const sevClass = `deviation-flag-chip--${w.severity}`;

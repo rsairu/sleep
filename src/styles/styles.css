@@ -80,7 +80,7 @@
   --quality-moderate: #b45309;
   --quality-severe: #7f1d1d;
   /* Calendar/legend quality-flag colors (“good” / rested = top palette step) */
-  --flag-insufficient: #64748b;
+  --flag-insufficient: #94a3b8;
   --flag-none: var(--quality-excellent);
   --flag-one: var(--quality-slight);
   --flag-two: var(--quality-moderate);
@@ -162,7 +162,7 @@
   --frag-stripe-sev-a: rgba(205, 55, 90, 0.54);
   --frag-stripe-sev-b: rgba(198, 40, 78, 0.44);
 
-  --flag-insufficient: #64748b;
+  --flag-insufficient: #94a3b8;
   --flag-one: var(--quality-slight);
   --flag-two: var(--quality-moderate);
   --flag-three-plus: var(--quality-severe);
@@ -3847,7 +3847,7 @@ body{
   height: 10px;
   border-radius: 999px;
   background: transparent;
-  border: 1px solid var(--panel-border-color);
+  border: none;
   overflow: hidden;
 }
 
@@ -4527,7 +4527,7 @@ body{
 
 .deviation-warning--insufficient{
   border-left-color: var(--flag-insufficient);
-  background: rgba(100, 116, 139, 0.2);
+  background: color-mix(in srgb, var(--flag-insufficient) 18%, transparent);
   color: var(--text);
 }
 
@@ -4647,6 +4647,12 @@ body{
   font-variant-numeric: tabular-nums;
 }
 
+.deviation-flag-chip-note{
+  display: block;
+  font-size: 0.9em;
+  opacity: 0.82;
+}
+
 @media (hover: hover) and (pointer: fine){
   .deviation-flag-chip:hover{
     z-index: 25;
@@ -4687,7 +4693,7 @@ body{
 
 .deviation-flag-chip--insufficient{
   background: var(--flag-insufficient);
-  color: rgba(255, 255, 255, 0.95);
+  color: #0f172a;
 }
 
 .day-stats{
