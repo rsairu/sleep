@@ -26,7 +26,8 @@
         "title": "Clock",
         "ariaLabel": "Clock format preference",
         "option12": "12-hour",
-        "option24": "24-hour"
+        "option24": "24-hour",
+        "previewAriaLabel": "Clock format preview"
       },
       "language": {
         "title": "Language",
@@ -108,12 +109,12 @@
         "title": "Data source"
       },
       "tonightGuidance": {
-        "title": "Tonight guidance",
+        "title": "🧭 Guidance",
         "intro": "When you have a saved Tonight target for a pole, guidance can move that scheduled time gradually from your recent average toward the saved target (see About). Turn guidance off for a pole to use that target immediately.",
         "link": "More about Tonight guidance",
-        "sleepGuidanceTitle": "Sleep target guidance",
+        "sleepGuidanceTitle": "Sleep guidance",
         "sleepGuidanceIntro": "When on, your scheduled sleep time eases from your recent average toward a saved sleep target (shared pace below).",
-        "wakeGuidanceTitle": "Wake target guidance",
+        "wakeGuidanceTitle": "Wake guidance",
         "wakeGuidanceIntro": "When on, your scheduled wake time eases from your recent average toward a saved wake target (shared pace below).",
         "sleepToggleAria": "Tonight sleep target guidance on or off",
         "wakeToggleAria": "Tonight wake target guidance on or off",
@@ -342,7 +343,8 @@
         "title": "時計表示",
         "ariaLabel": "時刻表示の設定",
         "option12": "12時間表示",
-        "option24": "24時間表示"
+        "option24": "24時間表示",
+        "previewAriaLabel": "時刻表示のプレビュー"
       },
       "language": {
         "title": "言語",
@@ -424,12 +426,12 @@
         "title": "データソース"
       },
       "tonightGuidance": {
-        "title": "今夜のガイダンス",
+        "title": "🧭 ガイダンス",
         "intro": "「今夜の目標」が片方または両方に保存されているとき、ガイドをオンにした極だけ、直近の平均からその目標へ向けて少しずつ動かせます（詳しくは「このアプリについて」）。オフにすると、その極はいきなり目標どおりの時刻を使います。",
         "link": "今夜のガイドについて（詳細）",
-        "sleepGuidanceTitle": "睡眠の目標ガイド",
+        "sleepGuidanceTitle": "睡眠ガイダンス",
         "sleepGuidanceIntro": "オンにすると、保存した睡眠の目標へ、直近の平均から少しずつ寄せます（ペースは下の共通設定）。",
-        "wakeGuidanceTitle": "起床の目標ガイド",
+        "wakeGuidanceTitle": "起床ガイダンス",
         "wakeGuidanceIntro": "オンにすると、保存した起床の目標へ、直近の平均から少しずつ寄せます（ペースは下の共通設定）。",
         "sleepToggleAria": "今夜の睡眠目標ガイドのオン・オフ",
         "wakeToggleAria": "今夜の起床目標ガイドのオン・オフ",

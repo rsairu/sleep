@@ -2449,19 +2449,45 @@ function updateThemeSelectors() {
 
 function updateClockFormatSelector() {
   const wrap = document.getElementById('config-clock');
-  if (!wrap) return;
   const selected = getClockFormatPreference();
-  wrap.querySelectorAll('.about-theme-option').forEach(btn => {
-    const isActive = btn.getAttribute('data-clock-format') === selected;
-    btn.classList.toggle('active', isActive);
-    btn.setAttribute('aria-pressed', isActive);
-  });
+  if (wrap) {
+    wrap.querySelectorAll('.about-theme-option').forEach(btn => {
+      const isActive = btn.getAttribute('data-clock-format') === selected;
+      btn.classList.toggle('active', isActive);
+      btn.setAttribute('aria-pressed', isActive);
+    });
+  }
+  updateClockFormatPreview(selected);
+}
+
+function updateClockFormatPreview(format) {
+  const face = document.getElementById('config-clock-preview-face');
+  const hour = document.getElementById('config-clock-preview-hour');
+  const minute = document.getElementById('config-clock-preview-minute');
+  const period = document.getElementById('config-clock-preview-period');
+  if (!face || !hour || !minute || !period) return;
+  const is12h = format === '12h';
+  const previousFormat = face.getAttribute('data-clock-format');
+  hour.textContent = is12h ? '6' : '18';
+  minute.textContent = '13';
+  period.textContent = is12h ? 'PM' : '';
+  face.setAttribute('data-clock-format', format);
+  face.setAttribute('aria-label', is12h ? '6:13 PM' : '18:13');
+  face.classList.toggle('config-clock-preview-face--24h', !is12h);
+  if (previousFormat && previousFormat !== format) {
+    face.classList.remove('config-clock-preview-face--swapping');
+    void face.offsetWidth;
+    face.classList.add('config-clock-preview-face--swapping');
+    window.setTimeout(function () {
+      face.classList.remove('config-clock-preview-face--swapping');
+    }, 720);
+  }
 }
 
 function initClockFormatSelector() {
   const wrap = document.getElementById('config-clock');
-  if (!wrap) return;
   updateClockFormatSelector();
+  if (!wrap) return;
   wrap.addEventListener('click', function (e) {
     const btn = e.target.closest('.about-theme-option');
     if (!btn) return;
