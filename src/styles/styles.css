@@ -6422,6 +6422,16 @@ body.page-stats .stats-page-shell .container {
   background: var(--flag-insufficient);
 }
 
+.legend-learning-emoji {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  line-height: 1;
+  font-size: 11px;
+}
+
 .calendar-heatmap {
   position: relative;
   overflow-x: auto;
@@ -6601,6 +6611,17 @@ body.page-stats .stats-page-shell .container {
 
 .quality-page .calendar-month-block .calendar-square-day {
   font-size: 11px;
+}
+
+.quality-page .calendar-square.calendar-square--learning {
+  background: transparent;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+}
+
+.quality-page .calendar-square-learning-emoji {
+  font-size: 15px;
+  line-height: 1;
+  pointer-events: none;
 }
 
 .quality-page .calendar-square.calendar-square--future,
