@@ -46,13 +46,14 @@
         "auto": "Auto (time-based)"
       },
       "quality": {
-        "title": "Colors",
-        "intro": "These colors are used for sleep quality flags and Sleep HP.",
-        "ariaLabel": "Sleep quality colors",
+        "title": "Palette",
+        "intro": "These palette colors are used for sleep quality flags and Sleep HP.",
+        "ariaLabel": "Sleep quality palette",
         "meadow": "Stepa's Meadow",
         "harbor": "Dima's Harbor",
         "auto": "Auto",
-        "autoHelp": "Switches with theme: Stepa's Meadow in light mode, Dima's Harbor in dark mode."
+        "autoHelp": "Switches with theme: Meadow in light mode, Harbor in dark mode.",
+        "previewAriaLabel": "Sleep quality calendar palette preview"
       },
       "remainingWake": {
         "title": "Remaining wake time",
@@ -361,13 +362,14 @@
         "auto": "自動（時間帯ベース）"
       },
       "quality": {
-        "title": "色",
-        "intro": "睡眠の質フラグと Sleep HP の表示に使われます。",
-        "ariaLabel": "睡眠の質の色",
+        "title": "パレット",
+        "intro": "睡眠の質フラグと Sleep HP の表示に使うパレットです。",
+        "ariaLabel": "睡眠の質のパレット",
         "meadow": "ステパのメドウ",
         "harbor": "ディマのハーバー",
         "auto": "自動",
-        "autoHelp": "テーマに合わせて切り替えます。ライトではステパのメドウ、ダークではディマのハーバーです。"
+        "autoHelp": "テーマに合わせて切り替えます。ライトではステパのメドウ、ダークではディマのハーバーです。",
+        "previewAriaLabel": "睡眠の質カレンダーのパレットプレビュー"
       },
       "remainingWake": {
         "title": "残り覚醒時間",

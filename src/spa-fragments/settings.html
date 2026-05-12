@@ -40,28 +40,46 @@
       </button>
     </div>
 
-    <h3 class="section-subtitle config-personalization-subtitle" id="colors" data-i18n="config.quality.title">Colors</h3>
-    <p class="section-intro config-colors-intro" data-i18n="config.quality.intro">These colors are used for sleep quality flags and Sleep HP.</p>
-    <div id="config-quality-palette" class="about-theme" role="group" aria-label="Sleep quality colors" data-i18n-aria-label="config.quality.ariaLabel">
-      <button type="button" class="about-theme-option config-quality-palette-option" data-quality-palette="meadow" aria-pressed="false">
-        <span class="config-quality-palette-bar" aria-hidden="true"></span>
-        <span data-i18n="config.quality.meadow">Stepa's Meadow</span>
-      </button>
-      <button type="button" class="about-theme-option config-quality-palette-option" data-quality-palette="harbor" aria-pressed="false">
-        <span class="config-quality-palette-bar" aria-hidden="true"></span>
-        <span data-i18n="config.quality.harbor">Dima's Harbor</span>
-      </button>
-      <button type="button" class="about-theme-option config-quality-palette-option config-quality-palette-option--auto" data-quality-palette="auto" aria-pressed="false">
-        <span class="config-quality-palette-clock-slot" aria-hidden="true">
-          <span class="about-theme-option-icon config-quality-palette-clock-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg></span>
-        </span>
-        <span class="config-quality-palette-option-text">
-          <span class="config-quality-palette-auto-label-row">
-            <span class="config-quality-palette-option-label" data-i18n="config.quality.auto">Auto</span>
-          </span>
-          <span class="config-quality-palette-auto-help" data-i18n="config.quality.autoHelp">Switches with theme: Stepa's Meadow in light mode, Dima's Harbor in dark mode.</span>
-        </span>
-      </button>
+    <h3 class="section-subtitle config-personalization-subtitle" id="palette" data-i18n="config.quality.title">Palette</h3>
+    <p class="section-intro config-colors-intro" data-i18n="config.quality.intro">These palette colors are used for sleep quality flags and Sleep HP.</p>
+    <div class="config-quality-palette-layout">
+      <div class="config-quality-palette-controls">
+        <div id="config-quality-palette" class="about-theme" role="group" aria-label="Sleep quality palette" data-i18n-aria-label="config.quality.ariaLabel">
+          <button type="button" class="about-theme-option config-quality-palette-option" data-quality-palette="meadow" aria-pressed="false">
+            <span class="config-quality-palette-bar" aria-hidden="true"></span>
+            <span data-i18n="config.quality.meadow">Stepa's Meadow</span>
+          </button>
+          <button type="button" class="about-theme-option config-quality-palette-option" data-quality-palette="harbor" aria-pressed="false">
+            <span class="config-quality-palette-bar" aria-hidden="true"></span>
+            <span data-i18n="config.quality.harbor">Dima's Harbor</span>
+          </button>
+          <button type="button" class="about-theme-option config-quality-palette-option config-quality-palette-option--auto" data-quality-palette="auto" aria-pressed="false">
+            <span class="config-quality-palette-clock-slot" aria-hidden="true">
+              <span class="about-theme-option-icon config-quality-palette-clock-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg></span>
+            </span>
+            <span class="config-quality-palette-option-text">
+              <span class="config-quality-palette-auto-label-row">
+                <span class="config-quality-palette-option-label" data-i18n="config.quality.auto">Auto</span>
+              </span>
+              <span class="config-quality-palette-auto-help" data-i18n="config.quality.autoHelp">Switches with theme: Meadow in light mode, Harbor in dark mode.</span>
+            </span>
+          </button>
+        </div>
+      </div>
+      <aside class="config-quality-calendar-preview" aria-label="Sleep quality calendar palette preview" data-i18n-aria-label="config.quality.previewAriaLabel">
+        <div class="calendar-month-block calendar-month-block--large config-quality-calendar-preview-month">
+          <div class="calendar-weekday-cells calendar-weekday-cells--in-block" aria-hidden="true">
+            <div class="calendar-weekday-label">Su</div>
+            <div class="calendar-weekday-label">M</div>
+            <div class="calendar-weekday-label">T</div>
+            <div class="calendar-weekday-label">W</div>
+            <div class="calendar-weekday-label">R</div>
+            <div class="calendar-weekday-label">F</div>
+            <div class="calendar-weekday-label">Sa</div>
+          </div>
+          <div id="config-quality-calendar-preview-days" aria-hidden="true"></div>
+        </div>
+      </aside>
     </div>
   </div>
 
