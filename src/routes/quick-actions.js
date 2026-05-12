@@ -5,6 +5,7 @@
 
   let quickActionsIntervalId = null;
   let boundClickHandler = null;
+  let alarmNoneDismissedWakeMd = null;
 
   function nowClockMinutes(d) {
     return d.getHours() * 60 + d.getMinutes();
@@ -156,16 +157,29 @@
     return findDayByDateMd(days, md);
   }
 
-  /** Wake-day row already has alarm times and/or the no-alarm night label — hide both alarm QAs. */
+  function normalizeDismissalMd(md) {
+    return typeof normalizeSleepDateKey === 'function' ? normalizeSleepDateKey(md) || md : md;
+  }
+
+  function dismissAlarmQuickActionsForWakeDay(md) {
+    alarmNoneDismissedWakeMd = normalizeDismissalMd(md);
+  }
+
+  function clearStaleAlarmDismissal(currentWakeMd) {
+    const key = normalizeDismissalMd(currentWakeMd);
+    if (alarmNoneDismissedWakeMd && alarmNoneDismissedWakeMd !== key) {
+      alarmNoneDismissedWakeMd = null;
+    }
+  }
+
+  function alarmQuickActionsDismissedForWakeDay(md) {
+    return Boolean(alarmNoneDismissedWakeMd && alarmNoneDismissedWakeMd === normalizeDismissalMd(md));
+  }
+
+  /** Wake-day row already has alarm times — hide both alarm QAs. */
   function alarmQuickActionsAddressedForDay(dayOrDraft) {
     if (!dayOrDraft) return false;
     if (Array.isArray(dayOrDraft.alarm) && dayOrDraft.alarm.length > 0) return true;
-    if (typeof normalizeSleepDayLabels === 'function' && dayOrDraft.labels) {
-      const n = normalizeSleepDayLabels(dayOrDraft.labels);
-      for (let i = 0; i < n.length; i++) {
-        if (n[i] === '🔕') return true;
-      }
-    }
     return false;
   }
 
@@ -303,17 +317,14 @@
     document.body.removeChild(a);
   }
 
-  function handleNoAlarmSet(days, averages, onReload, now) {
+  function handleNoAlarmSet(days, averages, now) {
     const md =
       typeof resolveRecordDateMdForWake === 'function'
         ? resolveRecordDateMdForWake(now, averages.avgSleepEnd, days)
         : recordDateMdForSleepPeriod(now, averages.avgSleepEnd);
-    return getEditableDayByMd(md, days).then(function (day) {
-      const raw = day && Array.isArray(day.labels) ? day.labels.slice() : [];
-      const withNoAlarm = raw.indexOf('🔕') === -1 ? raw.concat(['🔕']) : raw;
-      const labels = normalizeSleepDayLabels(withNoAlarm);
-      return persistPartial(md, { labels: labels }, onReload, '🔕 No alarm was set');
-    });
+    dismissAlarmQuickActionsForWakeDay(md);
+    if (typeof showAppToast === 'function') showAppToast('Alarm prompt dismissed');
+    return md;
   }
 
   /** Bed time only — does not change sleepStart or sleepEnd. */
@@ -517,13 +528,16 @@
       typeof resolveRecordDateMdForWake === 'function'
         ? resolveRecordDateMdForWake(now, averages.avgSleepEnd, days)
         : recordDateMdForSleepPeriod(now, averages.avgSleepEnd);
+    clearStaleAlarmDismissal(wakeQuickMd);
     const averagesFb =
       typeof QUICK_ADD_FALLBACK_AVERAGES !== 'undefined' ? QUICK_ADD_FALLBACK_AVERAGES : null;
     const wakeLoggedForNight =
       typeof wakeLoggedForWakeDayMd === 'function'
         ? wakeLoggedForWakeDayMd(wakeQuickMd, days, averagesFb)
         : false;
-    const alarmQuickActionsAddressed = alarmQuickActionsAddressedForDay(findDayByMd(days, wakeQuickMd));
+    const alarmQuickActionsAddressed =
+      alarmQuickActionsAddressedForDay(findDayByMd(days, wakeQuickMd)) ||
+      alarmQuickActionsDismissedForWakeDay(wakeQuickMd);
     let napStartAllowed = false;
     if (sharedContext && sharedContext.navDisplay) {
       const pr = sharedContext.navDisplay.percentRemaining;
@@ -584,7 +598,7 @@
     if (!btn || !btn.getAttribute || !mount.contains(btn)) return;
     const qa = btn.getAttribute('data-qa');
     if (!qa) return;
-    if (qa !== 'alarm') {
+    if (qa !== 'alarm' && qa !== 'alarm-none') {
       if (!ensureCloudForPersist()) return;
     }
     const days = getDays();
@@ -598,7 +612,8 @@
       handleAlarmNavigateToLog(days, averages, now);
     } else if (qa === 'alarm-none') {
       e.preventDefault();
-      handleNoAlarmSet(days, averages, onReload, now);
+      handleNoAlarmSet(days, averages, now);
+      renderQuickActions(getDays(), onReload);
     } else if (qa === 'bed-now') {
       e.preventDefault();
       handleBedNow(days, averages, onReload, now);

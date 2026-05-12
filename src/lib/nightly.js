@@ -286,8 +286,8 @@ function checkDeviations(day, recentAverages) {
   if (!recentAverages || recentAverages.insufficient) {
     return [{
       severity: 'insufficient',
-      plainSummary: 'Not enough data (need 7 prior nights in the log).',
-      bodyHtml: 'Not enough data (need 7 prior nights in the log).'
+      plainSummary: 'Learning your sleep habits (fewer than 7 nights logged)',
+      bodyHtml: 'Learning your sleep habits<br><span class="deviation-flag-chip-note">(fewer than 7 nights logged)</span>'
     }];
   }
 
@@ -385,14 +385,14 @@ function deviationWarningMarkup(w) {
   }
   if (typeof w === 'string') {
     return slotify(
-      `<button type="button" class="deviation-flag-chip deviation-flag-chip--insufficient" aria-expanded="false" aria-label="${escapeHtmlAttr(w)}"><span class="deviation-flag-chip-icon" aria-hidden="true">⋯</span><span class="deviation-flag-chip-text">${escapeHtmlText(w)}</span></button>`
+      `<button type="button" class="deviation-flag-chip deviation-flag-chip--insufficient" aria-expanded="false" aria-label="${escapeHtmlAttr(w)}"><span class="deviation-flag-chip-icon" aria-hidden="true">🌱</span><span class="deviation-flag-chip-text">${escapeHtmlText(w)}</span></button>`
     );
   }
   const label = w.plainSummary || '';
   const aria = escapeHtmlAttr(label);
   if (w.severity === 'insufficient') {
     return slotify(
-      `<button type="button" class="deviation-flag-chip deviation-flag-chip--insufficient" aria-expanded="false" aria-label="${aria}"><span class="deviation-flag-chip-icon" aria-hidden="true">⋯</span><span class="deviation-flag-chip-text">${w.bodyHtml}</span></button>`
+      `<button type="button" class="deviation-flag-chip deviation-flag-chip--insufficient" aria-expanded="false" aria-label="${aria}"><span class="deviation-flag-chip-icon" aria-hidden="true">🌱</span><span class="deviation-flag-chip-text">${w.bodyHtml}</span></button>`
     );
   }
   const sevClass = `deviation-flag-chip--${w.severity}`;
@@ -860,10 +860,15 @@ function getCalendarSquareColorClass(dayCell) {
   return 'flag-three-plus';
 }
 
-function calendarSquareTooltip(dayCell) {
+function calendarSquareTooltip(dayCell, options) {
+  const learningCopy = Boolean(options && options.learningCopy);
   if (dayCell.isFuture) return '';
   if (dayCell.isNoData) return `${dayCell.dateStr}: no data recorded`;
-  if (dayCell.insufficient) return `${dayCell.dateStr}: not enough data`;
+  if (dayCell.insufficient) {
+    return learningCopy
+      ? `${dayCell.dateStr}: 🌱`
+      : `${dayCell.dateStr}: not enough data`;
+  }
   if (dayCell.flagTypes && dayCell.flagTypes.length > 0) {
     return `${dayCell.dateStr}: ${dayCell.flagTypes.join(' ')}`;
   }
@@ -936,9 +941,10 @@ if (typeof window !== 'undefined') {
 }
 
 // Render a single month block (for heatmap). large: true adds --large class for 2x size on dashboard.
-/** @param {{ interactiveFlagFilters?: boolean }} [options] */
+/** @param {{ interactiveFlagFilters?: boolean, showLearningEmoji?: boolean }} [options] */
 function renderMonthBlock(month, large, options) {
   const interactive = Boolean(options && options.interactiveFlagFilters);
+  const showLearningEmoji = Boolean(options && options.showLearningEmoji);
   const flagSlots = [
     { emoji: '😴', count: month.flagCounts['😴'] },
     { emoji: '⌛', count: month.flagCounts['⌛'] },
@@ -975,12 +981,16 @@ function renderMonthBlock(month, large, options) {
                 return `<div class="calendar-square empty"></div>`;
               }
               const colorClass = getCalendarSquareColorClass(day);
-              const tooltip = calendarSquareTooltip(day);
+              const tooltip = calendarSquareTooltip(day, { learningCopy: showLearningEmoji });
               const typesAttr = interactive
                 ? ` data-flag-types="${escapeHtmlAttr(JSON.stringify(day.isFuture || day.isNoData ? [] : (day.flagTypes || [])))}"`
                 : '';
               const tipAttr = tooltip ? ` data-tooltip="${escapeHtmlAttr(tooltip)}" title="${escapeHtmlAttr(tooltip)}"` : '';
-              const inner = `<div class="calendar-square ${colorClass}"${typesAttr}${tipAttr}><span class="calendar-square-day">${day.day}</span></div>`;
+              const learningClass = showLearningEmoji && day.insufficient ? ' calendar-square--learning' : '';
+              const dayInner = showLearningEmoji && day.insufficient
+                ? '<span class="calendar-square-learning-emoji" aria-hidden="true">🌱</span><span class="visually-hidden">Learning</span>'
+                : `<span class="calendar-square-day">${day.day}</span>`;
+              const inner = `<div class="calendar-square ${colorClass}${learningClass}"${typesAttr}${tipAttr}>${dayInner}</div>`;
               return `<div class="calendar-day-slot">${inner}</div>`;
             }).join('')}
           </div>
@@ -1005,6 +1015,10 @@ function renderCalendarHeatmapHeader(options) {
   const aboutLink = qualityPage
     ? `<p class="calendar-heatmap-about"><a class="content-link" href="${restoreMpaHref('about.dailyFlags')}">About daily flags</a></p>`
     : '';
+  const needDataLegend = qualityPage
+    ? ''
+    : '<span class="legend-label">need data</span><div class="legend-colors"><div class="legend-square flag-insufficient" title="Fewer than 7 nights logged"></div></div>';
+  const needDataDivider = qualityPage ? '' : '<span class="legend-divider">·</span>';
   return `
     <div class="calendar-heatmap-header${qualityPage ? ' calendar-heatmap-header--quality-page' : ''}">
       <div class="calendar-heatmap-header-titles">
@@ -1013,12 +1027,9 @@ function renderCalendarHeatmapHeader(options) {
       </div>
       <div class="calendar-heatmap-legend calendar-heatmap-legend--compact">
         <div class="legend-colors-row">
-          <span class="legend-label">need data</span>
-          <div class="legend-colors">
-            <div class="legend-square flag-insufficient" title="Fewer than 7 prior nights"></div>
-          </div>
-          <span class="legend-divider">·</span>
-          <span class="legend-label">good</span>
+          ${needDataLegend}
+          ${needDataDivider}
+          <span class="legend-label">consistent</span>
           <div class="legend-colors">
             <div class="legend-square flag-none"></div>
           </div>
@@ -1032,6 +1043,7 @@ function renderCalendarHeatmapHeader(options) {
         </div>
         <span class="legend-divider">·</span>
         <div class="legend-meaning legend-meaning--inline">
+          <span class="legend-meaning-item"><span class="legend-learning-emoji" aria-hidden="true">🌱</span> learning</span>
           <span class="legend-meaning-item">😴 sleep late vs avg</span>
           <span class="legend-meaning-item">⌛ shorter duration vs avg</span>
           <span class="legend-meaning-item">🌅 wake vs avg</span>
@@ -1070,7 +1082,7 @@ function renderCalendarHeatmapFullHistory(year, flagMap, latestDataDate) {
       ${renderCalendarHeatmapHeader({ qualityPage: true })}
       <div class="calendar-heatmap">
         <div class="calendar-month-grid">
-          ${months.map((month) => renderMonthBlock(month, false, { interactiveFlagFilters: true })).join('')}
+          ${months.map((month) => renderMonthBlock(month, false, { interactiveFlagFilters: true, showLearningEmoji: true })).join('')}
         </div>
       </div>
     </div>
@@ -1086,7 +1098,7 @@ function renderCalendarHeatmapFullHistoryMulti(years, flagMap, latestDataDate) {
       const months = generateCalendarHeatmap(year, flagMap, latestDataDate);
       const yearHeading =
         yList.length > 1 ? `<h3 class="calendar-heatmap-year-heading">${year}</h3>` : '';
-      const gridInner = months.map((m) => renderMonthBlock(m, false, { interactiveFlagFilters: true })).join('');
+      const gridInner = months.map((m) => renderMonthBlock(m, false, { interactiveFlagFilters: true, showLearningEmoji: true })).join('');
       return `<div class="calendar-heatmap-year-block">${yearHeading}<div class="calendar-month-grid">${gridInner}</div></div>`;
     })
     .join('');
@@ -1403,6 +1415,13 @@ function renderQuickAddDrawer(recentAverages, recentDays, layout = 'drawer') {
                     </div>`
     : `<button type="button" class="quick-add-time-add-btn" id="quick-add-alarm-add" data-i18n-aria-label="log.addTimeAria" aria-label="Add time">+</button>`;
 
+  const labelsRow = `<div class="quick-add-adv-row quick-add-labels-row quick-add-log-pair">
+                    <span class="quick-add-label quick-add-label--emoji-line" id="quick-add-labels-legend"><span class="quick-add-log-emoji" aria-hidden="true">🏷️</span><span class="quick-add-label-text" data-i18n="log.nightLabels">Night notes</span></span>
+                    <div class="quick-add-label-chips-wrap">
+                      <div class="quick-add-label-chips" id="quick-add-label-chips" role="group" aria-labelledby="quick-add-labels-legend" data-i18n-aria-label="log.nightLabelsAria" aria-label="Optional emoji labels for this night"></div>
+                    </div>
+                  </div>`;
+
   const advancedBlocks = `
                 <div class="quick-add-advanced-blocks">
                   <div class="quick-add-adv-row quick-add-log-pair">
@@ -1449,12 +1468,7 @@ function renderQuickAddDrawer(recentAverages, recentDays, layout = 'drawer') {
                       </div>
                     </div>
                   </div>
-                  <div class="quick-add-adv-row quick-add-labels-row quick-add-log-pair">
-                    <span class="quick-add-label quick-add-label--emoji-line" id="quick-add-labels-legend"><span class="quick-add-log-emoji" aria-hidden="true">🏷️</span><span class="quick-add-label-text" data-i18n="log.nightLabels">Night notes</span></span>
-                    <div class="quick-add-label-chips-wrap">
-                      <div class="quick-add-label-chips" id="quick-add-label-chips" role="group" aria-labelledby="quick-add-labels-legend" data-i18n-aria-label="log.nightLabelsAria" aria-label="Optional emoji labels for this night"></div>
-                    </div>
-                  </div>
+                  ${isPage ? '' : labelsRow}
                 </div>`;
   const advancedSection =
     layout === 'drawer'
@@ -1498,10 +1512,11 @@ function renderQuickAddDrawer(recentAverages, recentDays, layout = 'drawer') {
                 <button type="button" class="about-theme-option" id="quick-add-cancel" data-i18n="log.undoCancel">Undo / Cancel</button>`;
 
   const dateFieldRow = isPage
-    ? `<div class="quick-add-date-row quick-add-date-row--page" role="group" data-i18n-aria-label="log.dateRowAria" aria-label="Sleep night date">
+    ? `<div class="quick-add-date-row quick-add-date-row--page" role="group" data-i18n-aria-label="log.dateRowAria" aria-label="Wake date">
+                <span class="quick-add-date-context" data-i18n="log.dateContext">Waking on</span>
                 <div class="quick-add-date-controls">
                   <button type="button" class="quick-add-date-step quick-add-date-step--prev" id="quick-add-date-prev" data-i18n-aria-label="log.datePrevAria" aria-label="Previous day">◀</button>
-                  <input class="quick-add-input quick-add-input--date" id="quick-add-date" type="date" aria-label="Date">
+                  <input class="quick-add-input quick-add-input--date" id="quick-add-date" type="date" data-i18n-aria-label="log.dateInputAria" aria-label="Wake date">
                   <button type="button" class="quick-add-date-step quick-add-date-step--next" id="quick-add-date-next" data-i18n-aria-label="log.dateNextAria" aria-label="Next day">▶</button>
                 </div>
               </div>`
@@ -1520,6 +1535,7 @@ function renderQuickAddDrawer(recentAverages, recentDays, layout = 'drawer') {
             <form id="quick-add-form" class="quick-add-form" data-initial-bed="${initialBedAttr}" data-initial-sleep="${initialSleepAttr}" data-initial-wake="${initialWakeAttr}">
               ${pageTopToolbar}
               ${dateFieldRow}
+              ${isPage ? labelsRow : ''}
               <div class="quick-add-main-times" role="group" data-i18n-aria-label="log.mainTimesAria" aria-label="Bed, sleep, and wake">
                 <div class="quick-add-adv-row quick-add-log-pair">
                   <button type="button" class="quick-add-label quick-add-label--emoji-line quick-add-label--bed quick-add-label-hit" id="quick-add-bed-legend" data-i18n-aria-label="log.bedNowAria" aria-label="Set bed time to current time"><span class="quick-add-log-emoji" aria-hidden="true">🛏️</span><span class="quick-add-label-text" data-i18n="log.bed">Bed</span></button>

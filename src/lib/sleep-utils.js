@@ -22,7 +22,6 @@ if (typeof window !== 'undefined') window.HOLIDAYS_BY_YEAR = HOLIDAYS_BY_YEAR;
 
 /** Fixed emoji keys for optional per-night labels (log + daily display). Order is canonical storage order. */
 const SLEEP_DAY_LABEL_OPTIONS = [
-  { emoji: '🔕', title: 'No alarm' },
   { emoji: '👶', title: 'Kids' },
   { emoji: '🐶', title: 'Pet' },
   { emoji: '🍺', title: 'Alcohol' },
@@ -909,6 +908,12 @@ function sortDaysNewestFirst(days) {
   });
 }
 
+function normalizeSleepData(data) {
+  const out = data && typeof data === 'object' ? cloneSleepData(data) : { days: [] };
+  out.days = Array.isArray(out.days) ? sortDaysNewestFirst(out.days) : [];
+  return out;
+}
+
 function fetchStaticSleepData() {
   return fetch('data/sleep-data.json').then(r => r.json());
 }
@@ -947,12 +952,14 @@ function loadSleepDataCore(options) {
     sleepDataCacheKey === cacheKey &&
     (manualRefreshOnly || now < sleepDataCacheExpiresAt)
   ) {
+    const normalized = normalizeSleepData(sleepDataCacheValue);
+    sleepDataCacheValue = normalized;
     updateDataSourceBadge(loadSleepDataUsesSupabase(config) ? 'cloud' : 'local');
-    return chainSleepDataWithUserSettingsHydrate(config, Promise.resolve(cloneSleepData(sleepDataCacheValue)));
+    return chainSleepDataWithUserSettingsHydrate(config, Promise.resolve(cloneSleepData(normalized)));
   }
 
   if (!forceRefresh && sleepDataPendingPromise && sleepDataCacheKey === cacheKey) {
-    return chainSleepDataWithUserSettingsHydrate(config, sleepDataPendingPromise.then(cloneSleepData));
+    return chainSleepDataWithUserSettingsHydrate(config, sleepDataPendingPromise.then(normalizeSleepData));
   }
 
   if (!forceRefresh) {
@@ -962,11 +969,12 @@ function loadSleepDataCore(options) {
       storedCache.cacheKey === cacheKey &&
       (manualRefreshOnly || now < storedCache.fetchedAt + SLEEP_DATA_CACHE_TTL_MS)
     ) {
-      sleepDataCacheValue = storedCache.data;
+      const normalized = normalizeSleepData(storedCache.data);
+      sleepDataCacheValue = normalized;
       sleepDataCacheKey = cacheKey;
       sleepDataCacheExpiresAt = storedCache.fetchedAt + SLEEP_DATA_CACHE_TTL_MS;
       updateDataSourceBadge(loadSleepDataUsesSupabase(config) ? 'cloud' : 'local');
-      return chainSleepDataWithUserSettingsHydrate(config, Promise.resolve(cloneSleepData(storedCache.data)));
+      return chainSleepDataWithUserSettingsHydrate(config, Promise.resolve(cloneSleepData(normalized)));
     }
   }
 
@@ -987,10 +995,11 @@ function loadSleepDataCore(options) {
         return data;
       })
   ).then(function (data) {
-    sleepDataCacheValue = data;
+    const normalized = normalizeSleepData(data);
+    sleepDataCacheValue = normalized;
     sleepDataCacheExpiresAt = getAppNowMs() + SLEEP_DATA_CACHE_TTL_MS;
-    writeSleepDataLocalCache(cacheKey, data);
-    const out = cloneSleepData(data);
+    writeSleepDataLocalCache(cacheKey, normalized);
+    const out = cloneSleepData(normalized);
     if (loadSleepDataUsesSupabase(config)) {
       return ensureUserSettingsFromCloud(config).then(function () {
         refreshUiAfterUserSettingsHydrate();
