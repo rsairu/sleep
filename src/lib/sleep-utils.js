@@ -22,7 +22,6 @@ if (typeof window !== 'undefined') window.HOLIDAYS_BY_YEAR = HOLIDAYS_BY_YEAR;
 
 /** Fixed emoji keys for optional per-night labels (log + daily display). Order is canonical storage order. */
 const SLEEP_DAY_LABEL_OPTIONS = [
-  { emoji: '🔕', title: 'No alarm' },
   { emoji: '👶', title: 'Kids' },
   { emoji: '🐶', title: 'Pet' },
   { emoji: '🍺', title: 'Alcohol' },
