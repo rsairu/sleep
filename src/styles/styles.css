@@ -8420,7 +8420,16 @@ button.dashboard-quick-action-btn {
 }
 
 .quick-add-date-row--page {
+  display: grid;
+  gap: 6px;
   max-width: min(36rem, 100%);
+}
+
+.quick-add-date-context {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 .quick-add-date-row--page .quick-add-date-controls {

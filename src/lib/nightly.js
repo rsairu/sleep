@@ -1403,6 +1403,13 @@ function renderQuickAddDrawer(recentAverages, recentDays, layout = 'drawer') {
                     </div>`
     : `<button type="button" class="quick-add-time-add-btn" id="quick-add-alarm-add" data-i18n-aria-label="log.addTimeAria" aria-label="Add time">+</button>`;
 
+  const labelsRow = `<div class="quick-add-adv-row quick-add-labels-row quick-add-log-pair">
+                    <span class="quick-add-label quick-add-label--emoji-line" id="quick-add-labels-legend"><span class="quick-add-log-emoji" aria-hidden="true">🏷️</span><span class="quick-add-label-text" data-i18n="log.nightLabels">Night notes</span></span>
+                    <div class="quick-add-label-chips-wrap">
+                      <div class="quick-add-label-chips" id="quick-add-label-chips" role="group" aria-labelledby="quick-add-labels-legend" data-i18n-aria-label="log.nightLabelsAria" aria-label="Optional emoji labels for this night"></div>
+                    </div>
+                  </div>`;
+
   const advancedBlocks = `
                 <div class="quick-add-advanced-blocks">
                   <div class="quick-add-adv-row quick-add-log-pair">
@@ -1449,12 +1456,7 @@ function renderQuickAddDrawer(recentAverages, recentDays, layout = 'drawer') {
                       </div>
                     </div>
                   </div>
-                  <div class="quick-add-adv-row quick-add-labels-row quick-add-log-pair">
-                    <span class="quick-add-label quick-add-label--emoji-line" id="quick-add-labels-legend"><span class="quick-add-log-emoji" aria-hidden="true">🏷️</span><span class="quick-add-label-text" data-i18n="log.nightLabels">Night notes</span></span>
-                    <div class="quick-add-label-chips-wrap">
-                      <div class="quick-add-label-chips" id="quick-add-label-chips" role="group" aria-labelledby="quick-add-labels-legend" data-i18n-aria-label="log.nightLabelsAria" aria-label="Optional emoji labels for this night"></div>
-                    </div>
-                  </div>
+                  ${isPage ? '' : labelsRow}
                 </div>`;
   const advancedSection =
     layout === 'drawer'
@@ -1498,10 +1500,11 @@ function renderQuickAddDrawer(recentAverages, recentDays, layout = 'drawer') {
                 <button type="button" class="about-theme-option" id="quick-add-cancel" data-i18n="log.undoCancel">Undo / Cancel</button>`;
 
   const dateFieldRow = isPage
-    ? `<div class="quick-add-date-row quick-add-date-row--page" role="group" data-i18n-aria-label="log.dateRowAria" aria-label="Sleep night date">
+    ? `<div class="quick-add-date-row quick-add-date-row--page" role="group" data-i18n-aria-label="log.dateRowAria" aria-label="Wake date">
+                <span class="quick-add-date-context" data-i18n="log.dateContext">Waking on</span>
                 <div class="quick-add-date-controls">
                   <button type="button" class="quick-add-date-step quick-add-date-step--prev" id="quick-add-date-prev" data-i18n-aria-label="log.datePrevAria" aria-label="Previous day">◀</button>
-                  <input class="quick-add-input quick-add-input--date" id="quick-add-date" type="date" aria-label="Date">
+                  <input class="quick-add-input quick-add-input--date" id="quick-add-date" type="date" data-i18n-aria-label="log.dateInputAria" aria-label="Wake date">
                   <button type="button" class="quick-add-date-step quick-add-date-step--next" id="quick-add-date-next" data-i18n-aria-label="log.dateNextAria" aria-label="Next day">▶</button>
                 </div>
               </div>`
@@ -1520,6 +1523,7 @@ function renderQuickAddDrawer(recentAverages, recentDays, layout = 'drawer') {
             <form id="quick-add-form" class="quick-add-form" data-initial-bed="${initialBedAttr}" data-initial-sleep="${initialSleepAttr}" data-initial-wake="${initialWakeAttr}">
               ${pageTopToolbar}
               ${dateFieldRow}
+              ${isPage ? labelsRow : ''}
               <div class="quick-add-main-times" role="group" data-i18n-aria-label="log.mainTimesAria" aria-label="Bed, sleep, and wake">
                 <div class="quick-add-adv-row quick-add-log-pair">
                   <button type="button" class="quick-add-label quick-add-label--emoji-line quick-add-label--bed quick-add-label-hit" id="quick-add-bed-legend" data-i18n-aria-label="log.bedNowAria" aria-label="Set bed time to current time"><span class="quick-add-log-emoji" aria-hidden="true">🛏️</span><span class="quick-add-label-text" data-i18n="log.bed">Bed</span></button>
