@@ -25,6 +25,34 @@
     return formatIsoDateFromLocalDate(d);
   }
 
+  /** Long weekday for the wake date (log page row); noon local avoids DST boundary issues. */
+  function quickAddWeekdayFromDateInputValue(value) {
+    if (!value || typeof value !== 'string') return '';
+    const d = new Date(value.trim() + 'T12:00:00');
+    if (Number.isNaN(d.getTime())) return '';
+    const lang =
+      typeof getLanguagePreference === 'function'
+        ? getLanguagePreference()
+        : document.documentElement && document.documentElement.getAttribute('lang')
+          ? document.documentElement.getAttribute('lang')
+          : 'en';
+    try {
+      return d.toLocaleDateString(lang, { weekday: 'long' });
+    } catch (_e) {
+      return d.toLocaleDateString('en', { weekday: 'long' });
+    }
+  }
+
+  function refreshQuickAddDateContextLabel() {
+    if (!isQuickAddLogPage()) return;
+    const el = document.getElementById('quick-add-date-context');
+    const dateInput = document.getElementById('quick-add-date');
+    if (!el || !dateInput) return;
+    const prefix = typeof t === 'function' ? t('log.dateContext', 'Waking on') : 'Waking on';
+    const day = quickAddWeekdayFromDateInputValue(dateInput.value);
+    el.textContent = day ? prefix + ' ' + day : prefix;
+  }
+
   /** Calendar date for the night row: tomorrow in pre-sleep or dynamic sleep phase, else today. */
   function getQuickAddDefaultNightDate() {
     const wrapper = document.querySelector('.nav-wrapper');
@@ -65,6 +93,7 @@
     const next = addCalendarDaysToSleepDateKey(key, delta);
     if (!next) return;
     dateInput.value = sleepDateKeyToDateInputValue(next);
+    refreshQuickAddDateContextLabel();
     loadQuickAddFormForDate(next);
   }
 
@@ -498,6 +527,7 @@
           sleepEnd: wallClockFromTimeInput(wakeEl)
         };
       }
+      refreshQuickAddDateContextLabel();
       return;
     }
 
@@ -519,6 +549,7 @@
         sleepEnd: wallClockFromRecordField(record.sleepEnd)
       };
     }
+    refreshQuickAddDateContextLabel();
   }
 
   function loadQuickAddFormForDate(dateMd) {
@@ -808,6 +839,7 @@
     document.addEventListener('change', function (e) {
       const t = e.target;
       if (!t || t.id !== 'quick-add-date') return;
+      refreshQuickAddDateContextLabel();
       const dateMd = dateInputValueToSleepDateKey(t.value);
       if (!dateMd) return;
       loadQuickAddFormForDate(dateMd);

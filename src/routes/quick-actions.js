@@ -393,6 +393,25 @@
       return Promise.resolve();
     }
     writeNapSession(null);
+    const existing = findDayByMd(days, md);
+    if (existing) {
+      const merged = mergePartialSleepDayForUpsert(existing, md, {
+        nap: { start: startStr, end: null }
+      });
+      return upsertSleepDay(merged)
+        .then(function () {
+          if (typeof showAppToast === 'function') showAppToast('😴 Nap started');
+          if (typeof onReload === 'function') return onReload();
+          return null;
+        })
+        .catch(function (err) {
+          console.error(err);
+          if (typeof showAppToast === 'function') {
+            showAppToast(err && err.message ? err.message : 'Save failed');
+          }
+          return Promise.reject(err);
+        });
+    }
     return persistPartial(md, { nap: { start: startStr, end: null } }, onReload, '😴 Nap started');
   }
 
@@ -405,27 +424,65 @@
       if (typeof showAppToast === 'function') showAppToast('🥱 Nap ended');
       return Promise.resolve();
     }
-    return getEditableDayByMd(md, days).then(function (day) {
-      let startStr = null;
-      let targetMd = md;
-      if (napOpenOnDay(day)) {
-        startStr = day.nap.start;
-        targetMd = day.date;
-      } else if (session && session.dateMd === md) {
-        startStr = session.start;
-        targetMd = session.dateMd;
-      }
-      if (!startStr) {
+    const dayFromTable = findDayByMd(days, md);
+    let resolveSrc;
+    if (napOpenOnDay(dayFromTable)) {
+      resolveSrc = Promise.resolve({
+        startStr: dayFromTable.nap.start,
+        targetMd: dayFromTable.date,
+        hadSleepDayRow: true
+      });
+    } else {
+      resolveSrc = getSleepDraftByDate(md).then(function (draft) {
+        if (napOpenOnDay(draft)) {
+          const key = draft.date || md;
+          return {
+            startStr: draft.nap.start,
+            targetMd: key,
+            hadSleepDayRow: Boolean(findDayByMd(days, key))
+          };
+        }
+        if (session && session.dateMd === md) {
+          const key = session.dateMd;
+          return {
+            startStr: session.start,
+            targetMd: key,
+            hadSleepDayRow: Boolean(findDayByMd(days, key))
+          };
+        }
+        return null;
+      });
+    }
+    return resolveSrc.then(function (src) {
+      if (!src || !src.startStr) {
         if (typeof showAppToast === 'function') showAppToast('Start a nap first');
         return null;
       }
       writeNapSession(null);
+      const mergeKey =
+        typeof normalizeSleepDateKey === 'function'
+          ? normalizeSleepDateKey(src.targetMd) || src.targetMd
+          : src.targetMd;
+      const hadSleepDayRow =
+        typeof src.hadSleepDayRow === 'boolean'
+          ? src.hadSleepDayRow
+          : Boolean(findDayByMd(days, mergeKey));
       return persistPartial(
-        targetMd,
-        { nap: { start: startStr, end: endStr } },
+        mergeKey,
+        { nap: { start: src.startStr, end: endStr } },
         onReload,
         '🥱 Nap ended'
-      );
+      ).then(function () {
+        if (typeof deleteSleepDraftIfNapOnlyResidual === 'function') {
+          return deleteSleepDraftIfNapOnlyResidual(mergeKey, hadSleepDayRow)
+            .catch(function () {})
+            .then(function (did) {
+              if (did && typeof onReload === 'function') return onReload();
+              return null;
+            });
+        }
+        return null;
+      });
     });
   }
 

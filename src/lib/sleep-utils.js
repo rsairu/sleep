@@ -1266,53 +1266,149 @@ function draftRowHasUserContentRaw(row) {
   return Number.isFinite(waso) && waso > 0;
 }
 
-/**
- * Most recently updated incomplete cloud draft (`sleep_date` key), or null.
- * Incomplete = not all three main times; ignores rows with no user content (empty placeholders).
- */
-function getPreferredIncompleteSleepDraftDateKey() {
+/** Latest `sleep_date` in cloud `sleep_days` for this user, or null. */
+function getLatestSleepDaySleepDateKey() {
   const config = getSupabaseConfig();
   if (!config.enabled) return Promise.resolve(null);
   const uid = encodeURIComponent(RESTORE_CLOUD_USER_ID);
-  const select =
-    'sleep_date,bed,sleep_start,sleep_end,nap_start,nap_end,bathroom,alarm,labels,waso,updated_at';
   const url =
     config.url.replace(/\/+$/, '') +
-    '/rest/v1/sleep_day_drafts?select=' +
-    select +
-    '&user_id=eq.' +
+    '/rest/v1/sleep_days?select=sleep_date&user_id=eq.' +
     uid +
-    '&order=updated_at.desc' +
-    '&limit=40';
+    '&order=sleep_date.desc' +
+    '&limit=1';
   return fetch(url, {
     headers: getSupabaseAuthHeaders(config, false)
-  }).then(function (res) {
-    if (!res.ok) return null;
-    return res.json();
-  }).then(function (rows) {
-    if (!Array.isArray(rows)) return null;
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
-      if (draftRowPromotionCompleteRaw(row)) continue;
-      if (!draftRowHasUserContentRaw(row)) continue;
-      const s = row.sleep_date != null ? String(row.sleep_date).trim().slice(0, 10) : '';
-      const key = normalizeSleepDateKey(s);
-      if (key) return key;
-    }
-    return null;
-  }).catch(function () {
-    return null;
+  })
+    .then(function (res) {
+      if (!res.ok) return null;
+      return res.json();
+    })
+    .then(function (rows) {
+      if (!Array.isArray(rows) || rows.length === 0) return null;
+      const s = rows[0].sleep_date != null ? String(rows[0].sleep_date).trim().slice(0, 10) : '';
+      return normalizeSleepDateKey(s);
+    })
+    .catch(function () {
+      return null;
+    });
+}
+
+/** Latest `sleep_date` among loaded `sleep_days` rows (ISO string), or null. */
+function getLatestSleepDayDateKeyFromLoadedDays(days) {
+  const live = Array.isArray(days) ? days : [];
+  let best = null;
+  for (let i = 0; i < live.length; i++) {
+    const k = normalizeSleepDateKey(live[i] && live[i].date);
+    if (!k) continue;
+    if (!best || k > best) best = k;
+  }
+  return best;
+}
+
+/** Latest `sleep_date` in cloud drafts for this user, or null. */
+function getLatestSleepDraftSleepDateKey() {
+  const config = getSupabaseConfig();
+  if (!config.enabled) return Promise.resolve(null);
+  const uid = encodeURIComponent(RESTORE_CLOUD_USER_ID);
+  const url =
+    config.url.replace(/\/+$/, '') +
+    '/rest/v1/sleep_day_drafts?select=sleep_date&user_id=eq.' +
+    uid +
+    '&order=sleep_date.desc' +
+    '&limit=1';
+  return fetch(url, {
+    headers: getSupabaseAuthHeaders(config, false)
+  })
+    .then(function (res) {
+      if (!res.ok) return null;
+      return res.json();
+    })
+    .then(function (rows) {
+      if (!Array.isArray(rows) || rows.length === 0) return null;
+      const s = rows[0].sleep_date != null ? String(rows[0].sleep_date).trim().slice(0, 10) : '';
+      return normalizeSleepDateKey(s);
+    })
+    .catch(function () {
+      return null;
+    });
+}
+
+function dayHasNonNapUserFields(day) {
+  if (!day || typeof day !== 'object') return false;
+  if (draftRowTrim(day.bed) !== '') return true;
+  if (draftRowTrim(day.sleepStart) !== '') return true;
+  if (draftRowTrim(day.sleepEnd) !== '') return true;
+  const bath = day.bathroom;
+  if (Array.isArray(bath) && bath.length > 0) return true;
+  const alarm = day.alarm;
+  if (Array.isArray(alarm) && alarm.length > 0) return true;
+  const labels = day.labels;
+  if (Array.isArray(labels) && labels.length > 0) return true;
+  const waso = day.WASO;
+  return Number.isFinite(waso) && waso > 0;
+}
+
+/**
+ * When a `sleep_days` row already holds the night and the draft only carried nap fields,
+ * remove the redundant draft row after nap sync.
+ * @param {string} sleepDateKey
+ * @param {boolean} hadSleepDayRow — caller saw a loaded `sleep_days` row for this key before save
+ */
+function deleteSleepDraftIfNapOnlyResidual(sleepDateKey, hadSleepDayRow) {
+  if (!hadSleepDayRow) return Promise.resolve(false);
+  const iso = normalizeSleepDateKey(sleepDateKey);
+  if (!iso) return Promise.resolve(false);
+  const config = getSupabaseConfig();
+  if (!config.enabled) return Promise.resolve(false);
+  return getSleepDraftByDate(iso).then(function (draft) {
+    if (!draft) return false;
+    if (dayHasNonNapUserFields(draft)) return false;
+    const qIso = encodeURIComponent(iso);
+    const uid = encodeURIComponent(RESTORE_CLOUD_USER_ID);
+    const url =
+      config.url.replace(/\/+$/, '') +
+      '/rest/v1/sleep_day_drafts?user_id=eq.' +
+      uid +
+      '&sleep_date=eq.' +
+      qIso;
+    return fetch(url, {
+      method: 'DELETE',
+      headers: getSupabaseAuthHeaders(config, true)
+    }).then(function (res) {
+      if (!res.ok) {
+        return parseSupabaseErrorPayload(res).then(function (msg) {
+          throw new Error('Supabase draft delete failed: ' + res.status + (msg ? ' — ' + msg : ''));
+        });
+      }
+      clearSleepDataCache();
+      invalidateSleepDataStore('deleteSleepDraft');
+      void refreshSleepDataStore({ force: true, reason: 'deleteSleepDraft' }).catch(function () {});
+      return true;
+    });
   });
 }
 
 /**
- * Default wake-day key for the log quick-add form: incomplete draft first, else remaining-wake phase.
+ * Default wake-day key for the log quick-add form: max(latest sleep_days date, latest draft date),
+ * else remaining-wake phase from loaded days.
  * @param {Array} days — loaded sleep days (may be empty)
  * @returns {Promise<string>}
  */
 function resolveDefaultQuickAddNightDateMd(days) {
-  return getPreferredIncompleteSleepDraftDateKey().then(function (draftKey) {
-    if (draftKey) return draftKey;
+  const config = getSupabaseConfig();
+  const latestFromLoaded = getLatestSleepDayDateKeyFromLoadedDays(days);
+  const latestDayPromise = config.enabled
+    ? getLatestSleepDaySleepDateKey()
+    : Promise.resolve(latestFromLoaded);
+  return Promise.all([latestDayPromise, getLatestSleepDraftSleepDateKey()]).then(function (pair) {
+    let latestDay = pair[0];
+    const latestDraft = pair[1];
+    if (config.enabled && !latestDay) latestDay = latestFromLoaded;
+    let pick = null;
+    if (latestDay && latestDraft) pick = latestDay > latestDraft ? latestDay : latestDraft;
+    else pick = latestDay || latestDraft;
+    if (pick) return pick;
     const liveDays = Array.isArray(days) ? days : [];
     const basis = getEffectiveRemainingWakeBasis(liveDays) || getFallbackWakeBasis();
     if (!basis || !Number.isFinite(basis.avgSleepEnd)) {
