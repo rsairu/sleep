@@ -1513,7 +1513,7 @@ function renderQuickAddDrawer(recentAverages, recentDays, layout = 'drawer') {
 
   const dateFieldRow = isPage
     ? `<div class="quick-add-date-row quick-add-date-row--page" role="group" data-i18n-aria-label="log.dateRowAria" aria-label="Wake date">
-                <span class="quick-add-date-context" data-i18n="log.dateContext">Waking on</span>
+                <span class="quick-add-date-context" id="quick-add-date-context">Waking on</span>
                 <div class="quick-add-date-controls">
                   <button type="button" class="quick-add-date-step quick-add-date-step--prev" id="quick-add-date-prev" data-i18n-aria-label="log.datePrevAria" aria-label="Previous day">◀</button>
                   <input class="quick-add-input quick-add-input--date" id="quick-add-date" type="date" data-i18n-aria-label="log.dateInputAria" aria-label="Wake date">
