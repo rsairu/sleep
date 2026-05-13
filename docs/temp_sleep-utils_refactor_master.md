@@ -67,16 +67,9 @@ Functions to extract:
 
 ---
 
-### 5. i18n Module (Moderate Candidate)
-**Lines ~100 | Cohesion: High | Coupling: Low**
+### 5. i18n Module
 
-Locale loading, `t()` translation, DOM application.
-
-Functions to extract:
-- `getLanguagePreference`, `setLanguagePreference`, `normalizeLanguage`
-- `t`, `loadLocaleDictionary`, `applyTranslations`, `initI18n`
-
-**Why**: Classic cross-cutting concern. Currently tiny but would grow with more translations.
+Already extracted to [`src/lib/i18n.js`](../src/lib/i18n.js). See [`docs/localization.md`](localization.md) for the runtime contract.
 
 ---
 
@@ -141,7 +134,7 @@ Functions: `calculateTotalSleep`, `calculateLongestUninterrupted`, `calculateAla
 |-------|--------|--------|--------|
 | 1 | Time/Date Utilities | Low | Foundation for others |
 | 2 | Theme | Low | Self-contained, quick win |
-| 3 | i18n | Low | Clean cross-cutting concern |
+| 3 | i18n (done) | Low | Clean cross-cutting concern |
 | 4 | Tonight Guidance | Medium | Aligns with feature docs |
 | 5 | Remaining Wake | Medium | Aligns with feature docs |
 | 6 | Dev Banner | Medium | Dev-only, tree-shakeable |

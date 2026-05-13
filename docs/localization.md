@@ -10,14 +10,14 @@ Voice and editorial guidance remains canonical in `docs/restore-copy-voice.md`.
 
 - Translation dictionary source is `locales.json` (top-level locale buckets like `en` and `ja`).
 - Markup source is `data-i18n`, `data-i18n-aria-label`, and `data-i18n-title` attributes in HTML/fragments/templates.
-- Runtime source is `src/lib/sleep-utils.js` (`t`, `loadLocaleDictionary`, `applyTranslations`, `initI18n`, language preference helpers).
+- Runtime source is `src/lib/i18n.js` (`t`, `loadLocaleDictionary`, `applyTranslations`, `initI18n`, language preference helpers).
 - Any change to keyed user-visible copy should keep dictionary entries and keyed markup behavior in sync in the same change.
 
 ---
 
 ## Locale model and persistence
 
-Implemented in `src/lib/sleep-utils.js`:
+Implemented in `src/lib/i18n.js`:
 
 - `LANGUAGE_KEY = "sleep-app-language"` in `localStorage`.
 - `DEFAULT_LANGUAGE = "en"`.
@@ -35,7 +35,7 @@ Implication:
 
 ## Translation lookup behavior
 
-Implemented in `src/lib/sleep-utils.js`:
+Implemented in `src/lib/i18n.js`:
 
 - `loadLocaleDictionary()` fetches `locales.json` with `cache: "no-store"`.
 - Dictionary fetch/parse failures fall back to `{}` (no hard error UX path).
@@ -54,7 +54,7 @@ Current constraints:
 
 ## DOM application contract
 
-Implemented in `src/lib/sleep-utils.js`:
+Implemented in `src/lib/i18n.js`:
 
 - `applyTranslations(root)` updates:
   - text content for `[data-i18n]`
