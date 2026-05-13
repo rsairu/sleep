@@ -2895,7 +2895,7 @@ body{
 
 .dashboard-tonight-estimated-sleep {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 6px;
   margin: 4px 0 10px 0;
   padding: 0;
@@ -2904,9 +2904,35 @@ body{
   color: color-mix(in srgb, var(--text) 75%, transparent);
 }
 
+.dashboard-tonight-estimated-sleep-main {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 8px;
+  align-items: first baseline;
+  min-width: 0;
+}
+
+.dashboard-tonight-estimated-sleep-values {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  min-width: 0;
+}
+
+.dashboard-tonight-estimated-sleep-line,
+.dashboard-tonight-estimated-sleep-live-wrap {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-width: 0;
+}
+
 .dashboard-tonight-estimated-sleep-ico {
   font-size: 0.95rem;
   line-height: 1;
+  padding-top: 0.05em;
 }
 
 .dashboard-tonight-estimated-sleep-label {
@@ -2916,6 +2942,32 @@ body{
 .dashboard-tonight-estimated-sleep-value {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+}
+
+.dashboard-tonight-estimated-sleep-live-wrap {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-tonight-estimated-sleep-planned-paren,
+.dashboard-tonight-estimated-sleep-live-paren {
+  font-weight: 500;
+  font-size: 0.92em;
+  opacity: 0.88;
+}
+
+/* When “from now” row is shown, de-emphasize planned duration vs. actual remaining. */
+.dashboard-tonight-estimated-sleep--from-now-active .dashboard-tonight-estimated-sleep-line {
+  opacity: 0.52;
+}
+
+.dashboard-tonight-estimated-sleep--from-now-active .dashboard-tonight-estimated-sleep-live-wrap {
+  opacity: 1;
+  color: var(--text);
+}
+
+.dashboard-tonight-estimated-sleep--from-now-active .dashboard-tonight-estimated-sleep-live-paren {
+  opacity: 0.92;
 }
 
 .about-hint-dismiss-wrap {

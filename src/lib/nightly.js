@@ -1319,6 +1319,75 @@ function clampTonightProjectionNorms(base, sleepNorm, wakeNorm) {
   return { sleepNorm: clampedSleep, wakeNorm: clampedWake };
 }
 
+/** Next local instant at `wakeM` clock time strictly after `now` (today or tomorrow). */
+function getNextWakeInstantAfterNow(now, wakeM) {
+  const w = modMinutes1440(wakeM);
+  const hh = Math.floor(w / 60);
+  const mm = w % 60;
+  const y = now.getFullYear();
+  const mo = now.getMonth();
+  const d = now.getDate();
+  let cand = new Date(y, mo, d, hh, mm, 0, 0);
+  if (cand.getTime() <= now.getTime()) {
+    cand = new Date(y, mo, d + 1, hh, mm, 0, 0);
+  }
+  return cand;
+}
+
+/**
+ * Start of the sleep episode that ends on `nextWake` morning, using committed sleep/wake clock geometry
+ * (same rules as `durationMinutes`).
+ */
+function inferSleepStartInstantForScheduledWake(nextWake, sleepM, wakeM) {
+  const s = modMinutes1440(sleepM);
+  const w = modMinutes1440(wakeM);
+  const y = nextWake.getFullYear();
+  const mo = nextWake.getMonth();
+  const day = nextWake.getDate();
+  if (w > s) {
+    return new Date(y, mo, day, Math.floor(s / 60), s % 60, 0, 0);
+  }
+  return new Date(y, mo, day - 1, Math.floor(s / 60), s % 60, 0, 0);
+}
+
+/**
+ * When wall-clock is past the active (committed) sleep start but before the slider wake time,
+ * show remaining time until that wake. Uses committed schedule for “past bedtime”; slider wake for countdown.
+ * Hides when fell-asleep / sleep intent is logged for the current wake-day row (same rules as nav).
+ * @returns {{ show: boolean, minutes: number }}
+ */
+function getTonightDashboardLiveSleepRemaining(now, stateWakeClock, committedSleep, committedWake, liveDays) {
+  const days = Array.isArray(liveDays) ? liveDays : [];
+  if (
+    days.length &&
+    typeof recordDateMdForSleepPeriod === 'function' &&
+    typeof isNightSleepOrIntentLoggedNav === 'function'
+  ) {
+    const nightMd = recordDateMdForSleepPeriod(now, committedWake);
+    const averagesFallback =
+      typeof QUICK_ADD_FALLBACK_AVERAGES !== 'undefined' ? QUICK_ADD_FALLBACK_AVERAGES : null;
+    if (nightMd && isNightSleepOrIntentLoggedNav(nightMd, days, now, averagesFallback)) {
+      return { show: false, minutes: 0 };
+    }
+  }
+
+  const ws = modMinutes1440(stateWakeClock);
+  const cs = modMinutes1440(committedSleep);
+  const cw = modMinutes1440(committedWake);
+  if (cs === cw) return { show: false, minutes: 0 };
+  const plannedSpan = durationMinutes(cs, cw);
+  if (plannedSpan <= 0) return { show: false, minutes: 0 };
+
+  const nextWake = getNextWakeInstantAfterNow(now, ws);
+  const committedStart = inferSleepStartInstantForScheduledWake(nextWake, cs, cw);
+  const t = now.getTime();
+  if (t <= committedStart.getTime() || t >= nextWake.getTime()) {
+    return { show: false, minutes: 0 };
+  }
+  const minutes = Math.max(0, Math.round((nextWake.getTime() - t) / 60000));
+  return { show: true, minutes };
+}
+
 /** Default “recent average” when there is no history (minutes from midnight). */
 const QUICK_ADD_FALLBACK_AVERAGES = {
   sampleSize: 0,
@@ -1716,8 +1785,19 @@ function renderDashboardProjection(recentAverages) {
       </div>
       <p class="dashboard-tonight-estimated-sleep" id="dashboard-tonight-estimated-sleep">
         <span class="dashboard-tonight-estimated-sleep-ico" aria-hidden="true">⏳</span>
-        <span class="dashboard-tonight-estimated-sleep-label" data-i18n="dashboard.tonight.sleepDurationLabel">Sleep duration:</span>
-        <span class="dashboard-tonight-estimated-sleep-value" id="dashboard-tonight-estimated-sleep-value">~${formatDuration(durationMins)}</span>
+        <span class="dashboard-tonight-estimated-sleep-main">
+          <span class="dashboard-tonight-estimated-sleep-label" data-i18n="dashboard.tonight.sleepDurationLabel">Sleep duration:</span>
+          <span class="dashboard-tonight-estimated-sleep-values">
+            <span class="dashboard-tonight-estimated-sleep-line">
+              <span class="dashboard-tonight-estimated-sleep-value" id="dashboard-tonight-estimated-sleep-value">~${formatDuration(durationMins)}</span>
+              <span class="dashboard-tonight-estimated-sleep-planned-paren" id="dashboard-tonight-estimated-sleep-planned-paren" hidden data-i18n="dashboard.tonight.sleepDurationPlannedParen">(planned)</span>
+            </span>
+            <span class="dashboard-tonight-estimated-sleep-live-wrap" id="dashboard-tonight-estimated-sleep-live-wrap" hidden>
+              <span class="dashboard-tonight-estimated-sleep-live-value" id="dashboard-tonight-estimated-sleep-live-value"></span>
+              <span class="dashboard-tonight-estimated-sleep-live-paren" data-i18n="dashboard.tonight.sleepDurationBasedOnNowParen">(from now)</span>
+            </span>
+          </span>
+        </span>
       </p>
       <div class="dashboard-tonight-adjust">
         <div class="dashboard-tonight-adjust-panel" id="dashboard-tonight-adjust-panel">
@@ -1873,7 +1953,7 @@ function renderDashboardProjection(recentAverages) {
   `;
 }
 
-function initDashboardTonightAdjuster(recentAverages, onChange) {
+function initDashboardTonightAdjuster(recentAverages, onChange, getLiveDays) {
   function tdT(key, fallback) {
     return typeof t === 'function' ? t(key, fallback) : fallback;
   }
@@ -1894,7 +1974,11 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
   const sleepPlusBtn = document.getElementById('dashboard-tonight-sleep-plus');
   const wakeMinusBtn = document.getElementById('dashboard-tonight-wake-minus');
   const wakePlusBtn = document.getElementById('dashboard-tonight-wake-plus');
+  const estimatedSleepBlock = document.getElementById('dashboard-tonight-estimated-sleep');
   const estimatedSleepValueEl = document.getElementById('dashboard-tonight-estimated-sleep-value');
+  const estimatedSleepPlannedParenEl = document.getElementById('dashboard-tonight-estimated-sleep-planned-paren');
+  const estimatedSleepLiveWrap = document.getElementById('dashboard-tonight-estimated-sleep-live-wrap');
+  const estimatedSleepLiveValueEl = document.getElementById('dashboard-tonight-estimated-sleep-live-value');
   const trackWaveGradientEl = document.getElementById('dashboardTonightTrackWaveGradient');
   const trackRangeFillEl = document.querySelector('#dashboard-tonight-adjust-slider .dashboard-tonight-adjust-range-fill');
   const knobActionsSleep = document.getElementById('dashboard-tonight-knob-actions-sleep');
@@ -2332,6 +2416,30 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
     const durationLabel = `~${formatDuration(duration)}`;
     if (estimatedSleepValueEl) {
       estimatedSleepValueEl.textContent = durationLabel;
+    }
+
+    const nowForLive = getAppDate();
+    const liveDaysForRow = typeof getLiveDays === 'function' ? getLiveDays() : null;
+    const live = getTonightDashboardLiveSleepRemaining(
+      nowForLive,
+      state.wakeClock,
+      base.committedSleep,
+      base.committedWake,
+      liveDaysForRow
+    );
+    if (estimatedSleepPlannedParenEl) {
+      estimatedSleepPlannedParenEl.hidden = !live.show;
+    }
+    if (estimatedSleepLiveWrap && estimatedSleepLiveValueEl) {
+      estimatedSleepLiveWrap.hidden = !live.show;
+      if (live.show) {
+        estimatedSleepLiveValueEl.textContent = `~${formatDuration(live.minutes)}`;
+      } else {
+        estimatedSleepLiveValueEl.textContent = '';
+      }
+    }
+    if (estimatedSleepBlock) {
+      estimatedSleepBlock.classList.toggle('dashboard-tonight-estimated-sleep--from-now-active', Boolean(live.show));
     }
 
     if (trackWaveGradientEl && trackRangeFillEl) {
@@ -2794,7 +2902,30 @@ function initDashboardTonightAdjuster(recentAverages, onChange) {
   document.addEventListener('touchend', onPointerUp);
   document.addEventListener('touchcancel', onPointerUp);
 
+  let tonightEstimatedSleepTimer = null;
+  function clearTonightEstimatedSleepTimer() {
+    if (tonightEstimatedSleepTimer) {
+      clearInterval(tonightEstimatedSleepTimer);
+      tonightEstimatedSleepTimer = null;
+    }
+  }
+  function onTonightEstimatedSleepTick() {
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+    updateVisualState(false);
+  }
+  clearTonightEstimatedSleepTimer();
+  tonightEstimatedSleepTimer = setInterval(onTonightEstimatedSleepTick, 60000);
+
+  function onTonightVisibilityChange() {
+    if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+      updateVisualState(false);
+    }
+  }
+  document.addEventListener('visibilitychange', onTonightVisibilityChange);
+
   window.__dashboardTonightAdjusterTeardown = function () {
+    document.removeEventListener('visibilitychange', onTonightVisibilityChange);
+    clearTonightEstimatedSleepTimer();
     document.removeEventListener('mousemove', onPointerMove);
     document.removeEventListener('touchmove', onPointerMove, tonightPointerTouchMoveOpts);
     document.removeEventListener('mouseup', onPointerUp);
