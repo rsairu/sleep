@@ -3258,24 +3258,11 @@ function findDayByDateMd(days, md) {
 function pickDayForNightMdNav(nightMd, liveDays) {
   let d = findDayByDateMd(liveDays, nightMd);
   if (d) {
-    // #region agent log
-    fetch('http://127.0.0.1:7327/ingest/43d221e4-65c5-4b33-a02d-46ec836863c2',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'72442d'},body:JSON.stringify({sessionId:'72442d',runId:'initial',hypothesisId:'H6',location:'sleep-utils.js:pickDayForNightMdNav',message:'night row resolved from live days',data:{nightMd:nightMd},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     return d;
   }
   const c = readSleepDataLocalCache();
   if (c && c.data && Array.isArray(c.data.days)) {
     d = findDayByDateMd(c.data.days, nightMd);
-    if (d) {
-      // #region agent log
-      fetch('http://127.0.0.1:7327/ingest/43d221e4-65c5-4b33-a02d-46ec836863c2',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'72442d'},body:JSON.stringify({sessionId:'72442d',runId:'initial',hypothesisId:'H6',location:'sleep-utils.js:pickDayForNightMdNav',message:'night row resolved from local cache fallback',data:{nightMd:nightMd},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
-    }
-  }
-  if (!d) {
-    // #region agent log
-    fetch('http://127.0.0.1:7327/ingest/43d221e4-65c5-4b33-a02d-46ec836863c2',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'72442d'},body:JSON.stringify({sessionId:'72442d',runId:'initial',hypothesisId:'H6',location:'sleep-utils.js:pickDayForNightMdNav',message:'night row not found',data:{nightMd:nightMd},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
   }
   return d || null;
 }
@@ -3422,9 +3409,6 @@ function isNightSleepOrIntentLoggedNavCore(nightMd, liveDays, now, averagesFallb
 function isNightSleepOrIntentLoggedNav(nightMd, liveDays, now, averagesFallback) {
   const coreNight = isNightSleepOrIntentLoggedNavCore(nightMd, liveDays, now, averagesFallback);
   if (coreNight) {
-    // #region agent log
-    fetch('http://127.0.0.1:7327/ingest/43d221e4-65c5-4b33-a02d-46ec836863c2',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'72442d'},body:JSON.stringify({sessionId:'72442d',runId:'initial',hypothesisId:'H2',location:'sleep-utils.js:isNightSleepOrIntentLoggedNav',message:'core-night sleep/intent hit',data:{nightMd:nightMd,coreNight:coreNight},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     return true;
   }
   const todayIso = formatIsoDateFromLocalDate(now);
@@ -3433,15 +3417,8 @@ function isNightSleepOrIntentLoggedNav(nightMd, liveDays, now, averagesFallback)
   const t = normalizeSleepDateKey(tomorrowIso);
   if (n && t && n === t) {
     if (!nightRowAwaitingWake(todayIso, liveDays, averagesFallback)) return false;
-    const coreToday = isNightSleepOrIntentLoggedNavCore(todayIso, liveDays, now, averagesFallback);
-    // #region agent log
-    fetch('http://127.0.0.1:7327/ingest/43d221e4-65c5-4b33-a02d-46ec836863c2',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'72442d'},body:JSON.stringify({sessionId:'72442d',runId:'initial',hypothesisId:'H1',location:'sleep-utils.js:isNightSleepOrIntentLoggedNav',message:'tomorrow fallback evaluated for sleep/intent',data:{nightMd:nightMd,todayIso:todayIso,tomorrowIso:tomorrowIso,coreToday:coreToday},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
-    return coreToday;
+    return isNightSleepOrIntentLoggedNavCore(todayIso, liveDays, now, averagesFallback);
   }
-  // #region agent log
-  fetch('http://127.0.0.1:7327/ingest/43d221e4-65c5-4b33-a02d-46ec836863c2',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'72442d'},body:JSON.stringify({sessionId:'72442d',runId:'initial',hypothesisId:'H2',location:'sleep-utils.js:isNightSleepOrIntentLoggedNav',message:'sleep/intent not logged for night',data:{nightMd:nightMd,todayIso:todayIso,tomorrowIso:tomorrowIso},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
   return false;
 }
 
@@ -3452,28 +3429,18 @@ function shouldShowDynamicSleepNavPhase(days, basis, now, nightMd) {
   if (!basis || !days || !days.length || !nightMd) return false;
   const wakeLogged = isNightWakeLogged(nightMd);
   if (wakeLogged) {
-    // #region agent log
-    fetch('http://127.0.0.1:7327/ingest/43d221e4-65c5-4b33-a02d-46ec836863c2',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'72442d'},body:JSON.stringify({sessionId:'72442d',runId:'initial',hypothesisId:'H4',location:'sleep-utils.js:shouldShowDynamicSleepNavPhase',message:'dynamic sleep blocked by wake flag',data:{nightMd:nightMd},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     return false;
   }
   const averagesFallback =
     typeof QUICK_ADD_FALLBACK_AVERAGES !== 'undefined' ? QUICK_ADD_FALLBACK_AVERAGES : null;
   const bedOrSleepLogged = isNightBedOrSleepLogged(nightMd, days, now, averagesFallback);
   if (!bedOrSleepLogged) {
-    // #region agent log
-    fetch('http://127.0.0.1:7327/ingest/43d221e4-65c5-4b33-a02d-46ec836863c2',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'72442d'},body:JSON.stringify({sessionId:'72442d',runId:'initial',hypothesisId:'H3',location:'sleep-utils.js:shouldShowDynamicSleepNavPhase',message:'dynamic sleep blocked by no bed/sleep',data:{nightMd:nightMd},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     return false;
   }
   const nowMins = now.getHours() * 60 + now.getMinutes();
   const inLimbo = shouldShowGoToBedSoonWakeNav(nowMins, basis.avgSleepEnd, basis.avgSleepStart);
   const inSleepWin = inferNavSleepWindowPhase(now, basis.avgSleepStart, basis.avgSleepEnd);
-  const out = inLimbo || inSleepWin;
-  // #region agent log
-  fetch('http://127.0.0.1:7327/ingest/43d221e4-65c5-4b33-a02d-46ec836863c2',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'72442d'},body:JSON.stringify({sessionId:'72442d',runId:'initial',hypothesisId:'H4',location:'sleep-utils.js:shouldShowDynamicSleepNavPhase',message:'dynamic sleep window decision',data:{nightMd:nightMd,nowMins:nowMins,avgSleepStart:basis.avgSleepStart,avgSleepEnd:basis.avgSleepEnd,inLimbo:inLimbo,inSleepWin:inSleepWin,result:out},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
-  return out;
+  return inLimbo || inSleepWin;
 }
 
 /** Last 7 days in `days`: average get-up, average fell-asleep, and wake-window length (minutes between them). */
@@ -5602,9 +5569,6 @@ function getRemainingWakeDisplayFromBasis(basis, days) {
   const now = getAppDate();
   const nowMins = now.getHours() * 60 + now.getMinutes();
   const nightMd = recordDateMdForSleepPeriod(now, avgSleepEnd);
-  // #region agent log
-  fetch('http://127.0.0.1:7327/ingest/43d221e4-65c5-4b33-a02d-46ec836863c2',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'72442d'},body:JSON.stringify({sessionId:'72442d',runId:'initial',hypothesisId:'H0',location:'sleep-utils.js:getRemainingWakeDisplayFromBasis',message:'remaining wake display evaluation started',data:{nightMd:nightMd,nowMins:nowMins,avgSleepStart:avgSleepStart,avgSleepEnd:avgSleepEnd,totalWakeMins:totalWakeMins,daysCount:Array.isArray(days)?days.length:-1,firstDayDate:Array.isArray(days)&&days.length?days[0].date:null},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
   const averagesFallback =
     typeof QUICK_ADD_FALLBACK_AVERAGES !== 'undefined' ? QUICK_ADD_FALLBACK_AVERAGES : null;
 
@@ -5612,9 +5576,6 @@ function getRemainingWakeDisplayFromBasis(basis, days) {
     const bedLogged = isNightBedLogged(nightMd, days, now, averagesFallback);
     const sleepOrIntentLogged = isNightSleepOrIntentLoggedNav(nightMd, days, now, averagesFallback);
     const bedOnlyNeedGoSleep = bedLogged && !sleepOrIntentLogged;
-    // #region agent log
-    fetch('http://127.0.0.1:7327/ingest/43d221e4-65c5-4b33-a02d-46ec836863c2',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'72442d'},body:JSON.stringify({sessionId:'72442d',runId:'initial',hypothesisId:'H5',location:'sleep-utils.js:getRemainingWakeDisplayFromBasis',message:'dynamic branch display selection',data:{nightMd:nightMd,nowMins:nowMins,bedLogged:bedLogged,sleepOrIntentLogged:sleepOrIntentLogged,bedOnlyNeedGoSleep:bedOnlyNeedGoSleep},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     if (bedOnlyNeedGoSleep) {
       return {
         phase: 'sleepSoon',
