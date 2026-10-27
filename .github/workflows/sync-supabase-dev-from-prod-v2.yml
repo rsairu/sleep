@@ -46,7 +46,16 @@ jobs:
             -v "${GITHUB_WORKSPACE}:/work" \
             -w /work \
             postgres:17 \
-            bash -lc 'pg_restore --dbname="$DEV_DATABASE_URL" --clean --if-exists --no-owner --no-acl /work/prod_public.dump'
+            bash -lc '
+              set -euo pipefail
+              # Skip the public schema entry itself: dev shares `public` with another app
+              # (lookup_* objects), so DROP SCHEMA public would fail. Only objects in the
+              # prod dump are dropped and recreated; anything else in dev public is left alone.
+              pg_restore -l /work/prod_public.dump \
+                | grep -vE "SCHEMA - public |COMMENT - SCHEMA public " > /work/toc.list
+              pg_restore --dbname="$DEV_DATABASE_URL" --clean --if-exists --no-owner --no-acl \
+                -L /work/toc.list /work/prod_public.dump
+            '
       - name: Re-apply grants
         run: |
           docker run --rm \
