@@ -79,7 +79,8 @@ comment on column public.user_settings.hint_quick_actions_about is
 comment on column public.user_settings.hint_tonight_about is
   'When true, show Dashboard Tonight link to about#tonight-guidance.';
 
--- PostgREST: allow MVP anon sync (same pattern as other public tables; tighten with RLS when auth lands)
+-- PostgREST: allow MVP anon sync. Row access is limited by the RLS policies at the end of this file
+-- (fixed MVP user id); switch those to auth.uid() when auth lands.
 grant select, insert, update on public.user_settings to anon, authenticated;
 
 create or replace function public.set_sleep_days_updated_at()
@@ -289,3 +290,67 @@ end;
 $$ language plpgsql security definer set search_path = public;
 
 grant execute on function public.promote_draft_if_complete(uuid, date, jsonb) to anon, authenticated;
+
+-- Row-Level Security (MVP: single fixed user id; see migrations/20261108_enable_rls_mvp.sql for rationale).
+-- Not per-person security: anyone with the anon key can still access these rows. Replace with auth.uid() when auth lands.
+
+alter table public.sleep_days       enable row level security;
+alter table public.sleep_day_drafts enable row level security;
+alter table public.user_settings    enable row level security;
+
+-- ── sleep_days ──────────────────────────────────────────────────────────────
+drop policy if exists restore_mvp_select on public.sleep_days;
+create policy restore_mvp_select on public.sleep_days
+  for select to anon, authenticated
+  using (user_id = '00000000-0000-0000-0000-000000000001'::uuid);
+
+drop policy if exists restore_mvp_insert on public.sleep_days;
+create policy restore_mvp_insert on public.sleep_days
+  for insert to anon, authenticated
+  with check (user_id = '00000000-0000-0000-0000-000000000001'::uuid);
+
+drop policy if exists restore_mvp_update on public.sleep_days;
+create policy restore_mvp_update on public.sleep_days
+  for update to anon, authenticated
+  using      (user_id = '00000000-0000-0000-0000-000000000001'::uuid)
+  with check (user_id = '00000000-0000-0000-0000-000000000001'::uuid);
+
+-- ── sleep_day_drafts ────────────────────────────────────────────────────────
+drop policy if exists restore_mvp_select on public.sleep_day_drafts;
+create policy restore_mvp_select on public.sleep_day_drafts
+  for select to anon, authenticated
+  using (user_id = '00000000-0000-0000-0000-000000000001'::uuid);
+
+drop policy if exists restore_mvp_insert on public.sleep_day_drafts;
+create policy restore_mvp_insert on public.sleep_day_drafts
+  for insert to anon, authenticated
+  with check (user_id = '00000000-0000-0000-0000-000000000001'::uuid);
+
+drop policy if exists restore_mvp_update on public.sleep_day_drafts;
+create policy restore_mvp_update on public.sleep_day_drafts
+  for update to anon, authenticated
+  using      (user_id = '00000000-0000-0000-0000-000000000001'::uuid)
+  with check (user_id = '00000000-0000-0000-0000-000000000001'::uuid);
+
+drop policy if exists restore_mvp_delete on public.sleep_day_drafts;
+create policy restore_mvp_delete on public.sleep_day_drafts
+  for delete to anon, authenticated
+  using (user_id = '00000000-0000-0000-0000-000000000001'::uuid);
+
+-- ── user_settings ───────────────────────────────────────────────────────────
+drop policy if exists restore_mvp_select on public.user_settings;
+create policy restore_mvp_select on public.user_settings
+  for select to anon, authenticated
+  using (user_id = '00000000-0000-0000-0000-000000000001'::uuid);
+
+drop policy if exists restore_mvp_insert on public.user_settings;
+create policy restore_mvp_insert on public.user_settings
+  for insert to anon, authenticated
+  with check (user_id = '00000000-0000-0000-0000-000000000001'::uuid);
+
+drop policy if exists restore_mvp_update on public.user_settings;
+create policy restore_mvp_update on public.user_settings
+  for update to anon, authenticated
+  using      (user_id = '00000000-0000-0000-0000-000000000001'::uuid)
+  with check (user_id = '00000000-0000-0000-0000-000000000001'::uuid);
+

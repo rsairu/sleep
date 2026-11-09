@@ -105,16 +105,30 @@ Hydration state resets when Supabase config is saved/cleared or when **local sle
 
 ---
 
-## Supabase grants
+## Supabase grants and RLS
 
-`supabase/schema.sql` includes `grant select, insert, update on public.user_settings to anon, authenticated` for MVP REST access. Replace with **RLS** + policies when moving to authenticated users.
+`supabase/schema.sql` includes `grant select, insert, update on public.user_settings to anon, authenticated` for MVP REST access.
+
+**RLS is enabled** on `sleep_days`, `sleep_day_drafts`, and `user_settings` (`supabase/migrations/20261108_enable_rls_mvp.sql`, mirrored at the end of `schema.sql`). Policies (`restore_mvp_*`) let `anon` / `authenticated` touch only rows where `user_id = RESTORE_CLOUD_USER_ID`:
+
+| Table | select | insert | update | delete |
+|-------|:-:|:-:|:-:|:-:|
+| `sleep_days` | ✓ | ✓ | ✓ | — |
+| `sleep_day_drafts` | ✓ | ✓ | ✓ | ✓ (nap-only draft cleanup) |
+| `user_settings` | ✓ | ✓ | ✓ | — |
+
+`promote_draft_if_complete` is `security definer`, so it is not subject to these policies.
+
+This clears the Supabase `rls_disabled_in_public` advisor but is **not** per-person security: anyone with the anon key can still read and edit the fixed user's rows. If the client gains a new REST verb on one of these tables (e.g. deleting a `sleep_days` row), add the matching policy or the request will silently affect zero rows.
+
+The prod→dev sync (`.github/workflows/sync-supabase-dev-from-prod-v2.yml`) uses `pg_dump --no-acl`, which still carries RLS state and policies, so dev inherits them from prod.
 
 ---
 
 ## Evolution (auth and multi-user)
 
 1. Replace fixed `RESTORE_CLOUD_USER_ID` with the signed-in user’s id (e.g. `auth.uid()` in policies; client sends row only for self).
-2. Enable **RLS** on `user_settings`; remove broad anon writes.
+2. Swap the `restore_mvp_*` fixed-id policies for `user_id = auth.uid()` policies scoped `to authenticated`; drop the `anon` role from them.
 3. Optionally add `profiles` or use `auth.users` metadata; link `sleep_days` to `user_id` when moving beyond single-tenant anon.
 4. Revisit migration flag: may become per-user or unnecessary once each user has their own row.
 
