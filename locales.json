@@ -129,7 +129,7 @@
         "off": "Off",
         "on": "On",
         "gentle": "Gentle (6 min)",
-        "normal": "Normal (10 min)",
+        "normal": "Even (10 min)",
         "steady": "Steady (15 min)",
         "defaultPill": "Default"
       }
@@ -160,8 +160,8 @@
         "holdToSaveHint": "Hold the save line to choose guidance",
         "holdToSaveToast": "Hold the save line to choose how to save",
         "holdToClearToast": "Tap a 🎯 marker above the bar to clear that target",
-        "savedTargetSleepAria": "Saved sleep target. Tap to clear.",
-        "savedTargetWakeAria": "Saved wake target. Tap to clear.",
+        "savedTargetSleepAria": "Saved sleep target. Tap to change.",
+        "savedTargetWakeAria": "Saved wake target. Tap to change.",
         "saveTargetDialogTitle": "Save new target",
         "saveOptionTargetOnly": "Set target only (no guidance)",
         "saveOptionTargetOff": "Use this target now (turn guidance off)",
@@ -216,7 +216,12 @@
           "ariaGrid": "Tonight schedule matrix: natural average, guided time, and saved target per pole. One of natural, guided, or target is visually emphasized per row for the active schedule.",
           "headerNatural": "Natural",
           "headerGuided": "Guided",
-          "headerTarget": "Target"
+          "headerTarget": "Target",
+          "setTarget": "+ Set",
+          "setSleepTargetAria": "Set a sleep target",
+          "setWakeTargetAria": "Set a wake target",
+          "changeSleepTargetAria": "Sleep target {time}. Tap to change.",
+          "changeWakeTargetAria": "Wake target {time}. Tap to change."
         },
         "phaseCallout": {
           "phase": {
@@ -243,6 +248,35 @@
           "onPlan": "on plan",
           "afterPlan": "{delta} after plan",
           "beforePlan": "{delta} before plan"
+        },
+        "pace": {
+          "title": "Guided pace",
+          "shared": "One pace for both sleep and wake.",
+          "name": {
+            "gentle": "Gentle",
+            "normal": "Even",
+            "steady": "Steady"
+          },
+          "perNight": "up to {n} min a night",
+          "buttonAria": "Guided pace: {pace}. Tap to change.",
+          "offSleep": "Turn off sleep guidance",
+          "offWake": "Turn off wake guidance",
+          "offNote": "Tonight then uses your full target.",
+          "toastSet": "Pace set to {pace}",
+          "toastOffSleep": "Sleep guidance off. Using your full target.",
+          "toastOffWake": "Wake guidance off. Using your full target."
+        },
+        "targetEdit": {
+          "titleTrail": " target",
+          "minuteEarlierAria": "One minute earlier",
+          "minuteLaterAria": "One minute later",
+          "timeAria": "Target time. Opens the time picker.",
+          "pickerHint": "Tap the time for a bigger change. Hold an arrow to keep going.",
+          "guidanceLabel": "🧭 Ease toward it with guidance",
+          "previewGuided": "Tonight: {time}, easing toward {target} at {pace} pace.",
+          "previewDirect": "Tonight: {time}.",
+          "save": "Save target",
+          "saveNew": "Set target"
         }
       },
       "quickActions": {
@@ -265,9 +299,11 @@
         "compassName": "Guided time",
         "compassDesc": "On the knob row when that pole has a saved target and guidance is on (including maintain mode on target). Also labels the Guided column in the matrix.",
         "targetName": "Saved target",
-        "targetDesc": "A marker above the bar for each pole where you have a saved goal and it still differs from the schedule Tonight is using. Tap the marker to clear that target. The Target column in the matrix shows the same saved time.",
+        "targetDesc": "A marker above the bar for each pole where you have a saved goal and it still differs from the schedule Tonight is using. Tap the marker, or the time in the Target column of the matrix, to change or clear that target. An empty Target cell lets you set one.",
         "leafName": "Recent average for that pole",
-        "leafDesc": "On the knob row when you have no saved target for that pole, or you have a target but guidance is off for that pole. Labels the Natural column in the matrix. You can have 🍃 on one pole and 🧭 on the other."
+        "leafDesc": "On the knob row when you have no saved target for that pole, or you have a target but guidance is off for that pole. Labels the Natural column in the matrix. You can have 🍃 on one pole and 🧭 on the other.",
+        "paceName": "Pace arrows",
+        "paceDesc": "Next to a guided time. They point the way the time is moving and pulse faster at a quicker pace. Tap them to change the pace or turn guidance off for that pole."
       }
     },
     "log": {
@@ -458,7 +494,7 @@
         "off": "オフ",
         "on": "オン",
         "gentle": "ゆるやか（6分）",
-        "normal": "ふつう（10分）",
+        "normal": "ほどよく（10分）",
         "steady": "しっかり（15分）",
         "defaultPill": "デフォルト"
       }
@@ -489,8 +525,8 @@
         "holdToSaveHint": "保存を長押ししてガイドの設定を選びます",
         "holdToSaveToast": "保存の行を長押しして保存方法を選んでください",
         "holdToClearToast": "バーの上の🎯をタップすると、その極の目標だけ消せます",
-        "savedTargetSleepAria": "保存した睡眠の目標。タップで消去。",
-        "savedTargetWakeAria": "保存した起床の目標。タップで消去。",
+        "savedTargetSleepAria": "保存した睡眠の目標。タップで変更。",
+        "savedTargetWakeAria": "保存した起床の目標。タップで変更。",
         "saveTargetDialogTitle": "新しい目標を保存",
         "saveOptionTargetOnly": "目標だけ（ガイドなし）",
         "saveOptionTargetOff": "この目標をすぐ使う（ガイドをオフ）",
@@ -545,7 +581,12 @@
           "ariaGrid": "今夜の予定マトリクス：各極について、自然平均・ガイド時刻・保存した目標。行ごとに、自然・ガイド・目標のいずれかが現在有効なスケジュールとして強調されます。",
           "headerNatural": "自然",
           "headerGuided": "ガイド",
-          "headerTarget": "目標"
+          "headerTarget": "目標",
+          "setTarget": "＋ 設定",
+          "setSleepTargetAria": "睡眠の目標を設定",
+          "setWakeTargetAria": "起床の目標を設定",
+          "changeSleepTargetAria": "睡眠の目標 {time}。タップで変更。",
+          "changeWakeTargetAria": "起床の目標 {time}。タップで変更。"
         },
         "phaseCallout": {
           "phase": {
@@ -572,6 +613,35 @@
           "onPlan": "予定どおり",
           "afterPlan": "予定より{delta}遅め",
           "beforePlan": "予定より{delta}早め"
+        },
+        "pace": {
+          "title": "ガイドのペース",
+          "shared": "睡眠と起床で共通のペースです。",
+          "name": {
+            "gentle": "ゆるやか",
+            "normal": "ほどよく",
+            "steady": "しっかり"
+          },
+          "perNight": "1晩に最大{n}分",
+          "buttonAria": "ガイドのペース：{pace}。タップで変更。",
+          "offSleep": "睡眠のガイドをオフにする",
+          "offWake": "起床のガイドをオフにする",
+          "offNote": "オフにすると、今夜は目標どおりの時刻を使います。",
+          "toastSet": "ペースを「{pace}」にしました",
+          "toastOffSleep": "睡眠のガイドをオフにしました。目標どおりの時刻を使います。",
+          "toastOffWake": "起床のガイドをオフにしました。目標どおりの時刻を使います。"
+        },
+        "targetEdit": {
+          "titleTrail": "の目標",
+          "minuteEarlierAria": "1分早める",
+          "minuteLaterAria": "1分遅らせる",
+          "timeAria": "目標の時刻。時刻ピッカーを開きます。",
+          "pickerHint": "大きく変えるときは時刻をタップ。矢印は長押しで連続して動きます。",
+          "guidanceLabel": "🧭 ガイドで少しずつ寄せる",
+          "previewGuided": "今夜は{time}。「{pace}」のペースで{target}へ寄せます。",
+          "previewDirect": "今夜は{time}。",
+          "save": "目標を保存",
+          "saveNew": "目標を設定"
         }
       },
       "quickActions": {
@@ -594,9 +664,11 @@
         "compassName": "ガイドされた予定",
         "compassDesc": "その極に保存した目標がありガイドがオンのとき、ノブ行の横に表示されます（目標どおりの維持モードも含みます）。マトリクスの「ガイド」列の見出しにも使います。",
         "targetName": "保存した目標",
-        "targetDesc": "その極に保存した目標があり、今夜の予定とまだ違うとき、バーの上に表示されます。タップで消せます。マトリクスの「目標」列にも同じ時刻が出ます。",
+        "targetDesc": "その極に保存した目標があり、今夜の予定とまだ違うとき、バーの上に表示されます。このマーク、またはマトリクスの「目標」列の時刻をタップすると、目標を変更・消去できます。「目標」列が空のときは、タップして設定できます。",
         "leafName": "その極は直近の平均",
-        "leafDesc": "その極の目標がないとき、または目標はあるがガイドがオフのとき、ノブ行の横に表示されます。マトリクスの「自然」列の見出しにも使います。一方に🍃、もう一方に🧭が付くこともあります。"
+        "leafDesc": "その極の目標がないとき、または目標はあるがガイドがオフのとき、ノブ行の横に表示されます。マトリクスの「自然」列の見出しにも使います。一方に🍃、もう一方に🧭が付くこともあります。",
+        "paceName": "ペースの矢印",
+        "paceDesc": "ガイド中の時刻の横に表示されます。時刻が動く向きを指し、ペースが速いほど速く点滅します。タップすると、ペースの変更や、その極のガイドのオフができます。"
       }
     },
     "log": {

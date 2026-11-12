@@ -3399,6 +3399,45 @@ body{
   font-size: 15px;
 }
 
+/* Target cells are buttons: tap to change (or set) that pole's target. */
+.dashboard-tonight-matrix-cell--tap {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  margin: 0;
+  border-width: 0 0 1px;
+  border-radius: 6px 6px 0 0;
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: underline dotted color-mix(in srgb, currentColor 55%, transparent);
+  text-underline-offset: 4px;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.2s;
+}
+
+.dashboard-tonight-matrix-cell--tap:hover:not(:disabled) {
+  background: var(--hover-bg);
+}
+
+.dashboard-tonight-matrix-cell--tap:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: -2px;
+}
+
+.dashboard-tonight-matrix-cell--tap:disabled {
+  cursor: default;
+  opacity: 0.5;
+  text-decoration: none;
+}
+
+.dashboard-tonight-matrix-cell--tap.dashboard-tonight-matrix-cell--tap-empty {
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  color: color-mix(in srgb, var(--text) 68%, transparent);
+}
+
 .dashboard-tonight-matrix-callouts {
   display: flex;
   flex-direction: column;
@@ -3704,15 +3743,44 @@ body{
   z-index: 60;
 }
 
-/* Directional three-arrow pace indicator next to the guided time label. */
+/* Directional three-arrow pace indicator next to the guided time label. A button: opens the pace dialog. */
 .dashboard-tonight-pace-arrows {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  box-sizing: content-box;
   width: 36px;
+  margin: 0;
+  padding: 3px 6px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  font: inherit;
   flex: 0 0 auto;
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
   color: var(--color-sleep);
+  transition: background 0.2s;
+}
+
+/* Larger touch area, extended down and sideways only so it never covers the slider drag zone above. */
+.dashboard-tonight-pace-arrows::before {
+  content: "";
+  position: absolute;
+  inset: -2px -6px -12px;
+}
+
+.dashboard-tonight-pace-arrows:hover,
+.dashboard-tonight-pace-arrows[aria-expanded="true"] {
+  background: color-mix(in srgb, currentColor 26%, transparent);
+}
+
+.dashboard-tonight-pace-arrows:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
 }
 
 .dashboard-tonight-pace-arrows--wake {
@@ -3749,6 +3817,315 @@ body{
   .dashboard-tonight-pace-arrow {
     transition: none;
   }
+}
+
+/* Pace dialog: anchored under the pace arrows (positioned in JS, page coordinates). */
+.dashboard-tonight-pace-dialog {
+  position: absolute;
+  inset: auto;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  max-width: calc(100vw - 24px);
+  border: 1px solid var(--panel-border-color);
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.32);
+}
+
+.dashboard-tonight-pace-dialog::backdrop {
+  background: transparent;
+}
+
+.dashboard-tonight-pace-dialog-inner {
+  padding: 12px 12px 10px;
+}
+
+.dashboard-tonight-pace-dialog-title {
+  margin: 0 4px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.dashboard-tonight-pace-dialog-sub,
+.dashboard-tonight-pace-off-note {
+  margin: 2px 4px 0;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--text) 62%, transparent);
+}
+
+.dashboard-tonight-pace-options {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.dashboard-tonight-pace-option {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  margin: 0;
+  padding: 7px 10px;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.2s;
+}
+
+.dashboard-tonight-pace-option:hover {
+  background: var(--hover-bg);
+}
+
+.dashboard-tonight-pace-option--current {
+  border-color: color-mix(in srgb, var(--color-sleep) 55%, transparent);
+  background: color-mix(in srgb, var(--color-sleep) 10%, transparent);
+}
+
+.dashboard-tonight-pace-dialog--wake .dashboard-tonight-pace-option--current {
+  border-color: color-mix(in srgb, var(--color-up) 55%, transparent);
+  background: color-mix(in srgb, var(--color-up) 10%, transparent);
+}
+
+.dashboard-tonight-pace-option:focus-visible,
+.dashboard-tonight-pace-off:focus-visible {
+  outline: 2px solid var(--color-sleep);
+  outline-offset: 1px;
+}
+
+.dashboard-tonight-pace-dialog--wake .dashboard-tonight-pace-option:focus-visible,
+.dashboard-tonight-pace-dialog--wake .dashboard-tonight-pace-off:focus-visible {
+  outline-color: var(--color-up);
+}
+
+.dashboard-tonight-pace-option-ico {
+  display: inline-flex;
+  flex: 0 0 34px;
+  width: 34px;
+  color: var(--color-sleep);
+}
+
+.dashboard-tonight-pace-dialog--wake .dashboard-tonight-pace-option-ico {
+  color: var(--color-up);
+}
+
+.dashboard-tonight-pace-dialog--earlier .dashboard-tonight-pace-option-ico {
+  transform: scaleX(-1);
+}
+
+.dashboard-tonight-pace-option-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.dashboard-tonight-pace-option-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.dashboard-tonight-pace-option-rate {
+  font-size: 0.74rem;
+  line-height: 1.3;
+  color: color-mix(in srgb, var(--text) 62%, transparent);
+}
+
+.dashboard-tonight-pace-option-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  flex: 0 0 auto;
+  font-size: 0.84rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.dashboard-tonight-pace-off {
+  display: block;
+  width: 100%;
+  margin: 8px 0 0;
+  padding: 9px 10px;
+  box-sizing: border-box;
+  border: 0;
+  border-top: 1px solid var(--panel-border-color);
+  border-radius: 0 0 8px 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dashboard-tonight-pace-off:hover {
+  background: var(--hover-bg);
+}
+
+.dashboard-tonight-pace-off-note {
+  margin: 0 10px 2px;
+}
+
+/* Target editor (reuses the Tonight confirm dialog frame). */
+.dashboard-tonight-target-editor {
+  width: min(320px, calc(100vw - 32px));
+}
+
+.dashboard-tonight-target-editor-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.dashboard-tonight-target-editor-time-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.dashboard-tonight-target-editor-step {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0 0 3px;
+  border: 1px solid var(--panel-border-color);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dashboard-tonight-target-editor-step:hover {
+  background: var(--hover-bg);
+}
+
+.dashboard-tonight-target-editor-step:active {
+  background: color-mix(in srgb, var(--text) 14%, transparent);
+}
+
+.dashboard-tonight-target-editor-time-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.dashboard-tonight-target-editor-time {
+  min-width: 6.2ch;
+  margin: 0;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 1.9rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-decoration: underline dotted color-mix(in srgb, var(--text) 45%, transparent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 6px;
+  cursor: pointer;
+}
+
+.dashboard-tonight-target-editor-time:hover {
+  background: var(--hover-bg);
+}
+
+/* Device time picker: kept in layout (so the picker anchors here) but invisible; opened from the time button. */
+.dashboard-tonight-target-editor-native {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.dashboard-tonight-target-editor-hint,
+.dashboard-tonight-target-editor-preview {
+  margin: 8px 0 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  text-align: center;
+  color: color-mix(in srgb, var(--text) 62%, transparent);
+}
+
+.dashboard-tonight-target-editor-preview {
+  margin-top: 6px;
+  font-size: 0.84rem;
+  color: color-mix(in srgb, var(--text) 86%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-tonight-target-editor-guidance {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 14px;
+  font-size: 0.88rem;
+  line-height: 1.3;
+  cursor: pointer;
+}
+
+.dashboard-tonight-target-editor-guidance input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--color-sleep);
+}
+
+.dashboard-tonight-target-editor-save {
+  justify-content: center !important;
+  text-align: center !important;
+  border: 1px solid var(--panel-border-color) !important;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.dashboard-tonight-target-editor-save:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.dashboard-tonight-target-editor [hidden] {
+  display: none !important;
 }
 
 /* Live knob times directly under the track; previous times live in .dashboard-tonight-adjust-top-band */
@@ -3948,6 +4325,16 @@ body{
   font-size: 0.88rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+}
+
+.dashboard-tonight-saved-target-btn:not(:disabled) .dashboard-tonight-saved-target-time {
+  text-decoration: underline dotted color-mix(in srgb, currentColor 55%, transparent);
+  text-underline-offset: 4px;
+}
+
+.dashboard-tonight-saved-target-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--panel) 55%, var(--hover-bg));
+  opacity: 1;
 }
 
 .dashboard-tonight-saved-target-btn--hidden {

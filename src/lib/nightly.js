@@ -1760,6 +1760,25 @@ function getTonightProjectionState(recentAverages) {
   };
 }
 
+/** One pace option row for the Tonight pace dialog (mini three-arrow icon animates at that pace while open). */
+function renderTonightPaceOptionHtml(paceId, fallbackName) {
+  return `
+            <button type="button" class="dashboard-tonight-pace-option" data-pace="${paceId}" aria-pressed="false">
+              <span class="dashboard-tonight-pace-option-ico" aria-hidden="true">
+                <svg class="dashboard-tonight-pace-arrows-svg" viewBox="0 0 38 12" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" focusable="false">
+                  <polygon class="dashboard-tonight-pace-arrow" data-index="0" points="0,0 11,6 0,12 3,6" />
+                  <polygon class="dashboard-tonight-pace-arrow" data-index="1" points="13,0 24,6 13,12 16,6" />
+                  <polygon class="dashboard-tonight-pace-arrow" data-index="2" points="26,0 37,6 26,12 29,6" />
+                </svg>
+              </span>
+              <span class="dashboard-tonight-pace-option-text">
+                <span class="dashboard-tonight-pace-option-name" data-i18n="dashboard.tonight.pace.name.${paceId}">${fallbackName}</span>
+                <span class="dashboard-tonight-pace-option-rate"></span>
+              </span>
+              <span class="dashboard-tonight-pace-option-preview"></span>
+            </button>`;
+}
+
 function renderDashboardProjection(recentAverages) {
   const projection = getTonightProjectionState(recentAverages);
   const base = projection.base;
@@ -1853,13 +1872,13 @@ function renderDashboardProjection(recentAverages) {
                 <div class="dashboard-tonight-adjust-thumb-inner">
                   <span class="dashboard-tonight-adjust-thumb-emoji" id="dashboard-tonight-sleep-thumb-icon" aria-hidden="true">🍃</span>
                   <div class="dashboard-tonight-adjust-thumb-label dashboard-tonight-adjust-thumb-label--sleep" id="dashboard-tonight-sleep-thumb-label">${formatTime(projection.sleepClock)}</div>
-                  <span class="dashboard-tonight-pace-arrows dashboard-tonight-pace-arrows--sleep dashboard-tonight-pace-arrows--hidden" id="dashboard-tonight-pace-arrows-sleep" aria-hidden="true">
-                    <svg class="dashboard-tonight-pace-arrows-svg" viewBox="0 0 38 12" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" focusable="false">
+                  <button type="button" class="dashboard-tonight-pace-arrows dashboard-tonight-pace-arrows--sleep dashboard-tonight-pace-arrows--hidden" id="dashboard-tonight-pace-arrows-sleep" data-pole="sleep" aria-haspopup="dialog" aria-expanded="false" aria-label="Guided pace. Tap to change.">
+                    <svg class="dashboard-tonight-pace-arrows-svg" aria-hidden="true" viewBox="0 0 38 12" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" focusable="false">
                       <polygon class="dashboard-tonight-pace-arrow" data-index="0" points="0,0 11,6 0,12 3,6" />
                       <polygon class="dashboard-tonight-pace-arrow" data-index="1" points="13,0 24,6 13,12 16,6" />
                       <polygon class="dashboard-tonight-pace-arrow" data-index="2" points="26,0 37,6 26,12 29,6" />
                     </svg>
-                  </span>
+                  </button>
                 </div>
                 <button
                   type="button"
@@ -1884,13 +1903,13 @@ function renderDashboardProjection(recentAverages) {
                 <div class="dashboard-tonight-adjust-thumb-inner">
                   <span class="dashboard-tonight-adjust-thumb-emoji" id="dashboard-tonight-wake-thumb-icon" aria-hidden="true">🍃</span>
                   <div class="dashboard-tonight-adjust-thumb-label dashboard-tonight-adjust-thumb-label--wake" id="dashboard-tonight-wake-thumb-label">${formatTime(projection.wakeClock)}</div>
-                  <span class="dashboard-tonight-pace-arrows dashboard-tonight-pace-arrows--wake dashboard-tonight-pace-arrows--hidden" id="dashboard-tonight-pace-arrows-wake" aria-hidden="true">
-                    <svg class="dashboard-tonight-pace-arrows-svg" viewBox="0 0 38 12" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" focusable="false">
+                  <button type="button" class="dashboard-tonight-pace-arrows dashboard-tonight-pace-arrows--wake dashboard-tonight-pace-arrows--hidden" id="dashboard-tonight-pace-arrows-wake" data-pole="wake" aria-haspopup="dialog" aria-expanded="false" aria-label="Guided pace. Tap to change.">
+                    <svg class="dashboard-tonight-pace-arrows-svg" aria-hidden="true" viewBox="0 0 38 12" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" focusable="false">
                       <polygon class="dashboard-tonight-pace-arrow" data-index="0" points="0,0 11,6 0,12 3,6" />
                       <polygon class="dashboard-tonight-pace-arrow" data-index="1" points="13,0 24,6 13,12 16,6" />
                       <polygon class="dashboard-tonight-pace-arrow" data-index="2" points="26,0 37,6 26,12 29,6" />
                     </svg>
-                  </span>
+                  </button>
                 </div>
                 <button
                   type="button"
@@ -1931,14 +1950,14 @@ function renderDashboardProjection(recentAverages) {
               </div>
               <div class="dashboard-tonight-matrix-cell" id="dashboard-tonight-matrix-sleep-natural"></div>
               <div class="dashboard-tonight-matrix-cell" id="dashboard-tonight-matrix-sleep-guided"></div>
-              <div class="dashboard-tonight-matrix-cell" id="dashboard-tonight-matrix-sleep-target"></div>
+              <button type="button" class="dashboard-tonight-matrix-cell dashboard-tonight-matrix-cell--tap" id="dashboard-tonight-matrix-sleep-target" data-pole="sleep"></button>
               <div class="dashboard-tonight-matrix-rh dashboard-tonight-matrix-rh--wake">
                 <span class="dashboard-tonight-matrix-rh-emoji" aria-hidden="true">🌅</span>
                 <span class="proj-keyword proj-wake" data-i18n="dashboard.tonight.wakeKnobTooltip">Wake</span>
               </div>
               <div class="dashboard-tonight-matrix-cell" id="dashboard-tonight-matrix-wake-natural"></div>
               <div class="dashboard-tonight-matrix-cell" id="dashboard-tonight-matrix-wake-guided"></div>
-              <div class="dashboard-tonight-matrix-cell" id="dashboard-tonight-matrix-wake-target"></div>
+              <button type="button" class="dashboard-tonight-matrix-cell dashboard-tonight-matrix-cell--tap" id="dashboard-tonight-matrix-wake-target" data-pole="wake"></button>
             </div>
             <div class="dashboard-tonight-matrix-callouts" id="dashboard-tonight-matrix-callouts"></div>
           </div>
@@ -1951,6 +1970,40 @@ function renderDashboardProjection(recentAverages) {
           <div class="dashboard-tonight-clear-target-dialog-actions dashboard-tonight-clear-target-dialog-actions--stack" id="dashboard-tonight-clear-target-actions">
             <button type="button" class="about-theme-option dashboard-tonight-confirm-dialog-btn-primary" id="dashboard-tonight-dlg-clear-yes" hidden></button>
             <button type="button" class="about-theme-option" id="dashboard-tonight-clear-target-cancel"></button>
+          </div>
+        </div>
+      </dialog>
+      <dialog class="dashboard-tonight-pace-dialog" id="dashboard-tonight-pace-dialog" aria-labelledby="dashboard-tonight-pace-dialog-title">
+        <div class="dashboard-tonight-pace-dialog-inner">
+          <p class="dashboard-tonight-pace-dialog-title" id="dashboard-tonight-pace-dialog-title" data-i18n="dashboard.tonight.pace.title">Guided pace</p>
+          <p class="dashboard-tonight-pace-dialog-sub" data-i18n="dashboard.tonight.pace.shared">One pace for both sleep and wake.</p>
+          <div class="dashboard-tonight-pace-options" id="dashboard-tonight-pace-options">${renderTonightPaceOptionHtml('gentle', 'Gentle')}${renderTonightPaceOptionHtml('normal', 'Even')}${renderTonightPaceOptionHtml('steady', 'Steady')}
+          </div>
+          <button type="button" class="dashboard-tonight-pace-off" id="dashboard-tonight-pace-off"></button>
+          <p class="dashboard-tonight-pace-off-note" data-i18n="dashboard.tonight.pace.offNote">Tonight then uses your full target.</p>
+        </div>
+      </dialog>
+      <dialog class="dashboard-tonight-clear-target-dialog dashboard-tonight-target-editor" id="dashboard-tonight-target-editor" aria-labelledby="dashboard-tonight-target-editor-title">
+        <div class="dashboard-tonight-clear-target-dialog-inner">
+          <p class="dashboard-tonight-target-editor-title" id="dashboard-tonight-target-editor-title"></p>
+          <div class="dashboard-tonight-target-editor-time-row">
+            <button type="button" class="dashboard-tonight-target-editor-step" id="dashboard-tonight-target-editor-minus" data-i18n-aria-label="dashboard.tonight.targetEdit.minuteEarlierAria" aria-label="One minute earlier">‹</button>
+            <span class="dashboard-tonight-target-editor-time-wrap">
+              <button type="button" class="dashboard-tonight-target-editor-time" id="dashboard-tonight-target-editor-time"></button>
+              <input type="time" class="dashboard-tonight-target-editor-native" id="dashboard-tonight-target-editor-native" tabindex="-1" aria-hidden="true">
+            </span>
+            <button type="button" class="dashboard-tonight-target-editor-step" id="dashboard-tonight-target-editor-plus" data-i18n-aria-label="dashboard.tonight.targetEdit.minuteLaterAria" aria-label="One minute later">›</button>
+          </div>
+          <p class="dashboard-tonight-target-editor-hint" data-i18n="dashboard.tonight.targetEdit.pickerHint">Tap the time for a bigger change. Hold an arrow to keep going.</p>
+          <label class="dashboard-tonight-target-editor-guidance">
+            <input type="checkbox" id="dashboard-tonight-target-editor-guidance">
+            <span data-i18n="dashboard.tonight.targetEdit.guidanceLabel">🧭 Ease toward it with guidance</span>
+          </label>
+          <p class="dashboard-tonight-target-editor-preview" id="dashboard-tonight-target-editor-preview"></p>
+          <div class="dashboard-tonight-clear-target-dialog-actions">
+            <button type="button" class="about-theme-option dashboard-tonight-target-editor-save" id="dashboard-tonight-target-editor-save"></button>
+            <button type="button" class="about-theme-option" id="dashboard-tonight-target-editor-clear" data-i18n="dashboard.tonight.saveOptionClearPoleShort">Clear target</button>
+            <button type="button" class="about-theme-option" id="dashboard-tonight-target-editor-cancel" data-i18n="dashboard.tonight.saveOptionCancel">Cancel</button>
           </div>
         </div>
       </dialog>
@@ -2054,6 +2107,37 @@ function initDashboardTonightAdjuster(recentAverages, onChange, getLiveDays, get
   const confirmDialogSkp = document.getElementById('dashboard-tonight-confirm-dialog-skp');
   const paceArrowsSleep = document.getElementById('dashboard-tonight-pace-arrows-sleep');
   const paceArrowsWake = document.getElementById('dashboard-tonight-pace-arrows-wake');
+  const paceDialog = document.getElementById('dashboard-tonight-pace-dialog');
+  const paceOptionsWrap = document.getElementById('dashboard-tonight-pace-options');
+  const paceOffBtn = document.getElementById('dashboard-tonight-pace-off');
+  const matrixSleepTargetBtn = document.getElementById('dashboard-tonight-matrix-sleep-target');
+  const matrixWakeTargetBtn = document.getElementById('dashboard-tonight-matrix-wake-target');
+  const editorTitle = document.getElementById('dashboard-tonight-target-editor-title');
+  const editorMinusBtn = document.getElementById('dashboard-tonight-target-editor-minus');
+  const editorPlusBtn = document.getElementById('dashboard-tonight-target-editor-plus');
+  const editorTimeBtn = document.getElementById('dashboard-tonight-target-editor-time');
+  const editorNative = document.getElementById('dashboard-tonight-target-editor-native');
+  const editorGuidanceCb = document.getElementById('dashboard-tonight-target-editor-guidance');
+  const editorPreview = document.getElementById('dashboard-tonight-target-editor-preview');
+  const editorSaveBtn = document.getElementById('dashboard-tonight-target-editor-save');
+  const editorClearBtn = document.getElementById('dashboard-tonight-target-editor-clear');
+  const editorCancelBtn = document.getElementById('dashboard-tonight-target-editor-cancel');
+  const targetEditorEl = document.getElementById('dashboard-tonight-target-editor');
+  /** Null unless every part of the editor is present. */
+  const targetEditor =
+    targetEditorEl &&
+    editorTitle &&
+    editorMinusBtn &&
+    editorPlusBtn &&
+    editorTimeBtn &&
+    editorNative &&
+    editorGuidanceCb &&
+    editorPreview &&
+    editorSaveBtn &&
+    editorClearBtn &&
+    editorCancelBtn
+      ? targetEditorEl
+      : null;
   if (
     !root ||
     !panel ||
@@ -2243,6 +2327,34 @@ function initDashboardTonightAdjuster(recentAverages, onChange, getLiveDays, get
     }
   }
 
+  /** Target cells are buttons: a saved time opens the editor; an empty cell offers to set one. */
+  function decorateTonightMatrixTargetCell(id, pole, savedMinutes) {
+    const el = document.getElementById(id);
+    if (!el || el.tagName !== 'BUTTON') return;
+    const isSleep = pole === 'sleep';
+    if (savedMinutes == null) {
+      el.textContent = tdT('dashboard.tonight.matrix.setTarget', '+ Set');
+      el.classList.add('dashboard-tonight-matrix-cell--tap-empty');
+      el.setAttribute(
+        'aria-label',
+        isSleep
+          ? tdT('dashboard.tonight.matrix.setSleepTargetAria', 'Set a sleep target')
+          : tdT('dashboard.tonight.matrix.setWakeTargetAria', 'Set a wake target')
+      );
+    } else {
+      el.classList.remove('dashboard-tonight-matrix-cell--tap-empty');
+      el.setAttribute(
+        'aria-label',
+        tonightInterpolateTemplate(
+          isSleep
+            ? tdT('dashboard.tonight.matrix.changeSleepTargetAria', 'Sleep target {time}. Tap to change.')
+            : tdT('dashboard.tonight.matrix.changeWakeTargetAria', 'Wake target {time}. Tap to change.'),
+          { time: formatTime(savedMinutes) }
+        )
+      );
+    }
+  }
+
   function syncTonightMatrix() {
     if (typeof buildTonightMatrixViewModel !== 'function' || !matrixCallouts) return;
     const elSleepNat = document.getElementById('dashboard-tonight-matrix-sleep-natural');
@@ -2322,6 +2434,9 @@ function initDashboardTonightAdjuster(recentAverages, onChange, getLiveDays, get
       guided: 'dashboard-tonight-matrix-wake-guided',
       target: 'dashboard-tonight-matrix-wake-target'
     });
+
+    decorateTonightMatrixTargetCell('dashboard-tonight-matrix-sleep-target', 'sleep', base.savedTargetSleep);
+    decorateTonightMatrixTargetCell('dashboard-tonight-matrix-wake-target', 'wake', base.savedTargetWake);
 
     matrixCallouts.textContent = '';
     [sleepVm, wakeVm].forEach(function (vm) {
@@ -2601,6 +2716,9 @@ function initDashboardTonightAdjuster(recentAverages, onChange, getLiveDays, get
       state.wakeClock
     );
     syncTonightPaceArrowAnimator(base.paceId);
+    syncTonightPaceButtonLabels();
+    if (matrixSleepTargetBtn) matrixSleepTargetBtn.disabled = sleepMergeDirty;
+    if (matrixWakeTargetBtn) matrixWakeTargetBtn.disabled = wakeMergeDirty;
 
     if (persistOverride && typeof setTonightProjectionAdjustment === 'function' && typeof clearTonightProjectionAdjustment === 'function') {
       if (state.isAdjusted) {
@@ -2879,7 +2997,8 @@ function initDashboardTonightAdjuster(recentAverages, onChange, getLiveDays, get
       if (pole === 'sleep' && base.savedTargetSleep == null) return;
       if (pole === 'wake' && base.savedTargetWake == null) return;
       if (e.type === 'keydown') e.preventDefault();
-      openTonightClearPoleDialog(pole);
+      if (targetEditor) openTonightTargetEditor(pole, false);
+      else openTonightClearPoleDialog(pole);
     }
     btn.addEventListener('click', tryOpenClear);
     btn.addEventListener('keydown', function (e) {
@@ -2949,6 +3068,432 @@ function initDashboardTonightAdjuster(recentAverages, onChange, getLiveDays, get
     revertPoleToCommitted('wake');
   });
 
+  // --- Shared: refresh after a storage change while keeping an unsaved drag on the other pole ---
+  function refreshTonightKeepingDrag() {
+    const keepSleep =
+      modMinutes1440(state.sleepClock) !== modMinutes1440(base.committedSleep) ? state.sleepClock : null;
+    const keepWake =
+      modMinutes1440(state.wakeClock) !== modMinutes1440(base.committedWake) ? state.wakeClock : null;
+    if (typeof clearTonightProjectionAdjustment === 'function') clearTonightProjectionAdjustment();
+    base = getTonightProjectionBaseState(recentAverages);
+    if ((keepSleep != null || keepWake != null) && typeof setTonightProjectionAdjustment === 'function') {
+      setTonightProjectionAdjustment(
+        Math.round(keepSleep != null ? keepSleep : base.committedSleep),
+        Math.round(keepWake != null ? keepWake : base.committedWake)
+      );
+      base = getTonightProjectionBaseState(recentAverages);
+    }
+    state = getTonightProjectionState(recentAverages);
+    applySliderBoundsFromBase();
+    updateVisualState(false);
+  }
+
+  const TONIGHT_PACE_NAME_FALLBACK = { gentle: 'Gentle', normal: 'Even', steady: 'Steady' };
+
+  function tonightPaceName(paceId) {
+    return tdT('dashboard.tonight.pace.name.' + paceId, TONIGHT_PACE_NAME_FALLBACK[paceId] || paceId);
+  }
+
+  function tonightPaceCapMinutes(paceId) {
+    const caps =
+      typeof TONIGHT_GUIDANCE_PACE_MAX_MINUTES !== 'undefined'
+        ? TONIGHT_GUIDANCE_PACE_MAX_MINUTES
+        : { gentle: 6, normal: 10, steady: 15 };
+    const n = caps[paceId];
+    return Number.isFinite(n) ? n : 10;
+  }
+
+  /**
+   * Guided clock time a pole would get tonight at `paceId` (same step rule as resolveTonightScheduledWindow).
+   * `targetMinutes` defaults to the saved target for that pole. Null when there is no target.
+   */
+  function previewTonightGuidedClock(pole, paceId, targetMinutes) {
+    const avg = pole === 'sleep' ? base.avgSleepStart : base.avgSleepEnd;
+    const target =
+      targetMinutes != null ? targetMinutes : pole === 'sleep' ? base.savedTargetSleep : base.savedTargetWake;
+    if (target == null || typeof shortestSignedClockDelta !== 'function') return null;
+    const cap = tonightPaceCapMinutes(paceId);
+    const d = shortestSignedClockDelta(avg, target);
+    return modMinutes1440(avg + Math.max(-cap, Math.min(cap, d)));
+  }
+
+  function syncTonightPaceButtonLabels() {
+    const label = tonightInterpolateTemplate(
+      tdT('dashboard.tonight.pace.buttonAria', 'Guided pace: {pace}. Tap to change.'),
+      { pace: tonightPaceName(base.paceId || 'gentle') }
+    );
+    [paceArrowsSleep, paceArrowsWake].forEach(function (btn) {
+      if (!btn) return;
+      btn.setAttribute('aria-label', label);
+      btn.setAttribute('title', label);
+    });
+  }
+
+  // --- Pace dialog (opened from the pace arrows) ---
+  /** @type {'sleep'|'wake'|null} */
+  let paceDialogPole = null;
+  let paceMiniStops = [];
+
+  function stopTonightPaceMiniAnimators() {
+    for (let i = 0; i < paceMiniStops.length; i++) paceMiniStops[i]();
+    paceMiniStops = [];
+  }
+
+  function startTonightPaceMiniAnimators() {
+    stopTonightPaceMiniAnimators();
+    if (!paceOptionsWrap) return;
+    const reduceMotion =
+      typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const options = paceOptionsWrap.querySelectorAll('.dashboard-tonight-pace-option');
+    options.forEach(function (opt, optIdx) {
+      const arrows = opt.querySelectorAll('.dashboard-tonight-pace-arrow');
+      if (reduceMotion) {
+        // Still frame: one, two or three arrows lit.
+        for (let i = 0; i < arrows.length; i++) {
+          arrows[i].style.opacity = String(i <= optIdx ? TONIGHT_PACE_ARROW_PEAK : TONIGHT_PACE_ARROW_OFF);
+        }
+        return;
+      }
+      const frames = TONIGHT_PACE_FRAMES[opt.getAttribute('data-pace')] || TONIGHT_PACE_FRAMES.gentle;
+      let idx = 0;
+      let timer = null;
+      (function tick() {
+        const frame = frames[idx % frames.length];
+        for (let i = 0; i < arrows.length && i < frame.states.length; i++) {
+          arrows[i].style.opacity = String(frame.states[i]);
+        }
+        idx++;
+        timer = setTimeout(tick, frame.hold);
+      })();
+      paceMiniStops.push(function () {
+        if (timer) clearTimeout(timer);
+        timer = null;
+      });
+    });
+  }
+
+  function fillTonightPaceDialog(pole) {
+    const current = base.paceId || 'gentle';
+    const guidedPoles = [];
+    if (base.guidanceSleepEnabled && base.savedTargetSleep != null) guidedPoles.push('sleep');
+    if (base.guidanceWakeEnabled && base.savedTargetWake != null) guidedPoles.push('wake');
+    paceOptionsWrap.querySelectorAll('.dashboard-tonight-pace-option').forEach(function (opt) {
+      const id = opt.getAttribute('data-pace');
+      const isCurrent = id === current;
+      opt.setAttribute('aria-pressed', isCurrent ? 'true' : 'false');
+      opt.classList.toggle('dashboard-tonight-pace-option--current', isCurrent);
+      const rate = opt.querySelector('.dashboard-tonight-pace-option-rate');
+      if (rate) {
+        rate.textContent = tonightInterpolateTemplate(
+          tdT('dashboard.tonight.pace.perNight', 'up to {n} min a night'),
+          { n: tonightPaceCapMinutes(id) }
+        );
+      }
+      const preview = opt.querySelector('.dashboard-tonight-pace-option-preview');
+      if (preview) {
+        preview.textContent = '';
+        guidedPoles.forEach(function (p) {
+          const m = previewTonightGuidedClock(p, id, null);
+          if (m == null) return;
+          const chip = document.createElement('span');
+          chip.className = 'proj-keyword ' + (p === 'sleep' ? 'proj-sleep' : 'proj-wake');
+          chip.textContent = (p === 'sleep' ? '🌙 ' : '🌅 ') + formatTime(m);
+          preview.appendChild(chip);
+        });
+      }
+    });
+    paceOffBtn.textContent =
+      pole === 'sleep'
+        ? tdT('dashboard.tonight.pace.offSleep', 'Turn off sleep guidance')
+        : tdT('dashboard.tonight.pace.offWake', 'Turn off wake guidance');
+    const invoker = pole === 'sleep' ? paceArrowsSleep : paceArrowsWake;
+    paceDialog.classList.toggle(
+      'dashboard-tonight-pace-dialog--earlier',
+      Boolean(invoker && invoker.classList.contains('dashboard-tonight-pace-arrows--earlier'))
+    );
+    paceDialog.classList.toggle('dashboard-tonight-pace-dialog--wake', pole === 'wake');
+  }
+
+  /** Anchor the dialog under (or above) the arrows it was opened from. Page coordinates, so it scrolls with the page. */
+  function positionTonightPaceDialog(invoker) {
+    const r = invoker.getBoundingClientRect();
+    const vw = document.documentElement.clientWidth || window.innerWidth;
+    const vh = window.innerHeight;
+    const w = Math.min(300, vw - 24);
+    paceDialog.style.width = w + 'px';
+    const h = paceDialog.getBoundingClientRect().height;
+    let left = r.left + r.width / 2 - w / 2;
+    left = Math.max(12, Math.min(vw - 12 - w, left));
+    let top = r.bottom + 10;
+    if (top + h > vh - 8 && r.top - 10 - h >= 8) top = r.top - 10 - h;
+    paceDialog.style.left = Math.round(left + window.scrollX) + 'px';
+    paceDialog.style.top = Math.round(top + window.scrollY) + 'px';
+  }
+
+  function openTonightPaceDialog(pole) {
+    if (!paceDialog || !paceOptionsWrap || !paceOffBtn || paceDialog.open) return;
+    const invoker = pole === 'sleep' ? paceArrowsSleep : paceArrowsWake;
+    if (!invoker) return;
+    paceDialogPole = pole;
+    fillTonightPaceDialog(pole);
+    paceDialog.showModal();
+    positionTonightPaceDialog(invoker);
+    invoker.setAttribute('aria-expanded', 'true');
+    startTonightPaceMiniAnimators();
+    const currentOpt = paceOptionsWrap.querySelector('.dashboard-tonight-pace-option--current');
+    if (currentOpt) currentOpt.focus();
+  }
+
+  function closeOnBackdropClick(dialog) {
+    dialog.addEventListener('click', function (e) {
+      if (e.target === dialog) dialog.close();
+    });
+  }
+
+  if (paceDialog && paceOptionsWrap && paceOffBtn) {
+    [paceArrowsSleep, paceArrowsWake].forEach(function (btn) {
+      if (!btn) return;
+      btn.addEventListener('click', function () {
+        openTonightPaceDialog(btn.getAttribute('data-pole') === 'wake' ? 'wake' : 'sleep');
+      });
+    });
+    closeOnBackdropClick(paceDialog);
+    paceDialog.addEventListener('close', function () {
+      stopTonightPaceMiniAnimators();
+      if (paceArrowsSleep) paceArrowsSleep.setAttribute('aria-expanded', 'false');
+      if (paceArrowsWake) paceArrowsWake.setAttribute('aria-expanded', 'false');
+      paceDialogPole = null;
+    });
+    paceOptionsWrap.addEventListener('click', function (e) {
+      const opt = e.target.closest('.dashboard-tonight-pace-option');
+      if (!opt) return;
+      const id = opt.getAttribute('data-pace');
+      const changed = id !== (base.paceId || 'gentle');
+      paceDialog.close();
+      if (!changed || typeof setTonightGuidancePaceId !== 'function') return;
+      setTonightGuidancePaceId(id);
+      refreshTonightKeepingDrag();
+      showAppToast(
+        tonightInterpolateTemplate(tdT('dashboard.tonight.pace.toastSet', 'Pace set to {pace}'), {
+          pace: tonightPaceName(id)
+        })
+      );
+    });
+    paceOffBtn.addEventListener('click', function () {
+      const pole = paceDialogPole;
+      paceDialog.close();
+      if (pole === 'sleep' && typeof setTonightGuidanceSleepEnabled === 'function') {
+        setTonightGuidanceSleepEnabled(false);
+      } else if (pole === 'wake' && typeof setTonightGuidanceWakeEnabled === 'function') {
+        setTonightGuidanceWakeEnabled(false);
+      } else {
+        return;
+      }
+      refreshTonightKeepingDrag();
+      showAppToast(
+        pole === 'sleep'
+          ? tdT('dashboard.tonight.pace.toastOffSleep', 'Sleep guidance off. Using your full target.')
+          : tdT('dashboard.tonight.pace.toastOffWake', 'Wake guidance off. Using your full target.')
+      );
+    });
+  }
+
+  // --- Target editor (🎯 marker above the bar, or a Target cell in the matrix) ---
+  /** @type {'sleep'|'wake'|null} */
+  let editorPole = null;
+  let editorMinutes = 0;
+  let editorIsNew = false;
+  let editorHoldDelay = null;
+  let editorHoldRepeat = null;
+  const TONIGHT_EDITOR_HOLD_DELAY_MS = 400;
+  const TONIGHT_EDITOR_HOLD_REPEAT_MS = 70;
+
+  function editorSavedMinutes() {
+    return editorPole === 'sleep' ? base.savedTargetSleep : base.savedTargetWake;
+  }
+
+  function editorPoleGuidanceOn() {
+    return editorPole === 'sleep' ? Boolean(base.guidanceSleepEnabled) : Boolean(base.guidanceWakeEnabled);
+  }
+
+  function syncTonightTargetEditor() {
+    if (!targetEditor || !editorPole) return;
+    editorTimeBtn.textContent = formatTime(editorMinutes);
+    const hh = String(Math.floor(editorMinutes / 60)).padStart(2, '0');
+    const mm = String(editorMinutes % 60).padStart(2, '0');
+    if (editorNative.value !== hh + ':' + mm) editorNative.value = hh + ':' + mm;
+    const saved = editorSavedMinutes();
+    const other = editorPole === 'sleep' ? base.savedTargetWake : base.savedTargetSleep;
+    // A sleep target and a wake target cannot be the same minute.
+    const clash = other != null && modMinutes1440(other) === editorMinutes;
+    const wantGuidance = editorGuidanceCb.checked;
+    const unchanged =
+      !editorIsNew && saved != null && modMinutes1440(saved) === editorMinutes && wantGuidance === editorPoleGuidanceOn();
+    editorSaveBtn.disabled = clash || unchanged;
+    const tonightClock = wantGuidance
+      ? previewTonightGuidedClock(editorPole, base.paceId || 'gentle', editorMinutes)
+      : editorMinutes;
+    if (wantGuidance && tonightClock != null && tonightClock !== editorMinutes) {
+      editorPreview.textContent = tonightInterpolateTemplate(
+        tdT('dashboard.tonight.targetEdit.previewGuided', 'Tonight: {time}, easing toward {target} at {pace} pace.'),
+        { time: formatTime(tonightClock), target: formatTime(editorMinutes), pace: tonightPaceName(base.paceId || 'gentle') }
+      );
+    } else {
+      editorPreview.textContent = tonightInterpolateTemplate(
+        tdT('dashboard.tonight.targetEdit.previewDirect', 'Tonight: {time}.'),
+        { time: formatTime(editorMinutes) }
+      );
+    }
+  }
+
+  function stepTonightTargetEditor(delta) {
+    editorMinutes = modMinutes1440(editorMinutes + delta);
+    syncTonightTargetEditor();
+  }
+
+  function stopTonightEditorHold() {
+    if (editorHoldDelay) clearTimeout(editorHoldDelay);
+    if (editorHoldRepeat) clearInterval(editorHoldRepeat);
+    editorHoldDelay = null;
+    editorHoldRepeat = null;
+  }
+
+  function bindTonightEditorStep(btn, delta) {
+    btn.addEventListener('pointerdown', function (e) {
+      if (e.button !== undefined && e.button !== 0) return;
+      stopTonightEditorHold();
+      stepTonightTargetEditor(delta);
+      editorHoldDelay = setTimeout(function () {
+        editorHoldRepeat = setInterval(function () {
+          stepTonightTargetEditor(delta);
+        }, TONIGHT_EDITOR_HOLD_REPEAT_MS);
+      }, TONIGHT_EDITOR_HOLD_DELAY_MS);
+    });
+    // No blur here: pressing one arrow blurs the other, which would cancel the hold that just started.
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (type) {
+      btn.addEventListener(type, stopTonightEditorHold);
+    });
+    btn.addEventListener('contextmenu', function (e) {
+      e.preventDefault();
+    });
+    // Keyboard activation (pointer presses are handled on pointerdown above).
+    btn.addEventListener('click', function (e) {
+      if (e.detail === 0) stepTonightTargetEditor(delta);
+    });
+  }
+
+  function openTonightNativeTimePicker() {
+    try {
+      if (typeof editorNative.showPicker === 'function') {
+        editorNative.showPicker();
+        return;
+      }
+    } catch (_) {
+      /* fall through */
+    }
+    try {
+      editorNative.focus();
+      editorNative.click();
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
+  /**
+   * @param {'sleep'|'wake'} pole
+   * @param {boolean} openPicker open the device time picker straight away (matrix taps)
+   */
+  function openTonightTargetEditor(pole, openPicker) {
+    if (!targetEditor || targetEditor.open) return;
+    editorPole = pole;
+    const saved = editorSavedMinutes();
+    editorIsNew = saved == null;
+    const start = saved != null ? saved : pole === 'sleep' ? state.sleepClock : state.wakeClock;
+    editorMinutes = modMinutes1440(Math.round(start));
+    editorGuidanceCb.checked = editorPoleGuidanceOn();
+    while (editorTitle.firstChild) editorTitle.removeChild(editorTitle.firstChild);
+    const skp = document.createElement('span');
+    skp.className = pole === 'sleep' ? 'proj-keyword proj-sleep' : 'proj-keyword proj-wake';
+    skp.textContent =
+      pole === 'sleep' ? tdT('dashboard.tonight.sleepTargetSkp', '🌙 Sleep') : tdT('dashboard.tonight.wakeTargetSkp', '🌅 Wake');
+    editorTitle.appendChild(skp);
+    editorTitle.appendChild(document.createTextNode(tdT('dashboard.tonight.targetEdit.titleTrail', ' target')));
+    editorTimeBtn.setAttribute('aria-label', tdT('dashboard.tonight.targetEdit.timeAria', 'Target time. Opens the time picker.'));
+    editorSaveBtn.textContent = editorIsNew
+      ? tdT('dashboard.tonight.targetEdit.saveNew', 'Set target')
+      : tdT('dashboard.tonight.targetEdit.save', 'Save target');
+    editorClearBtn.hidden = editorIsNew;
+    syncTonightTargetEditor();
+    targetEditor.showModal();
+    if (openPicker) openTonightNativeTimePicker();
+  }
+
+  if (targetEditor) {
+    bindTonightEditorStep(editorMinusBtn, -1);
+    bindTonightEditorStep(editorPlusBtn, 1);
+    closeOnBackdropClick(targetEditor);
+    editorTimeBtn.addEventListener('click', openTonightNativeTimePicker);
+    editorTimeBtn.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowUp' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        stepTonightTargetEditor(1);
+      } else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        stepTonightTargetEditor(-1);
+      }
+    });
+    function onEditorNativeInput() {
+      const m = /^(\d{1,2}):(\d{2})/.exec(editorNative.value || '');
+      if (!m) return;
+      const mins = Number(m[1]) * 60 + Number(m[2]);
+      if (!Number.isFinite(mins) || mins < 0 || mins > 1439) return;
+      editorMinutes = mins;
+      syncTonightTargetEditor();
+    }
+    editorNative.addEventListener('input', onEditorNativeInput);
+    editorNative.addEventListener('change', onEditorNativeInput);
+    editorGuidanceCb.addEventListener('change', syncTonightTargetEditor);
+    editorCancelBtn.addEventListener('click', function () {
+      targetEditor.close();
+    });
+    editorClearBtn.addEventListener('click', function () {
+      const pole = editorPole;
+      targetEditor.close();
+      if (pole) openTonightClearPoleDialog(pole);
+    });
+    editorSaveBtn.addEventListener('click', function () {
+      const pole = editorPole;
+      if (!pole || editorSaveBtn.disabled || typeof mergeTonightTargetWindow !== 'function') return;
+      const wasNew = editorIsNew;
+      const wantGuidance = editorGuidanceCb.checked;
+      const hadGuidance = editorPoleGuidanceOn();
+      const partial = {};
+      partial[pole] = editorMinutes;
+      mergeTonightTargetWindow(partial);
+      if (wantGuidance !== hadGuidance) {
+        if (pole === 'sleep' && typeof setTonightGuidanceSleepEnabled === 'function') setTonightGuidanceSleepEnabled(wantGuidance);
+        if (pole === 'wake' && typeof setTonightGuidanceWakeEnabled === 'function') setTonightGuidanceWakeEnabled(wantGuidance);
+      }
+      targetEditor.close();
+      refreshTonightKeepingDrag();
+      showAppToast(
+        wasNew
+          ? tdT('dashboard.tonight.toastSaved', 'Tonight target saved')
+          : tdT('dashboard.tonight.toastUpdated', 'Tonight target updated')
+      );
+    });
+    targetEditor.addEventListener('close', function () {
+      stopTonightEditorHold();
+      editorPole = null;
+    });
+    [matrixSleepTargetBtn, matrixWakeTargetBtn].forEach(function (btn) {
+      if (!btn) return;
+      btn.addEventListener('click', function () {
+        openTonightTargetEditor(btn.getAttribute('data-pole') === 'wake' ? 'wake' : 'sleep', true);
+      });
+    });
+  }
+
   function bindMinuteStep(btn, pole, delta) {
     btn.addEventListener('mousedown', function (e) {
       e.stopPropagation();
@@ -3007,6 +3552,9 @@ function initDashboardTonightAdjuster(recentAverages, onChange, getLiveDays, get
     window.__dashboardTonightAdjusterRefresh = null;
     document.removeEventListener('visibilitychange', onTonightVisibilityChange);
     clearTonightEstimatedSleepTimer();
+    stopTonightPaceArrowAnimator();
+    stopTonightPaceMiniAnimators();
+    stopTonightEditorHold();
     document.removeEventListener('mousemove', onPointerMove);
     document.removeEventListener('touchmove', onPointerMove, tonightPointerTouchMoveOpts);
     document.removeEventListener('mouseup', onPointerUp);
