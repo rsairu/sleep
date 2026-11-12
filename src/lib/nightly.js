@@ -1796,9 +1796,14 @@ function renderDashboardProjection(recentAverages) {
               <span class="dashboard-tonight-estimated-sleep-live-value" id="dashboard-tonight-estimated-sleep-live-value"></span>
               <span class="dashboard-tonight-estimated-sleep-live-paren" data-i18n="dashboard.tonight.sleepDurationBasedOnNowParen">(from now)</span>
             </span>
+            <span class="dashboard-tonight-estimated-sleep-live-wrap dashboard-tonight-estimated-sleep-from-start-wrap" id="dashboard-tonight-estimated-sleep-from-start-wrap" hidden>
+              <span class="dashboard-tonight-estimated-sleep-live-value" id="dashboard-tonight-estimated-sleep-from-start-value"></span>
+              <span class="dashboard-tonight-estimated-sleep-live-paren" data-i18n="dashboard.tonight.sleepDurationFromSleepStartParen">(from sleep start)</span>
+            </span>
           </span>
         </span>
       </p>
+      <p class="dashboard-tonight-logged" id="dashboard-tonight-logged" hidden></p>
       <div class="dashboard-tonight-adjust">
         <div class="dashboard-tonight-adjust-panel" id="dashboard-tonight-adjust-panel">
           <div
@@ -1953,7 +1958,51 @@ function renderDashboardProjection(recentAverages) {
   `;
 }
 
-function initDashboardTonightAdjuster(recentAverages, onChange, getLiveDays) {
+/**
+ * Tonight panel: values already logged on tonight's unpromoted draft (bed / sleep start), with the
+ * sleep start compared to the current plan (slider sleep time). Neutral wording — a reading, not a grade.
+ * @param {{ bed: string, sleepStart: string } | null} pending
+ * @param {number} planSleepClock minutes from midnight
+ */
+function buildTonightLoggedHtml(pending, planSleepClock, tdT) {
+  if (!pending) return '';
+  const parts = [];
+  const bedM = pending.bed ? timeToMinutes(pending.bed) : NaN;
+  if (Number.isFinite(bedM)) {
+    parts.push(
+      `<span class="dashboard-tonight-logged-item"><span class="proj-keyword proj-bed">${tdT('dashboard.tonight.logged.bed', 'Bed')}</span> <span class="dashboard-tonight-logged-time">${formatTime(bedM)}</span></span>`
+    );
+  }
+  const ssM = pending.sleepStart ? timeToMinutes(pending.sleepStart) : NaN;
+  if (Number.isFinite(ssM)) {
+    let delta = '';
+    if (Number.isFinite(planSleepClock)) {
+      let diff = modMinutes1440(ssM - planSleepClock);
+      if (diff > 720) diff -= 1440;
+      const abs = Math.abs(Math.round(diff));
+      let deltaText;
+      if (abs < 5) {
+        deltaText = tdT('dashboard.tonight.logged.onPlan', 'on plan');
+      } else if (diff > 0) {
+        deltaText = tdT('dashboard.tonight.logged.afterPlan', '{delta} after plan').replace('{delta}', formatDuration(abs));
+      } else {
+        deltaText = tdT('dashboard.tonight.logged.beforePlan', '{delta} before plan').replace('{delta}', formatDuration(abs));
+      }
+      delta = ` <span class="dashboard-tonight-logged-delta">(${deltaText})</span>`;
+    }
+    parts.push(
+      `<span class="dashboard-tonight-logged-item"><span class="proj-keyword proj-sleep">${tdT('dashboard.tonight.logged.asleep', 'Asleep')}</span> <span class="dashboard-tonight-logged-time">${formatTime(ssM)}</span>${delta}</span>`
+    );
+  }
+  if (!parts.length) return '';
+  return (
+    `<span class="dashboard-tonight-logged-ico" aria-hidden="true">📝</span>` +
+    `<span class="dashboard-tonight-logged-label">${tdT('dashboard.tonight.logged.label', 'Logged:')}</span>` +
+    `<span class="dashboard-tonight-logged-items">${parts.join('<span class="dashboard-tonight-logged-sep" aria-hidden="true">·</span>')}</span>`
+  );
+}
+
+function initDashboardTonightAdjuster(recentAverages, onChange, getLiveDays, getPendingNight) {
   function tdT(key, fallback) {
     return typeof t === 'function' ? t(key, fallback) : fallback;
   }
@@ -1979,6 +2028,9 @@ function initDashboardTonightAdjuster(recentAverages, onChange, getLiveDays) {
   const estimatedSleepPlannedParenEl = document.getElementById('dashboard-tonight-estimated-sleep-planned-paren');
   const estimatedSleepLiveWrap = document.getElementById('dashboard-tonight-estimated-sleep-live-wrap');
   const estimatedSleepLiveValueEl = document.getElementById('dashboard-tonight-estimated-sleep-live-value');
+  const estimatedSleepFromStartWrap = document.getElementById('dashboard-tonight-estimated-sleep-from-start-wrap');
+  const estimatedSleepFromStartValueEl = document.getElementById('dashboard-tonight-estimated-sleep-from-start-value');
+  const tonightLoggedEl = document.getElementById('dashboard-tonight-logged');
   const trackWaveGradientEl = document.getElementById('dashboardTonightTrackWaveGradient');
   const trackRangeFillEl = document.querySelector('#dashboard-tonight-adjust-slider .dashboard-tonight-adjust-range-fill');
   const knobActionsSleep = document.getElementById('dashboard-tonight-knob-actions-sleep');
@@ -2427,19 +2479,42 @@ function initDashboardTonightAdjuster(recentAverages, onChange, getLiveDays) {
       base.committedWake,
       liveDaysForRow
     );
+    // Tonight's draft (bed / sleep start already logged, night not promoted yet).
+    const pendingNight = typeof getPendingNight === 'function' ? getPendingNight() : null;
+    const loggedSleepStartM =
+      pendingNight && pendingNight.sleepStart ? timeToMinutes(pendingNight.sleepStart) : NaN;
+    let fromStartMinutes = 0;
+    if (Number.isFinite(loggedSleepStartM)) {
+      const m = durationMinutes(loggedSleepStartM, modMinutes1440(state.wakeClock));
+      if (m > 0 && m <= 16 * 60) fromStartMinutes = m;
+    }
+    const showFromStart = fromStartMinutes > 0;
+    // A logged sleep start supersedes the "from now" estimate.
+    const showLive = Boolean(live.show) && !showFromStart;
+
     if (estimatedSleepPlannedParenEl) {
-      estimatedSleepPlannedParenEl.hidden = !live.show;
+      estimatedSleepPlannedParenEl.hidden = !(showLive || showFromStart);
     }
     if (estimatedSleepLiveWrap && estimatedSleepLiveValueEl) {
-      estimatedSleepLiveWrap.hidden = !live.show;
-      if (live.show) {
+      estimatedSleepLiveWrap.hidden = !showLive;
+      if (showLive) {
         estimatedSleepLiveValueEl.textContent = `~${formatDuration(live.minutes)}`;
       } else {
         estimatedSleepLiveValueEl.textContent = '';
       }
     }
+    if (estimatedSleepFromStartWrap && estimatedSleepFromStartValueEl) {
+      estimatedSleepFromStartWrap.hidden = !showFromStart;
+      estimatedSleepFromStartValueEl.textContent = showFromStart ? `~${formatDuration(fromStartMinutes)}` : '';
+    }
     if (estimatedSleepBlock) {
-      estimatedSleepBlock.classList.toggle('dashboard-tonight-estimated-sleep--from-now-active', Boolean(live.show));
+      estimatedSleepBlock.classList.toggle('dashboard-tonight-estimated-sleep--from-now-active', showLive);
+      estimatedSleepBlock.classList.toggle('dashboard-tonight-estimated-sleep--from-start-active', showFromStart);
+    }
+    if (tonightLoggedEl) {
+      const loggedHtml = buildTonightLoggedHtml(pendingNight, modMinutes1440(state.sleepClock), tdT);
+      if (tonightLoggedEl.innerHTML !== loggedHtml) tonightLoggedEl.innerHTML = loggedHtml;
+      tonightLoggedEl.hidden = loggedHtml === '';
     }
 
     if (trackWaveGradientEl && trackRangeFillEl) {
@@ -2923,7 +2998,13 @@ function initDashboardTonightAdjuster(recentAverages, onChange, getLiveDays) {
   }
   document.addEventListener('visibilitychange', onTonightVisibilityChange);
 
+  /** Re-run the panel render (e.g. after the dashboard fetches tonight's draft). */
+  window.__dashboardTonightAdjusterRefresh = function () {
+    updateVisualState(false);
+  };
+
   window.__dashboardTonightAdjusterTeardown = function () {
+    window.__dashboardTonightAdjusterRefresh = null;
     document.removeEventListener('visibilitychange', onTonightVisibilityChange);
     clearTonightEstimatedSleepTimer();
     document.removeEventListener('mousemove', onPointerMove);
