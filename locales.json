@@ -233,6 +233,16 @@
           "sleepHoldingDetail": "{verb} bedtime at target {target} (gap {gap}).",
           "wakeNudgingDetail": "{verb} wake {dir} by {delta} toward target {target} (gap {gap}).",
           "wakeHoldingDetail": "{verb} wake at target {target} (gap {gap})."
+        },
+        "sleepDurationFromSleepStartParen": "(from sleep start)",
+        "logged": {
+          "label": "Logged:",
+          "bed": "Bed",
+          "asleep": "Asleep",
+          "inProgress": "in progress",
+          "onPlan": "on plan",
+          "afterPlan": "{delta} after plan",
+          "beforePlan": "{delta} before plan"
         }
       },
       "quickActions": {
@@ -552,6 +562,16 @@
           "sleepHoldingDetail": "{verb}：目標の就寝{target}（差{gap}）。",
           "wakeNudgingDetail": "{verb}：起床を{dir}に{delta}寄せ、目標{target}（差{gap}）。",
           "wakeHoldingDetail": "{verb}：目標の起床{target}（差{gap}）。"
+        },
+        "sleepDurationFromSleepStartParen": "（入眠から）",
+        "logged": {
+          "label": "記録済み:",
+          "bed": "ベッド",
+          "asleep": "入眠",
+          "inProgress": "記録中",
+          "onPlan": "予定どおり",
+          "afterPlan": "予定より{delta}遅め",
+          "beforePlan": "予定より{delta}早め"
         }
       },
       "quickActions": {

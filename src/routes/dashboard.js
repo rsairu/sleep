@@ -75,6 +75,35 @@ function buildPoints(days) {
   });
 }
 
+/**
+ * Chart point for tonight's unpromoted draft. Only bed / sleep start can exist before wake;
+ * missing series are null (getUpMinutes is always null).
+ * @param {{ key: string, bed: string, sleepStart: string } | null} pending
+ */
+function buildTonightPoint(pending) {
+  if (!pending || !pending.key) return null;
+  const date = getDateFromString(pending.key);
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
+  const bedRaw = pending.bed ? timeToMinutes(pending.bed) : NaN;
+  const ssRaw = pending.sleepStart ? timeToMinutes(pending.sleepStart) : NaN;
+  return {
+    isTonight: true,
+    date,
+    dateString: pending.key,
+    bedTimeMinutes: Number.isFinite(bedRaw) ? normalizeTimeForYAxis(bedRaw) : null,
+    bedTimeString: pending.bed || '',
+    sleepStartMinutes: Number.isFinite(ssRaw) ? normalizeTimeForYAxis(ssRaw) : null,
+    sleepStartString: pending.sleepStart || '',
+    getUpMinutes: null
+  };
+}
+
+function tonightSeriesSuffix(key) {
+  if (key === 'bedTimeMinutes') return 'bedtime';
+  if (key === 'sleepStartMinutes') return 'sleep-start';
+  return 'getup';
+}
+
 /** SVG width for 7-day dashboard charts: never wider than the container (avoids horizontal micro-scroll). */
 function getResponsiveDashboardChartWidth(container, pointCount) {
   const fallbackWidth = Math.max(320, pointCount * 36);
@@ -116,27 +145,36 @@ function scheduleDashboardChartDayPanelOutsideClose(container) {
   }, 0);
 }
 
-/** @param {string[]} seriesKeys subset of bedTimeMinutes, sleepStartMinutes, getUpMinutes */
-function render7DayTimeGraph(container, points, seriesKeys) {
+/**
+ * @param {string[]} seriesKeys subset of bedTimeMinutes, sleepStartMinutes, getUpMinutes
+ * @param {object | null} [tonightPoint] from buildTonightPoint — adds a "Tonight" column after "Last night".
+ *   Series with a value get a dotted connector + hollow point; it is excluded from the trend fit.
+ */
+function render7DayTimeGraph(container, points, seriesKeys, tonightPoint) {
   if (!points.length) return;
   const keys = Array.isArray(seriesKeys) && seriesKeys.length
     ? seriesKeys
     : ['bedTimeMinutes', 'sleepStartMinutes', 'getUpMinutes'];
+  const tonight =
+    tonightPoint && tonightPoint.date > points[points.length - 1].date ? tonightPoint : null;
+  const tonightKeys = tonight ? keys.filter((k) => Number.isFinite(tonight[k])) : [];
   const margin = { top: 24, right: 40, bottom: 36, left: 48 };
-  const width = getResponsiveDashboardChartWidth(container, points.length);
+  const width = getResponsiveDashboardChartWidth(container, points.length + (tonight ? 1 : 0));
   const height = 280;
   const graphWidth = width - margin.left - margin.right;
   const graphHeight = height - margin.top - margin.bottom;
 
-  // Dynamic Y range: min/max of selected series only, plus 1 hour on each side
+  // Dynamic Y range: min/max of selected series only (incl. tonight's values), plus 1 hour on each side
   const allTimes = points.flatMap(p => keys.map(k => p[k]));
+  tonightKeys.forEach((k) => allTimes.push(tonight[k]));
   const dataMin = Math.min(...allTimes), dataMax = Math.max(...allTimes);
   const hourPad = 60;
   const finalYMin = Math.floor((dataMin - hourPad) / 60) * 60;
   const finalYMax = Math.ceil((dataMax + hourPad) / 60) * 60;
   const range = Math.max(finalYMax - finalYMin, 120);
 
-  const minDate = points[0].date, maxDate = points[points.length - 1].date;
+  const minDate = points[0].date;
+  const maxDate = tonight ? tonight.date : points[points.length - 1].date;
   const dateRange = maxDate - minDate || 1;
   const xScale = (date) => ((date - minDate) / dateRange) * graphWidth;
   const yScale = (minutes) => graphHeight - ((minutes - finalYMin) / range) * graphHeight;
@@ -200,6 +238,15 @@ function render7DayTimeGraph(container, points, seriesKeys) {
     g.appendChild(tickLine);
     append7DayXAxisTickLabel(g, ns, x, graphHeight, point, index, points.length);
   });
+  if (tonight) {
+    const tx = xScale(tonight.date);
+    const tickLine = ns('line');
+    tickLine.setAttribute('x1', tx); tickLine.setAttribute('y1', graphHeight);
+    tickLine.setAttribute('x2', tx); tickLine.setAttribute('y2', graphHeight + 5);
+    tickLine.setAttribute('class', 'axis');
+    g.appendChild(tickLine);
+    appendTonightXAxisTickLabel(g, ns, tx, graphHeight, tonightKeys.length > 0);
+  }
 
   const path = (pts, key) => {
     let d = '';
@@ -217,6 +264,21 @@ function render7DayTimeGraph(container, points, seriesKeys) {
     pathEl.setAttribute('class', cls.data);
     g.appendChild(pathEl);
   });
+
+  // Tonight: dotted connector from last night's point to tonight's (per series that has a value).
+  if (tonight) {
+    const last = points[points.length - 1];
+    tonightKeys.forEach((key) => {
+      if (!Number.isFinite(last[key])) return;
+      const conn = ns('line');
+      conn.setAttribute('x1', xScale(last.date));
+      conn.setAttribute('y1', yScale(last[key]));
+      conn.setAttribute('x2', xScale(tonight.date));
+      conn.setAttribute('y2', yScale(tonight[key]));
+      conn.setAttribute('class', `tonight-connector tonight-connector--${tonightSeriesSuffix(key)}`);
+      g.appendChild(conn);
+    });
+  }
 
   // Match charts page behavior: break get-up line behind no-alarm wake bullseye markers.
   if (keys.includes('getUpMinutes')) {
@@ -300,13 +362,27 @@ function render7DayTimeGraph(container, points, seriesKeys) {
     });
   });
 
+  // Tonight: hollow points (in progress, not part of the trend fit).
+  if (tonight) {
+    tonightKeys.forEach((key) => {
+      const ring = ns('circle');
+      ring.setAttribute('cx', String(xScale(tonight.date)));
+      ring.setAttribute('cy', String(yScale(tonight[key])));
+      ring.setAttribute('r', '4');
+      ring.setAttribute('class', `data-point-tonight data-point-tonight--${tonightSeriesSuffix(key)}`);
+      g.appendChild(ring);
+    });
+  }
+
   // Invisible tap/click areas per day: tap a day to show daily values popup (same as charts.js)
-  const dayWidth = graphWidth / Math.max(1, points.length);
+  const slotCount = points.length + (tonight ? 1 : 0);
+  const dayWidth = graphWidth / Math.max(1, slotCount);
+  const tonightLeft = tonight ? xScale(tonight.date) - dayWidth / 2 : graphWidth;
   points.forEach((point, index) => {
     const x = xScale(point.date);
     const left = index === 0 ? 0 : x - dayWidth / 2;
     const w = index === 0 ? dayWidth / 2 + x - left
-      : index === points.length - 1 ? graphWidth - left
+      : index === points.length - 1 ? tonightLeft - left
       : dayWidth;
     const dayRect = ns('rect');
     dayRect.setAttribute('x', left);
@@ -326,8 +402,52 @@ function render7DayTimeGraph(container, points, seriesKeys) {
     g.appendChild(dayRect);
   });
 
+  // Tonight slot: hover title only (no day panel — the night is not complete yet).
+  if (tonight && tonightKeys.length) {
+    const tonightRect = ns('rect');
+    tonightRect.setAttribute('x', tonightLeft);
+    tonightRect.setAttribute('y', 0);
+    tonightRect.setAttribute('width', Math.max(0, graphWidth - tonightLeft));
+    tonightRect.setAttribute('height', graphHeight);
+    tonightRect.style.fill = 'transparent';
+    tonightRect.style.pointerEvents = 'all';
+    const title = ns('title');
+    title.textContent = formatTonightChartTitle(tonight, tonightKeys);
+    tonightRect.appendChild(title);
+    g.appendChild(tonightRect);
+  }
+
   container.innerHTML = '';
   container.appendChild(svg);
+}
+
+function dashboardT(key, fallback) {
+  return typeof t === 'function' ? t(key, fallback) : fallback;
+}
+
+/** "Tonight" x-axis label; muted when this chart has no tonight values (e.g. wake chart). */
+function appendTonightXAxisTickLabel(g, ns, x, graphHeight, hasValues) {
+  const label = ns('text');
+  label.setAttribute('x', x);
+  label.setAttribute('y', graphHeight + 14);
+  label.setAttribute('text-anchor', 'middle');
+  label.setAttribute(
+    'class',
+    hasValues ? 'axis-label axis-label--tonight' : 'axis-label axis-label--tonight axis-label--tonight-empty'
+  );
+  label.textContent = dashboardT('dashboard.sectionTonight', 'Tonight');
+  g.appendChild(label);
+}
+
+function formatTonightChartTitle(tonight, tonightKeys) {
+  const parts = [];
+  if (tonightKeys.includes('bedTimeMinutes') && tonight.bedTimeString) {
+    parts.push(`${dashboardT('dashboard.tonight.logged.bed', 'Bed')} ${formatTime(timeToMinutes(tonight.bedTimeString))}`);
+  }
+  if (tonightKeys.includes('sleepStartMinutes') && tonight.sleepStartString) {
+    parts.push(`${dashboardT('dashboard.tonight.logged.asleep', 'Asleep')} ${formatTime(timeToMinutes(tonight.sleepStartString))}`);
+  }
+  return `${dashboardT('dashboard.sectionTonight', 'Tonight')} (${dashboardT('dashboard.tonight.logged.inProgress', 'in progress')}): ${parts.join(' · ')}`;
 }
 
 function render7DayDurationChart(container, points) {
@@ -497,9 +617,105 @@ function renderDashboard7DayGraphs(days) {
   const bedSleepEl = document.getElementById('dashboard-7d-bed-sleep-graph');
   const wakeEl = document.getElementById('dashboard-7d-wake-graph');
   const durationEl = document.getElementById('dashboard-7d-duration-graph');
-  if (bedSleepEl) render7DayTimeGraph(bedSleepEl, last7, ['bedTimeMinutes', 'sleepStartMinutes']);
-  if (wakeEl) render7DayTimeGraph(wakeEl, last7, ['getUpMinutes']);
+  // Tonight column: bed/sleep chart shows the draft values; the stacked wake chart gets an empty
+  // Tonight slot so both charts keep the same x columns.
+  const tonightPoint = buildTonightPoint(getActiveDashboardPendingNight());
+  if (bedSleepEl) render7DayTimeGraph(bedSleepEl, last7, ['bedTimeMinutes', 'sleepStartMinutes'], tonightPoint);
+  if (wakeEl) render7DayTimeGraph(wakeEl, last7, ['getUpMinutes'], tonightPoint);
   if (durationEl) render7DayDurationChart(durationEl, last7);
+}
+
+// --- Tonight (unpromoted draft) ---
+// The store only holds promoted `sleep_days`. Tonight's in-progress night lives in `sleep_day_drafts`
+// until bed + sleep start + wake are all present (`promote_draft_if_complete`). The dashboard fetches
+// that draft separately and surfaces bed / sleep start only (chart "Tonight" column + Tonight panel).
+
+/** @type {{ key: string, bed: string, sleepStart: string } | null} */
+let dashboardPendingNight = null;
+let dashboardPendingNightSig = '';
+let dashboardPendingNightReq = 0;
+
+function pendingNightTimeOrEmpty(v) {
+  const s = v == null ? '' : String(v).trim();
+  if (!s) return '';
+  return Number.isFinite(timeToMinutes(s)) ? s : '';
+}
+
+/**
+ * Current night key (ISO wake-date) — the same key bed / sleep quick actions save to
+ * (`recordDateMdForSleepPeriod` with the recent-7 average wake).
+ */
+function getDashboardTonightNightKey(days) {
+  if (typeof recordDateMdForSleepPeriod !== 'function' || typeof getAppDate !== 'function') return null;
+  const recent = Array.isArray(days) ? days.slice(0, Math.min(7, days.length)) : [];
+  let avgWake = 7 * 60;
+  if (recent.length) {
+    const avg = calculateAverages(recent);
+    if (avg && Number.isFinite(avg.avgSleepEnd)) avgWake = avg.avgSleepEnd;
+  } else if (typeof QUICK_ADD_FALLBACK_AVERAGES !== 'undefined') {
+    avgWake = QUICK_ADD_FALLBACK_AVERAGES.avgSleepEnd;
+  }
+  const md = recordDateMdForSleepPeriod(getAppDate(), avgWake);
+  return md ? normalizeSleepDateKey(md) : null;
+}
+
+/** Pending night is only valid while no promoted row holds its key (or anything newer). */
+function isDashboardPendingNightKeyOpen(key, days) {
+  if (!key) return false;
+  const latestPromoted =
+    typeof getLatestSleepDayDateKeyFromLoadedDays === 'function'
+      ? getLatestSleepDayDateKeyFromLoadedDays(days)
+      : null;
+  return !latestPromoted || key > latestPromoted;
+}
+
+/**
+ * Fetch tonight's draft for the current night key. Resolves null when there is no cloud config,
+ * no draft, the key is already promoted, or the draft has neither bed nor sleep start.
+ */
+function fetchDashboardPendingNight(days) {
+  const key = getDashboardTonightNightKey(days);
+  if (!key || typeof getSleepDraftByDate !== 'function') return Promise.resolve(null);
+  if (!isDashboardPendingNightKeyOpen(key, days)) return Promise.resolve(null);
+  return getSleepDraftByDate(key)
+    .then((draft) => {
+      if (!draft) return null;
+      const bed = pendingNightTimeOrEmpty(draft.bed);
+      const sleepStart = pendingNightTimeOrEmpty(draft.sleepStart);
+      if (!bed && !sleepStart) return null;
+      return { key, bed, sleepStart };
+    })
+    .catch(() => null);
+}
+
+/** Cached pending night, re-validated against the currently loaded days (drops it once promoted). */
+function getActiveDashboardPendingNight() {
+  const p = dashboardPendingNight;
+  if (!p) return null;
+  if (!isDashboardPendingNightKeyOpen(p.key, dashboardCurrentDays)) return null;
+  return p;
+}
+
+function refreshDashboardPendingNight() {
+  const req = ++dashboardPendingNightReq;
+  const gen = dashboardMountGeneration;
+  return fetchDashboardPendingNight(dashboardCurrentDays).then((pending) => {
+    if (req !== dashboardPendingNightReq || gen !== dashboardMountGeneration || !dashboardMountedRoot) return;
+    const sig = pending ? `${pending.key}|${pending.bed}|${pending.sleepStart}` : '';
+    if (sig === dashboardPendingNightSig) return;
+    dashboardPendingNight = pending;
+    dashboardPendingNightSig = sig;
+    renderDashboard7DayGraphs(dashboardCurrentDays);
+    if (typeof window.__dashboardTonightAdjusterRefresh === 'function') {
+      window.__dashboardTonightAdjusterRefresh();
+    }
+  });
+}
+
+function resetDashboardPendingNight() {
+  dashboardPendingNightReq++;
+  dashboardPendingNight = null;
+  dashboardPendingNightSig = '';
 }
 
 let dashboardResizeRenderBound = false;
@@ -568,9 +784,12 @@ function renderDashboardFromData(sleepData) {
       },
       function () {
         return dashboardCurrentDays;
-      }
+      },
+      getActiveDashboardPendingNight
     );
   }
+
+  void refreshDashboardPendingNight();
 
   if (typeof getRemainingWakeDisplayFromDays === 'function' && typeof updateRemainingWakeNav === 'function') {
     updateRemainingWakeNav(getRemainingWakeDisplayFromDays(dashboardCurrentDays));
@@ -710,6 +929,7 @@ function unmountDashboard() {
   }
   dashboardMountedRoot = null;
   dashboardCurrentDays = [];
+  resetDashboardPendingNight();
 }
 
 window.__restoreDashboardLifecycle = {
