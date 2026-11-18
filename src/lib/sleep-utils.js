@@ -448,7 +448,8 @@ function isSeedDefaultUserSettingsRow(row) {
     row.tonight_target_wake_min == null &&
     row.tonight_guidance_sleep_enabled !== true &&
     row.tonight_guidance_wake_enabled !== true &&
-    (row.tonight_guidance_pace == null || row.tonight_guidance_pace === '' || row.tonight_guidance_pace === DEFAULT_TONIGHT_GUIDANCE_PACE_ID)
+    (row.tonight_guidance_pace == null || row.tonight_guidance_pace === '' || row.tonight_guidance_pace === DEFAULT_TONIGHT_GUIDANCE_PACE_ID) &&
+    row.phase_wallpaper !== true
   );
 }
 
@@ -499,7 +500,8 @@ function localUserSettingsToRow() {
     tonight_guidance_wake_enabled: getTonightGuidanceWakeEnabled(),
     tonight_guidance_pace: getTonightGuidancePaceId(),
     hint_quick_actions_about: getHintQuickActionsAbout(),
-    hint_tonight_about: getHintTonightAbout()
+    hint_tonight_about: getHintTonightAbout(),
+    phase_wallpaper: getPhaseWallpaperEnabled()
   };
 }
 
@@ -639,6 +641,15 @@ function userSettingsRowToLocalStorage(row) {
       localStorage.removeItem(HINT_TONIGHT_ABOUT_KEY);
     }
   } catch (_) {}
+  try {
+    const pw = row.phase_wallpaper;
+    if (pw === true || pw === 'true' || pw === 1 || pw === '1') {
+      localStorage.setItem(PHASE_WALLPAPER_KEY, '1');
+    } else {
+      localStorage.removeItem(PHASE_WALLPAPER_KEY);
+    }
+    localStorage.removeItem(PHASE_WALLPAPER_LEGACY_DEV_KEY);
+  } catch (_) {}
 }
 
 function fetchUserSettings(config) {
@@ -646,7 +657,7 @@ function fetchUserSettings(config) {
   const uid = encodeURIComponent(RESTORE_CLOUD_USER_ID);
   const url =
     config.url.replace(/\/+$/, '') +
-    '/rest/v1/user_settings?select=user_id,language,theme_override,clock_format,quality_palette,remaining_wake_open_min,remaining_wake_winding_min,remaining_wake_phase_heads_up_mins,tonight_target_sleep_min,tonight_target_wake_min,tonight_guidance_sleep_enabled,tonight_guidance_wake_enabled,tonight_guidance_pace,hint_quick_actions_about,hint_tonight_about&user_id=eq.' +
+    '/rest/v1/user_settings?select=user_id,language,theme_override,clock_format,quality_palette,remaining_wake_open_min,remaining_wake_winding_min,remaining_wake_phase_heads_up_mins,tonight_target_sleep_min,tonight_target_wake_min,tonight_guidance_sleep_enabled,tonight_guidance_wake_enabled,tonight_guidance_pace,hint_quick_actions_about,hint_tonight_about,phase_wallpaper&user_id=eq.' +
     uid +
     '&limit=1';
   return fetch(url, { headers: getSupabaseAuthHeaders(config, false) })
@@ -738,6 +749,8 @@ function refreshUiAfterUserSettingsHydrate() {
     headsUpRange.setAttribute('aria-valuetext', getRemainingWakePhaseHeadsUpStopAriaLabel(mins));
   }
   syncTonightGuidanceConfigControls();
+  syncPhaseWallpaperConfigControls();
+  applyPhaseWallpaper(lastRemainingWakeNavDisplay);
   syncInAppTipsSettingsEyeButtonsFromState();
   updateDevBannerUserSettingsPanel();
 }
@@ -1841,6 +1854,10 @@ const DEV_BANNER_OVERRIDE_KEY = 'sleep-app-force-dev-banner';
 const DEV_CLOCK_OVERRIDE_MS_KEY = 'sleep-app-dev-clock-override-ms';
 const DEV_BANNER_DRAWER_COLLAPSED_KEY = 'sleep-app-dev-banner-drawer-collapsed';
 const DEV_BANNER_EXPANDED_RESERVE_KEY = 'sleep-app-dev-banner-expanded-reserve-px';
+/** Phase wallpaper: remaining-wake phase colors (+ stars / dawn) as the full-page background. `'1'` = on; mirrors `user_settings.phase_wallpaper`. */
+const PHASE_WALLPAPER_KEY = 'sleep-app-phase-wallpaper';
+/** Pre-setting dev experiment key; read once and moved to PHASE_WALLPAPER_KEY. */
+const PHASE_WALLPAPER_LEGACY_DEV_KEY = 'sleep-app-dev-phase-wallpaper';
 
 // Day/night mode: sunrise and sunset in local time (hours 0-23, minutes 0-59).
 // index.html (and any inline theme boot) must use the same numeric window for first paint.
@@ -4659,6 +4676,9 @@ function updateDevBannerUserSettingsPanel() {
   if (hintAll) hintAll.checked = hq && ht;
   if (hintQuick) hintQuick.checked = hq;
   if (hintTonight) hintTonight.checked = ht;
+
+  const phaseColorsSel = document.getElementById('nav-dev-banner-user-phase-colors');
+  if (phaseColorsSel) phaseColorsSel.value = getPhaseWallpaperEnabled() ? 'wallpaper' : 'banner';
 }
 
 /** Resets dev-banner user settings (and mirrored prefs) to app defaults; dev build only (Use defaults). */
@@ -4688,8 +4708,11 @@ function applyDevBannerUserSettingsDefaults() {
       localStorage.removeItem(TONIGHT_GUIDANCE_PACE_KEY);
       localStorage.removeItem(HINT_QUICK_ACTIONS_ABOUT_KEY);
       localStorage.removeItem(HINT_TONIGHT_ABOUT_KEY);
+      localStorage.removeItem(PHASE_WALLPAPER_KEY);
+      localStorage.removeItem(PHASE_WALLPAPER_LEGACY_DEV_KEY);
     }
   } catch (_) {}
+  applyPhaseWallpaper(lastRemainingWakeNavDisplay);
   if (typeof applyRemainingWakeThresholdsUI === 'function') {
     applyRemainingWakeThresholdsUI(
       100 - DEFAULT_REMAINING_WAKE_OPEN_MIN,
@@ -4908,6 +4931,16 @@ function initDevBannerUserSettingsPanel() {
           setHintTonightAboutVisible(hintTonightCb.checked);
         });
       }
+    }
+
+    const phaseColorsSel = document.getElementById('nav-dev-banner-user-phase-colors');
+    if (phaseColorsSel && phaseColorsSel.dataset.bound !== '1') {
+      phaseColorsSel.dataset.bound = '1';
+      phaseColorsSel.addEventListener('change', function () {
+        const v = phaseColorsSel.value;
+        if (v !== 'banner' && v !== 'wallpaper') return;
+        setPhaseWallpaperEnabled(v === 'wallpaper');
+      });
     }
 
     updateDevBannerUserSettingsPanel();
@@ -5590,7 +5623,7 @@ function renderNavBar(currentPage) {
     devBannerUserIdEsc +
     '</code>' +
     '<button type="button" class="nav-dev-banner-user-defaults-btn" id="nav-dev-banner-user-use-default"' +
-    ' aria-label="Use all default settings: reset language, clock, theme, palette, remaining wake thresholds, heads-up, tonight target, and per-pole tonight guidance (plus shared pace) to app defaults">Use all default settings</button>' +
+    ' aria-label="Use all default settings: reset language, clock, theme, palette, remaining wake thresholds, heads-up, tonight target, per-pole tonight guidance (plus shared pace), tips, and background to app defaults">Use all default settings</button>' +
     '<div class="nav-dev-banner-in-app-tips nav-dev-banner-in-app-tips--header" role="group" aria-label="In-app tips (Dashboard)">' +
     '<span class="nav-dev-banner-tips-label">Tips</span>' +
     '<span class="nav-dev-banner-hint-checks" role="group" aria-label="Show Dashboard in-app tips">' +
@@ -5627,6 +5660,12 @@ function renderNavBar(currentPage) {
     '<option value="auto">Auto palette</option>' +
     '<option value="meadow">Meadow</option>' +
     '<option value="harbor">Harbor</option>' +
+    '</select>' +
+    '</div>' +
+    '<div class="nav-dev-banner-user-field nav-dev-banner-user-field--col nav-dev-banner-user-field--pref">' +
+    '<select id="nav-dev-banner-user-phase-colors" class="nav-dev-banner-user-select nav-dev-banner-user-select--field" aria-label="Phase colors (mirrors Settings; user_settings.phase_wallpaper)">' +
+    '<option value="banner">Banner (default)</option>' +
+    '<option value="wallpaper">Wallpaper (full page)</option>' +
     '</select>' +
     '</div>' +
     '</div>' +
@@ -5739,6 +5778,7 @@ function getRemainingWakeIcon(phase) {
     case 'presleep': return '🛏️';
     case 'sleepSoon': return '🛏️';
     case 'sleep': return '🌙';
+    case 'wakingSoon': return '🌅';
     default: return '☀️';
   }
 }
@@ -5778,18 +5818,28 @@ function computeRemainingWakePhaseHeadsUp(phase, remainingMins, totalWakeMins) {
   };
 }
 
+/** Forward (clockwise) minutes from `fromMins` to `toMins` on a 24h clock, 0–1439. */
+function forwardClockMinutes(fromMins, toMins) {
+  return (((toMins - fromMins) % 1440) + 1440) % 1440;
+}
+
 /**
- * After average sleep time (same evening) or before average wake (early morning), we are outside
- * the main wake window — avoid wrapping minutes-until-sleep to ~24h.
- * Skipped when wake and sleep order is atypical (wake >= sleep on the clock).
+ * Overnight limbo: the clock is inside the sleep → wake interval going forward around the clock
+ * (from average/scheduled sleep up to, not including, wake). Outside the main wake window, so
+ * minutes-until-sleep must not wrap to ~24h. Works whether sleep falls before or after midnight
+ * (22:30 → 07:00 and 00:36 → 09:30 alike). Empty when sleep and wake are the same minute.
  */
 function shouldShowGoToBedSoonWakeNav(nowMins, wakeMins, sleepMins) {
   if (!Number.isFinite(nowMins) || !Number.isFinite(wakeMins) || !Number.isFinite(sleepMins)) {
     return false;
   }
-  if (wakeMins >= sleepMins) return false;
-  return nowMins > sleepMins || nowMins < wakeMins;
+  const span = forwardClockMinutes(sleepMins, wakeMins);
+  if (span === 0) return false;
+  return forwardClockMinutes(sleepMins, nowMins) < span;
 }
+
+/** Minutes before the scheduled wake (basis.avgSleepEnd) when Sweet dreams hands over to Waking soon. */
+const WAKING_SOON_NAV_MINS = 60;
 
 /** Build remaining-wake display from a computed wake basis. Pass `days` for dynamic sleep phase and wake flags. */
 function getRemainingWakeDisplayFromBasis(basis, days) {
@@ -5802,6 +5852,17 @@ function getRemainingWakeDisplayFromBasis(basis, days) {
     typeof QUICK_ADD_FALLBACK_AVERAGES !== 'undefined' ? QUICK_ADD_FALLBACK_AVERAGES : null;
 
   if (days && days.length && shouldShowDynamicSleepNavPhase(days, basis, now, nightMd)) {
+    // Last hour before the scheduled wake (average → guided / set target → session slider, via basis).
+    const untilWake = forwardClockMinutes(nowMins, avgSleepEnd);
+    if (untilWake > 0 && untilWake <= WAKING_SOON_NAV_MINS) {
+      return {
+        phase: 'wakingSoon',
+        icon: getRemainingWakeIcon('wakingSoon'),
+        timeLabel: 'waking soon',
+        timeLabelSoft: true,
+        percentRemaining: null
+      };
+    }
     const bedLogged = isNightBedLogged(nightMd, days, averagesFallback);
     const sleepOrIntentLogged = isNightSleepOrIntentLoggedNav(nightMd, days, now, averagesFallback);
     const bedOnlyNeedGoSleep = bedLogged && !sleepOrIntentLogged;
@@ -5902,14 +5963,233 @@ function getNavHeaderTwinkleStarsHtml() {
     .join('');
 }
 
+/** One-time move of the dev experiment key to the real setting key. */
+function migratePhaseWallpaperLegacyKey() {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    const legacy = localStorage.getItem(PHASE_WALLPAPER_LEGACY_DEV_KEY);
+    if (legacy == null) return;
+    if (legacy === '1' && localStorage.getItem(PHASE_WALLPAPER_KEY) == null) {
+      localStorage.setItem(PHASE_WALLPAPER_KEY, '1');
+    }
+    localStorage.removeItem(PHASE_WALLPAPER_LEGACY_DEV_KEY);
+  } catch (_) {}
+}
+
+/** Phase wallpaper on (`PHASE_WALLPAPER_KEY` = '1'); default off. Mirrors `user_settings.phase_wallpaper`. */
+function getPhaseWallpaperEnabled() {
+  migratePhaseWallpaperLegacyKey();
+  try {
+    return typeof localStorage !== 'undefined' && localStorage.getItem(PHASE_WALLPAPER_KEY) === '1';
+  } catch (_) {
+    return false;
+  }
+}
+
+function setPhaseWallpaperEnabled(on) {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      if (on) localStorage.setItem(PHASE_WALLPAPER_KEY, '1');
+      else localStorage.removeItem(PHASE_WALLPAPER_KEY);
+    }
+  } catch (_) {}
+  applyPhaseWallpaper(lastRemainingWakeNavDisplay);
+  syncUserSettingsRowToCloud();
+  updateDevBannerUserSettingsPanel();
+  syncPhaseWallpaperConfigControls();
+  try {
+    document.dispatchEvent(new CustomEvent('phase-wallpaper-changed', { detail: { enabled: Boolean(on) } }));
+  } catch (_) {}
+}
+
+/** Settings → Look and feel → Phase colors: Top banner / Wallpaper picker + preview mode. */
+function syncPhaseWallpaperConfigControls() {
+  if (typeof document === 'undefined') return;
+  const mode = getPhaseWallpaperEnabled() ? 'wallpaper' : 'banner';
+  const wrap = document.getElementById('config-phase-colors');
+  if (wrap) {
+    wrap.querySelectorAll('.about-theme-option').forEach(function (btn) {
+      const isActive = btn.getAttribute('data-phase-colors') === mode;
+      btn.classList.toggle('active', isActive);
+      btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+  }
+  const preview = document.getElementById('config-phase-wallpaper-preview');
+  if (preview) {
+    preview.classList.toggle('config-phase-wallpaper-preview--banner', mode === 'banner');
+    preview.classList.toggle('config-phase-wallpaper-preview--wallpaper', mode === 'wallpaper');
+  }
+}
+
+/** Five static tiles (Active → Waking soon); the fill covers a top strip (banner) or the whole tile (wallpaper). */
+function getPhaseWallpaperPreviewHtml() {
+  const star = function (top, left) {
+    return (
+      '<span class="nav-header-twinkle-star nav-header-twinkle-star--small" style="top:' + top +
+      '%;left:' + left + '%;animation:none;opacity:0.85;transform:none">' +
+      '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0 L14 10 L24 12 L14 14 L12 24 L10 14 L0 12 L10 10 Z"/></svg></span>'
+    );
+  };
+  const swatches = [
+    ['open', 'config.remainingWake.phase.open', 'Active', ''],
+    ['winding', 'config.remainingWake.phase.winding', 'Winding', ''],
+    ['presleep', 'config.remainingWake.phase.presleep', 'Pre-sleep', ''],
+    ['sleep', 'config.phaseColors.swatchSleep', 'Asleep', star(14, 16) + star(22, 70) + star(60, 34)],
+    ['wakingSoon', 'config.phaseColors.swatchWaking', 'Waking soon', '<span class="dawn-glow"></span>']
+  ];
+  return swatches
+    .map(function (sw) {
+      const label = escapeHtmlBannerAttr(t(sw[1], sw[2]));
+      return (
+        '<span class="config-phase-wallpaper-swatch-tile" title="' + label + '" aria-label="' + label + '" role="img">' +
+        '<span class="config-phase-wallpaper-swatch-fill phase-wallpaper--phase-' + sw[0] + '" aria-hidden="true">' +
+        sw[3] +
+        '</span>' +
+        '<span class="config-phase-wallpaper-swatch-icon" aria-hidden="true">' + getRemainingWakeIcon(sw[0]) + '</span>' +
+        '</span>'
+      );
+    })
+    .join('');
+}
+
+function initPhaseWallpaperConfigControls() {
+  if (typeof document === 'undefined') return;
+  const preview = document.getElementById('config-phase-wallpaper-preview');
+  if (preview) preview.innerHTML = getPhaseWallpaperPreviewHtml();
+  const wrap = document.getElementById('config-phase-colors');
+  if (wrap && wrap.dataset.bound !== '1') {
+    wrap.dataset.bound = '1';
+    wrap.addEventListener('click', function (e) {
+      const btn = e.target.closest('[data-phase-colors]');
+      if (!btn) return;
+      const v = btn.getAttribute('data-phase-colors');
+      if (v !== 'banner' && v !== 'wallpaper') return;
+      setPhaseWallpaperEnabled(v === 'wallpaper');
+    });
+  }
+  syncPhaseWallpaperConfigControls();
+}
+
+/** Last display passed to `updateRemainingWakeNav` (lets the dev toggle re-apply without a refetch). */
+let lastRemainingWakeNavDisplay = null;
+
+/** Star field for the full-page wallpaper: fixed pseudo-random spread so it is stable across renders. */
+function getPhaseWallpaperStarsHtml() {
+  const path = 'M12 0 L14 10 L24 12 L14 14 L12 24 L10 14 L0 12 L10 10 Z';
+  const sizes = ['small', 'small', 'med', 'small', 'large', 'small', 'med'];
+  const count = 42;
+  let html = '';
+  for (let i = 0; i < count; i++) {
+    // R2 low-discrepancy sequence: even 2D coverage without a visible grid; 2–98% keeps stars off the edges.
+    const fx = (0.5 + i * 0.7548776662) % 1;
+    const fy = (0.5 + i * 0.5698402910) % 1;
+    const left = (2 + fx * 96).toFixed(2);
+    const top = (2 + fy * 96).toFixed(2);
+    const size = sizes[i % sizes.length];
+    const delay = ((i * 0.37) % 2.4).toFixed(2);
+    const dur = (2.4 + (i % 5) * 0.45).toFixed(2);
+    html +=
+      `<span class="nav-header-twinkle-star nav-header-twinkle-star--${size} phase-wallpaper-star"` +
+      ` style="top:${top}%;left:${left}%;animation-delay:${delay}s;animation-duration:${dur}s">` +
+      `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="${path}"/></svg></span>`;
+  }
+  return html;
+}
+
+/**
+ * Full-page phase wallpaper (dev experiment). Mirrors the header's phase classes / heads-up blend onto a
+ * fixed layer behind the page; header goes transparent so the page reads as one surface.
+ */
+function applyPhaseWallpaper(display) {
+  if (typeof document === 'undefined' || !document.body) return;
+  const root = document.documentElement;
+  const phaseClasses = [
+    'phase-wallpaper--phase-open',
+    'phase-wallpaper--phase-winding',
+    'phase-wallpaper--phase-presleep',
+    'phase-wallpaper--phase-sleepSoon',
+    'phase-wallpaper--phase-sleep',
+    'phase-wallpaper--phase-wakingSoon',
+    'phase-wallpaper--phase-learning',
+    'phase-wallpaper--rw-heads-up-blend'
+  ];
+  let layer = document.getElementById('phase-wallpaper');
+  if (!getPhaseWallpaperEnabled() || !display) {
+    root.classList.remove('restore-phase-wallpaper');
+    if (layer) layer.remove();
+    return;
+  }
+  if (!layer) {
+    layer = document.createElement('div');
+    layer.id = 'phase-wallpaper';
+    layer.className = 'phase-wallpaper';
+    layer.setAttribute('aria-hidden', 'true');
+    layer.innerHTML = '<div class="phase-wallpaper-stars" id="phase-wallpaper-stars"></div>';
+    document.body.prepend(layer);
+  }
+  root.classList.add('restore-phase-wallpaper');
+  phaseClasses.forEach(function (c) {
+    layer.classList.remove(c);
+  });
+  layer.classList.add('phase-wallpaper--phase-' + display.phase);
+
+  const wrapper = document.querySelector('.nav-wrapper');
+  const blend = wrapper && wrapper.classList.contains('nav-wrapper--rw-heads-up-blend');
+  if (blend) {
+    layer.classList.add('phase-wallpaper--rw-heads-up-blend');
+    const mid = wrapper.style.getPropertyValue('--nav-header-mid');
+    if (mid) layer.style.setProperty('--nav-header-mid', mid);
+  } else {
+    layer.style.removeProperty('--nav-header-mid');
+  }
+
+  const decor = document.getElementById('phase-wallpaper-stars');
+  if (decor) {
+    const mode = display.phase === 'sleep' ? 'stars' : display.phase === 'wakingSoon' ? 'dawn' : '';
+    if (decor.dataset.mode !== mode) {
+      decor.dataset.mode = mode;
+      decor.innerHTML =
+        mode === 'stars' ? getPhaseWallpaperStarsHtml() : mode === 'dawn' ? getDawnDecorHtml(16) : '';
+    }
+  }
+}
+
+/**
+ * Decorative dawn for “waking soon”: a slow-breathing warm glow rising from below, a faint horizon
+ * line, and a few drifting light motes. `moteCount` scales between header strip and full wallpaper.
+ */
+function getDawnDecorHtml(moteCount) {
+  const n = Number.isFinite(moteCount) ? moteCount : 6;
+  let motes = '';
+  for (let i = 0; i < n; i++) {
+    const fx = (0.5 + i * 0.7548776662) % 1;
+    const fy = (0.5 + i * 0.5698402910) % 1;
+    const left = (4 + fx * 92).toFixed(2);
+    const top = (30 + fy * 62).toFixed(2); // lower two-thirds: motes rise out of the light
+    const delay = ((i * 1.13) % 7).toFixed(2);
+    const dur = (7 + (i % 4) * 1.5).toFixed(2);
+    motes +=
+      `<span class="dawn-mote${i % 3 === 0 ? ' dawn-mote--lg' : ''}"` +
+      ` style="top:${top}%;left:${left}%;animation-delay:${delay}s;animation-duration:${dur}s"></span>`;
+  }
+  return '<span class="dawn-glow"></span><span class="dawn-horizon"></span>' + motes;
+}
+
 /** Injects remaining wake into nav and sets phase class on wrapper. */
 function updateRemainingWakeNav(display) {
   if (!display) return;
+  lastRemainingWakeNavDisplay = display;
   const slot = document.getElementById('nav-remaining-wake');
   const twinkleLayer = document.getElementById('nav-header-twinkle');
   const wrapper = document.querySelector('.nav-wrapper');
   if (twinkleLayer) {
-    twinkleLayer.innerHTML = display.phase === 'sleep' ? getNavHeaderTwinkleStarsHtml() : '';
+    // Re-render only on mode change so animations do not restart on every nav refresh.
+    const mode = display.phase === 'sleep' ? 'stars' : display.phase === 'wakingSoon' ? 'dawn' : '';
+    if (twinkleLayer.dataset.mode !== mode) {
+      twinkleLayer.dataset.mode = mode;
+      twinkleLayer.innerHTML =
+        mode === 'stars' ? getNavHeaderTwinkleStarsHtml() : mode === 'dawn' ? getDawnDecorHtml(6) : '';
+    }
   }
   if (slot) {
     const { openMin, windingMin } = getRemainingWakeThresholds();
@@ -5927,6 +6207,8 @@ function updateRemainingWakeNav(display) {
     let ariaLabel = 'Remaining wake time';
     if (display.phase === 'sleep') {
       ariaLabel = 'Sweet dreams';
+    } else if (display.phase === 'wakingSoon') {
+      ariaLabel = 'Waking soon';
     } else if (
       display.timeLabelSoft &&
       (display.phase === 'presleep' || display.phase === 'sleepSoon')
@@ -5972,6 +6254,7 @@ function updateRemainingWakeNav(display) {
       'nav-wrapper--phase-presleep',
       'nav-wrapper--phase-sleepSoon',
       'nav-wrapper--phase-sleep',
+      'nav-wrapper--phase-wakingSoon',
       'nav-wrapper--rw-heads-up-blend'
     );
     wrapper.classList.add('nav-wrapper--phase-' + display.phase);
@@ -5991,6 +6274,7 @@ function updateRemainingWakeNav(display) {
       wrapper.style.removeProperty('--nav-header-mid');
     }
   }
+  applyPhaseWallpaper(display);
 }
 
 /**

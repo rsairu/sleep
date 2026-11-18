@@ -38,6 +38,7 @@ This matches `loadSleepDataUsesSupabase(config)` in `sleep-utils.js`. If the use
 | Tonight session slider tweak | `sleep-app-tonight-projection-adjustment` (localStorage) | Optional overlay on top of averages or saved target; cleared when you **save** Tonight targets on the dashboard. |
 | Tonight saved targets (sleep and/or wake) | `public.user_settings` + `sleep-app-tonight-target-window` (localStorage mirror) | Nullable integer minutes 0–1439 per column; JSON may set one or both poles (`null` omits a pole). Removed when both cleared. Drives Tonight thumbs and `getTonightWakePhaseBasisFromDays` before the session tweak. |
 | In-app tips (Dashboard “i” for Quick actions / Tonight) | `public.user_settings` `hint_quick_actions_about`, `hint_tonight_about` + localStorage mirrors | Booleans default `true`; dismissed state mirrored with `'0'` keys (see mapping table). |
+| Phase colors (top banner vs wallpaper) | `public.user_settings` `phase_wallpaper` + `sleep-app-phase-wallpaper` (localStorage mirror) | Boolean, default `false` = **Top banner**; `true` = **Wallpaper (full page)**. Settings → Look and feel → **Phase colors**; the dev banner Phase colors dropdown (beside Theme / Palette) mirrors it. |
 | Dev banner, app-time simulation, QA flags | localStorage only | Not cloud-synced. |
 
 ---
@@ -59,8 +60,9 @@ This matches `loadSleepDataUsesSupabase(config)` in `sleep-utils.js`. If the use
 | `tonight_guidance_pace` | `sleep-app-tonight-guidance-pace`; `'gentle'` / `'normal'` / `'steady'` (default `gentle`; shared cap when either pole is guided). |
 | `hint_quick_actions_about` | `sleep-app-hint-quick-actions-about`; `'0'` when the user dismissed the Dashboard Quick actions “i” link; key absent = show hint (matches DB default `true`). |
 | `hint_tonight_about` | `sleep-app-hint-tonight-about`; `'0'` when dismissed; key absent = show hint (DB default `true`). |
+| `phase_wallpaper` | `sleep-app-phase-wallpaper`; `'1'` when on, key absent when off (DB default `false`). `getPhaseWallpaperEnabled` / `setPhaseWallpaperEnabled`. The pre-setting dev key `sleep-app-dev-phase-wallpaper` is moved over once on read and removed on hydrate. Added by `supabase/migrations/20261118_user_settings_phase_wallpaper.sql` — the client selects this column by name, so apply the migration before deploying (dev and prod the same day — see `docs/supabase-dev-sync.md`). |
 
-Helpers: `localUserSettingsToRow`, `userSettingsRowToLocalStorage`, `fetchUserSettings`, `upsertUserSettings`, `getTonightTargetWindow`, `setTonightTargetWindow`, `mergeTonightTargetWindow`, `clearTonightTargetWindow`, `clearTonightTargetPole`, `getTonightGuidanceSleepEnabled`, `setTonightGuidanceSleepEnabled`, `getTonightGuidanceWakeEnabled`, `setTonightGuidanceWakeEnabled`, `getTonightGuidancePaceId`, `setTonightGuidancePaceId`, `getHintQuickActionsAbout`, `getHintTonightAbout`, `setHintQuickActionsAboutVisible`, `setHintTonightAboutVisible`, `initDashboardHintsSettingsControls`, `initAboutDashboardHintDismissButtons`, `resolveTonightScheduledWindow`, `getTonightWakePhaseBasisFromDays`.
+Helpers: `localUserSettingsToRow`, `userSettingsRowToLocalStorage`, `fetchUserSettings`, `upsertUserSettings`, `getTonightTargetWindow`, `setTonightTargetWindow`, `mergeTonightTargetWindow`, `clearTonightTargetWindow`, `clearTonightTargetPole`, `getTonightGuidanceSleepEnabled`, `setTonightGuidanceSleepEnabled`, `getTonightGuidanceWakeEnabled`, `setTonightGuidanceWakeEnabled`, `getTonightGuidancePaceId`, `setTonightGuidancePaceId`, `getHintQuickActionsAbout`, `getHintTonightAbout`, `setHintQuickActionsAboutVisible`, `setHintTonightAboutVisible`, `initDashboardHintsSettingsControls`, `initAboutDashboardHintDismissButtons`, `getPhaseWallpaperEnabled`, `setPhaseWallpaperEnabled`, `initPhaseWallpaperConfigControls`, `syncPhaseWallpaperConfigControls`, `resolveTonightScheduledWindow`, `getTonightWakePhaseBasisFromDays`.
 
 ---
 
@@ -121,7 +123,7 @@ Hydration state resets when Supabase config is saved/cleared or when **local sle
 
 This clears the Supabase `rls_disabled_in_public` advisor but is **not** per-person security: anyone with the anon key can still read and edit the fixed user's rows. If the client gains a new REST verb on one of these tables (e.g. deleting a `sleep_days` row), add the matching policy or the request will silently affect zero rows.
 
-The prod→dev sync (`.github/workflows/sync-supabase-dev-from-prod-v2.yml`) uses `pg_dump --no-acl`, which still carries RLS state and policies, so dev inherits them from prod.
+The prod→dev sync (`.github/workflows/sync-supabase-dev-from-prod-v2.yml`) uses `pg_dump --no-acl`, which still carries RLS state and policies, so dev inherits them from prod. Schedule, what gets overwritten, and migration order: `docs/supabase-dev-sync.md`.
 
 ---
 

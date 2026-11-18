@@ -46,6 +46,15 @@
         "lightDark": "Light / Dark",
         "auto": "Auto (time-based)"
       },
+      "phaseColors": {
+        "title": "Phase colors",
+        "ariaLabel": "Where phase colors show",
+        "banner": "Top banner",
+        "wallpaper": "Wallpaper (full page)",
+        "previewAria": "Phase colors preview",
+        "swatchSleep": "Asleep",
+        "swatchWaking": "Waking soon"
+      },
       "quality": {
         "title": "Palette",
         "intro": "These palette colors are used for sleep quality flags and Sleep HP.",
@@ -428,6 +437,15 @@
         "lightDarkAriaLabel": "ライト / ダーク",
         "lightDark": "ライト / ダーク",
         "auto": "自動（時間帯ベース）"
+      },
+      "phaseColors": {
+        "title": "フェーズカラー",
+        "ariaLabel": "フェーズカラーの表示範囲",
+        "banner": "上部バナー",
+        "wallpaper": "壁紙（ページ全体）",
+        "previewAria": "フェーズカラーのプレビュー",
+        "swatchSleep": "睡眠中",
+        "swatchWaking": "まもなく起床"
       },
       "quality": {
         "title": "パレット",

@@ -108,6 +108,19 @@ If true, display returns:
 - `timeLabelSoft: true`
 - `percentRemaining: null`
 
+Header decor: twinkling stars (`getNavHeaderTwinkleStarsHtml`) on a midnight strip.
+
+#### Waking soon (`wakingSoon`)
+
+Inside Dynamic Sleep, during the last **`WAKING_SOON_NAV_MINS`** (60) minutes before the basis wake (`basis.avgSleepEnd` — recent average, else the Tonight target: guided when guidance is on, as set when off, else the session slider), the display becomes:
+
+- `phase: "wakingSoon"`, icon 🌅
+- `timeLabel: "waking soon"`
+- `timeLabelSoft: true`
+- `percentRemaining: null`
+
+This takes precedence over both **sweet dreams** and **start sleep soon**. Header decor is `getDawnDecorHtml()` (rising warm glow, faint horizon line, drifting motes) on a midnight-to-dawn strip (`--nav-phase-tint-dawn`). Display-only: `isDynamicSleepPhase` is unchanged, so quick actions keep their sleep-phase set.
+
 #### Bed / fell-asleep considered “logged” for Dynamic Sleep (nav)
 
 Dynamic Sleep uses `isNightBedOrSleepLogged` on the night-key row (`nightMd`) only:
@@ -124,6 +137,8 @@ Nav does **not** require wall-clock recency here: backfilled or older entries st
 ### "Get in bed soon" / "Start sleep soon" soft states
 
 See **`docs/remaining-time.md`** for the full split (including Dynamic Sleep vs soft labels). In short: overnight limbo uses **`get in bed soon`** when bed is not logged yet, and **`start sleep soon`** after bed is logged but fell-asleep / sleep intent is not.
+
+**Overnight limbo** (`shouldShowGoToBedSoonWakeNav`) is the sleep → wake interval measured forward around the clock (`forwardClockMinutes`): true from basis sleep up to, not including, basis wake, for schedules on either side of midnight. (It used to be skipped when wake ≥ sleep on the clock, which dropped post-midnight sleepers out of Dynamic Sleep 240 minutes after average sleep.)
 
 If `shouldShowGoToBedSoonWakeNav(...)` is true and wake has not been logged for the current sleep period row, **and** Dynamic Sleep is not active (bed/sleep not treated as logged per the previous section):
 
@@ -251,7 +266,7 @@ Current code/docs mostly say "Remaining wake time" while product direction is "R
 
 ### 2) i18n completion for nav runtime strings
 
-Some nav labels are still hard-coded English in display/render paths (for example `sweet dreams`, `get in bed soon`, `start sleep soon`, and heads-up text formatting).
+Some nav labels are still hard-coded English in display/render paths (for example `sweet dreams`, `waking soon`, `get in bed soon`, `start sleep soon`, and heads-up text formatting).
 
 - Move remaining hard-coded nav strings to translation keys.
 - Confirm ARIA text and visible text both localize correctly.

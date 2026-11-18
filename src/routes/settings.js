@@ -33,6 +33,7 @@
     if (typeof initConfigThemeSelector === 'function') initConfigThemeSelector();
     if (typeof initQualityPaletteSelector === 'function') initQualityPaletteSelector();
     if (typeof initTonightGuidanceConfigControls === 'function') initTonightGuidanceConfigControls();
+    if (typeof initPhaseWallpaperConfigControls === 'function') initPhaseWallpaperConfigControls();
 
     var rwMount = document.getElementById('remaining-wake-mount');
     if (rwMount && typeof getRemainingWakeThresholdsControlHTML === 'function') {

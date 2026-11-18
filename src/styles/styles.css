@@ -33,6 +33,8 @@
   /* Post–start-sleep / “sweet dreams” header: near-midnight, sleep-tinted (see SKP --color-sleep) */
   --nav-phase-tint-sleep: rgba(99, 102, 241, 0.16);
   --nav-phase-tint-midnight: color-mix(in srgb, var(--bg) 90%, var(--color-sleep) 10%);
+  /* “Waking soon” (last hour before wake): midnight warming toward sunrise at the bottom edge */
+  --nav-phase-tint-dawn: color-mix(in srgb, var(--nav-phase-tint-midnight) 60%, var(--color-sunrise) 40%);
   /* Between pre-sleep and midnight (“start sleep soon”) */
   --nav-phase-tint-sleep-soon: color-mix(
     in srgb,
@@ -1626,6 +1628,111 @@ body{
   }
 }
 
+/* Waking soon (last hour before wake): warm glow rising from below + drifting light motes */
+.dawn-glow {
+  position: absolute;
+  left: 50%;
+  bottom: -70%;
+  width: 120%;
+  height: 140%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  --dawn-glow-core: 58%;
+  --dawn-glow-mid: 24%;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--color-sunrise) var(--dawn-glow-core), transparent) 0%,
+    color-mix(in srgb, var(--color-sunrise) var(--dawn-glow-mid), transparent) 55%,
+    transparent 100%
+  );
+  animation: dawn-breathe 9s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.dawn-horizon {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  bottom: 14%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--color-sunrise) 55%, white 45%) 50%,
+    transparent
+  );
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+/* Day theme: lighter panels around the strip wash the dawn out, so push it further */
+[data-theme="day"] .dawn-glow {
+  --dawn-glow-core: 72%;
+  --dawn-glow-mid: 32%;
+}
+
+[data-theme="day"] .dawn-horizon {
+  opacity: 0.6;
+}
+
+.dawn-mote {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-sunrise) 35%, white 65%);
+  box-shadow: 0 0 6px 1px color-mix(in srgb, var(--color-sunrise) 45%, transparent);
+  opacity: 0;
+  animation: dawn-mote-rise 8s ease-in-out infinite;
+  --dawn-mote-rise: -26px;
+  pointer-events: none;
+}
+
+.dawn-mote--lg {
+  width: 4px;
+  height: 4px;
+}
+
+@keyframes dawn-breathe {
+  0%,
+  100% {
+    opacity: 0.72;
+    transform: translateX(-50%) translateY(4%);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+@keyframes dawn-mote-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+
+  35% {
+    opacity: 0.7;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(var(--dawn-mote-rise));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dawn-glow {
+    animation: none;
+  }
+
+  .dawn-mote {
+    animation: none;
+    opacity: 0.4;
+  }
+}
+
 .nav-app-block {
   display: flex;
   flex-direction: row;
@@ -2542,22 +2649,26 @@ body{
 }
 
 /* Phase-colored header: flat until heads-up; then top → next-phase blend ( --nav-header-mid from JS ) */
-.nav-wrapper--phase-open {
+.nav-wrapper--phase-open,
+.phase-wallpaper--phase-open {
   --nav-header-from: var(--nav-phase-tint-open);
   --nav-header-to: var(--nav-phase-tint-winding);
 }
 
-.nav-wrapper--phase-winding {
+.nav-wrapper--phase-winding,
+.phase-wallpaper--phase-winding {
   --nav-header-from: var(--nav-phase-tint-winding);
   --nav-header-to: var(--nav-phase-tint-presleep);
 }
 
-.nav-wrapper--phase-presleep {
+.nav-wrapper--phase-presleep,
+.phase-wallpaper--phase-presleep {
   --nav-header-from: var(--nav-phase-tint-presleep);
   --nav-header-to: var(--nav-phase-tint-sleep);
 }
 
-.nav-wrapper--phase-sleepSoon {
+.nav-wrapper--phase-sleepSoon,
+.phase-wallpaper--phase-sleepSoon {
   --nav-header-from: var(--nav-phase-tint-sleep-soon);
   --nav-header-to: var(--nav-phase-tint-midnight);
 }
@@ -2585,38 +2696,171 @@ body{
   transition: background 0.5s ease;
 }
 
+.nav-wrapper--phase-wakingSoon .nav-header {
+  background: linear-gradient(
+    to bottom,
+    var(--nav-phase-tint-midnight) 0%,
+    var(--nav-phase-tint-midnight) 30%,
+    var(--nav-phase-tint-dawn) 100%
+  );
+}
+
 /* Readable chrome on midnight / sleep-soon header strips (whole row shares background) */
 .nav-wrapper--phase-sleep .nav-header .nav-app-name,
 .nav-wrapper--phase-sleep .nav-header .nav-app-subtitle,
 .nav-wrapper--phase-sleepSoon .nav-header .nav-app-name,
-.nav-wrapper--phase-sleepSoon .nav-header .nav-app-subtitle {
+.nav-wrapper--phase-sleepSoon .nav-header .nav-app-subtitle,
+.nav-wrapper--phase-wakingSoon .nav-header .nav-app-name,
+.nav-wrapper--phase-wakingSoon .nav-header .nav-app-subtitle {
   color: color-mix(in srgb, var(--text) 96%, var(--color-sleep) 4%);
 }
 
 .nav-wrapper--phase-sleep .nav-header .nav-menu-trigger,
-.nav-wrapper--phase-sleepSoon .nav-header .nav-menu-trigger {
+.nav-wrapper--phase-sleepSoon .nav-header .nav-menu-trigger,
+.nav-wrapper--phase-wakingSoon .nav-header .nav-menu-trigger {
   color: color-mix(in srgb, var(--text) 96%, var(--color-sleep) 4%);
 }
 
 .nav-wrapper--phase-sleep .nav-header .nav-remaining-wake-link,
-.nav-wrapper--phase-sleepSoon .nav-header .nav-remaining-wake-link {
+.nav-wrapper--phase-sleepSoon .nav-header .nav-remaining-wake-link,
+.nav-wrapper--phase-wakingSoon .nav-header .nav-remaining-wake-link {
   color: color-mix(in srgb, var(--text) 96%, var(--color-sleep) 4%);
 }
 
 [data-theme="day"] .nav-wrapper--phase-sleep .nav-header .nav-app-name,
 [data-theme="day"] .nav-wrapper--phase-sleep .nav-header .nav-app-subtitle,
 [data-theme="day"] .nav-wrapper--phase-sleepSoon .nav-header .nav-app-name,
+[data-theme="day"] .nav-wrapper--phase-wakingSoon .nav-header .nav-app-name,
 [data-theme="day"] .nav-wrapper--phase-sleepSoon .nav-header .nav-app-subtitle,
+[data-theme="day"] .nav-wrapper--phase-wakingSoon .nav-header .nav-app-subtitle,
 [data-theme="day"] .nav-wrapper--phase-sleep .nav-header .nav-menu-trigger,
 [data-theme="day"] .nav-wrapper--phase-sleepSoon .nav-header .nav-menu-trigger,
+[data-theme="day"] .nav-wrapper--phase-wakingSoon .nav-header .nav-menu-trigger,
 [data-theme="day"] .nav-wrapper--phase-sleep .nav-header .nav-remaining-wake-link,
-[data-theme="day"] .nav-wrapper--phase-sleepSoon .nav-header .nav-remaining-wake-link {
+[data-theme="day"] .nav-wrapper--phase-sleepSoon .nav-header .nav-remaining-wake-link,
+[data-theme="day"] .nav-wrapper--phase-wakingSoon .nav-header .nav-remaining-wake-link {
   color: var(--tooltip-fg);
 }
 
 [data-theme="day"] .nav-wrapper--phase-sleep .nav-header .nav-menu-trigger:hover,
-[data-theme="day"] .nav-wrapper--phase-sleepSoon .nav-header .nav-menu-trigger:hover {
+[data-theme="day"] .nav-wrapper--phase-sleepSoon .nav-header .nav-menu-trigger:hover,
+[data-theme="day"] .nav-wrapper--phase-wakingSoon .nav-header .nav-menu-trigger:hover {
   background: rgba(255, 255, 255, 0.14);
+}
+
+/* ------------------------------------------------------------------
+   Dev experiment: phase wallpaper (sleep-app-dev-phase-wallpaper).
+   Fixed layer behind the page carries the header's phase tint, heads-up
+   blend and sweet-dreams stars; the header itself goes transparent.
+   z-index -1 paints above the canvas (body bg) and below all content.
+   ------------------------------------------------------------------ */
+.phase-wallpaper {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--bg);
+  transition: background 0.85s ease;
+  /* Stronger than the header strip: a whole page of 18% tint reads as plain background */
+  --nav-phase-tint-open: rgba(134, 239, 172, 0.3);
+  --nav-phase-tint-winding: rgba(253, 230, 138, 0.34);
+  --nav-phase-tint-presleep: rgba(196, 181, 253, 0.32);
+  --nav-phase-tint-sleep: rgba(99, 102, 241, 0.28);
+  --nav-phase-tint-sleep-soon: color-mix(
+    in srgb,
+    var(--nav-phase-tint-presleep) 46%,
+    var(--nav-phase-tint-midnight) 54%
+  );
+}
+
+.phase-wallpaper--phase-open,
+.phase-wallpaper--phase-winding,
+.phase-wallpaper--phase-presleep,
+.phase-wallpaper--phase-sleepSoon {
+  background:
+    linear-gradient(var(--nav-header-from), var(--nav-header-from)),
+    var(--bg);
+}
+
+.phase-wallpaper--rw-heads-up-blend.phase-wallpaper--phase-open,
+.phase-wallpaper--rw-heads-up-blend.phase-wallpaper--phase-winding {
+  background:
+    linear-gradient(
+      to bottom,
+      var(--nav-header-from) 0%,
+      color-mix(in srgb, var(--nav-header-from) 50%, var(--nav-header-to) 50%) var(--nav-header-mid, 45%),
+      var(--nav-header-to) 100%
+    ),
+    var(--bg);
+}
+
+.phase-wallpaper--phase-sleep {
+  background: var(--nav-phase-tint-midnight);
+}
+
+.phase-wallpaper--phase-wakingSoon {
+  background: linear-gradient(
+    to bottom,
+    var(--nav-phase-tint-midnight) 0%,
+    var(--nav-phase-tint-midnight) 40%,
+    var(--nav-phase-tint-dawn) 100%
+  );
+}
+
+/* Full-viewport dawn: wide glow reaching mid-screen so it shows in the gutters and through panels */
+.phase-wallpaper .dawn-glow {
+  bottom: -40%;
+  width: 170%;
+  height: 100%;
+}
+
+.phase-wallpaper .dawn-horizon {
+  bottom: 12%;
+}
+
+.phase-wallpaper .dawn-mote {
+  --dawn-mote-rise: -70px;
+}
+
+.phase-wallpaper-stars {
+  position: absolute;
+  inset: 0;
+}
+
+html.restore-phase-wallpaper .nav-wrapper .nav-header {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+/* Day theme on the dark night phases: tabs sit directly on midnight, so flip them to light chrome
+   (same flip the header text already gets on those phases). */
+html.restore-phase-wallpaper[data-theme="day"] .nav-wrapper--phase-sleep .nav-tab,
+html.restore-phase-wallpaper[data-theme="day"] .nav-wrapper--phase-sleepSoon .nav-tab,
+html.restore-phase-wallpaper[data-theme="day"] .nav-wrapper--phase-wakingSoon .nav-tab {
+  color: var(--tooltip-fg);
+  opacity: 0.82;
+}
+
+html.restore-phase-wallpaper[data-theme="day"] .nav-wrapper--phase-sleep .nav-tab:hover,
+html.restore-phase-wallpaper[data-theme="day"] .nav-wrapper--phase-sleepSoon .nav-tab:hover,
+html.restore-phase-wallpaper[data-theme="day"] .nav-wrapper--phase-wakingSoon .nav-tab:hover,
+html.restore-phase-wallpaper[data-theme="day"] .nav-wrapper--phase-sleep .nav-tab.active,
+html.restore-phase-wallpaper[data-theme="day"] .nav-wrapper--phase-sleepSoon .nav-tab.active,
+html.restore-phase-wallpaper[data-theme="day"] .nav-wrapper--phase-wakingSoon .nav-tab.active {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* Main panels let a little of the wallpaper through */
+html.restore-phase-wallpaper .container {
+  background: color-mix(in srgb, var(--panel) 82%, transparent);
+}
+
+/* Stars live on the wallpaper instead of the header strip */
+html.restore-phase-wallpaper .nav-header-twinkle-layer {
+  display: none;
 }
 
 .dashboard-projection {
@@ -6528,9 +6772,11 @@ body.page-stats .stats-page-shell .container {
   margin-bottom: var(--space-5);
   padding-top: var(--space-2);
   padding-bottom: var(--space-2);
-  background: var(--bg);
+  /* No solid fill: frosted so content scrolling underneath blurs instead of clashing */
+  background: transparent;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--divider);
-  box-shadow: var(--panel-shadow);
 }
 
 .stats-page-shell__sticky-inner.container {
@@ -7569,6 +7815,67 @@ body.page-stats .stats-page-shell .container {
 
 .config-tonight-guidance-pace-ticks .config-rw-heads-up-slider-tick-label:last-child {
   align-items: flex-end;
+}
+
+/* Settings → Look and feel → Phase colors (Top banner / Wallpaper) */
+.config-phase-colors-preview-wrap {
+  min-width: 0;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.config-phase-wallpaper-preview {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
+  max-width: 260px;
+}
+
+/* Wallpaper mode uses the live wallpaper's stronger tints; banner mode keeps the header strip's */
+.config-phase-wallpaper-preview--wallpaper {
+  --nav-phase-tint-open: rgba(134, 239, 172, 0.3);
+  --nav-phase-tint-winding: rgba(253, 230, 138, 0.34);
+  --nav-phase-tint-presleep: rgba(196, 181, 253, 0.32);
+  --nav-phase-tint-sleep: rgba(99, 102, 241, 0.28);
+}
+
+.config-phase-wallpaper-swatch-tile {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border-radius: var(--radius-control-sm);
+  border: 1px solid var(--panel-border-color);
+  background: var(--bg);
+}
+
+.config-phase-wallpaper-swatch-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 100%;
+  overflow: hidden;
+  transition: height 0.35s ease;
+}
+
+.config-phase-wallpaper-preview--banner .config-phase-wallpaper-swatch-fill {
+  height: 30%;
+}
+
+.config-phase-wallpaper-swatch-icon {
+  position: relative;
+  z-index: 1;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .config-phase-wallpaper-swatch-fill {
+    transition: none;
+  }
 }
 
 .config-tonight-guidance-toggle-list {
