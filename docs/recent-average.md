@@ -39,7 +39,9 @@ Last night's influence (~15%) is about the same as the former flat 7-entry mean 
 
 ## Per-night baselines
 
-`computeRecentAverages(days, { endBeforeIndex: i })` averages the entries **before** `days[i]` (that night excluded) — the shape a deviation-flag baseline needs. Excluding the night avoids self-inclusion: a night inside its own baseline pulls the baseline toward itself and understates its own deviation.
+`computeRecentAverages(days, { endBeforeIndex: i })` averages the entries **before** `days[i]` (that night excluded). Deviation flags use it through `getDeviationBaseline` (`nightly.js`), which reads the unrounded `exact` means (fell-asleep / wake on the extended axis) and reports learning below `DEVIATION_MIN_PRIOR_NIGHTS` (7) earlier entries. So a flag's "recent average" is the same window and weighting as Natural, anchored one night back.
+
+Excluding the night avoids self-inclusion: a night inside its own baseline pulls the baseline toward itself and understates its own deviation — more so with recency weighting, where the newest entry carries ~15%.
 
 ## Tests
 

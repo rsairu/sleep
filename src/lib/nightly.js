@@ -1,7 +1,7 @@
 // Configuration constants
 const ALARM_TO_WAKE_WARNING_THRESHOLD = 60; // minutes
-/** Prior nights required before timing flags or heatmap colors apply. */
-const LOOKBACK_DAYS = 7;
+/** Earlier logged nights required before timing flags or heatmap colors apply (🌱 learning below this). */
+const DEVIATION_MIN_PRIOR_NIGHTS = 7;
 /** Minimum logged nights before Tonight matrix shows natural / guidance cells (same window as weekly averages). */
 const TONIGHT_MATRIX_MIN_NATURAL_DAYS = 7;
 const DAY_MINUTES = 1440;
@@ -168,39 +168,24 @@ function wasoQualitySeverity(day) {
   return 'severe';
 }
 
-// Calculate recent averages for deviation detection (excluding current day)
-function calculateRecentAverages(days, currentIndex, lookbackDays = LOOKBACK_DAYS) {
-  const startIndex = Math.max(0, currentIndex + 1);
-  const endIndex = Math.min(days.length, currentIndex + 1 + lookbackDays);
-  const recentDays = days.slice(startIndex, endIndex);
-
-  if (recentDays.length < lookbackDays) {
-    return {
-      insufficient: true,
-      sampleSize: recentDays.length
-    };
+/**
+ * Deviation-flag baseline for days[currentIndex]: the recent average of the logged entries *before* it
+ * (`computeRecentAverages` with endBeforeIndex — same window and recency weights as Natural, night excluded).
+ * Fell-asleep / wake are unrounded means on the extended axis. Learning until DEVIATION_MIN_PRIOR_NIGHTS.
+ * Spec: docs/recent-average.md § Per-night baselines.
+ */
+function getDeviationBaseline(days, currentIndex) {
+  const avg = computeRecentAverages(days, { endBeforeIndex: currentIndex });
+  const sampleSize = avg ? avg.sampleSize : 0;
+  if (sampleSize < DEVIATION_MIN_PRIOR_NIGHTS) {
+    return { insufficient: true, sampleSize: sampleSize };
   }
-
-  let fellAsleepTimeSum = 0;
-  let wakeTimeSum = 0;
-  let sleepDurationSum = 0;
-
-  recentDays.forEach(day => {
-    const fellAsleepTime = timeToMinutes(day.sleepStart);
-    const normalizedFellAsleepTime = normalizeTimeForAveraging(fellAsleepTime);
-    fellAsleepTimeSum += normalizedFellAsleepTime;
-
-    const wakeTime = timeToMinutes(day.sleepEnd);
-    wakeTimeSum += normalizeWakeTimeForAveraging(fellAsleepTime, wakeTime);
-
-    sleepDurationSum += calculateTotalSleep(day);
-  });
-
   return {
     insufficient: false,
-    avgFellAsleepTime: fellAsleepTimeSum / recentDays.length,
-    avgWakeTime: wakeTimeSum / recentDays.length,
-    avgSleepDuration: sleepDurationSum / recentDays.length
+    sampleSize: sampleSize,
+    avgFellAsleepTime: avg.exact.sleepStartNorm,
+    avgWakeTime: avg.exact.sleepEndNorm,
+    avgSleepDuration: avg.exact.sleepDuration
   };
 }
 
@@ -497,7 +482,7 @@ function renderDay(day, days, dayIndex, options) {
   const dayOfWeek = getDateFromString(day.date).toLocaleDateString('en-US', { weekday: 'short' });
   
   // Check for deviations from recent averages
-  const recentAverages = calculateRecentAverages(days, dayIndex);
+  const recentAverages = getDeviationBaseline(days, dayIndex);
   const deviations = checkDeviations(day, recentAverages);
   const deviationWarnings = deviations.length > 0
     ? `<div class="deviation-warnings deviation-warnings--chips">${deviations.map(deviationWarningMarkup).join('')}</div>`
@@ -689,7 +674,7 @@ function renderWeek(week, weekIndex, allDays) {
 function buildFlagCountMap(days) {
   const flagMap = new Map();
   days.forEach((day, index) => {
-    const recentAverages = calculateRecentAverages(days, index);
+    const recentAverages = getDeviationBaseline(days, index);
     const insufficient = !recentAverages || recentAverages.insufficient;
     const types = getFlagTypes(day, recentAverages);
     const qualitySeverity = insufficient ? 'none' : computeWorstQualitySeverity(day, recentAverages);

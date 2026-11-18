@@ -3627,8 +3627,11 @@ function equalWeights(count) {
  *   avgSleepDuration: number,
  *   avgLongestUninterrupted: number,
  *   avgBedToSleepDelay: number,
- *   avgFirstAlarmToWake: number|null
+ *   avgFirstAlarmToWake: number|null,
+ *   exact: { sleepStartNorm: number, sleepEndNorm: number, sleepDuration: number }
  * }}
+ * `exact` holds the unrounded means — fell-asleep and wake on the extended axis — for comparisons
+ * that must not round-trip through clock minutes (deviation-flag baselines).
  */
 function averageSleepNights(nights, weights) {
   const list = Array.isArray(nights) ? nights : [];
@@ -3669,7 +3672,12 @@ function averageSleepNights(nights, weights) {
     avgSleepDuration: Math.round(durationSum / wSum),
     avgLongestUninterrupted: Math.round(longestSum / wSum),
     avgBedToSleepDelay: Math.round(delaySum / wSum),
-    avgFirstAlarmToWake: alarmW > 0 ? Math.round(alarmSum / alarmW) : null
+    avgFirstAlarmToWake: alarmW > 0 ? Math.round(alarmSum / alarmW) : null,
+    exact: {
+      sleepStartNorm: sleepStartSum / wSum,
+      sleepEndNorm: sleepEndSum / wSum,
+      sleepDuration: durationSum / wSum
+    }
   };
 }
 

@@ -548,15 +548,27 @@ async function runTests() {
   expectEqual(caTwo.avgSleepStart, 0, '23:30 + 00:30 average to 00:00');
   expectEqual(caTwo.avgSleepEnd, 450, '07:00 + 08:00 average to 07:30');
   expectEqual(caTwo.avgFirstAlarmToWake, null, 'no alarm nights → avgFirstAlarmToWake null');
-  // Deviation-flag baseline: the 7 entries before the night, night itself excluded.
-  const cra0 = u.calculateRecentAverages(avgFixture, 0);
-  expectEqual(cra0.insufficient, false, 'flag baseline sufficient with 7 prior nights');
-  expectEqual(Math.round(cra0.avgFellAsleepTime), 1434, 'flag baseline fell-asleep (normalized) from nights 1–7');
-  expectEqual(Math.round(cra0.avgWakeTime), 1876, 'flag baseline wake (normalized) from nights 1–7');
-  expectEqual(Math.round(cra0.avgSleepDuration), 442, 'flag baseline duration from nights 1–7');
-  const cra3 = u.calculateRecentAverages(avgFixture, 3);
-  expectEqual(cra3.insufficient, true, 'flag baseline learning with only 6 prior nights');
-  expectEqual(cra3.sampleSize, 6, 'flag baseline learning sampleSize');
+  // Deviation-flag baseline: recent average of the entries before the night (night excluded), unrounded.
+  const db0 = u.getDeviationBaseline(avgFixture, 0);
+  expectEqual(db0.insufficient, false, 'flag baseline sufficient with 9 prior nights');
+  expectEqual(db0.sampleSize, 9, 'flag baseline uses nights 1–9');
+  expectEqual(Math.round(db0.avgFellAsleepTime * 100) / 100, 1439.35, 'flag baseline fell-asleep: weighted, extended axis, unrounded');
+  expectEqual(Math.round(db0.avgWakeTime * 100) / 100, 1890.84, 'flag baseline wake: weighted, extended axis, unrounded');
+  expectEqual(
+    db0.avgSleepDuration,
+    u.computeRecentAverages(avgFixture, { endBeforeIndex: 0 }).exact.sleepDuration,
+    'flag baseline duration = helper exact duration'
+  );
+  const db2 = u.getDeviationBaseline(avgFixture, 2);
+  expectEqual(db2.insufficient, false, 'flag baseline sufficient with exactly 7 prior nights');
+  const db3 = u.getDeviationBaseline(avgFixture, 3);
+  expectEqual(db3.insufficient, true, 'flag baseline learning with only 6 prior nights');
+  expectEqual(db3.sampleSize, 6, 'flag baseline learning sampleSize');
+  expectEqual(u.getDeviationBaseline(twentyNights, 0).sampleSize, 14, 'flag baseline caps at 14 prior nights');
+  // Flags on a night far from its baseline: 03:00 sleep / 13:00 wake after the fixture's ~00:00 / 07:30.
+  const lateNight = { date: '2026-11-17', bed: '02:40', sleepStart: '03:00', sleepEnd: '13:00', alarm: [], bathroom: [], WASO: 0 };
+  const flagDays = [lateNight].concat(avgFixture);
+  expectEqual(JSON.stringify(u.getFlagTypes(lateNight, u.getDeviationBaseline(flagDays, 0))), JSON.stringify(['😴', '🌅']), 'late night flags 😴 and 🌅 against weighted baseline');
 
   // stats-aggregates: mid-sleep geometry (must match stats.js)
   const SA = u.StatsAggregates;

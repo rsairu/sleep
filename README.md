@@ -112,7 +112,7 @@ Time is normalized as **minutes from midnight** (0–1440) in logic, with explic
 
 ### 2. Sleep Quality (`/quality`)
 - Loads shared sleep data (Supabase when configured, local JSON fallback).
-- Renders the **full** sleep quality history: all months in a calendar heatmap of "flag" days (deviations vs 7-day avg).
+- Renders the **full** sleep quality history: all months in a calendar heatmap of "flag" days (deviations vs each night's recent baseline).
 - Uses `renderCalendarHeatmapFullHistory()`, `buildFlagCountMap()`, `getLatestDataDate()` from `daily.js`.
 
 ### 3. Daily Timeline (`/timeline`)
@@ -141,9 +141,10 @@ Time is normalized as **minutes from midnight** (0–1440) in logic, with explic
 - Averages for "evening" times use **normalization** (`normalizeTimeForAveraging`, `normalizeTimeForComparison`) so e.g. 01:00 and 23:00 are combined correctly.
 
 ### Deviations / "flags"
-- In `daily.js`: `calculateRecentAverages()` (e.g. 7-day lookback), `checkDeviations()`, `getFlagTypes()`.
-- Flags when bed time, fell-asleep time, or total sleep deviates from recent average by ≥ `DEVIATION_FLAG_THRESHOLD` (20 minutes).
-- Dashboard shows these and the heatmap uses them.
+- In `src/lib/nightly.js`: `getDeviationBaseline()`, `analyzeTimingDeviations()`, `checkDeviations()`, `getFlagTypes()`, `buildFlagCountMap()`.
+- Each night is compared with its **baseline**: the recent average of the logged entries *before* it (up to 14, weighted toward the newest; the night itself excluded). See [docs/recent-average.md](docs/recent-average.md).
+- 😴 fell asleep later than baseline · ⌛ shorter than baseline or under 6 / 5 / 4 h · 🌅 wake shifted either way · 👁️ wakeful night (WASO, baseline-independent). Severity tiers come from a blended sleep- / day-relative percentage.
+- Fewer than 7 earlier nights → 🌱 learning (no flags). Dashboard, Nightly, and the Quality heatmap all use these.
 
 ### Weekends & holidays
 - `isWeekend()`, `isHoliday()` in `src/lib/sleep-utils.js`; holiday data is `HOLIDAYS_BY_YEAR` in the same file (`{ year: { month: [day, ...] } }`). Optional second arg to `isHoliday()`; defaults to `HOLIDAYS_BY_YEAR`.
