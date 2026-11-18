@@ -445,10 +445,10 @@ async function runTests() {
     { date: '2026-11-18', bed: '23:00', sleepStart: '23:20', sleepEnd: '07:40', alarm: [], bathroom: [], WASO: 0 },
     { date: '2026-11-17', bed: '23:00', sleepStart: '23:20', sleepEnd: '07:20', alarm: [], bathroom: [], WASO: 0 }
   ];
-  expectEqual(u.getNightKeyWakeMinutes(nkDays), 450, 'night-key wake = natural average (07:30)');
+  expectEqual(u.getNightKeyWakeMinutes(nkDays), 451, 'night-key wake = natural weighted average (07:31; newest 07:40 weighs more)');
   expectEqual(u.getNightKeyWakeMinutes([]), 420, 'night-key wake falls back to 07:00 with no history');
-  expectEqual(u.getCurrentNightKey(new Date(2026, 10, 19, 9, 30), nkDays), '2026-11-19', 'night key: 09:30 within natural cutover (09:30)');
-  expectEqual(u.getCurrentNightKey(new Date(2026, 10, 19, 9, 31), nkDays), '2026-11-20', 'night key: 09:31 past natural cutover');
+  expectEqual(u.getCurrentNightKey(new Date(2026, 10, 19, 9, 31), nkDays), '2026-11-19', 'night key: 09:31 within natural cutover (09:31)');
+  expectEqual(u.getCurrentNightKey(new Date(2026, 10, 19, 9, 32), nkDays), '2026-11-20', 'night key: 09:32 past natural cutover');
 
   // Night clock → instant: evening clocks fall the day before the wake date.
   const ms = (mo, d, h, mi) => new Date(2026, mo, d, h, mi, 0, 0).getTime();
@@ -474,8 +474,8 @@ async function runTests() {
   expectEqual(bedOnly && bedOnly.anchorMs, ms(10, 18, 23, 30), 'open night: bed-only night anchors on bed');
   expectEqual(u.resolveOpenNight([], null, ms(10, 19, 10, 0)), null, 'open night: no drafts → none');
 
-  // Recent-average characterization (flat mean of the 7 most recent logged entries).
-  // Values recorded from the pre-refactor nightly.js calculateAverages; the shared helper reproduces them.
+  // averageSleepNights on a fixed list (week summaries, lifetime) is an equal-weight mean. Values recorded
+  // from the pre-refactor nightly.js calculateAverages (flat 7-night mean) and still reproduced.
   const avgFixture = [
     { date: '2026-11-16', bed: '23:20', sleepStart: '23:40', sleepEnd: '07:05', alarm: ['07:00'], bathroom: [], WASO: 0 },
     { date: '2026-11-15', bed: '00:05', sleepStart: '00:30', sleepEnd: '08:10', alarm: [], bathroom: ['03:10'], WASO: 1 },
@@ -496,19 +496,51 @@ async function runTests() {
   expectEqual(ca7.avgLongestUninterrupted, 436, 'averageSleepNights avgLongestUninterrupted');
   expectEqual(ca7.avgBedToSleepDelay, 25, 'averageSleepNights avgBedToSleepDelay');
   expectEqual(ca7.avgFirstAlarmToWake, 6, 'averageSleepNights avgFirstAlarmToWake (alarm nights only)');
-  // computeRecentAverages: window of most recent logged entries (10 in fixture → 7 used).
+  // Recent average (docs/recent-average.md): newest 14 logged entries, weight 0.5^(i/5).
+  // Expected clock values computed independently (Python) from the same rule.
+  const rw = u.recentAverageWeights(14);
+  expectEqual(rw[0], 1, 'recent weights: newest = 1');
+  expectEqual(rw[5], 0.5, 'recent weights: 5 entries back = 1/2 (half-life)');
+  expectEqual(rw[10], 0.25, 'recent weights: 10 entries back = 1/4');
+  const rwSum = rw.reduce((a, b) => a + b, 0);
+  expectEqual(Math.round((rw[0] / rwSum) * 1000) / 10, 15.1, 'recent weights: newest ≈15.1% of 14');
+  expectEqual(Math.round((rw[13] / rwSum) * 1000) / 10, 2.5, 'recent weights: oldest ≈2.5% of 14');
   const cr = u.computeRecentAverages(avgFixture);
-  expectEqual(cr.sampleSize, 7, 'computeRecentAverages window counts 7 logged entries');
-  expectEqual(JSON.stringify(cr), JSON.stringify(ca7), 'computeRecentAverages equals averageSleepNights of newest 7');
+  expectEqual(cr.sampleSize, 10, 'computeRecentAverages uses all 10 entries (window 14)');
+  expectEqual(cr.avgSleepStart, 1436, 'weighted recent fell-asleep 23:56');
+  expectEqual(cr.avgSleepEnd, 446, 'weighted recent wake 07:26');
+  expectEqual(
+    JSON.stringify(cr),
+    JSON.stringify(u.averageSleepNights(avgFixture, u.recentAverageWeights(10))),
+    'computeRecentAverages = averageSleepNights with recent weights'
+  );
   expectEqual(u.computeRecentAverages([]), null, 'computeRecentAverages empty → null');
   expectEqual(u.computeRecentAverages(avgFixture.slice(0, 3)).sampleSize, 3, 'computeRecentAverages partial window');
-  // endBeforeIndex: per-night baseline excludes the night itself (same nights as calculateRecentAverages).
+  const twentyNights = [];
+  for (let i = 0; i < 20; i++) twentyNights.push(avgFixture[i % avgFixture.length]);
+  expectEqual(u.computeRecentAverages(twentyNights).sampleSize, 14, 'window counts the newest 14 logged entries');
+  // endBeforeIndex: per-night baseline excludes the night itself.
   const crBefore0 = u.computeRecentAverages(avgFixture, { endBeforeIndex: 0 });
-  expectEqual(crBefore0.avgSleepStart, 1434, 'endBeforeIndex 0 averages nights 1–7 (23:54)');
-  expectEqual(crBefore0.avgSleepEnd, 436, 'endBeforeIndex 0 wake from nights 1–7 (07:16)');
+  expectEqual(crBefore0.sampleSize, 9, 'endBeforeIndex 0 uses nights 1–9');
+  expectEqual(crBefore0.avgSleepStart, 1439, 'endBeforeIndex 0 weighted fell-asleep 23:59');
+  expectEqual(crBefore0.avgSleepEnd, 451, 'endBeforeIndex 0 weighted wake 07:31');
+  // Catch-up: bedtime moves from 23:00 to 22:00 for the newest k of 14 nights.
+  const stepNights = (k) => {
+    const out = [];
+    for (let i = 0; i < 14; i++) {
+      out.push(i < k
+        ? { date: '2026-11-01', bed: '21:40', sleepStart: '22:00', sleepEnd: '06:00', alarm: [], bathroom: [], WASO: 0 }
+        : { date: '2026-11-01', bed: '22:40', sleepStart: '23:00', sleepEnd: '07:00', alarm: [], bathroom: [], WASO: 0 });
+    }
+    return out;
+  };
+  expectEqual(u.computeRecentAverages(stepNights(1)).avgSleepStart, 1371, 'catch-up: 1 night in → 9 min (22:51)');
+  expectEqual(u.computeRecentAverages(stepNights(3)).avgSleepStart, 1356, 'catch-up: 3 nights in → 24 min (22:36)');
+  expectEqual(u.computeRecentAverages(stepNights(7)).avgSleepStart, 1336, 'catch-up: 7 nights in → 44 min (22:16)');
+  expectEqual(u.computeRecentAverages(stepNights(14)).avgSleepStart, 1320, 'catch-up: 14 nights in → full hour (22:00)');
   const rb = u.computeRecentWakeBasis(avgFixture);
-  expectEqual(rb.avgSleepStart, ca7.avgSleepStart, 'wake basis sleep matches recent average');
-  expectEqual(rb.avgSleepEnd, ca7.avgSleepEnd, 'wake basis wake matches recent average');
+  expectEqual(rb.avgSleepStart, cr.avgSleepStart, 'wake basis sleep matches recent average');
+  expectEqual(rb.avgSleepEnd, cr.avgSleepEnd, 'wake basis wake matches recent average');
   const caTwo = u.averageSleepNights([
     { date: '2026-11-02', bed: '23:00', sleepStart: '23:30', sleepEnd: '07:00', alarm: [], bathroom: [], WASO: 0 },
     { date: '2026-11-01', bed: '00:00', sleepStart: '00:30', sleepEnd: '08:00', alarm: [], bathroom: [], WASO: 0 }

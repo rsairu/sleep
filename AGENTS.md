@@ -47,8 +47,9 @@ When changing `recordDateMdForSleepPeriod`, `resolveRecordDateMdForWake`, `night
 ## Recent averages (Natural sleep / wake)
 
 **Applies to:** any file that needs "your recent average"
+**Spec:** [docs/recent-average.md](docs/recent-average.md) (14 logged entries, 5-entry half-life weights, catch-up, fixed lists vs recent)
 
-Use `computeRecentAverages(days, { endBeforeIndex? })` (or `averageSleepNights(nights)` for a fixed list such as a week) from `sleep-utils.js`. Do not slice `days` and re-average by hand — window size and weighting live only in that section (`RECENT_AVERAGE_WINDOW`, `recentAverageWeights`). Covered by the recent-average block in `tests/math-tests.js`.
+Use `computeRecentAverages(days, { endBeforeIndex? })` (or `averageSleepNights(nights)` for an equal-weight fixed list such as a week) from `sleep-utils.js`. Do not slice `days` and re-average by hand — window size and weighting live only in that section (`RECENT_AVERAGE_WINDOW`, `RECENT_AVERAGE_HALF_LIFE`, `recentAverageWeights`). If you change them, update the doc's tables and the recent-average block in `tests/math-tests.js`.
 
 ## User data and cloud preferences
 

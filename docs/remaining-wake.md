@@ -64,7 +64,7 @@ Returned basis:
 
 Fallback behavior:
 
-- If seven-day basis is unavailable, `getFallbackWakeBasis()` is used.
+- If the recent-average basis is unavailable (no logged nights), `getFallbackWakeBasis()` is used.
 
 ---
 

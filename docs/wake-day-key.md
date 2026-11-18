@@ -28,7 +28,7 @@ Display helpers may render month/day (e.g. `11/19`), but stored keys are ISO `YY
 | **Night lookups** | Code that **reads** "is the current night already logged?" to decide what to show (nav header, quick-action visibility, default Log date, Tonight live countdown). | Natural wake |
 | **Schedule timing** | Phase, countdowns, bedtime cues — *when* things happen. | Scheduled wake (Tonight basis: average, saved target / guidance, session slider) |
 
-**Natural wake** is the recent-average wake (`computeRecentAverages`). **Scheduled wake** is the Tonight basis (`getTonightWakePhaseBasisFromDays`). Saves and lookups never use the scheduled wake, so a target or a slider drag cannot change which row a tap lands on.
+**Natural wake** is the recent-average wake (`computeRecentAverages`; see [recent-average.md](recent-average.md)). **Scheduled wake** is the Tonight basis (`getTonightWakePhaseBasisFromDays`). Saves and lookups never use the scheduled wake, so a target or a slider drag cannot change which row a tap lands on.
 
 ---
 

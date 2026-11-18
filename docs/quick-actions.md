@@ -45,7 +45,7 @@ flowchart TD
 ```
 
 If there is no shared context (or no `navDisplay`), phase falls back to `inferSharedSleepContextPhase` using **recent averages** from `getAveragesFromDays` → `computeRecentAverages` (`RECENT_AVERAGE_WINDOW` most recent logged entries).
-**Canonical clock basis for phase** when shared context exists: `sharedContext.basis` from `getEffectiveRemainingWakeBasis` / `getTonightWakePhaseBasisFromDays` (recent seven days, optional saved Tonight target from `user_settings`, then optional session slider adjustment). That can differ from the separate `averages` object used for alarm eligibility, which does not apply those overlays.
+**Canonical clock basis for phase** when shared context exists: `sharedContext.basis` from `getEffectiveRemainingWakeBasis` / `getTonightWakePhaseBasisFromDays` (recent averages, optional saved Tonight target from `user_settings`, then optional session slider adjustment). That can differ from the separate `averages` object used for alarm eligibility, which does not apply those overlays.
 
 ---
 

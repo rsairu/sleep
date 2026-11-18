@@ -3429,7 +3429,7 @@ function isWallClockWithinRecentHoursNav(now, timeStr, hoursBack) {
 }
 
 /**
- * Stub row for a night md; uses 7-day basis + days[0] template, or averagesFallback when no logged days.
+ * Stub row for a night md; uses the recent-average basis + days[0] template, or averagesFallback when no logged days.
  */
 function buildStubDayForNightMd(dateMd, days, averagesFallback) {
   const template = days && days.length ? days[0] : null;
@@ -3589,14 +3589,26 @@ function shouldShowDynamicSleepNavPhase(days, basis, now, nightMd) {
 // ---------------------------------------------------------------------------
 
 /** Number of most recent logged entries (not calendar days) in the recent average. */
-const RECENT_AVERAGE_WINDOW = 7;
+const RECENT_AVERAGE_WINDOW = 14;
+/**
+ * Recency half-life in logged entries: an entry this many entries back counts half as much as the
+ * newest. With 14 entries and a half-life of 5: newest ≈15%, oldest ≈2.5%, newest 7 ≈72% of the weight.
+ * Spec: docs/recent-average.md.
+ */
+const RECENT_AVERAGE_HALF_LIFE = 5;
 
 /**
- * Per-entry weights for a recent-average window, newest first.
+ * Per-entry weights for a recent-average window, newest first: 0.5 ^ (index / half-life).
  * @param {number} count
  * @returns {number[]}
  */
 function recentAverageWeights(count) {
+  const weights = [];
+  for (let i = 0; i < count; i++) weights.push(Math.pow(0.5, i / RECENT_AVERAGE_HALF_LIFE));
+  return weights;
+}
+
+function equalWeights(count) {
   const weights = [];
   for (let i = 0; i < count; i++) weights.push(1);
   return weights;
@@ -3622,7 +3634,7 @@ function averageSleepNights(nights, weights) {
   const list = Array.isArray(nights) ? nights : [];
   const n = list.length;
   if (n === 0) return null;
-  const w = Array.isArray(weights) && weights.length === n ? weights : recentAverageWeights(n);
+  const w = Array.isArray(weights) && weights.length === n ? weights : equalWeights(n);
 
   let wSum = 0;
   let sleepStartSum = 0;
@@ -3662,7 +3674,8 @@ function averageSleepNights(nights, weights) {
 }
 
 /**
- * Recent average over the most recent logged entries.
+ * Recent average: the most recent RECENT_AVERAGE_WINDOW logged entries, weighted toward the newest
+ * (recentAverageWeights). With fewer entries the same weights apply to what exists.
  * @param {Array<object>} days newest-first
  * @param {{ endBeforeIndex?: number }} [options] endBeforeIndex: average the entries *before*
  *   days[endBeforeIndex] (that night excluded) — for per-night baselines.
@@ -3690,7 +3703,7 @@ function computeRecentWakeBasis(days) {
 
 /**
  * Canonical sleep/wake basis for remaining-wake nav, quick actions, and dashboard phase:
- * recent seven-day averages, optional saved Tonight target pair, then optional session slider adjustment.
+ * recent averages (computeRecentAverages), optional saved Tonight target pair, then optional session slider adjustment.
  */
 function getTonightWakePhaseBasisFromDays(days) {
   const liveDays = Array.isArray(days) ? days : [];
@@ -5720,7 +5733,7 @@ function renderNavBar(currentPage) {
 }
 
 // Phase thresholds from getRemainingWakeThresholds(): open >= openMin%, winding openMin–windingMin%, pre-sleep < windingMin%.
-// totalWakeMins = minutes from average get-up to average sleep (recent 7 days).
+// totalWakeMins = minutes from average get-up to average sleep (recent averages).
 function getRemainingWakePhase(remainingMins, totalWakeMins) {
   if (totalWakeMins <= 0) return 'open';
   const percentRemaining = Math.min(100, (remainingMins / totalWakeMins) * 100);
@@ -5858,7 +5871,7 @@ function getRemainingWakeDisplayFromBasis(basis, days) {
 }
 
 /** Returns { phase, icon, timeLabel, percentRemaining } from raw days (used when nightly.js not loaded).
- * Recent 7 days: average get-up and fell-asleep; phase uses minutes-until-sleep vs that wake-window length. */
+ * Recent averages: average get-up and fell-asleep; phase uses minutes-until-sleep vs that wake-window length. */
 function getRemainingWakeDisplayFromDays(days) {
   if (!days || days.length === 0) return null;
   const basis = getEffectiveRemainingWakeBasis(days);

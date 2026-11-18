@@ -57,7 +57,7 @@ async function makeWorld({ nowLocal, days, drafts }) {
   };
 }
 
-// Seven completed nights Nov 11–17: natural sleep 23:20, natural wake 07:31.
+// Seven completed nights Nov 11–17: natural sleep 23:20, natural wake 07:32 (weighted; newest 07:40).
 const hist = [];
 for (let i = 0; i < 7; i++) {
   const d = 17 - i;
@@ -68,7 +68,7 @@ const openNov18 = [{ date: '2026-11-18', bed: '22:50', sleepStart: '23:10' }];
 
 const renders = [
   ['07:30, nothing open (wake phase)', L(18, 7, 30), [], 'wake'],
-  ['10:30, open night (179 min past wake)', L(18, 10, 30), openNov18, 'wake'],
+  ['10:30, open night (178 min past wake)', L(18, 10, 30), openNov18, 'wake'],
   ['10:45, open night (late) → note', L(18, 10, 45), openNov18, 'wake+note, nap-start'],
   ['14:00, open night (mid phase) → note', L(18, 14, 0), openNov18, 'wake+note, nap-start'],
   ['23:45, slept for Nov 19 (draft) → no bed/sleep buttons', L(18, 23, 45),
