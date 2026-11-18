@@ -37,9 +37,15 @@ async function loadSleepUtils() {
   installRoutesData(context);
   const timeUtilsPath = path.join(__dirname, '..', 'src', 'lib', 'time-utils.js');
   vm.runInContext(fs.readFileSync(timeUtilsPath, 'utf8'), context, { filename: 'src/lib/time-utils.js' });
+  // Same load order as index.html: time-utils → i18n → sleep-utils (sleep-utils reads LANGUAGE_KEY etc. from i18n).
+  const i18nPath = path.join(__dirname, '..', 'src', 'lib', 'i18n.js');
+  vm.runInContext(fs.readFileSync(i18nPath, 'utf8'), context, { filename: 'src/lib/i18n.js' });
   vm.runInContext(code, context, { filename: 'src/lib/sleep-utils.js' });
   const aggPath = path.join(__dirname, '..', 'src', 'lib', 'stats-aggregates.js');
   vm.runInContext(fs.readFileSync(aggPath, 'utf8'), context, { filename: 'src/lib/stats-aggregates.js' });
+  // nightly.js: averages + deviation-flag math (no `document` in this context, so its DOM init is skipped).
+  const nightlyPath = path.join(__dirname, '..', 'src', 'lib', 'nightly.js');
+  vm.runInContext(fs.readFileSync(nightlyPath, 'utf8'), context, { filename: 'src/lib/nightly.js' });
   return context;
 }
 
@@ -162,8 +168,8 @@ async function runTests() {
     { sleepStart: '23:00', sleepEnd: '07:00' },
     { sleepStart: '23:00', sleepEnd: '07:00' }
   ];
-  const basis = u.computeRecentSevenDayWakeBasis(basisDays);
-  expectTruthy(basis, 'computeRecentSevenDayWakeBasis returns basis');
+  const basis = u.computeRecentWakeBasis(basisDays);
+  expectTruthy(basis, 'computeRecentWakeBasis returns basis');
   expectEqual(basis.avgSleepStart, 1380, 'basis avg sleep start');
   expectEqual(basis.avgSleepEnd, 420, 'basis avg wake end');
   expectEqual(basis.totalWakeMins, 960, 'basis total wake minutes');
@@ -403,12 +409,10 @@ async function runTests() {
   });
   expectTruthy(mWakeDir.callout && mWakeDir.callout.directionEarlier === false, 'wake guided later than natural');
 
-  // Projection window wrap behavior near midnight
-  const sleepTargetNearMidnight = 10; // 00:10
-  const low = u.modMinutes1440(sleepTargetNearMidnight - 30);
-  const high = u.modMinutes1440(sleepTargetNearMidnight + 30);
-  expectEqual(low, 1420, 'projection lower bound wraps to previous day');
-  expectEqual(high, 40, 'projection upper bound wraps forward');
+  // Clock offsets wrap around midnight
+  const nearMidnight = 10; // 00:10
+  expectEqual(u.modMinutes1440(nearMidnight - 30), 1420, 'offset before midnight wraps to previous day');
+  expectEqual(u.modMinutes1440(nearMidnight + 30), 40, 'offset after midnight wraps forward');
 
   // Wake record date: finish prior wake-day row when clock rolls to next calendar morning
   const avgWake = 7 * 60;
@@ -428,6 +432,66 @@ async function runTests() {
     '2026-04-09',
     'resolveRecordDateMdForWake uses sleep-period key outside early-morning band'
   );
+
+  // Wake-day cutover (docs/wake-day-key.md): taps up to avg wake + 120 min → today's row; later → tomorrow's.
+  const cut = (mo, d, h, mi) => u.recordDateMdForSleepPeriod(new Date(2026, mo, d, h, mi, 0, 0), 7 * 60);
+  expectEqual(cut(10, 18, 23, 0), '2026-11-19', 'cutover: 23:00 Nov 18 bed → Nov 19 row');
+  expectEqual(cut(10, 19, 2, 0), '2026-11-19', 'cutover: 02:00 Nov 19 bed → Nov 19 row');
+  expectEqual(cut(10, 19, 9, 0), '2026-11-19', 'cutover: 09:00 (avg wake + 120) still today (inclusive)');
+  expectEqual(cut(10, 19, 9, 1), '2026-11-20', 'cutover: 09:01 rolls to tomorrow');
+
+  // Recent-average characterization (flat mean of the 7 most recent logged entries).
+  // Values recorded from the pre-refactor nightly.js calculateAverages; the shared helper reproduces them.
+  const avgFixture = [
+    { date: '2026-11-16', bed: '23:20', sleepStart: '23:40', sleepEnd: '07:05', alarm: ['07:00'], bathroom: [], WASO: 0 },
+    { date: '2026-11-15', bed: '00:05', sleepStart: '00:30', sleepEnd: '08:10', alarm: [], bathroom: ['03:10'], WASO: 1 },
+    { date: '2026-11-14', bed: '23:45', sleepStart: '00:10', sleepEnd: '07:40', alarm: [], bathroom: [], WASO: 0 },
+    { date: '2026-11-13', bed: '22:50', sleepStart: '23:15', sleepEnd: '06:50', alarm: ['06:45'], bathroom: [], WASO: 0 },
+    { date: '2026-11-12', bed: '23:30', sleepStart: '23:55', sleepEnd: '07:15', alarm: ['07:00', '07:10'], bathroom: [], WASO: 2 },
+    { date: '2026-11-11', bed: '00:40', sleepStart: '01:15', sleepEnd: '07:30', alarm: ['07:30'], bathroom: [], WASO: 0 },
+    { date: '2026-11-10', bed: '23:10', sleepStart: '23:30', sleepEnd: '07:00', alarm: [], bathroom: [], WASO: 0 },
+    { date: '2026-11-09', bed: '22:30', sleepStart: '22:45', sleepEnd: '06:30', alarm: ['06:30'], bathroom: [], WASO: 0 },
+    { date: '2026-11-08', bed: '23:00', sleepStart: '23:20', sleepEnd: '07:50', alarm: [], bathroom: [], WASO: 0 },
+    { date: '2026-11-07', bed: '00:20', sleepStart: '00:45', sleepEnd: '09:00', alarm: [], bathroom: [], WASO: 1 }
+  ];
+  const ca7 = u.averageSleepNights(avgFixture.slice(0, 7));
+  expectEqual(ca7.sampleSize, 7, 'averageSleepNights sampleSize');
+  expectEqual(ca7.avgSleepStart, 2, 'averageSleepNights avgSleepStart 00:02 across midnight');
+  expectEqual(ca7.avgSleepEnd, 441, 'averageSleepNights avgSleepEnd 07:21');
+  expectEqual(ca7.avgSleepDuration, 439, 'averageSleepNights avgSleepDuration');
+  expectEqual(ca7.avgLongestUninterrupted, 436, 'averageSleepNights avgLongestUninterrupted');
+  expectEqual(ca7.avgBedToSleepDelay, 25, 'averageSleepNights avgBedToSleepDelay');
+  expectEqual(ca7.avgFirstAlarmToWake, 6, 'averageSleepNights avgFirstAlarmToWake (alarm nights only)');
+  expectEqual(ca7.avgBedStart, 1417, 'averageSleepNights avgBedStart 23:37 across midnight (quick-add bed default)');
+  // computeRecentAverages: window of most recent logged entries (10 in fixture → 7 used).
+  const cr = u.computeRecentAverages(avgFixture);
+  expectEqual(cr.sampleSize, 7, 'computeRecentAverages window counts 7 logged entries');
+  expectEqual(JSON.stringify(cr), JSON.stringify(ca7), 'computeRecentAverages equals averageSleepNights of newest 7');
+  expectEqual(u.computeRecentAverages([]), null, 'computeRecentAverages empty → null');
+  expectEqual(u.computeRecentAverages(avgFixture.slice(0, 3)).sampleSize, 3, 'computeRecentAverages partial window');
+  // endBeforeIndex: per-night baseline excludes the night itself (same nights as calculateRecentAverages).
+  const crBefore0 = u.computeRecentAverages(avgFixture, { endBeforeIndex: 0 });
+  expectEqual(crBefore0.avgSleepStart, 1434, 'endBeforeIndex 0 averages nights 1–7 (23:54)');
+  expectEqual(crBefore0.avgSleepEnd, 436, 'endBeforeIndex 0 wake from nights 1–7 (07:16)');
+  const rb = u.computeRecentWakeBasis(avgFixture);
+  expectEqual(rb.avgSleepStart, ca7.avgSleepStart, 'wake basis sleep matches recent average');
+  expectEqual(rb.avgSleepEnd, ca7.avgSleepEnd, 'wake basis wake matches recent average');
+  const caTwo = u.averageSleepNights([
+    { date: '2026-11-02', bed: '23:00', sleepStart: '23:30', sleepEnd: '07:00', alarm: [], bathroom: [], WASO: 0 },
+    { date: '2026-11-01', bed: '00:00', sleepStart: '00:30', sleepEnd: '08:00', alarm: [], bathroom: [], WASO: 0 }
+  ]);
+  expectEqual(caTwo.avgSleepStart, 0, '23:30 + 00:30 average to 00:00');
+  expectEqual(caTwo.avgSleepEnd, 450, '07:00 + 08:00 average to 07:30');
+  expectEqual(caTwo.avgFirstAlarmToWake, null, 'no alarm nights → avgFirstAlarmToWake null');
+  // Deviation-flag baseline: the 7 entries before the night, night itself excluded.
+  const cra0 = u.calculateRecentAverages(avgFixture, 0);
+  expectEqual(cra0.insufficient, false, 'flag baseline sufficient with 7 prior nights');
+  expectEqual(Math.round(cra0.avgFellAsleepTime), 1434, 'flag baseline fell-asleep (normalized) from nights 1–7');
+  expectEqual(Math.round(cra0.avgWakeTime), 1876, 'flag baseline wake (normalized) from nights 1–7');
+  expectEqual(Math.round(cra0.avgSleepDuration), 442, 'flag baseline duration from nights 1–7');
+  const cra3 = u.calculateRecentAverages(avgFixture, 3);
+  expectEqual(cra3.insufficient, true, 'flag baseline learning with only 6 prior nights');
+  expectEqual(cra3.sampleSize, 6, 'flag baseline learning sampleSize');
 
   // stats-aggregates: mid-sleep geometry (must match stats.js)
   const SA = u.StatsAggregates;

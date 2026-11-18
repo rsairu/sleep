@@ -3295,7 +3295,7 @@ function isWallClockWithinRecentHoursNav(now, timeStr, hoursBack) {
  */
 function buildStubDayForNightMd(dateMd, days, averagesFallback) {
   const template = days && days.length ? days[0] : null;
-  const basis = computeRecentSevenDayWakeBasis(days);
+  const basis = computeRecentWakeBasis(days);
   const avgS = basis ? basis.avgSleepStart : (averagesFallback ? averagesFallback.avgSleepStart : NaN);
   const avgE = basis ? basis.avgSleepEnd : (averagesFallback ? averagesFallback.avgSleepEnd : NaN);
   if (!Number.isFinite(avgS) || !Number.isFinite(avgE)) return null;
@@ -3443,23 +3443,120 @@ function shouldShowDynamicSleepNavPhase(days, basis, now, nightMd) {
   return inLimbo || inSleepWin;
 }
 
-/** Last 7 days in `days`: average get-up, average fell-asleep, and wake-window length (minutes between them). */
-function computeRecentSevenDayWakeBasis(days) {
-  if (!days || days.length === 0) return null;
-  const recent = days.slice(0, Math.min(7, days.length));
+// ---------------------------------------------------------------------------
+// Recent averages ("Natural" sleep / wake) — single source of truth.
+// Every surface that needs "your recent average" calls computeRecentAverages; do not re-derive it.
+// `days` are newest-first (days[0] = most recent logged entry). The window counts logged
+// entries, not calendar days. Self-contained section: candidate for extraction from sleep-utils.
+// ---------------------------------------------------------------------------
+
+/** Number of most recent logged entries (not calendar days) in the recent average. */
+const RECENT_AVERAGE_WINDOW = 7;
+
+/**
+ * Per-entry weights for a recent-average window, newest first.
+ * @param {number} count
+ * @returns {number[]}
+ */
+function recentAverageWeights(count) {
+  const weights = [];
+  for (let i = 0; i < count; i++) weights.push(1);
+  return weights;
+}
+
+/**
+ * Average a list of nights (no window selection). Clock times are averaged on the extended
+ * axis (normalizeTimeForAveraging / normalizeWakeTimeForAveraging) so midnight crossings
+ * average correctly, then returned as minutes from midnight.
+ * @param {Array<object>} nights
+ * @param {number[]} [weights] one per night; defaults to equal weights
+ * @returns {null | {
+ *   sampleSize: number,
+ *   avgBedStart: number|null,
+ *   avgSleepStart: number,
+ *   avgSleepEnd: number,
+ *   avgSleepDuration: number,
+ *   avgLongestUninterrupted: number,
+ *   avgBedToSleepDelay: number,
+ *   avgFirstAlarmToWake: number|null
+ * }}
+ */
+function averageSleepNights(nights, weights) {
+  const list = Array.isArray(nights) ? nights : [];
+  const n = list.length;
+  if (n === 0) return null;
+  const w = Array.isArray(weights) && weights.length === n ? weights : recentAverageWeights(n);
+
+  let wSum = 0;
   let sleepStartSum = 0;
   let sleepEndSum = 0;
-  for (let i = 0; i < recent.length; i++) {
-    const d = recent[i];
-    const ss = timeToMinutes(d.sleepStart);
-    sleepStartSum += normalizeTimeForAveraging(ss);
-    sleepEndSum += normalizeWakeTimeForAveraging(ss, timeToMinutes(d.sleepEnd));
+  let durationSum = 0;
+  let longestSum = 0;
+  let delaySum = 0;
+  let bedSum = 0;
+  let bedW = 0;
+  let alarmSum = 0;
+  let alarmW = 0;
+
+  for (let i = 0; i < n; i++) {
+    const day = list[i];
+    const wi = w[i];
+    wSum += wi;
+    const ss = timeToMinutes(day.sleepStart);
+    sleepStartSum += wi * normalizeTimeForAveraging(ss);
+    sleepEndSum += wi * normalizeWakeTimeForAveraging(ss, timeToMinutes(day.sleepEnd));
+    durationSum += wi * calculateTotalSleep(day);
+    longestSum += wi * calculateLongestUninterrupted(day);
+    delaySum += wi * calculateSleepDelay(day);
+    const bed = timeToMinutes(day.bed);
+    if (Number.isFinite(bed)) {
+      bedSum += wi * normalizeTimeForAveraging(bed);
+      bedW += wi;
+    }
+    const alarmToWake = calculateFirstAlarmToWake(day);
+    if (alarmToWake !== null) {
+      alarmSum += wi * alarmToWake;
+      alarmW += wi;
+    }
   }
-  const n = recent.length;
-  const avgSleepStart = denormalizeTimeForAveraging(Math.round(sleepStartSum / n));
-  const avgSleepEnd = denormalizeTimeForAveraging(Math.round(sleepEndSum / n));
-  const totalWakeMins = durationMinutes(avgSleepEnd, avgSleepStart);
-  return { avgSleepStart, avgSleepEnd, totalWakeMins };
+
+  return {
+    sampleSize: n,
+    avgBedStart: bedW > 0 ? denormalizeTimeForAveraging(Math.round(bedSum / bedW)) : null,
+    avgSleepStart: denormalizeTimeForAveraging(Math.round(sleepStartSum / wSum)),
+    avgSleepEnd: denormalizeTimeForAveraging(Math.round(sleepEndSum / wSum)),
+    avgSleepDuration: Math.round(durationSum / wSum),
+    avgLongestUninterrupted: Math.round(longestSum / wSum),
+    avgBedToSleepDelay: Math.round(delaySum / wSum),
+    avgFirstAlarmToWake: alarmW > 0 ? Math.round(alarmSum / alarmW) : null
+  };
+}
+
+/**
+ * Recent average over the most recent logged entries.
+ * @param {Array<object>} days newest-first
+ * @param {{ endBeforeIndex?: number }} [options] endBeforeIndex: average the entries *before*
+ *   days[endBeforeIndex] (that night excluded) — for per-night baselines.
+ * @returns {ReturnType<typeof averageSleepNights>} null when there are no entries in the window
+ */
+function computeRecentAverages(days, options) {
+  const list = Array.isArray(days) ? days : [];
+  const opts = options || {};
+  const start = Number.isInteger(opts.endBeforeIndex) ? opts.endBeforeIndex + 1 : 0;
+  const recent = list.slice(start, start + RECENT_AVERAGE_WINDOW);
+  if (recent.length === 0) return null;
+  return averageSleepNights(recent, recentAverageWeights(recent.length));
+}
+
+/** Recent average fell-asleep and get-up, plus wake-window length (minutes between them). */
+function computeRecentWakeBasis(days) {
+  const avg = computeRecentAverages(days);
+  if (!avg) return null;
+  return {
+    avgSleepStart: avg.avgSleepStart,
+    avgSleepEnd: avg.avgSleepEnd,
+    totalWakeMins: durationMinutes(avg.avgSleepEnd, avg.avgSleepStart)
+  };
 }
 
 /**
@@ -3468,7 +3565,7 @@ function computeRecentSevenDayWakeBasis(days) {
  */
 function getTonightWakePhaseBasisFromDays(days) {
   const liveDays = Array.isArray(days) ? days : [];
-  let basis = computeRecentSevenDayWakeBasis(liveDays);
+  let basis = computeRecentWakeBasis(liveDays);
   if (!basis || !Number.isFinite(basis.avgSleepStart) || !Number.isFinite(basis.avgSleepEnd)) {
     basis = getFallbackWakeBasis();
   }
@@ -3823,7 +3920,7 @@ function initRemainingWakeThresholdsConfig() {
 
   loadSleepData()
     .then(function (data) {
-      configRemainingWakeBasis = computeRecentSevenDayWakeBasis(data.days);
+      configRemainingWakeBasis = computeRecentWakeBasis(data.days);
       const { openMin, windingMin } = getRemainingWakeThresholds();
       applyRemainingWakeThresholdsUI(100 - openMin, 100 - windingMin);
     })

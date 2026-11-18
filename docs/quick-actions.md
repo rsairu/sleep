@@ -44,7 +44,7 @@ flowchart TD
   fb --> out[inferSharedSleepContextPhase]
 ```
 
-If there is no shared context (or no `navDisplay`), phase falls back to `inferSharedSleepContextPhase` using **dashboard averages** from `getAveragesFromDays` / `calculateAverages` (recent up to 7 days).
+If there is no shared context (or no `navDisplay`), phase falls back to `inferSharedSleepContextPhase` using **recent averages** from `getAveragesFromDays` → `computeRecentAverages` (`RECENT_AVERAGE_WINDOW` most recent logged entries).
 **Canonical clock basis for phase** when shared context exists: `sharedContext.basis` from `getEffectiveRemainingWakeBasis` / `getTonightWakePhaseBasisFromDays` (recent seven days, optional saved Tonight target from `user_settings`, then optional session slider adjustment). That can differ from the separate `averages` object used for alarm eligibility, which does not apply those overlays.
 
 ---
@@ -148,7 +148,7 @@ Values match `sleep-utils.js` (and inline `120` where noted). Update this table 
 | Button definitions | `QUICK_ACTIONS_BY_PHASE`, `renderQuickActions` — `quick-actions.js` |
 | Wake-day key / wake correction | `recordDateMdForSleepPeriod`, `resolveRecordDateMdForWake`, `nightRowAwaitingWake` — `sleep-utils.js` |
 | QA flags (bed / sleep / wake) | `readNightQaSleepFlagMap`, `markNightQaSleepFlag` — `sleep-utils.js` |
-| Seven-day basis vs dashboard averages | `getTonightWakePhaseBasisFromDays`, `computeRecentSevenDayWakeBasis` vs `getAveragesFromDays` / `calculateAverages` — `sleep-utils.js` / `quick-actions.js` / `nightly.js` |
+| Recent-average basis vs plain recent averages | `getTonightWakePhaseBasisFromDays`, `computeRecentWakeBasis` vs `getAveragesFromDays` — all read `computeRecentAverages` in `sleep-utils.js` |
 | Wake logged (quick actions) | `wakeLoggedForWakeDayMd` — `sleep-utils.js` |
 | Log alarm prefill | `restore_log_prefill_v1`, `tryConsumeLogAlarmPrefill`, `appendListTimeNow('quick-add-alarm-list')` — `quick-actions.js` / `entry-modal.js` |
 
@@ -157,6 +157,6 @@ Values match `sleep-utils.js` (and inline `120` where noted). Update this table 
 ## Two averages pipelines (red flag to remember)
 
 - **Phase / nav / nap threshold:** `sharedContext.basis` ← `getEffectiveRemainingWakeBasis` (recent 7 days + optional saved Tonight target + optional session projection adjustment).
-- **Alarm quick action:** `averages.avgFirstAlarmToWake` from `getAveragesFromDays` → `calculateAverages` (recent 7 days, **no** projection adjustment).
+- **Alarm quick action:** `averages.avgFirstAlarmToWake` from `getAveragesFromDays` → `computeRecentAverages` (recent logged entries, **no** projection adjustment).
 
 If you add features, prefer **`basis`** for anything time-phase or row-key related unless you intentionally want dashboard-stat semantics.

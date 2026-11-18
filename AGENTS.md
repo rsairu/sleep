@@ -37,6 +37,19 @@ When changing any of these, update the doc and its **Keys and constants** table 
 
 When changing `getQuickActionsPhaseFromSharedContext`, `getSharedAppTimeContext`, `inferSharedSleepContextPhase`, `shouldShowDynamicSleepNavPhase`, or `QUICK_ACTIONS_BY_PHASE`, update the doc and its **Phase and row constants** table if any numbers or order of checks change.
 
+## Wake-day key (night row date)
+
+**Applies to:** `sleep-utils.js`, `quick-actions.js`, `dashboard.js`, `nightly.js`
+**Spec:** [docs/wake-day-key.md](docs/wake-day-key.md) (wake-date invariant, cutover rule, wake correction, which wake time each caller uses)
+
+When changing `recordDateMdForSleepPeriod`, `resolveRecordDateMdForWake`, `nightRowAwaitingWake`, `getDashboardTonightNightKey`, or any caller's choice of wake time, update the doc's caller table and examples, and the cutover tests in `tests/math-tests.js`.
+
+## Recent averages (Natural sleep / wake)
+
+**Applies to:** any file that needs "your recent average"
+
+Use `computeRecentAverages(days, { endBeforeIndex? })` (or `averageSleepNights(nights)` for a fixed list such as a week) from `sleep-utils.js`. Do not slice `days` and re-average by hand — window size and weighting live only in that section (`RECENT_AVERAGE_WINDOW`, `recentAverageWeights`). Covered by the recent-average block in `tests/math-tests.js`.
+
 ## User data and cloud preferences
 
 **Applies to:** `sleep-utils.js`, `supabase/schema.sql`

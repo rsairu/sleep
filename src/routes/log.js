@@ -22,13 +22,10 @@
     var days = Array.isArray(sleepData.days) ? sleepData.days : [];
     logPageDaysForWake = days;
     clearLogRemainingWakeTimer();
-    var recentDays = days.slice(0, Math.min(7, days.length));
-    var recentAverages = recentDays.length
-      ? calculateAverages(recentDays)
-      : QUICK_ADD_FALLBACK_AVERAGES;
+    var recentAverages = computeRecentAverages(days) || QUICK_ADD_FALLBACK_AVERAGES;
     root.innerHTML =
       '<h1 class="log-page-title dashboard-section-title" data-i18n="log.pageTitle">Log a night</h1>' +
-      renderQuickAddDrawer(recentAverages, recentDays, 'page');
+      renderQuickAddDrawer(recentAverages, 'page');
     var afterI18n = typeof initI18n === 'function' ? initI18n(root) : Promise.resolve();
     return afterI18n.then(function () {
       if (typeof updateRemainingWakeNav === 'function' && typeof getRemainingWakeDisplayFromDays === 'function') {

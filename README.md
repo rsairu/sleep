@@ -74,13 +74,13 @@ The repo commits `data/.gitkeep` so the `data/` folder exists in fresh clones.
 
 ### `public.sleep_days`
 
-One logged night per user per calendar date.
+One logged night per user per wake date.
 
 | Column | Type | Notes |
 |--------|------|--------|
 | `id` | `bigint` | Surrogate primary key (identity). |
 | `user_id` | `uuid` | Tenant scope (MVP default single-user id in schema). |
-| `sleep_date` | **`date`** | Calendar night (not a free-form string). |
+| `sleep_date` | **`date`** | **Wake date** — the morning the night ends. A night from 23:00 Nov 18 to 07:00 Nov 19 is `2026-11-19`; a night that starts after midnight (02:00 Nov 19 → 11:00 Nov 19) is also `2026-11-19`. See [docs/wake-day-key.md](docs/wake-day-key.md). |
 | `bed`, `sleep_start`, `sleep_end` | `text` | Wall-clock times (app normalizes to 24h `HH:MM` for Supabase). |
 | `bathroom`, `alarm` | `text[]` | Ordered time-of-night strings. |
 | `nap_start`, `nap_end` | `text` | Nullable; nap interval split across two columns. |

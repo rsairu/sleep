@@ -52,7 +52,7 @@ Core split:
 
 Canonical basis comes from `getTonightWakePhaseBasisFromDays(days)`:
 
-1. Recent seven-day averages (`computeRecentSevenDayWakeBasis`).
+1. Recent averages (`computeRecentWakeBasis` → `computeRecentAverages`, the single recent-average helper in `sleep-utils.js`).
 2. Optional saved Tonight target window (`getTonightTargetWindow`).
 3. Optional session projection adjustment (`getTonightProjectionAdjustment`).
 
@@ -229,7 +229,7 @@ Read/hydrate path:
 |--------|------------------|
 | Threshold storage + defaults | `REMAINING_WAKE_THRESHOLDS_KEY`, `DEFAULT_REMAINING_WAKE_OPEN_MIN`, `DEFAULT_REMAINING_WAKE_WINDING_MIN`, `getRemainingWakeThresholds`, `setRemainingWakeThresholds` |
 | Heads-up storage + conversion | `REMAINING_WAKE_PHASE_HEADS_UP_KEY`, `REMAINING_WAKE_PHASE_HEADS_UP_ALLOWED`, `getRemainingWakePhaseHeadsUpMinutes`, `setRemainingWakePhaseHeadsUpMinutes`, slider conversion helpers |
-| Basis selection | `computeRecentSevenDayWakeBasis`, `getTonightWakePhaseBasisFromDays`, `getEffectiveRemainingWakeBasis`, `getFallbackWakeBasis` |
+| Basis selection | `computeRecentWakeBasis`, `getTonightWakePhaseBasisFromDays`, `getEffectiveRemainingWakeBasis`, `getFallbackWakeBasis` |
 | Phase/time inference | `getRemainingWakePhase`, `computeRemainingWakePhaseHeadsUp`, `shouldShowGoToBedSoonWakeNav` |
 | Dynamic sleep logic | `shouldShowDynamicSleepNavPhase`, `isNightBedOrSleepLogged`, `isNightBedOrSleepLoggedCore`, `isNightWakeLogged`, `inferNavSleepWindowPhase` |
 | Display object | `getRemainingWakeDisplayFromBasis`, `getRemainingWakeDisplayFromDays` |

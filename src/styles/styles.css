@@ -3257,22 +3257,7 @@ body{
   text-align: center;
 }
 
-.dashboard-projection-duration--recommended {
-  margin-top: 4px;
-  opacity: 0.65;
-}
-
 .dashboard-projection-duration--hidden {
-  visibility: hidden;
-}
-
-.dashboard-projection-recommended {
-  font-size: 0.75rem;
-  opacity: 0.68;
-  min-height: 1.1em;
-}
-
-.dashboard-projection-recommended--hidden {
   visibility: hidden;
 }
 
@@ -3594,8 +3579,6 @@ body{
   --tonight-sleep-pct: 40%;
   --tonight-wake-pct: 60%;
   --tonight-mid-pct: 50%;
-  --tonight-rec-start-pct: 42%;
-  --tonight-rec-end-pct: 58%;
   --tonight-committed-sleep-pct: 42%;
   --tonight-committed-wake-pct: 58%;
   --tonight-saved-target-sleep-pct: 0%;
@@ -3621,8 +3604,7 @@ body{
   height: 24px;
 }
 
-.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-range-fill,
-.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-recommended-window {
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-range-fill {
   border-radius: 999px;
 }
 
@@ -3631,11 +3613,6 @@ body{
   z-index: 2;
   left: var(--tonight-fill-start-pct, var(--tonight-sleep-pct));
   width: max(0%, calc(var(--tonight-fill-end-pct, var(--tonight-wake-pct)) - var(--tonight-fill-start-pct, var(--tonight-sleep-pct))));
-}
-
-.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-recommended-window {
-  z-index: 3;
-  background: transparent;
 }
 
 /* Input box height matches visual track so the native track lines up with .dashboard-tonight-adjust-track */
@@ -4279,12 +4256,12 @@ body{
 }
 
 .dashboard-tonight-adjust-committed-ghost--sleep {
-  left: var(--tonight-committed-sleep-pct, var(--tonight-rec-start-pct));
+  left: var(--tonight-committed-sleep-pct, var(--tonight-sleep-pct));
   color: color-mix(in srgb, var(--color-sleep) 58%, var(--text));
 }
 
 .dashboard-tonight-adjust-committed-ghost--wake {
-  left: var(--tonight-committed-wake-pct, var(--tonight-rec-end-pct));
+  left: var(--tonight-committed-wake-pct, var(--tonight-wake-pct));
   color: color-mix(in srgb, var(--color-up) 58%, var(--text));
 }
 
@@ -4389,18 +4366,6 @@ body{
   overflow: hidden;
   display: flex;
   align-items: center;
-}
-
-.dashboard-tonight-adjust-recommended-window {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: var(--tonight-rec-start-pct);
-  width: calc(var(--tonight-rec-end-pct) - var(--tonight-rec-start-pct));
-  border-radius: 999px;
-  background: transparent;
-  pointer-events: none;
-  z-index: 1;
 }
 
 /* Sleep→wake gradient wave inside the range-fill: vertical bars at constant pixel size; the
@@ -4580,12 +4545,12 @@ body{
 }
 
 .dashboard-tonight-adjust-baseline-label--sleep {
-  left: var(--tonight-committed-sleep-pct, var(--tonight-rec-start-pct));
+  left: var(--tonight-committed-sleep-pct, var(--tonight-sleep-pct));
   background: transparent;
 }
 
 .dashboard-tonight-adjust-baseline-label--wake {
-  left: var(--tonight-committed-wake-pct, var(--tonight-rec-end-pct));
+  left: var(--tonight-committed-wake-pct, var(--tonight-wake-pct));
   background: transparent;
 }
 

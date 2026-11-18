@@ -21,13 +21,11 @@
   }
 
   function getAveragesFromDays(days) {
-    const recent = days && days.length ? days.slice(0, Math.min(7, days.length)) : [];
-    if (recent.length === 0) {
-      return typeof QUICK_ADD_FALLBACK_AVERAGES !== 'undefined'
-        ? QUICK_ADD_FALLBACK_AVERAGES
-        : { avgSleepStart: 22 * 60 + 30, avgSleepEnd: 7 * 60, avgFirstAlarmToWake: null };
-    }
-    return calculateAverages(recent);
+    const recent = computeRecentAverages(days);
+    if (recent) return recent;
+    return typeof QUICK_ADD_FALLBACK_AVERAGES !== 'undefined'
+      ? QUICK_ADD_FALLBACK_AVERAGES
+      : { avgSleepStart: 22 * 60 + 30, avgSleepEnd: 7 * 60, avgFirstAlarmToWake: null };
   }
 
   /**

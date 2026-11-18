@@ -643,15 +643,14 @@ function pendingNightTimeOrEmpty(v) {
 
 /**
  * Current night key (ISO wake-date) — the same key bed / sleep quick actions save to
- * (`recordDateMdForSleepPeriod` with the recent-7 average wake).
+ * (`recordDateMdForSleepPeriod` with the recent-average wake).
  */
 function getDashboardTonightNightKey(days) {
   if (typeof recordDateMdForSleepPeriod !== 'function' || typeof getAppDate !== 'function') return null;
-  const recent = Array.isArray(days) ? days.slice(0, Math.min(7, days.length)) : [];
+  const avg = computeRecentAverages(days);
   let avgWake = 7 * 60;
-  if (recent.length) {
-    const avg = calculateAverages(recent);
-    if (avg && Number.isFinite(avg.avgSleepEnd)) avgWake = avg.avgSleepEnd;
+  if (avg && Number.isFinite(avg.avgSleepEnd)) {
+    avgWake = avg.avgSleepEnd;
   } else if (typeof QUICK_ADD_FALLBACK_AVERAGES !== 'undefined') {
     avgWake = QUICK_ADD_FALLBACK_AVERAGES.avgSleepEnd;
   }
@@ -774,9 +773,8 @@ function renderDashboardFromData(sleepData) {
   renderDashboard7DayGraphs(dashboardCurrentDays);
   bindDashboardResponsiveRerender();
 
-  const recentDays = dashboardCurrentDays.slice(0, Math.min(7, dashboardCurrentDays.length));
-  if (recentDays.length > 0 && typeof initDashboardTonightAdjuster === 'function' && typeof updateRemainingWakeNav === 'function' && typeof getRemainingWakeDisplayFromDays === 'function') {
-    const recentAverages = calculateAverages(recentDays);
+  const recentAverages = computeRecentAverages(dashboardCurrentDays);
+  if (recentAverages && typeof initDashboardTonightAdjuster === 'function' && typeof updateRemainingWakeNav === 'function' && typeof getRemainingWakeDisplayFromDays === 'function') {
     initDashboardTonightAdjuster(
       recentAverages,
       function () {

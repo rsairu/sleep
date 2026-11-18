@@ -603,42 +603,7 @@ function renderDay(day, days, dayIndex, options) {
 
 // Note: normalizeTimeForAveraging and denormalizeTimeForAveraging are in time-utils.js (global).
 
-// Calculate average stats
-function calculateAverages(days) {
-  let sleepDurationSum = 0;
-  let longestUninterruptedSum = 0;
-  let firstAlarmToWakeSum = 0;
-  let firstAlarmToWakeCount = 0;
-  let sleepStartSum = 0;
-  let sleepEndSum = 0;
-  let bedToSleepDelaySum = 0;
-  
-  days.forEach(day => {
-    sleepDurationSum += calculateTotalSleep(day);
-    longestUninterruptedSum += calculateLongestUninterrupted(day);
-    bedToSleepDelaySum += calculateSleepDelay(day);
-    const firstAlarmToWake = calculateFirstAlarmToWake(day);
-    if (firstAlarmToWake !== null) {
-      firstAlarmToWakeSum += firstAlarmToWake;
-      firstAlarmToWakeCount++;
-    }
-    // Normalize times for averaging to handle midnight crossover
-    const ss = timeToMinutes(day.sleepStart);
-    sleepStartSum += normalizeTimeForAveraging(ss);
-    sleepEndSum += normalizeWakeTimeForAveraging(ss, timeToMinutes(day.sleepEnd));
-  });
-  
-  const n = days.length;
-  return {
-    sampleSize: n,
-    avgSleepStart: denormalizeTimeForAveraging(Math.round(sleepStartSum / n)),
-    avgSleepEnd: denormalizeTimeForAveraging(Math.round(sleepEndSum / n)),
-    avgSleepDuration: Math.round(sleepDurationSum / n),
-    avgLongestUninterrupted: Math.round(longestUninterruptedSum / n),
-    avgBedToSleepDelay: n > 0 ? Math.round(bedToSleepDelaySum / n) : 0,
-    avgFirstAlarmToWake: firstAlarmToWakeCount > 0 ? Math.round(firstAlarmToWakeSum / firstAlarmToWakeCount) : null
-  };
-}
+// Averages: averageSleepNights / computeRecentAverages live in sleep-utils.js (single source of truth).
 
 // Render averages stats HTML (inner content only)
 function renderAveragesStats(averages) {
@@ -665,7 +630,7 @@ function renderAveragesColumn(averages, title) {
 
 // Render week summary stats (for collapsed state)
 function renderWeekSummary(days) {
-  const averages = calculateAverages(days);
+  const averages = averageSleepNights(days);
   const avgSleepStart = averages.avgSleepStart;
   const avgSleepEnd = averages.avgSleepEnd;
   const avgSleepStartPos = timeToTimelinePosition(avgSleepStart);
@@ -1112,9 +1077,6 @@ function renderCalendarHeatmapFullHistoryMulti(years, flagMap, latestDataDate) {
   `;
 }
 
-// Recommended sleep/wake window: sleep band ±30 min; wake band ±15 min (wake consistency is more important).
-const PROJECTION_BAND_MINUTES = 30;
-const WAKE_PROJECTION_BAND_MINUTES = 15;
 const TONIGHT_ADJUST_SCOPE_PAD_MINUTES = 180;
 const TONIGHT_ADJUST_MIN_GAP_MINUTES = 1;
 /** Painted width of Tonight emoji knobs (px); must match CSS range thumb width for fill inset math. */
@@ -1136,14 +1098,9 @@ function getTonightProjectionBaseState(recentAverages) {
   const tonightNaturalReliable = sampleSize >= TONIGHT_MATRIX_MIN_NATURAL_DAYS;
   const avgSleep = recentAverages.avgSleepStart;
   const avgWake = recentAverages.avgSleepEnd;
-  const sleepByLow = modMinutes1440(avgSleep - PROJECTION_BAND_MINUTES);
-  const sleepByHigh = modMinutes1440(avgSleep + PROJECTION_BAND_MINUTES);
-  const wakeByLow = modMinutes1440(avgWake - WAKE_PROJECTION_BAND_MINUTES);
-  const wakeByHigh = modMinutes1440(avgWake + WAKE_PROJECTION_BAND_MINUTES);
-  const recommendedDurationMins = durationMinutes(avgSleep, avgWake);
-
-  const recommendedSleepNorm = normalizeTimeForAveraging(avgSleep);
-  const recommendedWakeNorm = normalizeWakeTimeForAveraging(avgSleep, avgWake);
+  // Natural (recent-average) times on the extended axis; always defined (fallback averages when no history).
+  const naturalSleepNorm = normalizeTimeForAveraging(avgSleep);
+  const naturalWakeNorm = normalizeWakeTimeForAveraging(avgSleep, avgWake);
 
   let committedSleep = avgSleep;
   let committedWake = avgWake;
@@ -1178,8 +1135,8 @@ function getTonightProjectionBaseState(recentAverages) {
   const committedSleepNorm = normalizeTimeForAveraging(committedSleep);
   const committedWakeNorm = normalizeWakeTimeForAveraging(committedSleep, committedWake);
 
-  let scopeStartNorm = Math.min(recommendedSleepNorm, committedSleepNorm) - TONIGHT_ADJUST_SCOPE_PAD_MINUTES;
-  let scopeEndNorm = Math.max(recommendedWakeNorm, committedWakeNorm) + TONIGHT_ADJUST_SCOPE_PAD_MINUTES;
+  let scopeStartNorm = Math.min(naturalSleepNorm, committedSleepNorm) - TONIGHT_ADJUST_SCOPE_PAD_MINUTES;
+  let scopeEndNorm = Math.max(naturalWakeNorm, committedWakeNorm) + TONIGHT_ADJUST_SCOPE_PAD_MINUTES;
   if (savedTw) {
     if (savedTargetSleep != null) {
       savedTargetSleepNorm = normalizeTimeForAveraging(savedTargetSleep);
@@ -1226,13 +1183,8 @@ function getTonightProjectionBaseState(recentAverages) {
     committedSleepNorm,
     committedWakeNorm,
     hasSavedTonightTarget: Boolean(savedTw),
-    sleepByLow,
-    sleepByHigh,
-    wakeByLow,
-    wakeByHigh,
-    recommendedDurationMins,
-    recommendedSleepNorm,
-    recommendedWakeNorm,
+    naturalSleepNorm,
+    naturalWakeNorm,
     scopeStartNorm,
     scopeEndNorm,
     tonightGuidanceMode,
@@ -1398,21 +1350,16 @@ const QUICK_ADD_FALLBACK_AVERAGES = {
   avgFirstAlarmToWake: null
 };
 
-/** Average bed time on the same extended axis as sleep (for slider init). */
-function averageBedClockNormalizedMinutes(recentDays) {
-  if (!recentDays || recentDays.length === 0) {
-    return normalizeTimeForAveraging(22 * 60 + 8);
-  }
-  let sum = 0;
-  recentDays.forEach(function (d) {
-    sum += normalizeTimeForAveraging(timeToMinutes(d.bed));
-  });
-  return Math.round(sum / recentDays.length);
-}
+/** Default bed clock for the quick-add slider when no bed time has been logged (22:08). */
+const QUICK_ADD_FALLBACK_BED_MINUTES = 22 * 60 + 8;
 
-function getQuickAddInitialBedNorm(base, sleepNorm, recentDays) {
+function getQuickAddInitialBedNorm(base, sleepNorm, recentAverages) {
   const g = TONIGHT_ADJUST_MIN_GAP_MINUTES;
-  const rec = averageBedClockNormalizedMinutes(recentDays);
+  const bedClock =
+    recentAverages && Number.isFinite(recentAverages.avgBedStart)
+      ? recentAverages.avgBedStart
+      : QUICK_ADD_FALLBACK_BED_MINUTES;
+  const rec = normalizeTimeForAveraging(bedClock);
   const maxBed = sleepNorm - g;
   let b = rec;
   if (b > maxBed) b = maxBed;
@@ -1420,7 +1367,7 @@ function getQuickAddInitialBedNorm(base, sleepNorm, recentDays) {
   return b;
 }
 
-function getQuickAddSliderProjection(recentAverages, recentDays) {
+function getQuickAddSliderProjection(recentAverages) {
   const base = getTonightProjectionBaseState(recentAverages);
   const sleepNorm = base.committedSleepNorm;
   const wakeNorm = base.committedWakeNorm;
@@ -1428,10 +1375,8 @@ function getQuickAddSliderProjection(recentAverages, recentDays) {
   const scopeSpan = base.scopeEndNorm - base.scopeStartNorm;
   const sleepPct = ((clamped.sleepNorm - base.scopeStartNorm) / scopeSpan) * 100;
   const wakePct = ((clamped.wakeNorm - base.scopeStartNorm) / scopeSpan) * 100;
-  const bedNorm = getQuickAddInitialBedNorm(base, clamped.sleepNorm, recentDays || []);
+  const bedNorm = getQuickAddInitialBedNorm(base, clamped.sleepNorm, recentAverages);
   const bedPct = ((bedNorm - base.scopeStartNorm) / scopeSpan) * 100;
-  const recStartPct = ((base.recommendedSleepNorm - base.scopeStartNorm) / scopeSpan) * 100;
-  const recEndPct = ((base.recommendedWakeNorm - base.scopeStartNorm) / scopeSpan) * 100;
   const sleepClock = modMinutes1440(clamped.sleepNorm);
   const wakeClock = modMinutes1440(clamped.wakeNorm);
   const bedClock = modMinutes1440(bedNorm);
@@ -1446,15 +1391,13 @@ function getQuickAddSliderProjection(recentAverages, recentDays) {
     bedPct,
     sleepPct,
     wakePct,
-    recStartPct,
-    recEndPct,
     midPct: (sleepPct + wakePct) / 2
   };
 }
 
 /** @param {'drawer'|'page'} layout — drawer: dashboard strip; page: full log screen, advanced fields always visible */
-function renderQuickAddDrawer(recentAverages, recentDays, layout = 'drawer') {
-  const proj = getQuickAddSliderProjection(recentAverages, recentDays);
+function renderQuickAddDrawer(recentAverages, layout = 'drawer') {
+  const proj = getQuickAddSliderProjection(recentAverages);
   const bedVal = formatMinutesTo24hString(proj.bedClock);
   const sleepVal = formatMinutesTo24hString(proj.sleepClock);
   const wakeVal = formatMinutesTo24hString(proj.wakeClock);
@@ -1727,8 +1670,6 @@ function getTonightProjectionState(recentAverages) {
   const scopeSpan = base.scopeEndNorm - base.scopeStartNorm;
   const sleepPct = ((clamped.sleepNorm - base.scopeStartNorm) / scopeSpan) * 100;
   const wakePct = ((clamped.wakeNorm - base.scopeStartNorm) / scopeSpan) * 100;
-  const recStartPct = ((base.recommendedSleepNorm - base.scopeStartNorm) / scopeSpan) * 100;
-  const recEndPct = ((base.recommendedWakeNorm - base.scopeStartNorm) / scopeSpan) * 100;
   const committedSleepPct = ((base.committedSleepNorm - base.scopeStartNorm) / scopeSpan) * 100;
   const committedWakePct = ((base.committedWakeNorm - base.scopeStartNorm) / scopeSpan) * 100;
   let savedTargetSleepPct = null;
@@ -1751,8 +1692,6 @@ function getTonightProjectionState(recentAverages) {
     isAdjusted,
     sleepPct,
     wakePct,
-    recStartPct,
-    recEndPct,
     committedSleepPct,
     committedWakePct,
     savedTargetSleepPct,
@@ -1830,7 +1769,7 @@ function renderDashboardProjection(recentAverages) {
             id="dashboard-tonight-adjust-slider"
             role="group"
             aria-label="Tonight sleep and wake schedule."
-            style="--tonight-sleep-pct:${projection.sleepPct}%;--tonight-wake-pct:${projection.wakePct}%;--tonight-mid-pct:${(projection.sleepPct + projection.wakePct) / 2}%;--tonight-rec-start-pct:${projection.recStartPct}%;--tonight-rec-end-pct:${projection.recEndPct}%;--tonight-committed-sleep-pct:${projection.committedSleepPct}%;--tonight-committed-wake-pct:${projection.committedWakePct}%;--tonight-saved-target-sleep-pct:${savedSleepPct};--tonight-saved-target-wake-pct:${savedWakePct};">
+            style="--tonight-sleep-pct:${projection.sleepPct}%;--tonight-wake-pct:${projection.wakePct}%;--tonight-mid-pct:${(projection.sleepPct + projection.wakePct) / 2}%;--tonight-committed-sleep-pct:${projection.committedSleepPct}%;--tonight-committed-wake-pct:${projection.committedWakePct}%;--tonight-saved-target-sleep-pct:${savedSleepPct};--tonight-saved-target-wake-pct:${savedWakePct};">
             <div class="dashboard-tonight-adjust-top-band">
               <div
                 class="dashboard-tonight-adjust-committed-ghost dashboard-tonight-adjust-committed-ghost--sleep dashboard-tonight-adjust-committed-ghost--hidden"
@@ -1854,7 +1793,6 @@ function renderDashboardProjection(recentAverages) {
             <div class="dashboard-tonight-adjust-slider-core">
               <div class="dashboard-tonight-adjust-track">
                 <div class="dashboard-tonight-adjust-range-fill" aria-hidden="true">${trackWaveSvg}</div>
-                <div class="dashboard-tonight-adjust-recommended-window" aria-hidden="true"></div>
               </div>
               <input type="range" id="dashboard-tonight-sleep-slider" min="${base.scopeStartNorm}" max="${base.scopeEndNorm}" step="1" value="${projection.sleepNorm}" aria-label="Tonight sleep target" title="Sleep" data-i18n-title="dashboard.tonight.sleepKnobTooltip">
               <input type="range" id="dashboard-tonight-wake-slider" min="${base.scopeStartNorm}" max="${base.scopeEndNorm}" step="1" value="${projection.wakeNorm}" aria-label="Tomorrow wake target" title="Wake" data-i18n-title="dashboard.tonight.wakeKnobTooltip">
@@ -2482,10 +2420,6 @@ function initDashboardTonightAdjuster(recentAverages, onChange, getLiveDays, get
     const hiPct = Math.max(sleepPct, wakePct);
     let fillStartPct = loPct;
     let fillEndPct = hiPct;
-    const recStartRaw = ((base.recommendedSleepNorm - base.scopeStartNorm) / scopeSpan) * 100;
-    const recEndRaw = ((base.recommendedWakeNorm - base.scopeStartNorm) / scopeSpan) * 100;
-    let recLo = Math.min(recStartRaw, recEndRaw);
-    let recHi = Math.max(recStartRaw, recEndRaw);
     if (wrapW > 0) {
       const insetPct = (TONIGHT_KNOB_OUTER_PX / 2 / wrapW) * 100;
       const spanPct = hiPct - loPct;
@@ -2496,18 +2430,10 @@ function initDashboardTonightAdjuster(recentAverages, onChange, getLiveDays, get
       if (spanPct > 0) {
         fillStartPct = loPct + insetLeft;
         fillEndPct = hiPct - insetRight;
-        recLo = Math.max(recLo, fillStartPct);
-        recHi = Math.min(recHi, fillEndPct);
-        if (recLo >= recHi) {
-          recHi = recLo + 0.05;
-        }
       }
     }
     sliderWrap.style.setProperty('--tonight-fill-start-pct', `${fillStartPct}%`);
     sliderWrap.style.setProperty('--tonight-fill-end-pct', `${fillEndPct}%`);
-
-    sliderWrap.style.setProperty('--tonight-rec-start-pct', `${recLo}%`);
-    sliderWrap.style.setProperty('--tonight-rec-end-pct', `${recHi}%`);
 
     const committedSleepPct = ((base.committedSleepNorm - base.scopeStartNorm) / scopeSpan) * 100;
     const committedWakePct = ((base.committedWakeNorm - base.scopeStartNorm) / scopeSpan) * 100;
@@ -3585,8 +3511,7 @@ function renderDashboardContent(days) {
     </div>`;
   }
 
-  const recentDays = days.slice(0, Math.min(7, days.length));
-  const recentAverages = calculateAverages(recentDays);
+  const recentAverages = computeRecentAverages(days);
   const flagMap = buildFlagCountMap(days);
   const latestDataDate = getLatestDataDate(days);
   const dashboardYear = getAppDate().getFullYear();
