@@ -440,6 +440,40 @@ async function runTests() {
   expectEqual(cut(10, 19, 9, 0), '2026-11-19', 'cutover: 09:00 (avg wake + 120) still today (inclusive)');
   expectEqual(cut(10, 19, 9, 1), '2026-11-20', 'cutover: 09:01 rolls to tomorrow');
 
+  // Night key: saves and lookups anchor the cutover on the natural (recent-average) wake.
+  const nkDays = [
+    { date: '2026-11-18', bed: '23:00', sleepStart: '23:20', sleepEnd: '07:40', alarm: [], bathroom: [], WASO: 0 },
+    { date: '2026-11-17', bed: '23:00', sleepStart: '23:20', sleepEnd: '07:20', alarm: [], bathroom: [], WASO: 0 }
+  ];
+  expectEqual(u.getNightKeyWakeMinutes(nkDays), 450, 'night-key wake = natural average (07:30)');
+  expectEqual(u.getNightKeyWakeMinutes([]), 420, 'night-key wake falls back to 07:00 with no history');
+  expectEqual(u.getCurrentNightKey(new Date(2026, 10, 19, 9, 30), nkDays), '2026-11-19', 'night key: 09:30 within natural cutover (09:30)');
+  expectEqual(u.getCurrentNightKey(new Date(2026, 10, 19, 9, 31), nkDays), '2026-11-20', 'night key: 09:31 past natural cutover');
+
+  // Night clock → instant: evening clocks fall the day before the wake date.
+  const ms = (mo, d, h, mi) => new Date(2026, mo, d, h, mi, 0, 0).getTime();
+  expectEqual(u.nightClockToInstantMs('2026-11-19', '23:10'), ms(10, 18, 23, 10), 'night clock 23:10 → Nov 18');
+  expectEqual(u.nightClockToInstantMs('2026-11-19', '02:00'), ms(10, 19, 2, 0), 'night clock 02:00 → Nov 19');
+  expectEqual(u.minutesPastNaturalWake('2026-11-19', 420, ms(10, 19, 10, 30)), 210, 'late wake: 10:30 is 210 min past 07:00');
+  expectEqual(u.minutesPastNaturalWake('2026-11-19', 420, ms(10, 18, 23, 30)), -450, 'evening before: negative');
+
+  // Open night: newest night with bed/sleep and no wake; abandoned after 24h from sleep or when superseded.
+  const draft = (date, bed, sleepStart, sleepEnd, nap) => ({ date, bed, sleepStart, sleepEnd, nap: nap || null });
+  const openNov19 = [draft('2026-11-19', '22:50', '23:10', null)];
+  const on1 = u.resolveOpenNight(openNov19, '2026-11-18', ms(10, 19, 10, 30));
+  expectEqual(on1 && on1.date, '2026-11-19', 'open night: sleep logged, no wake');
+  expectEqual(u.resolveOpenNight(openNov19, '2026-11-18', ms(10, 19, 23, 10)) && 'open', 'open', 'open night: exactly 24h after sleep still open');
+  expectEqual(u.resolveOpenNight(openNov19, '2026-11-18', ms(10, 19, 23, 11)), null, 'open night: abandoned 24h after sleep');
+  expectEqual(u.resolveOpenNight(openNov19, '2026-11-19', ms(10, 19, 10, 30)), null, 'open night: completed row for same night → none');
+  expectEqual(u.resolveOpenNight([draft('2026-11-19', '22:50', '23:10', '07:00')], null, ms(10, 19, 10, 30)), null, 'open night: wake already logged → none');
+  const superseded = [draft('2026-11-20', '', '23:40', null), draft('2026-11-19', '22:50', '23:10', null)];
+  const on2 = u.resolveOpenNight(superseded, null, ms(10, 19, 23, 45));
+  expectEqual(on2 && on2.date, '2026-11-20', 'open night: newer sleep supersedes older open night');
+  expectEqual(u.resolveOpenNight([draft('2026-11-20', '', '', null, { start: '14:00', end: '14:30' })].concat(openNov19), null, ms(10, 19, 15, 0)).date, '2026-11-19', 'open night: nap-only draft is not a new sleep');
+  const bedOnly = u.resolveOpenNight([draft('2026-11-19', '23:30', '', null)], null, ms(10, 19, 1, 0));
+  expectEqual(bedOnly && bedOnly.anchorMs, ms(10, 18, 23, 30), 'open night: bed-only night anchors on bed');
+  expectEqual(u.resolveOpenNight([], null, ms(10, 19, 10, 0)), null, 'open night: no drafts → none');
+
   // Recent-average characterization (flat mean of the 7 most recent logged entries).
   // Values recorded from the pre-refactor nightly.js calculateAverages; the shared helper reproduces them.
   const avgFixture = [
@@ -462,7 +496,6 @@ async function runTests() {
   expectEqual(ca7.avgLongestUninterrupted, 436, 'averageSleepNights avgLongestUninterrupted');
   expectEqual(ca7.avgBedToSleepDelay, 25, 'averageSleepNights avgBedToSleepDelay');
   expectEqual(ca7.avgFirstAlarmToWake, 6, 'averageSleepNights avgFirstAlarmToWake (alarm nights only)');
-  expectEqual(ca7.avgBedStart, 1417, 'averageSleepNights avgBedStart 23:37 across midnight (quick-add bed default)');
   // computeRecentAverages: window of most recent logged entries (10 in fixture → 7 used).
   const cr = u.computeRecentAverages(avgFixture);
   expectEqual(cr.sampleSize, 7, 'computeRecentAverages window counts 7 logged entries');

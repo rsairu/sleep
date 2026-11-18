@@ -95,11 +95,11 @@ Once phase is **`wake`**, **`sleep`**, or **`mid`**, each button has its own pre
 
 | Action        | Phase | Shown when |
 |---------------|-------|------------|
-| Wake up       | wake  | Wake phase **and** wake not yet logged for the save target row: `wakeLoggedForWakeDayMd` is false (QA wake flag or `sleepEnd` differs from stub). Row key uses **`resolveRecordDateMdForWake`** with **`getAveragesFromDays`** `avgSleepEnd` — same as the Wake up persist path (not `sharedContext.basis`). |
+| Wake up       | all   | **Any phase** while a night is open (`getOpenNight`: bed or fell-asleep on the newest draft, no wake, not abandoned — see [wake-day-key.md § Open night](wake-day-key.md)). In **wake** phase also shown with no open night while wake is not yet logged for the save target row (`wakeLoggedForWakeDayMd`). When more than `WAKE_LATE_NOTE_MINUTES` past the natural wake on the open night's wake date, the button carries a short note: *Woke earlier? You can fix the time in Log.* Save target: the open night, else `resolveRecordDateMdForWake` on the natural wake (`resolveWakeNightKey`). |
 | Log alarm     | wake  | Same `avgFirstAlarmToWake` gate, **and** the wake-day row (plus cloud draft for that key) has no alarm times and has not been dismissed with the in-memory **No alarm was set** action for the current wake-day key. **Does not** persist from the dashboard: stores `restore_log_prefill_v1` in `sessionStorage`, navigates to Log (`internalNavHref('tab.log')`); Log loads that wake-day row and **appends** an alarm row set to **app now** so the form is dirty until the user saves. |
 | No alarm was set | wake  | Same gates as Log alarm. Dismisses both alarm quick actions in memory for the current `resolveRecordDateMdForWake` key only; no sleep row, draft, or night note is written, so the prompt can reappear after the wake-day key changes or the module is reloaded. |
-| Get in bed    | sleep | Bed not already logged for the sleep-period row (QA flag or non-stub `bed` within last **12** h wall-clock window) |
-| Go to sleep   | sleep | Fell-asleep not already logged (same 12 h / stub / QA rules) |
+| Get in bed    | sleep | Bed not already logged for the sleep-period row (QA flag, non-stub `bed` within last **12** h wall-clock window, or `bed` on tonight's open-night draft) |
+| Go to sleep   | sleep | Fell-asleep not already logged (same 12 h / stub / QA rules, or `sleepStart` on tonight's open-night draft) |
 | Sleep in 10 min | sleep | Neither fell-asleep logged nor **both** bed and fell-asleep complete for the row |
 | Bathroom break | sleep | Both bed and fell-asleep recorded for the row (flags or stub-diff + 12 h) |
 | Start a nap   | mid   | `navDisplay.percentRemaining >= openMin` (remaining-wake thresholds), **not** `wakeInLast3Hours`, **not** implicit post-wake quiet window, and **not** `napActive` |
@@ -113,10 +113,10 @@ Once phase is **`wake`**, **`sleep`**, or **`mid`**, each button has its own pre
 
 ## Layer 4 — Save target row
 
-Each action persists to the **sleep-period row keyed by wake day** (`date` on the row is the morning you wake into).
-- **Late-night / evening** actions belong to **tomorrow’s** wake-day row when clock is past the early-morning band (see constants: `recordDateMdForSleepPeriod`).
-- **Wake** and **alarm** use **`resolveRecordDateMdForWake`** when available: same primary key as above, but if the calendar morning advanced while **yesterday’s** wake-day row is still awaiting get-up, the correction targets that prior row so wake and bed/sleep do not split across rows.
-- **Bed**, **fell-asleep**, and **bathroom** use **`recordDateMdForSleepPeriod`** only (no early-morning correction).
+Each action persists to the **sleep-period row keyed by wake day** (`date` on the row is the morning you wake into). Full rules: [wake-day-key.md](wake-day-key.md).
+- **Bed** and **fell-asleep** start or continue a night: **`getCurrentNightKey`** — the cutover (`recordDateMdForSleepPeriod`) on the **natural** recent-average wake.
+- **Wake** and **alarm** (Log alarm, No alarm was set) close a night: **`resolveWakeNightKey`** — the **open night** when there is one, so a late wake never splits the night; otherwise `resolveRecordDateMdForWake` (cutover + early-morning correction) on the natural wake.
+- **Bathroom** is an in-night event: the open night when there is one, else `getCurrentNightKey`.
 - **Nap start / end** use the **calendar day** of app `now` (same `date` as “today’s” row, e.g. a 4/10 afternoon nap → `4/10`), not the evening forward shift used for tonight’s bed row.
 
 ---
@@ -131,7 +131,10 @@ Values match `sleep-utils.js` (and inline `120` where noted). Update this table 
 | `PHASE_SLEEP_WINDOW_BEFORE` | 120 | Minutes before average fell-asleep included in **sleep** phase window |
 | `PHASE_SLEEP_WINDOW_AFTER` | 240 | Minutes after average fell-asleep included in **sleep** phase window |
 | `IMPLICIT_POST_WAKE_QUIET_MINUTES` | 180 | After average get-up, suppress nap start (typical wake-before-sleep schedule only) |
-| Early-morning band (inline) | 120 | Minutes after average get-up on the clock: still map to **today’s** wake-day row in `recordDateMdForSleepPeriod`; also defines “early morning” for `resolveRecordDateMdForWake` |
+| Early-morning band (inline) | 120 | Minutes after the **natural** wake on the clock: still map to **today’s** wake-day row in `recordDateMdForSleepPeriod`; also defines “early morning” for `resolveRecordDateMdForWake` |
+| `OPEN_NIGHT_MAX_AGE_HOURS` | 24 | Hours after an open night's fell-asleep (bed if missing) before it is abandoned |
+| `WAKE_LATE_NOTE_MINUTES` | 180 | Minutes past the natural wake (on the open night's wake date) before Wake up shows its "woke earlier?" note |
+| `OPEN_NIGHT_DRAFT_LOOKBACK` | 5 | Newest drafts fetched to resolve the open night |
 | Recent wall-clock window (QA / logged fields) | 12 | Hours back (plus small forward tolerance) for treating stub-differing `bed` / `sleepStart` / `sleepEnd` as “recently logged” |
 | Recent wake window | 3 | Hours for `isRecentWakeInHours` / `wakeInLast3Hours` |
 
@@ -146,7 +149,9 @@ Values match `sleep-utils.js` (and inline `120` where noted). Update this table 
 | Nav display (including dynamic sleep UI) | `getRemainingWakeDisplayFromBasis` — `sleep-utils.js` |
 | Quick-action phase order | `getQuickActionsPhaseFromSharedContext` — `quick-actions.js` |
 | Button definitions | `QUICK_ACTIONS_BY_PHASE`, `renderQuickActions` — `quick-actions.js` |
-| Wake-day key / wake correction | `recordDateMdForSleepPeriod`, `resolveRecordDateMdForWake`, `nightRowAwaitingWake` — `sleep-utils.js` |
+| Night key / wake correction | `getNightKeyWakeMinutes`, `getCurrentNightKey`, `recordDateMdForSleepPeriod`, `resolveRecordDateMdForWake`, `nightRowAwaitingWake` — `sleep-utils.js` |
+| Open night | `resolveOpenNight` (pure), `getOpenNight`, `fetchRecentNightDrafts`, `resolveWakeNightKey`, `minutesPastNaturalWake` — `sleep-utils.js` |
+| Scenario tests | `tests/quick-actions-scenarios.mjs` (`npm run test:qa`) |
 | QA flags (bed / sleep / wake) | `readNightQaSleepFlagMap`, `markNightQaSleepFlag` — `sleep-utils.js` |
 | Recent-average basis vs plain recent averages | `getTonightWakePhaseBasisFromDays`, `computeRecentWakeBasis` vs `getAveragesFromDays` — all read `computeRecentAverages` in `sleep-utils.js` |
 | Wake logged (quick actions) | `wakeLoggedForWakeDayMd` — `sleep-utils.js` |
@@ -154,9 +159,8 @@ Values match `sleep-utils.js` (and inline `120` where noted). Update this table 
 
 ---
 
-## Two averages pipelines (red flag to remember)
+## Natural vs scheduled times (red flag to remember)
 
-- **Phase / nav / nap threshold:** `sharedContext.basis` ← `getEffectiveRemainingWakeBasis` (recent 7 days + optional saved Tonight target + optional session projection adjustment).
-- **Alarm quick action:** `averages.avgFirstAlarmToWake` from `getAveragesFromDays` → `computeRecentAverages` (recent logged entries, **no** projection adjustment).
-
-If you add features, prefer **`basis`** for anything time-phase or row-key related unless you intentionally want dashboard-stat semantics.
+- **Schedule timing** — phase, nav, countdowns, nap threshold: `sharedContext.basis` ← `getEffectiveRemainingWakeBasis` (recent averages + optional saved Tonight target / guidance + optional session slider adjustment).
+- **Night key** — which row a save or lookup targets: always the **natural** wake (`getNightKeyWakeMinutes` / `getCurrentNightKey`), never `basis`, so dragging a slider or setting a target cannot change which night a tap lands on.
+- **Alarm quick action gate:** `averages.avgFirstAlarmToWake` from `getAveragesFromDays` → `computeRecentAverages`.

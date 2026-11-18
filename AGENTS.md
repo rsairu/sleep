@@ -39,10 +39,10 @@ When changing `getQuickActionsPhaseFromSharedContext`, `getSharedAppTimeContext`
 
 ## Wake-day key (night row date)
 
-**Applies to:** `sleep-utils.js`, `quick-actions.js`, `dashboard.js`, `nightly.js`
-**Spec:** [docs/wake-day-key.md](docs/wake-day-key.md) (wake-date invariant, cutover rule, wake correction, which wake time each caller uses)
+**Applies to:** `sleep-utils.js`, `quick-actions.js`, `dashboard.js`, `entry-modal.js`, `nightly.js`
+**Spec:** [docs/wake-day-key.md](docs/wake-day-key.md) (wake-date invariant, vocabulary: night key / saves / lookups / schedule timing, cutover rule, open night, callers)
 
-When changing `recordDateMdForSleepPeriod`, `resolveRecordDateMdForWake`, `nightRowAwaitingWake`, `getDashboardTonightNightKey`, or any caller's choice of wake time, update the doc's caller table and examples, and the cutover tests in `tests/math-tests.js`.
+When changing `recordDateMdForSleepPeriod`, `resolveRecordDateMdForWake`, `nightRowAwaitingWake`, `getNightKeyWakeMinutes`, `getCurrentNightKey`, `resolveOpenNight`, `getOpenNight`, `resolveWakeNightKey`, `getDashboardTonightNightKey`, the open-night constants, or any caller's night key, update the doc's caller table and examples, the night-key / open-night tests in `tests/math-tests.js`, and `tests/quick-actions-scenarios.mjs`. Night saves and night lookups use the natural wake only; schedule timing uses the Tonight basis.
 
 ## Recent averages (Natural sleep / wake)
 

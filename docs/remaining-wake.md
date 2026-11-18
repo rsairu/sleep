@@ -117,7 +117,7 @@ Dynamic Sleep uses `isNightBedOrSleepLogged`, built on **`isNightBedOrSleepLogge
 
 Nav does **not** require wall-clock recency here: backfilled or older entries still count so the nav does not stay stuck on **get in bed soon** when the row is genuinely filled in.
 
-**Evening wake-day alignment:** After local evening, `recordDateMdForSleepPeriod(now, avgWake)` uses **tomorrow’s** ISO wake-day key (`nightMd`), while the user may still have saved bed/sleep on **today’s** row. When `nightMd` equals **tomorrow** (calendar), `isNightBedOrSleepLogged` also treats **today’s** row as logged if core checks pass there **and** `nightRowAwaitingWake(today)` — i.e. today’s wake-day row is still an open night (morning wake not finalized). A **completed** prior row must not satisfy “logged” for the upcoming sleep period.
+**Evening wake-day alignment:** After local evening, the night key (`getCurrentNightKey`, natural-wake cutover) is **tomorrow’s** ISO wake-day key (`nightMd`), while the user may still have saved bed/sleep on **today’s** row. When `nightMd` equals **tomorrow** (calendar), `isNightBedOrSleepLogged` also treats **today’s** row as logged if core checks pass there **and** `nightRowAwaitingWake(today)` — i.e. today’s wake-day row is still an open night (morning wake not finalized). A **completed** prior row must not satisfy “logged” for the upcoming sleep period.
 
 **Quick actions are separate:** Dashboard buttons still use stub diff **plus** a **12-hour** wall-clock window where applicable (`docs/quick-actions.md`). Only remaining-wake Dynamic Sleep uses the relaxed nav rules above.
 
@@ -145,7 +145,7 @@ Otherwise:
 
 ## Default Log / quick-add wake-day key
 
-`resolveDefaultQuickAddNightDateMd(days)` chooses an incomplete draft first if any, otherwise **`recordDateMdForSleepPeriod(getAppDate(), basis.avgSleepEnd)`** from `getEffectiveRemainingWakeBasis`. It does **not** add an extra calendar day based on nav phase (that previously could advance the default two days ahead in the evening).
+`resolveDefaultQuickAddNightDateMd(days)` chooses the latest of `sleep_days` / drafts first, otherwise **`getCurrentNightKey(getAppDate(), days)`** — the cutover on the **natural** recent-average wake ([wake-day-key.md](wake-day-key.md)). It does **not** add an extra calendar day based on nav phase (that previously could advance the default two days ahead in the evening).
 
 ---
 

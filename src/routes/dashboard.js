@@ -643,18 +643,11 @@ function pendingNightTimeOrEmpty(v) {
 
 /**
  * Current night key (ISO wake-date) — the same key bed / sleep quick actions save to
- * (`recordDateMdForSleepPeriod` with the recent-average wake).
+ * (`getCurrentNightKey`: cutover on the natural recent-average wake).
  */
 function getDashboardTonightNightKey(days) {
-  if (typeof recordDateMdForSleepPeriod !== 'function' || typeof getAppDate !== 'function') return null;
-  const avg = computeRecentAverages(days);
-  let avgWake = 7 * 60;
-  if (avg && Number.isFinite(avg.avgSleepEnd)) {
-    avgWake = avg.avgSleepEnd;
-  } else if (typeof QUICK_ADD_FALLBACK_AVERAGES !== 'undefined') {
-    avgWake = QUICK_ADD_FALLBACK_AVERAGES.avgSleepEnd;
-  }
-  const md = recordDateMdForSleepPeriod(getAppDate(), avgWake);
+  if (typeof getCurrentNightKey !== 'function' || typeof getAppDate !== 'function') return null;
+  const md = getCurrentNightKey(getAppDate(), Array.isArray(days) ? days : []);
   return md ? normalizeSleepDateKey(md) : null;
 }
 
