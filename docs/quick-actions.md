@@ -68,12 +68,16 @@ Dynamic Sleep is active when `shouldShowDynamicSleepNavPhase` is true:
 
 Active only when Layer 1’s session precondition holds **and** at least one of:
 
-1. **Overnight limbo** — `shouldShowGoToBedSoonWakeNav`: clock is after average fell-asleep or before average get-up on a typical wake-before-sleep schedule (skipped when average wake ≥ average sleep on the clock).
+1. **Overnight limbo** — `shouldShowGoToBedSoonWakeNav`: clock is inside the sleep → wake interval measured **forward around the clock** (`forwardClockMinutes`), from basis fell-asleep up to (not including) basis get-up. Works for schedules on either side of midnight (22:30 → 07:00 and 00:36 → 09:30 alike); empty only when sleep and wake are the same minute. (Before Nov 2026 this was skipped whenever wake ≥ sleep on the clock, so post-midnight sleepers lost Dynamic Sleep 240 minutes after average sleep.)
 2. **Evening sleep window** — `inferNavSleepWindowPhase` / `inferSharedSleepContextPhase`: clock within **120** minutes before through **240** minutes after average fell-asleep, using an offset normalized around the sleep average (`remainWakeOffsetFromSleepAvg`).
 
 **Wake proximity:** Before the sleep window is evaluated, `inferSharedSleepContextPhase` checks **circular** distance to average get-up (`remainWakeCircDistMinutes`). If within **105** minutes, phase is **`wake`** instead of **`sleep`**.
 
 **Important nuance:** That 105-minute rule applies **inside** the evening-window path. **Overnight limbo** does **not** re-check wake proximity. So Dynamic Sleep can still be active shortly before average wake if the session is open and limbo is true—even when `inferSharedSleepContextPhase` alone would return `wake`. Do not read “wake proximity overrides sleep” as canceling **limbo-based** Dynamic Sleep.
+
+### Nav “waking soon” (inside Dynamic Sleep)
+
+While Dynamic Sleep is active, `getRemainingWakeDisplayFromBasis` swaps **sweet dreams** (and **start sleep soon**) for **waking soon** 🌅 (`phase: 'wakingSoon'`) during the last **`WAKING_SOON_NAV_MINS`** (60) minutes before the basis get-up (`basis.avgSleepEnd`: recent average, else the Tonight target — guided when guidance is on, as set when off — else the session slider). Display-only: `isDynamicSleepPhase` stays true, so quick actions are unchanged.
 
 ### After Dynamic Sleep is ruled out
 
@@ -130,6 +134,7 @@ Values match `sleep-utils.js` (and inline `120` where noted). Update this table 
 | `PHASE_WAKE_PROXIMITY_MINS` | 105 | Circular minutes to average get-up; inside `inferSharedSleepContextPhase`, maps to **wake** before the sleep window is considered |
 | `PHASE_SLEEP_WINDOW_BEFORE` | 120 | Minutes before average fell-asleep included in **sleep** phase window |
 | `PHASE_SLEEP_WINDOW_AFTER` | 240 | Minutes after average fell-asleep included in **sleep** phase window |
+| `WAKING_SOON_NAV_MINS` | 60 | Minutes before basis get-up when the Dynamic Sleep nav label switches from **sweet dreams** to **waking soon** |
 | `IMPLICIT_POST_WAKE_QUIET_MINUTES` | 180 | After average get-up, suppress nap start (typical wake-before-sleep schedule only) |
 | Early-morning band (inline) | 120 | Minutes after the **natural** wake on the clock: still map to **today’s** wake-day row in `recordDateMdForSleepPeriod`; also defines “early morning” for `resolveRecordDateMdForWake` |
 | `OPEN_NIGHT_MAX_AGE_HOURS` | 24 | Hours after an open night's fell-asleep (bed if missing) before it is abandoned |

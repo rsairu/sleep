@@ -1841,6 +1841,8 @@ const DEV_BANNER_OVERRIDE_KEY = 'sleep-app-force-dev-banner';
 const DEV_CLOCK_OVERRIDE_MS_KEY = 'sleep-app-dev-clock-override-ms';
 const DEV_BANNER_DRAWER_COLLAPSED_KEY = 'sleep-app-dev-banner-drawer-collapsed';
 const DEV_BANNER_EXPANDED_RESERVE_KEY = 'sleep-app-dev-banner-expanded-reserve-px';
+/** Dev-only experiment: remaining-wake phase tint (+ sweet-dreams stars) as full-page wallpaper. Not in user_settings yet. */
+const DEV_PHASE_WALLPAPER_KEY = 'sleep-app-dev-phase-wallpaper';
 
 // Day/night mode: sunrise and sunset in local time (hours 0-23, minutes 0-59).
 // index.html (and any inline theme boot) must use the same numeric window for first paint.
@@ -4659,6 +4661,9 @@ function updateDevBannerUserSettingsPanel() {
   if (hintAll) hintAll.checked = hq && ht;
   if (hintQuick) hintQuick.checked = hq;
   if (hintTonight) hintTonight.checked = ht;
+
+  const wallpaperCb = document.getElementById('nav-dev-banner-phase-wallpaper');
+  if (wallpaperCb) wallpaperCb.checked = isDevPhaseWallpaperEnabled();
 }
 
 /** Resets dev-banner user settings (and mirrored prefs) to app defaults; dev build only (Use defaults). */
@@ -4908,6 +4913,14 @@ function initDevBannerUserSettingsPanel() {
           setHintTonightAboutVisible(hintTonightCb.checked);
         });
       }
+    }
+
+    const wallpaperCb = document.getElementById('nav-dev-banner-phase-wallpaper');
+    if (wallpaperCb && wallpaperCb.dataset.bound !== '1') {
+      wallpaperCb.dataset.bound = '1';
+      wallpaperCb.addEventListener('change', function () {
+        setDevPhaseWallpaperEnabled(wallpaperCb.checked);
+      });
     }
 
     updateDevBannerUserSettingsPanel();
@@ -5599,6 +5612,11 @@ function renderNavBar(currentPage) {
     '<label class="nav-dev-banner-hint-check-label"><input type="checkbox" id="nav-dev-banner-hint-tonight" /> Tonight</label>' +
     '</span>' +
     '</div>' +
+    '<div class="nav-dev-banner-in-app-tips nav-dev-banner-in-app-tips--header nav-dev-banner-wallpaper-group" role="group" aria-label="Experiments (dev only)">' +
+    '<span class="nav-dev-banner-tips-label">Look</span>' +
+    '<label class="nav-dev-banner-hint-check-label" title="Dev only: use the remaining-wake phase color (and sweet-dreams stars) as the full-page wallpaper. Not saved to user_settings.">' +
+    '<input type="checkbox" id="nav-dev-banner-phase-wallpaper" /> Wallpaper</label>' +
+    '</div>' +
     '</span>' +
     '</div>' +
     '<div class="nav-dev-banner-user-settings" role="group" aria-label="User settings (dev; mirrors Settings and user_settings)">' +
@@ -5739,6 +5757,7 @@ function getRemainingWakeIcon(phase) {
     case 'presleep': return '🛏️';
     case 'sleepSoon': return '🛏️';
     case 'sleep': return '🌙';
+    case 'wakingSoon': return '🌅';
     default: return '☀️';
   }
 }
@@ -5778,18 +5797,28 @@ function computeRemainingWakePhaseHeadsUp(phase, remainingMins, totalWakeMins) {
   };
 }
 
+/** Forward (clockwise) minutes from `fromMins` to `toMins` on a 24h clock, 0–1439. */
+function forwardClockMinutes(fromMins, toMins) {
+  return (((toMins - fromMins) % 1440) + 1440) % 1440;
+}
+
 /**
- * After average sleep time (same evening) or before average wake (early morning), we are outside
- * the main wake window — avoid wrapping minutes-until-sleep to ~24h.
- * Skipped when wake and sleep order is atypical (wake >= sleep on the clock).
+ * Overnight limbo: the clock is inside the sleep → wake interval going forward around the clock
+ * (from average/scheduled sleep up to, not including, wake). Outside the main wake window, so
+ * minutes-until-sleep must not wrap to ~24h. Works whether sleep falls before or after midnight
+ * (22:30 → 07:00 and 00:36 → 09:30 alike). Empty when sleep and wake are the same minute.
  */
 function shouldShowGoToBedSoonWakeNav(nowMins, wakeMins, sleepMins) {
   if (!Number.isFinite(nowMins) || !Number.isFinite(wakeMins) || !Number.isFinite(sleepMins)) {
     return false;
   }
-  if (wakeMins >= sleepMins) return false;
-  return nowMins > sleepMins || nowMins < wakeMins;
+  const span = forwardClockMinutes(sleepMins, wakeMins);
+  if (span === 0) return false;
+  return forwardClockMinutes(sleepMins, nowMins) < span;
 }
+
+/** Minutes before the scheduled wake (basis.avgSleepEnd) when Sweet dreams hands over to Waking soon. */
+const WAKING_SOON_NAV_MINS = 60;
 
 /** Build remaining-wake display from a computed wake basis. Pass `days` for dynamic sleep phase and wake flags. */
 function getRemainingWakeDisplayFromBasis(basis, days) {
@@ -5802,6 +5831,17 @@ function getRemainingWakeDisplayFromBasis(basis, days) {
     typeof QUICK_ADD_FALLBACK_AVERAGES !== 'undefined' ? QUICK_ADD_FALLBACK_AVERAGES : null;
 
   if (days && days.length && shouldShowDynamicSleepNavPhase(days, basis, now, nightMd)) {
+    // Last hour before the scheduled wake (average → guided / set target → session slider, via basis).
+    const untilWake = forwardClockMinutes(nowMins, avgSleepEnd);
+    if (untilWake > 0 && untilWake <= WAKING_SOON_NAV_MINS) {
+      return {
+        phase: 'wakingSoon',
+        icon: getRemainingWakeIcon('wakingSoon'),
+        timeLabel: 'waking soon',
+        timeLabelSoft: true,
+        percentRemaining: null
+      };
+    }
     const bedLogged = isNightBedLogged(nightMd, days, averagesFallback);
     const sleepOrIntentLogged = isNightSleepOrIntentLoggedNav(nightMd, days, now, averagesFallback);
     const bedOnlyNeedGoSleep = bedLogged && !sleepOrIntentLogged;
@@ -5902,14 +5942,145 @@ function getNavHeaderTwinkleStarsHtml() {
     .join('');
 }
 
+/** Dev-only: phase wallpaper experiment on (`DEV_PHASE_WALLPAPER_KEY` = '1' and dev build context). */
+function isDevPhaseWallpaperEnabled() {
+  if (typeof isDevBuildContext === 'function' && !isDevBuildContext()) return false;
+  try {
+    return typeof localStorage !== 'undefined' && localStorage.getItem(DEV_PHASE_WALLPAPER_KEY) === '1';
+  } catch (_) {
+    return false;
+  }
+}
+
+function setDevPhaseWallpaperEnabled(on) {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    if (on) localStorage.setItem(DEV_PHASE_WALLPAPER_KEY, '1');
+    else localStorage.removeItem(DEV_PHASE_WALLPAPER_KEY);
+  } catch (_) {}
+  applyPhaseWallpaper(lastRemainingWakeNavDisplay);
+}
+
+/** Last display passed to `updateRemainingWakeNav` (lets the dev toggle re-apply without a refetch). */
+let lastRemainingWakeNavDisplay = null;
+
+/** Star field for the full-page wallpaper: fixed pseudo-random spread so it is stable across renders. */
+function getPhaseWallpaperStarsHtml() {
+  const path = 'M12 0 L14 10 L24 12 L14 14 L12 24 L10 14 L0 12 L10 10 Z';
+  const sizes = ['small', 'small', 'med', 'small', 'large', 'small', 'med'];
+  const count = 42;
+  let html = '';
+  for (let i = 0; i < count; i++) {
+    // R2 low-discrepancy sequence: even 2D coverage without a visible grid; 2–98% keeps stars off the edges.
+    const fx = (0.5 + i * 0.7548776662) % 1;
+    const fy = (0.5 + i * 0.5698402910) % 1;
+    const left = (2 + fx * 96).toFixed(2);
+    const top = (2 + fy * 96).toFixed(2);
+    const size = sizes[i % sizes.length];
+    const delay = ((i * 0.37) % 2.4).toFixed(2);
+    const dur = (2.4 + (i % 5) * 0.45).toFixed(2);
+    html +=
+      `<span class="nav-header-twinkle-star nav-header-twinkle-star--${size} phase-wallpaper-star"` +
+      ` style="top:${top}%;left:${left}%;animation-delay:${delay}s;animation-duration:${dur}s">` +
+      `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="${path}"/></svg></span>`;
+  }
+  return html;
+}
+
+/**
+ * Full-page phase wallpaper (dev experiment). Mirrors the header's phase classes / heads-up blend onto a
+ * fixed layer behind the page; header goes transparent so the page reads as one surface.
+ */
+function applyPhaseWallpaper(display) {
+  if (typeof document === 'undefined' || !document.body) return;
+  const root = document.documentElement;
+  const phaseClasses = [
+    'phase-wallpaper--phase-open',
+    'phase-wallpaper--phase-winding',
+    'phase-wallpaper--phase-presleep',
+    'phase-wallpaper--phase-sleepSoon',
+    'phase-wallpaper--phase-sleep',
+    'phase-wallpaper--phase-wakingSoon',
+    'phase-wallpaper--phase-learning',
+    'phase-wallpaper--rw-heads-up-blend'
+  ];
+  let layer = document.getElementById('phase-wallpaper');
+  if (!isDevPhaseWallpaperEnabled() || !display) {
+    root.classList.remove('restore-phase-wallpaper');
+    if (layer) layer.remove();
+    return;
+  }
+  if (!layer) {
+    layer = document.createElement('div');
+    layer.id = 'phase-wallpaper';
+    layer.className = 'phase-wallpaper';
+    layer.setAttribute('aria-hidden', 'true');
+    layer.innerHTML = '<div class="phase-wallpaper-stars" id="phase-wallpaper-stars"></div>';
+    document.body.prepend(layer);
+  }
+  root.classList.add('restore-phase-wallpaper');
+  phaseClasses.forEach(function (c) {
+    layer.classList.remove(c);
+  });
+  layer.classList.add('phase-wallpaper--phase-' + display.phase);
+
+  const wrapper = document.querySelector('.nav-wrapper');
+  const blend = wrapper && wrapper.classList.contains('nav-wrapper--rw-heads-up-blend');
+  if (blend) {
+    layer.classList.add('phase-wallpaper--rw-heads-up-blend');
+    const mid = wrapper.style.getPropertyValue('--nav-header-mid');
+    if (mid) layer.style.setProperty('--nav-header-mid', mid);
+  } else {
+    layer.style.removeProperty('--nav-header-mid');
+  }
+
+  const decor = document.getElementById('phase-wallpaper-stars');
+  if (decor) {
+    const mode = display.phase === 'sleep' ? 'stars' : display.phase === 'wakingSoon' ? 'dawn' : '';
+    if (decor.dataset.mode !== mode) {
+      decor.dataset.mode = mode;
+      decor.innerHTML =
+        mode === 'stars' ? getPhaseWallpaperStarsHtml() : mode === 'dawn' ? getDawnDecorHtml(16) : '';
+    }
+  }
+}
+
+/**
+ * Decorative dawn for “waking soon”: a slow-breathing warm glow rising from below, a faint horizon
+ * line, and a few drifting light motes. `moteCount` scales between header strip and full wallpaper.
+ */
+function getDawnDecorHtml(moteCount) {
+  const n = Number.isFinite(moteCount) ? moteCount : 6;
+  let motes = '';
+  for (let i = 0; i < n; i++) {
+    const fx = (0.5 + i * 0.7548776662) % 1;
+    const fy = (0.5 + i * 0.5698402910) % 1;
+    const left = (4 + fx * 92).toFixed(2);
+    const top = (30 + fy * 62).toFixed(2); // lower two-thirds: motes rise out of the light
+    const delay = ((i * 1.13) % 7).toFixed(2);
+    const dur = (7 + (i % 4) * 1.5).toFixed(2);
+    motes +=
+      `<span class="dawn-mote${i % 3 === 0 ? ' dawn-mote--lg' : ''}"` +
+      ` style="top:${top}%;left:${left}%;animation-delay:${delay}s;animation-duration:${dur}s"></span>`;
+  }
+  return '<span class="dawn-glow"></span><span class="dawn-horizon"></span>' + motes;
+}
+
 /** Injects remaining wake into nav and sets phase class on wrapper. */
 function updateRemainingWakeNav(display) {
   if (!display) return;
+  lastRemainingWakeNavDisplay = display;
   const slot = document.getElementById('nav-remaining-wake');
   const twinkleLayer = document.getElementById('nav-header-twinkle');
   const wrapper = document.querySelector('.nav-wrapper');
   if (twinkleLayer) {
-    twinkleLayer.innerHTML = display.phase === 'sleep' ? getNavHeaderTwinkleStarsHtml() : '';
+    // Re-render only on mode change so animations do not restart on every nav refresh.
+    const mode = display.phase === 'sleep' ? 'stars' : display.phase === 'wakingSoon' ? 'dawn' : '';
+    if (twinkleLayer.dataset.mode !== mode) {
+      twinkleLayer.dataset.mode = mode;
+      twinkleLayer.innerHTML =
+        mode === 'stars' ? getNavHeaderTwinkleStarsHtml() : mode === 'dawn' ? getDawnDecorHtml(6) : '';
+    }
   }
   if (slot) {
     const { openMin, windingMin } = getRemainingWakeThresholds();
@@ -5927,6 +6098,8 @@ function updateRemainingWakeNav(display) {
     let ariaLabel = 'Remaining wake time';
     if (display.phase === 'sleep') {
       ariaLabel = 'Sweet dreams';
+    } else if (display.phase === 'wakingSoon') {
+      ariaLabel = 'Waking soon';
     } else if (
       display.timeLabelSoft &&
       (display.phase === 'presleep' || display.phase === 'sleepSoon')
@@ -5972,6 +6145,7 @@ function updateRemainingWakeNav(display) {
       'nav-wrapper--phase-presleep',
       'nav-wrapper--phase-sleepSoon',
       'nav-wrapper--phase-sleep',
+      'nav-wrapper--phase-wakingSoon',
       'nav-wrapper--rw-heads-up-blend'
     );
     wrapper.classList.add('nav-wrapper--phase-' + display.phase);
@@ -5991,6 +6165,7 @@ function updateRemainingWakeNav(display) {
       wrapper.style.removeProperty('--nav-header-mid');
     }
   }
+  applyPhaseWallpaper(display);
 }
 
 /**

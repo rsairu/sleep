@@ -610,6 +610,14 @@ async function runTests() {
   const learnNav = u.getRemainingWakeDisplayFromDays([]);
   expectEqual(learnNav.phase, 'learning', 'nav with no nights: learning phase');
   expectEqual(learnNav.percentRemaining, null, 'nav with no nights: no progress bar');
+  // Overnight limbo is measured forward around the clock (sleep -> wake), so post-midnight sleepers stay covered.
+  expectEqual(u.shouldShowGoToBedSoonWakeNav(180, 420, 1350), true, 'limbo 22:30->07:00: 03:00 inside');
+  expectEqual(u.shouldShowGoToBedSoonWakeNav(420, 420, 1350), false, 'limbo 22:30->07:00: ends at wake');
+  expectEqual(u.shouldShowGoToBedSoonWakeNav(900, 420, 1350), false, 'limbo 22:30->07:00: afternoon outside');
+  expectEqual(u.shouldShowGoToBedSoonWakeNav(277, 570, 36), true, 'limbo 00:36->09:30: 04:37 inside (was false)');
+  expectEqual(u.shouldShowGoToBedSoonWakeNav(569, 570, 36), true, 'limbo 00:36->09:30: 09:29 inside');
+  expectEqual(u.shouldShowGoToBedSoonWakeNav(1380, 570, 36), false, 'limbo 00:36->09:30: 23:00 before sleep');
+  expectEqual(u.shouldShowGoToBedSoonWakeNav(600, 600, 600), false, 'limbo: empty when sleep equals wake');
   // Guidance held while learning: a saved target applies directly.
   u.localStorage.setItem('sleep-app-tonight-target-window', JSON.stringify({ sleep: 1320, wake: 420 }));
   u.localStorage.setItem('sleep-app-tonight-guidance-sleep-enabled', '1');
