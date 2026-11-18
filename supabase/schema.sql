@@ -52,6 +52,7 @@ create table if not exists public.user_settings (
   tonight_guidance_pace text not null default 'gentle' check (tonight_guidance_pace in ('gentle', 'normal', 'steady')),
   hint_quick_actions_about boolean not null default true,
   hint_tonight_about boolean not null default true,
+  phase_wallpaper boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   check (remaining_wake_open_min > remaining_wake_winding_min)
@@ -64,6 +65,8 @@ alter table public.user_settings add column if not exists tonight_guidance_pace 
 
 alter table public.user_settings add column if not exists hint_quick_actions_about boolean not null default true;
 alter table public.user_settings add column if not exists hint_tonight_about boolean not null default true;
+
+alter table public.user_settings add column if not exists phase_wallpaper boolean not null default false;
 
 -- Tonight targets: any pole may be null (single-pole save). When both are set, they must differ.
 alter table public.user_settings drop constraint if exists user_settings_tonight_target_pair_ck;
@@ -78,6 +81,8 @@ comment on column public.user_settings.hint_quick_actions_about is
   'When true, show Dashboard Quick actions link to about#quick-actions.';
 comment on column public.user_settings.hint_tonight_about is
   'When true, show Dashboard Tonight link to about#tonight-guidance.';
+comment on column public.user_settings.phase_wallpaper is
+  'When true, the remaining-wake phase colors (stars while asleep, dawn before wake) fill the whole page background.';
 
 -- PostgREST: allow MVP anon sync. Row access is limited by the RLS policies at the end of this file
 -- (fixed MVP user id); switch those to auth.uid() when auth lands.
@@ -121,7 +126,8 @@ insert into public.user_settings (
   tonight_guidance_wake_enabled,
   tonight_guidance_pace,
   hint_quick_actions_about,
-  hint_tonight_about
+  hint_tonight_about,
+  phase_wallpaper
 )
 values (
   '00000000-0000-0000-0000-000000000001',
@@ -138,7 +144,8 @@ values (
   false,
   'gentle',
   true,
-  true
+  true,
+  false
 )
 on conflict (user_id) do update
 set

@@ -49,6 +49,25 @@
       </button>
     </div>
 
+    <h3 class="section-subtitle config-personalization-subtitle" id="phase-colors" data-i18n="config.phaseColors.title">Phase colors</h3>
+    <div class="config-clock-layout config-phase-colors-layout">
+      <div class="config-clock-controls">
+        <div id="config-phase-colors" class="about-theme" role="group" aria-label="Where phase colors show" data-i18n-aria-label="config.phaseColors.ariaLabel">
+          <button type="button" class="about-theme-option" data-phase-colors="banner" aria-pressed="false">
+            <span class="about-theme-option-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9.5h18" /><rect x="3" y="4" width="18" height="5.5" rx="2.5" fill="currentColor" stroke="none"/></svg></span>
+            <span data-i18n="config.phaseColors.banner">Top banner</span>
+          </button>
+          <button type="button" class="about-theme-option" data-phase-colors="wallpaper" aria-pressed="false">
+            <span class="about-theme-option-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="4" width="18" height="16" rx="2.5"/></svg></span>
+            <span data-i18n="config.phaseColors.wallpaper">Wallpaper (full page)</span>
+          </button>
+        </div>
+      </div>
+      <aside class="config-phase-colors-preview-wrap" aria-label="Phase colors preview" data-i18n-aria-label="config.phaseColors.previewAria">
+        <div class="config-phase-wallpaper-preview" id="config-phase-wallpaper-preview"></div>
+      </aside>
+    </div>
+
     <h3 class="section-subtitle config-personalization-subtitle" id="palette" data-i18n="config.quality.title">Palette</h3>
     <p class="section-intro config-colors-intro" data-i18n="config.quality.intro">These palette colors are used for sleep quality flags and Sleep HP.</p>
     <div class="config-quality-palette-layout">

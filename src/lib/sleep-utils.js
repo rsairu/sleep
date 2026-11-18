@@ -448,7 +448,8 @@ function isSeedDefaultUserSettingsRow(row) {
     row.tonight_target_wake_min == null &&
     row.tonight_guidance_sleep_enabled !== true &&
     row.tonight_guidance_wake_enabled !== true &&
-    (row.tonight_guidance_pace == null || row.tonight_guidance_pace === '' || row.tonight_guidance_pace === DEFAULT_TONIGHT_GUIDANCE_PACE_ID)
+    (row.tonight_guidance_pace == null || row.tonight_guidance_pace === '' || row.tonight_guidance_pace === DEFAULT_TONIGHT_GUIDANCE_PACE_ID) &&
+    row.phase_wallpaper !== true
   );
 }
 
@@ -499,7 +500,8 @@ function localUserSettingsToRow() {
     tonight_guidance_wake_enabled: getTonightGuidanceWakeEnabled(),
     tonight_guidance_pace: getTonightGuidancePaceId(),
     hint_quick_actions_about: getHintQuickActionsAbout(),
-    hint_tonight_about: getHintTonightAbout()
+    hint_tonight_about: getHintTonightAbout(),
+    phase_wallpaper: getPhaseWallpaperEnabled()
   };
 }
 
@@ -639,6 +641,15 @@ function userSettingsRowToLocalStorage(row) {
       localStorage.removeItem(HINT_TONIGHT_ABOUT_KEY);
     }
   } catch (_) {}
+  try {
+    const pw = row.phase_wallpaper;
+    if (pw === true || pw === 'true' || pw === 1 || pw === '1') {
+      localStorage.setItem(PHASE_WALLPAPER_KEY, '1');
+    } else {
+      localStorage.removeItem(PHASE_WALLPAPER_KEY);
+    }
+    localStorage.removeItem(PHASE_WALLPAPER_LEGACY_DEV_KEY);
+  } catch (_) {}
 }
 
 function fetchUserSettings(config) {
@@ -646,7 +657,7 @@ function fetchUserSettings(config) {
   const uid = encodeURIComponent(RESTORE_CLOUD_USER_ID);
   const url =
     config.url.replace(/\/+$/, '') +
-    '/rest/v1/user_settings?select=user_id,language,theme_override,clock_format,quality_palette,remaining_wake_open_min,remaining_wake_winding_min,remaining_wake_phase_heads_up_mins,tonight_target_sleep_min,tonight_target_wake_min,tonight_guidance_sleep_enabled,tonight_guidance_wake_enabled,tonight_guidance_pace,hint_quick_actions_about,hint_tonight_about&user_id=eq.' +
+    '/rest/v1/user_settings?select=user_id,language,theme_override,clock_format,quality_palette,remaining_wake_open_min,remaining_wake_winding_min,remaining_wake_phase_heads_up_mins,tonight_target_sleep_min,tonight_target_wake_min,tonight_guidance_sleep_enabled,tonight_guidance_wake_enabled,tonight_guidance_pace,hint_quick_actions_about,hint_tonight_about,phase_wallpaper&user_id=eq.' +
     uid +
     '&limit=1';
   return fetch(url, { headers: getSupabaseAuthHeaders(config, false) })
@@ -738,6 +749,8 @@ function refreshUiAfterUserSettingsHydrate() {
     headsUpRange.setAttribute('aria-valuetext', getRemainingWakePhaseHeadsUpStopAriaLabel(mins));
   }
   syncTonightGuidanceConfigControls();
+  syncPhaseWallpaperConfigControls();
+  applyPhaseWallpaper(lastRemainingWakeNavDisplay);
   syncInAppTipsSettingsEyeButtonsFromState();
   updateDevBannerUserSettingsPanel();
 }
@@ -1841,8 +1854,10 @@ const DEV_BANNER_OVERRIDE_KEY = 'sleep-app-force-dev-banner';
 const DEV_CLOCK_OVERRIDE_MS_KEY = 'sleep-app-dev-clock-override-ms';
 const DEV_BANNER_DRAWER_COLLAPSED_KEY = 'sleep-app-dev-banner-drawer-collapsed';
 const DEV_BANNER_EXPANDED_RESERVE_KEY = 'sleep-app-dev-banner-expanded-reserve-px';
-/** Dev-only experiment: remaining-wake phase tint (+ sweet-dreams stars) as full-page wallpaper. Not in user_settings yet. */
-const DEV_PHASE_WALLPAPER_KEY = 'sleep-app-dev-phase-wallpaper';
+/** Phase wallpaper: remaining-wake phase colors (+ stars / dawn) as the full-page background. `'1'` = on; mirrors `user_settings.phase_wallpaper`. */
+const PHASE_WALLPAPER_KEY = 'sleep-app-phase-wallpaper';
+/** Pre-setting dev experiment key; read once and moved to PHASE_WALLPAPER_KEY. */
+const PHASE_WALLPAPER_LEGACY_DEV_KEY = 'sleep-app-dev-phase-wallpaper';
 
 // Day/night mode: sunrise and sunset in local time (hours 0-23, minutes 0-59).
 // index.html (and any inline theme boot) must use the same numeric window for first paint.
@@ -4662,8 +4677,8 @@ function updateDevBannerUserSettingsPanel() {
   if (hintQuick) hintQuick.checked = hq;
   if (hintTonight) hintTonight.checked = ht;
 
-  const wallpaperCb = document.getElementById('nav-dev-banner-phase-wallpaper');
-  if (wallpaperCb) wallpaperCb.checked = isDevPhaseWallpaperEnabled();
+  const phaseColorsSel = document.getElementById('nav-dev-banner-user-phase-colors');
+  if (phaseColorsSel) phaseColorsSel.value = getPhaseWallpaperEnabled() ? 'wallpaper' : 'banner';
 }
 
 /** Resets dev-banner user settings (and mirrored prefs) to app defaults; dev build only (Use defaults). */
@@ -4693,8 +4708,11 @@ function applyDevBannerUserSettingsDefaults() {
       localStorage.removeItem(TONIGHT_GUIDANCE_PACE_KEY);
       localStorage.removeItem(HINT_QUICK_ACTIONS_ABOUT_KEY);
       localStorage.removeItem(HINT_TONIGHT_ABOUT_KEY);
+      localStorage.removeItem(PHASE_WALLPAPER_KEY);
+      localStorage.removeItem(PHASE_WALLPAPER_LEGACY_DEV_KEY);
     }
   } catch (_) {}
+  applyPhaseWallpaper(lastRemainingWakeNavDisplay);
   if (typeof applyRemainingWakeThresholdsUI === 'function') {
     applyRemainingWakeThresholdsUI(
       100 - DEFAULT_REMAINING_WAKE_OPEN_MIN,
@@ -4915,11 +4933,13 @@ function initDevBannerUserSettingsPanel() {
       }
     }
 
-    const wallpaperCb = document.getElementById('nav-dev-banner-phase-wallpaper');
-    if (wallpaperCb && wallpaperCb.dataset.bound !== '1') {
-      wallpaperCb.dataset.bound = '1';
-      wallpaperCb.addEventListener('change', function () {
-        setDevPhaseWallpaperEnabled(wallpaperCb.checked);
+    const phaseColorsSel = document.getElementById('nav-dev-banner-user-phase-colors');
+    if (phaseColorsSel && phaseColorsSel.dataset.bound !== '1') {
+      phaseColorsSel.dataset.bound = '1';
+      phaseColorsSel.addEventListener('change', function () {
+        const v = phaseColorsSel.value;
+        if (v !== 'banner' && v !== 'wallpaper') return;
+        setPhaseWallpaperEnabled(v === 'wallpaper');
       });
     }
 
@@ -5603,7 +5623,7 @@ function renderNavBar(currentPage) {
     devBannerUserIdEsc +
     '</code>' +
     '<button type="button" class="nav-dev-banner-user-defaults-btn" id="nav-dev-banner-user-use-default"' +
-    ' aria-label="Use all default settings: reset language, clock, theme, palette, remaining wake thresholds, heads-up, tonight target, and per-pole tonight guidance (plus shared pace) to app defaults">Use all default settings</button>' +
+    ' aria-label="Use all default settings: reset language, clock, theme, palette, remaining wake thresholds, heads-up, tonight target, per-pole tonight guidance (plus shared pace), tips, and background to app defaults">Use all default settings</button>' +
     '<div class="nav-dev-banner-in-app-tips nav-dev-banner-in-app-tips--header" role="group" aria-label="In-app tips (Dashboard)">' +
     '<span class="nav-dev-banner-tips-label">Tips</span>' +
     '<span class="nav-dev-banner-hint-checks" role="group" aria-label="Show Dashboard in-app tips">' +
@@ -5611,11 +5631,6 @@ function renderNavBar(currentPage) {
     '<label class="nav-dev-banner-hint-check-label"><input type="checkbox" id="nav-dev-banner-hint-quick" /> Quick</label>' +
     '<label class="nav-dev-banner-hint-check-label"><input type="checkbox" id="nav-dev-banner-hint-tonight" /> Tonight</label>' +
     '</span>' +
-    '</div>' +
-    '<div class="nav-dev-banner-in-app-tips nav-dev-banner-in-app-tips--header nav-dev-banner-wallpaper-group" role="group" aria-label="Experiments (dev only)">' +
-    '<span class="nav-dev-banner-tips-label">Look</span>' +
-    '<label class="nav-dev-banner-hint-check-label" title="Dev only: use the remaining-wake phase color (and sweet-dreams stars) as the full-page wallpaper. Not saved to user_settings.">' +
-    '<input type="checkbox" id="nav-dev-banner-phase-wallpaper" /> Wallpaper</label>' +
     '</div>' +
     '</span>' +
     '</div>' +
@@ -5645,6 +5660,12 @@ function renderNavBar(currentPage) {
     '<option value="auto">Auto palette</option>' +
     '<option value="meadow">Meadow</option>' +
     '<option value="harbor">Harbor</option>' +
+    '</select>' +
+    '</div>' +
+    '<div class="nav-dev-banner-user-field nav-dev-banner-user-field--col nav-dev-banner-user-field--pref">' +
+    '<select id="nav-dev-banner-user-phase-colors" class="nav-dev-banner-user-select nav-dev-banner-user-select--field" aria-label="Phase colors (mirrors Settings; user_settings.phase_wallpaper)">' +
+    '<option value="banner">Banner (default)</option>' +
+    '<option value="wallpaper">Wallpaper (full page)</option>' +
     '</select>' +
     '</div>' +
     '</div>' +
@@ -5942,23 +5963,111 @@ function getNavHeaderTwinkleStarsHtml() {
     .join('');
 }
 
-/** Dev-only: phase wallpaper experiment on (`DEV_PHASE_WALLPAPER_KEY` = '1' and dev build context). */
-function isDevPhaseWallpaperEnabled() {
-  if (typeof isDevBuildContext === 'function' && !isDevBuildContext()) return false;
+/** One-time move of the dev experiment key to the real setting key. */
+function migratePhaseWallpaperLegacyKey() {
   try {
-    return typeof localStorage !== 'undefined' && localStorage.getItem(DEV_PHASE_WALLPAPER_KEY) === '1';
+    if (typeof localStorage === 'undefined') return;
+    const legacy = localStorage.getItem(PHASE_WALLPAPER_LEGACY_DEV_KEY);
+    if (legacy == null) return;
+    if (legacy === '1' && localStorage.getItem(PHASE_WALLPAPER_KEY) == null) {
+      localStorage.setItem(PHASE_WALLPAPER_KEY, '1');
+    }
+    localStorage.removeItem(PHASE_WALLPAPER_LEGACY_DEV_KEY);
+  } catch (_) {}
+}
+
+/** Phase wallpaper on (`PHASE_WALLPAPER_KEY` = '1'); default off. Mirrors `user_settings.phase_wallpaper`. */
+function getPhaseWallpaperEnabled() {
+  migratePhaseWallpaperLegacyKey();
+  try {
+    return typeof localStorage !== 'undefined' && localStorage.getItem(PHASE_WALLPAPER_KEY) === '1';
   } catch (_) {
     return false;
   }
 }
 
-function setDevPhaseWallpaperEnabled(on) {
+function setPhaseWallpaperEnabled(on) {
   try {
-    if (typeof localStorage === 'undefined') return;
-    if (on) localStorage.setItem(DEV_PHASE_WALLPAPER_KEY, '1');
-    else localStorage.removeItem(DEV_PHASE_WALLPAPER_KEY);
+    if (typeof localStorage !== 'undefined') {
+      if (on) localStorage.setItem(PHASE_WALLPAPER_KEY, '1');
+      else localStorage.removeItem(PHASE_WALLPAPER_KEY);
+    }
   } catch (_) {}
   applyPhaseWallpaper(lastRemainingWakeNavDisplay);
+  syncUserSettingsRowToCloud();
+  updateDevBannerUserSettingsPanel();
+  syncPhaseWallpaperConfigControls();
+  try {
+    document.dispatchEvent(new CustomEvent('phase-wallpaper-changed', { detail: { enabled: Boolean(on) } }));
+  } catch (_) {}
+}
+
+/** Settings → Look and feel → Phase colors: Top banner / Wallpaper picker + preview mode. */
+function syncPhaseWallpaperConfigControls() {
+  if (typeof document === 'undefined') return;
+  const mode = getPhaseWallpaperEnabled() ? 'wallpaper' : 'banner';
+  const wrap = document.getElementById('config-phase-colors');
+  if (wrap) {
+    wrap.querySelectorAll('.about-theme-option').forEach(function (btn) {
+      const isActive = btn.getAttribute('data-phase-colors') === mode;
+      btn.classList.toggle('active', isActive);
+      btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+  }
+  const preview = document.getElementById('config-phase-wallpaper-preview');
+  if (preview) {
+    preview.classList.toggle('config-phase-wallpaper-preview--banner', mode === 'banner');
+    preview.classList.toggle('config-phase-wallpaper-preview--wallpaper', mode === 'wallpaper');
+  }
+}
+
+/** Five static tiles (Active → Waking soon); the fill covers a top strip (banner) or the whole tile (wallpaper). */
+function getPhaseWallpaperPreviewHtml() {
+  const star = function (top, left) {
+    return (
+      '<span class="nav-header-twinkle-star nav-header-twinkle-star--small" style="top:' + top +
+      '%;left:' + left + '%;animation:none;opacity:0.85;transform:none">' +
+      '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0 L14 10 L24 12 L14 14 L12 24 L10 14 L0 12 L10 10 Z"/></svg></span>'
+    );
+  };
+  const swatches = [
+    ['open', 'config.remainingWake.phase.open', 'Active', ''],
+    ['winding', 'config.remainingWake.phase.winding', 'Winding', ''],
+    ['presleep', 'config.remainingWake.phase.presleep', 'Pre-sleep', ''],
+    ['sleep', 'config.phaseColors.swatchSleep', 'Asleep', star(14, 16) + star(22, 70) + star(60, 34)],
+    ['wakingSoon', 'config.phaseColors.swatchWaking', 'Waking soon', '<span class="dawn-glow"></span>']
+  ];
+  return swatches
+    .map(function (sw) {
+      const label = escapeHtmlBannerAttr(t(sw[1], sw[2]));
+      return (
+        '<span class="config-phase-wallpaper-swatch-tile" title="' + label + '" aria-label="' + label + '" role="img">' +
+        '<span class="config-phase-wallpaper-swatch-fill phase-wallpaper--phase-' + sw[0] + '" aria-hidden="true">' +
+        sw[3] +
+        '</span>' +
+        '<span class="config-phase-wallpaper-swatch-icon" aria-hidden="true">' + getRemainingWakeIcon(sw[0]) + '</span>' +
+        '</span>'
+      );
+    })
+    .join('');
+}
+
+function initPhaseWallpaperConfigControls() {
+  if (typeof document === 'undefined') return;
+  const preview = document.getElementById('config-phase-wallpaper-preview');
+  if (preview) preview.innerHTML = getPhaseWallpaperPreviewHtml();
+  const wrap = document.getElementById('config-phase-colors');
+  if (wrap && wrap.dataset.bound !== '1') {
+    wrap.dataset.bound = '1';
+    wrap.addEventListener('click', function (e) {
+      const btn = e.target.closest('[data-phase-colors]');
+      if (!btn) return;
+      const v = btn.getAttribute('data-phase-colors');
+      if (v !== 'banner' && v !== 'wallpaper') return;
+      setPhaseWallpaperEnabled(v === 'wallpaper');
+    });
+  }
+  syncPhaseWallpaperConfigControls();
 }
 
 /** Last display passed to `updateRemainingWakeNav` (lets the dev toggle re-apply without a refetch). */
@@ -6005,7 +6114,7 @@ function applyPhaseWallpaper(display) {
     'phase-wallpaper--rw-heads-up-blend'
   ];
   let layer = document.getElementById('phase-wallpaper');
-  if (!isDevPhaseWallpaperEnabled() || !display) {
+  if (!getPhaseWallpaperEnabled() || !display) {
     root.classList.remove('restore-phase-wallpaper');
     if (layer) layer.remove();
     return;

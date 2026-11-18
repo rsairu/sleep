@@ -1053,10 +1053,6 @@ body{
   cursor: pointer;
 }
 
-.nav-dev-banner-in-app-tips--header.nav-dev-banner-wallpaper-group {
-  flex: 0 0 auto;
-}
-
 .nav-dev-banner-in-app-tips--header {
   display: inline-flex;
   flex-wrap: wrap;
@@ -7819,6 +7815,67 @@ body.page-stats .stats-page-shell .container {
 
 .config-tonight-guidance-pace-ticks .config-rw-heads-up-slider-tick-label:last-child {
   align-items: flex-end;
+}
+
+/* Settings → Look and feel → Phase colors (Top banner / Wallpaper) */
+.config-phase-colors-preview-wrap {
+  min-width: 0;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.config-phase-wallpaper-preview {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
+  max-width: 260px;
+}
+
+/* Wallpaper mode uses the live wallpaper's stronger tints; banner mode keeps the header strip's */
+.config-phase-wallpaper-preview--wallpaper {
+  --nav-phase-tint-open: rgba(134, 239, 172, 0.3);
+  --nav-phase-tint-winding: rgba(253, 230, 138, 0.34);
+  --nav-phase-tint-presleep: rgba(196, 181, 253, 0.32);
+  --nav-phase-tint-sleep: rgba(99, 102, 241, 0.28);
+}
+
+.config-phase-wallpaper-swatch-tile {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border-radius: var(--radius-control-sm);
+  border: 1px solid var(--panel-border-color);
+  background: var(--bg);
+}
+
+.config-phase-wallpaper-swatch-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 100%;
+  overflow: hidden;
+  transition: height 0.35s ease;
+}
+
+.config-phase-wallpaper-preview--banner .config-phase-wallpaper-swatch-fill {
+  height: 30%;
+}
+
+.config-phase-wallpaper-swatch-icon {
+  position: relative;
+  z-index: 1;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .config-phase-wallpaper-swatch-fill {
+    transition: none;
+  }
 }
 
 .config-tonight-guidance-toggle-list {

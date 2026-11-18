@@ -618,6 +618,16 @@ async function runTests() {
   expectEqual(u.shouldShowGoToBedSoonWakeNav(569, 570, 36), true, 'limbo 00:36->09:30: 09:29 inside');
   expectEqual(u.shouldShowGoToBedSoonWakeNav(1380, 570, 36), false, 'limbo 00:36->09:30: 23:00 before sleep');
   expectEqual(u.shouldShowGoToBedSoonWakeNav(600, 600, 600), false, 'limbo: empty when sleep equals wake');
+  // Phase wallpaper preference (user_settings.phase_wallpaper).
+  expectEqual(u.getPhaseWallpaperEnabled(), false, 'phase wallpaper: off by default');
+  expectEqual(u.localUserSettingsToRow().phase_wallpaper, false, 'phase wallpaper: row carries false by default');
+  u.localStorage.setItem('sleep-app-dev-phase-wallpaper', '1');
+  expectEqual(u.getPhaseWallpaperEnabled(), true, 'phase wallpaper: legacy dev key carried over');
+  expectEqual(u.localStorage.getItem('sleep-app-dev-phase-wallpaper'), null, 'phase wallpaper: legacy dev key removed');
+  expectEqual(u.localUserSettingsToRow().phase_wallpaper, true, 'phase wallpaper: row carries true when on');
+  expectEqual(u.isSeedDefaultUserSettingsRow(u.localUserSettingsToRow()), false, 'phase wallpaper on: row is not the seed default');
+  u.setPhaseWallpaperEnabled(false);
+  expectEqual(u.localStorage.getItem('sleep-app-phase-wallpaper'), null, 'phase wallpaper: off removes key');
   // Guidance held while learning: a saved target applies directly.
   u.localStorage.setItem('sleep-app-tonight-target-window', JSON.stringify({ sleep: 1320, wake: 420 }));
   u.localStorage.setItem('sleep-app-tonight-guidance-sleep-enabled', '1');

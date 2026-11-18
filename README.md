@@ -186,6 +186,7 @@ Time is normalized as **minutes from midnight** (0–1440) in logic, with explic
 | `docs/lifecycle-contract.md` | Route mount/unmount lifecycle contract |
 | `docs/architecture-decisions.md` | Permanent ADR summary |
 | `docs/remaining-wake.md` | Remaining wake feature reference and backlog |
+| `docs/supabase-dev-sync.md` | Daily prod → dev Supabase sync (09:17 JST) and migration order |
 
 ---
 
