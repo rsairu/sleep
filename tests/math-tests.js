@@ -453,6 +453,24 @@ async function runTests() {
   expectEqual(u.getCurrentNightKey(new Date(2026, 10, 19, 9, 31), nkDays), '2026-11-19', 'night key: 09:31 within natural cutover (09:31)');
   expectEqual(u.getCurrentNightKey(new Date(2026, 10, 19, 9, 32), nkDays), '2026-11-20', 'night key: 09:32 past natural cutover');
 
+  // "Is tonight logged?" lookups read only the night-key row. A previous row still awaiting wake
+  // (forgotten wake) must not count as tonight's bed / sleep.
+  {
+    const qaKey = 'restore_qa_sleep_logged_v1';
+    const eve = new Date(2026, 10, 19, 21, 0);
+    const tonightKey = u.getCurrentNightKey(eve, nkDays);
+    expectEqual(tonightKey, '2026-11-20', 'lookup: 21:00 Nov 19 night key is Nov 20');
+    u.localStorage.setItem(qaKey, JSON.stringify({ '2026-11-19': { bed: true, sleep: true } }));
+    expectEqual(u.isNightBedOrSleepLogged(tonightKey, nkDays, null), false, 'lookup: forgotten wake on Nov 19 is not tonight\'s bed/sleep');
+    expectEqual(u.isNightBedLogged(tonightKey, nkDays, null), false, 'lookup: forgotten wake is not tonight\'s bed');
+    expectEqual(u.isNightSleepOrIntentLoggedNav(tonightKey, nkDays, eve, null), false, 'lookup: forgotten wake is not tonight\'s sleep');
+    u.localStorage.setItem(qaKey, JSON.stringify({ '2026-11-20': { bed: true } }));
+    expectEqual(u.isNightBedOrSleepLogged(tonightKey, nkDays, null), true, 'lookup: bed saved on tonight\'s key counts');
+    expectEqual(u.isNightBedLogged(tonightKey, nkDays, null), true, 'lookup: bed only on tonight\'s key');
+    expectEqual(u.isNightSleepOrIntentLoggedNav(tonightKey, nkDays, eve, null), false, 'lookup: bed only is not sleep');
+    u.localStorage.removeItem(qaKey);
+  }
+
   // Night clock → instant: evening clocks fall the day before the wake date.
   const ms = (mo, d, h, mi) => new Date(2026, mo, d, h, mi, 0, 0).getTime();
   expectEqual(u.nightClockToInstantMs('2026-11-19', '23:10'), ms(10, 18, 23, 10), 'night clock 23:10 → Nov 18');

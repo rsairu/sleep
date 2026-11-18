@@ -3473,10 +3473,11 @@ function wakeLoggedForWakeDayMd(nightMd, liveDays, averagesFallback) {
 
 /**
  * Bed or fell-asleep logged for this wake-day row (QA flags or user values differ from stub).
- * Stub diff alone counts: remaining-wake nav must not depend on wall-clock recency (backfill / evening
- * row-key mismatch vs recordDateMdForSleepPeriod).
+ * Stub diff alone counts: remaining-wake nav must not depend on wall-clock recency (backfill).
+ * Callers pass the night key (`getCurrentNightKey`); saves use the same key, so tonight's bed is
+ * always on that row. A previous row still awaiting wake (forgotten wake) does not count.
  */
-function isNightBedOrSleepLoggedCore(nightMd, liveDays, averagesFallback) {
+function isNightBedOrSleepLogged(nightMd, liveDays, averagesFallback) {
   const qa = readNightQaSleepFlagMap()[nightMd];
   if (qa && (qa.bed || qa.sleep)) return true;
   const day = pickDayForNightMdNav(nightMd, liveDays);
@@ -3488,27 +3489,8 @@ function isNightBedOrSleepLoggedCore(nightMd, liveDays, averagesFallback) {
   return Boolean(bedDiff || sleepDiff);
 }
 
-/**
- * Same as core, plus evening alignment: after local calendar evening, `recordDateMdForSleepPeriod` uses
- * tomorrow's wake-day key while the user may still have bed/sleep on today's row — treat that as logged.
- */
-function isNightBedOrSleepLogged(nightMd, liveDays, now, averagesFallback) {
-  if (isNightBedOrSleepLoggedCore(nightMd, liveDays, averagesFallback)) return true;
-  const todayIso = formatIsoDateFromLocalDate(now);
-  const tomorrowIso = addCalendarDaysToSleepDateKey(todayIso, 1);
-  const n = normalizeSleepDateKey(nightMd);
-  const t = normalizeSleepDateKey(tomorrowIso);
-  if (n && t && n === t) {
-    // Align to today's row only while that night is still open (bed/sleep without wake). A
-    // completed prior wake-day row must not count as "logged" for the upcoming sleep period.
-    if (!nightRowAwaitingWake(todayIso, liveDays, averagesFallback)) return false;
-    return isNightBedOrSleepLoggedCore(todayIso, liveDays, averagesFallback);
-  }
-  return false;
-}
-
-/** Bed logged only (QA bed flag or non-stub bed); nav row alignment matches `isNightBedOrSleepLogged`. */
-function isNightBedLoggedCore(nightMd, liveDays, averagesFallback) {
+/** Bed logged only (QA bed flag or non-stub bed) on this wake-day row. */
+function isNightBedLogged(nightMd, liveDays, averagesFallback) {
   const qa = readNightQaSleepFlagMap()[nightMd];
   if (qa && qa.bed) return true;
   const day = pickDayForNightMdNav(nightMd, liveDays);
@@ -3518,24 +3500,11 @@ function isNightBedLoggedCore(nightMd, liveDays, averagesFallback) {
   return String(day.bed || '') !== String(stub.bed || '');
 }
 
-function isNightBedLogged(nightMd, liveDays, now, averagesFallback) {
-  if (isNightBedLoggedCore(nightMd, liveDays, averagesFallback)) return true;
-  const todayIso = formatIsoDateFromLocalDate(now);
-  const tomorrowIso = addCalendarDaysToSleepDateKey(todayIso, 1);
-  const n = normalizeSleepDateKey(nightMd);
-  const t = normalizeSleepDateKey(tomorrowIso);
-  if (n && t && n === t) {
-    if (!nightRowAwaitingWake(todayIso, liveDays, averagesFallback)) return false;
-    return isNightBedLoggedCore(todayIso, liveDays, averagesFallback);
-  }
-  return false;
-}
-
 /**
- * Fell-asleep or sleep intent (e.g. quick-action "Sleep in 10 min") on the row — same stub + 12h wall-clock
- * idea as dashboard `sleepLoggedForSleepPeriod` in `quick-actions.js`.
+ * Fell-asleep or sleep intent (e.g. quick-action "Sleep in 10 min") on this wake-day row — same stub
+ * + 12h wall-clock idea as dashboard `sleepLoggedForSleepPeriod` in `quick-actions.js`.
  */
-function isNightSleepOrIntentLoggedNavCore(nightMd, liveDays, now, averagesFallback) {
+function isNightSleepOrIntentLoggedNav(nightMd, liveDays, now, averagesFallback) {
   const qa = readNightQaSleepFlagMap()[nightMd];
   if (qa && qa.sleep) return true;
   const day = pickDayForNightMdNav(nightMd, liveDays);
@@ -3545,22 +3514,6 @@ function isNightSleepOrIntentLoggedNavCore(nightMd, liveDays, now, averagesFallb
   const sleepDiff = String(day.sleepStart || '') !== String(stub.sleepStart || '');
   if (!sleepDiff) return false;
   return isWallClockWithinRecentHoursNav(now, day.sleepStart, 12);
-}
-
-function isNightSleepOrIntentLoggedNav(nightMd, liveDays, now, averagesFallback) {
-  const coreNight = isNightSleepOrIntentLoggedNavCore(nightMd, liveDays, now, averagesFallback);
-  if (coreNight) {
-    return true;
-  }
-  const todayIso = formatIsoDateFromLocalDate(now);
-  const tomorrowIso = addCalendarDaysToSleepDateKey(todayIso, 1);
-  const n = normalizeSleepDateKey(nightMd);
-  const t = normalizeSleepDateKey(tomorrowIso);
-  if (n && t && n === t) {
-    if (!nightRowAwaitingWake(todayIso, liveDays, averagesFallback)) return false;
-    return isNightSleepOrIntentLoggedNavCore(todayIso, liveDays, now, averagesFallback);
-  }
-  return false;
 }
 
 /**
@@ -3574,7 +3527,7 @@ function shouldShowDynamicSleepNavPhase(days, basis, now, nightMd) {
   }
   const averagesFallback =
     typeof QUICK_ADD_FALLBACK_AVERAGES !== 'undefined' ? QUICK_ADD_FALLBACK_AVERAGES : null;
-  const bedOrSleepLogged = isNightBedOrSleepLogged(nightMd, days, now, averagesFallback);
+  const bedOrSleepLogged = isNightBedOrSleepLogged(nightMd, days, averagesFallback);
   if (!bedOrSleepLogged) {
     return false;
   }
@@ -3940,7 +3893,7 @@ function applyRemainingWakeThresholdsUI(pos1, pos2) {
     if (tim) tim.textContent = timeOpen;
     percentLeft.setAttribute(
       'aria-label',
-      t('config.remainingWake.leftThumbAria', 'Active until {percent}% wake time remains, around {time} with your 7-day averages')
+      t('config.remainingWake.leftThumbAria', 'Active until {percent}% wake time remains, around {time} with your recent averages')
         .replace('{percent}', String(openMin))
         .replace('{time}', String(timeOpen))
     );
@@ -3953,7 +3906,7 @@ function applyRemainingWakeThresholdsUI(pos1, pos2) {
     if (tim) tim.textContent = timeWinding;
     percentRight.setAttribute(
       'aria-label',
-      t('config.remainingWake.rightThumbAria', 'Winding down until {percent}% wake time remains, around {time} with your 7-day averages')
+      t('config.remainingWake.rightThumbAria', 'Winding down until {percent}% wake time remains, around {time} with your recent averages')
         .replace('{percent}', String(windingMin))
         .replace('{time}', String(timeWinding))
     );
@@ -5849,7 +5802,7 @@ function getRemainingWakeDisplayFromBasis(basis, days) {
     typeof QUICK_ADD_FALLBACK_AVERAGES !== 'undefined' ? QUICK_ADD_FALLBACK_AVERAGES : null;
 
   if (days && days.length && shouldShowDynamicSleepNavPhase(days, basis, now, nightMd)) {
-    const bedLogged = isNightBedLogged(nightMd, days, now, averagesFallback);
+    const bedLogged = isNightBedLogged(nightMd, days, averagesFallback);
     const sleepOrIntentLogged = isNightSleepOrIntentLoggedNav(nightMd, days, now, averagesFallback);
     const bedOnlyNeedGoSleep = bedLogged && !sleepOrIntentLogged;
     if (bedOnlyNeedGoSleep) {
@@ -5877,7 +5830,7 @@ function getRemainingWakeDisplayFromBasis(basis, days) {
       const bedNav =
         days &&
         days.length &&
-        isNightBedLogged(nightMd, days, now, averagesFallback);
+        isNightBedLogged(nightMd, days, averagesFallback);
       const sleepOrIntentNav =
         days &&
         days.length &&

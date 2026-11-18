@@ -108,7 +108,7 @@ Tests: cutover, night key, and open-night blocks in `tests/math-tests.js`; rende
 
 - **Daytime sleep (shift work).** A bedtime after the cutover (e.g. 10:00) goes to tomorrow's row even if wake is the same afternoon. Out of scope for now.
 - **Wake up right after going to sleep.** Because Wake up follows the open night, it also appears next to Bathroom break once fell-asleep is logged.
-- **Evening alignment in lookups.** `isNightBedOrSleepLogged`, `isNightBedLogged`, and `isNightSleepOrIntentLoggedNav` still treat today's open row as "logged" for tomorrow's key in the evening. This predates the natural-wake key and the open night; candidate for removal once confirmed redundant.
+- **Forgotten wake.** If last night's wake is never logged, the evening lookups (`isNightBedOrSleepLogged`, `isNightBedLogged`, `isNightSleepOrIntentLoggedNav`) read only tonight's key, so tonight isn't shown as already in bed. The old evening alignment to today's open row was removed for this reason.
 
 ## Related docs
 

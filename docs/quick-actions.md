@@ -56,7 +56,7 @@ If there is no shared context (or no `navDisplay`), phase falls back to `inferSh
 Dynamic Sleep is active when `shouldShowDynamicSleepNavPhase` is true:
 
 - Wake is **not** finalized for the current sleep-period row (`nightMd`): no QA wake flag and `sleepEnd` still matches stub where applicable (`isNightWakeLogged` false).
-- **Bed or fell-asleep** is considered logged for that row: QA flags and/or row differs from stub with plausible recent wall clock (`isNightBedOrSleepLogged`).
+- **Bed or fell-asleep** is considered logged for that row: QA flags and/or row differs from stub, on this row only (`isNightBedOrSleepLogged`).
 - Clock is in **overnight limbo** or the **evening sleep window** (see Layer 2 details below).
 `getSharedAppTimeContext` exposes this as **`isDynamicSleepPhase`**. Dashboard quick actions use that flag (not string-matching on `navDisplay.phase`) as the first branch for forcing phase **`sleep`**.
 

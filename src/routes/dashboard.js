@@ -145,12 +145,233 @@ function scheduleDashboardChartDayPanelOutsideClose(container) {
   }, 0);
 }
 
+// --- 7-day chart draw-in (scroll reveal) ---
+// Each chart starts undrawn and plays once per mount when it first scrolls into view:
+//   time charts — data lines sweep left → right (points pop in as the sweep reaches them);
+//   duration chart — bars rise one by one, left → right;
+//   then the dotted trend line sweeps left → right.
+// Re-renders after that (resize, store refresh, Tonight draft arriving) resume a draw that is still
+// playing, or render the finished chart. prefers-reduced-motion / no IntersectionObserver → static.
+// Observer is per-route state: reset each render, torn down on unmount.
+
+const DASHBOARD_CHART_DRAW = {
+  sweepMs: 1000,
+  barMs: 520,
+  barStaggerMs: 70,
+  trendGapMs: 150,
+  trendMs: 750,
+  /** Fraction of the chart that must be on screen before it draws. */
+  revealRatio: 0.35
+};
+
+const DASHBOARD_SVG_NS = 'http://www.w3.org/2000/svg';
+const dashboardSvgEl = (tag) => document.createElementNS(DASHBOARD_SVG_NS, tag);
+
+/** chart id → performance.now() when its draw started (this mount only). */
+const dashboardChartDrawStarts = new Map();
+/** observed container → reveal callback for the current render */
+const dashboardChartDrawTargets = new Map();
+/** @type {IntersectionObserver | null} */
+let dashboardChartDrawObserver = null;
+let dashboardChartDrawClipSeq = 0;
+
+function dashboardChartsShouldAnimate() {
+  if (typeof IntersectionObserver !== 'function' || typeof requestAnimationFrame !== 'function') return false;
+  try {
+    return !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  } catch (e) {
+    return true;
+  }
+}
+
+function chartDrawClamp01(v) {
+  return v < 0 ? 0 : v > 1 ? 1 : v;
+}
+function chartDrawEaseInOut(p) {
+  return p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+}
+function chartDrawEaseOut(p) {
+  return 1 - Math.pow(1 - p, 3);
+}
+
+/** Per-render plan: clip layers + points the draw animates. */
+function createDashboardChartDrawPlan(svg) {
+  const defs = dashboardSvgEl('defs');
+  svg.insertBefore(defs, svg.firstChild);
+  return { svg, defs, sweep: null, trend: null, bars: null, points: [] };
+}
+
+function addDashboardChartClipLayer(plan, parent, className) {
+  const id = `dashboard-chart-draw-clip-${++dashboardChartDrawClipSeq}`;
+  const clip = dashboardSvgEl('clipPath');
+  clip.setAttribute('id', id);
+  plan.defs.appendChild(clip);
+  const layer = dashboardSvgEl('g');
+  layer.setAttribute('class', className);
+  layer.setAttribute('clip-path', `url(#${id})`);
+  parent.appendChild(layer);
+  return { clip, layer };
+}
+
+/**
+ * Layer revealed left → right from x0 to x1 (graph coords). Starts fully open so a static render
+ * (no animation) needs no further work beyond dropping the clip.
+ * @param {{ x0: number, x1: number, top: number, height: number }} box
+ */
+function addDashboardChartSweepLayer(plan, parent, className, box) {
+  const { clip, layer } = addDashboardChartClipLayer(plan, parent, className);
+  const rect = dashboardSvgEl('rect');
+  rect.setAttribute('x', String(box.x0));
+  rect.setAttribute('y', String(box.top));
+  rect.setAttribute('width', String(Math.max(0, box.x1 - box.x0)));
+  rect.setAttribute('height', String(box.height));
+  clip.appendChild(rect);
+  return { layer, rect, x0: box.x0, x1: box.x1 };
+}
+
+/** Bars layer; each column gets its own clip rect that grows up from the baseline. */
+function addDashboardChartBarsLayer(plan, parent) {
+  const { clip, layer } = addDashboardChartClipLayer(plan, parent, 'chart-draw-bars');
+  plan.bars = { layer, clip, cols: [] };
+  return layer;
+}
+
+function addDashboardChartBarColumn(plan, x, width, top, base) {
+  const rect = dashboardSvgEl('rect');
+  rect.setAttribute('x', String(x - 1));
+  rect.setAttribute('width', String(width + 2));
+  rect.setAttribute('y', String(top));
+  rect.setAttribute('height', String(Math.max(0, base - top)));
+  plan.bars.clip.appendChild(rect);
+  plan.bars.cols.push({ rect, top, base });
+}
+
+/** Sets every animated element for time t (ms since the draw started). Returns true when finished. */
+function applyDashboardChartDraw(plan, t) {
+  const C = DASHBOARD_CHART_DRAW;
+  let mainEndMs = 0;
+  if (plan.sweep) {
+    const s = plan.sweep;
+    const p = chartDrawEaseInOut(chartDrawClamp01(t / C.sweepMs));
+    const w = (s.x1 - s.x0) * p;
+    s.rect.setAttribute('width', String(w));
+    const revealX = s.x0 + w;
+    plan.points.forEach((pt) => {
+      if (pt.shown || (p < 1 && pt.x > revealX)) return;
+      pt.shown = true;
+      pt.el.classList.remove('chart-draw-point--pending');
+    });
+    mainEndMs = C.sweepMs;
+  }
+  if (plan.bars) {
+    plan.bars.cols.forEach((col, i) => {
+      const p = chartDrawEaseOut(chartDrawClamp01((t - i * C.barStaggerMs) / C.barMs));
+      const h = (col.base - col.top) * p;
+      col.rect.setAttribute('y', String(col.base - h));
+      col.rect.setAttribute('height', String(h));
+    });
+    mainEndMs = Math.max(mainEndMs, Math.max(0, plan.bars.cols.length - 1) * C.barStaggerMs + C.barMs);
+  }
+  let endMs = mainEndMs;
+  if (plan.trend) {
+    const tr = plan.trend;
+    const start = mainEndMs + C.trendGapMs;
+    const p = chartDrawEaseInOut(chartDrawClamp01((t - start) / C.trendMs));
+    tr.rect.setAttribute('width', String((tr.x1 - tr.x0) * p));
+    endMs = start + C.trendMs;
+  }
+  return t >= endMs;
+}
+
+/** Final state: drop clips (they also block hover/click hit-testing) and point classes. */
+function finishDashboardChartDraw(plan) {
+  [plan.sweep, plan.trend, plan.bars].forEach((l) => {
+    if (l) l.layer.removeAttribute('clip-path');
+  });
+  plan.defs.remove();
+  plan.points.forEach((pt) => {
+    pt.el.classList.remove('chart-draw-point', 'chart-draw-point--pending');
+  });
+}
+
+function runDashboardChartDraw(plan, startedAt) {
+  plan.points.forEach((pt) => {
+    pt.shown = false;
+    pt.el.classList.add('chart-draw-point', 'chart-draw-point--pending');
+  });
+  const step = () => {
+    if (!plan.svg.isConnected) return; // replaced by a re-render or unmounted
+    if (applyDashboardChartDraw(plan, performance.now() - startedAt)) {
+      finishDashboardChartDraw(plan);
+      return;
+    }
+    requestAnimationFrame(step);
+  };
+  // Runs synchronously once so a fresh / resumed chart never paints in its final state first.
+  step();
+}
+
+function getDashboardChartDrawObserver() {
+  if (dashboardChartDrawObserver) return dashboardChartDrawObserver;
+  const ratio = DASHBOARD_CHART_DRAW.revealRatio;
+  dashboardChartDrawObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting || entry.intersectionRatio < ratio - 0.001) return;
+        const onReveal = dashboardChartDrawTargets.get(entry.target);
+        dashboardChartDrawTargets.delete(entry.target);
+        if (dashboardChartDrawObserver) dashboardChartDrawObserver.unobserve(entry.target);
+        if (onReveal) onReveal();
+      });
+    },
+    { threshold: [0, ratio] }
+  );
+  return dashboardChartDrawObserver;
+}
+
+/** Call once per renderDashboard7DayGraphs: containers may have been replaced. */
+function resetDashboardChartDrawTargets() {
+  if (dashboardChartDrawObserver) dashboardChartDrawObserver.disconnect();
+  dashboardChartDrawTargets.clear();
+}
+
+function teardownDashboardChartDraw() {
+  resetDashboardChartDrawTargets();
+  dashboardChartDrawObserver = null;
+  dashboardChartDrawStarts.clear();
+}
+
+/**
+ * Call after the chart's svg is in the DOM.
+ * @param {string} drawId stable per chart ('bed-sleep' | 'wake' | 'duration')
+ */
+function registerDashboardChartDraw(drawId, container, plan) {
+  if (!drawId || !dashboardChartsShouldAnimate()) {
+    finishDashboardChartDraw(plan);
+    return;
+  }
+  const startedAt = dashboardChartDrawStarts.get(drawId);
+  if (startedAt != null) {
+    runDashboardChartDraw(plan, startedAt); // resume, or jump straight to the finished chart
+    return;
+  }
+  // Hold undrawn until it scrolls into view.
+  plan.points.forEach((pt) => pt.el.classList.add('chart-draw-point', 'chart-draw-point--pending'));
+  applyDashboardChartDraw(plan, 0);
+  dashboardChartDrawTargets.set(container, () => {
+    const t0 = performance.now();
+    dashboardChartDrawStarts.set(drawId, t0);
+    runDashboardChartDraw(plan, t0);
+  });
+  getDashboardChartDrawObserver().observe(container);
+}
+
 /**
  * @param {string[]} seriesKeys subset of bedTimeMinutes, sleepStartMinutes, getUpMinutes
  * @param {object | null} [tonightPoint] from buildTonightPoint — adds a "Tonight" column after "Last night".
  *   Series with a value get a dotted connector + hollow point; it is excluded from the trend fit.
  */
-function render7DayTimeGraph(container, points, seriesKeys, tonightPoint) {
+function render7DayTimeGraph(container, points, seriesKeys, tonightPoint, drawId) {
   if (!points.length) return;
   const keys = Array.isArray(seriesKeys) && seriesKeys.length
     ? seriesKeys
@@ -189,6 +410,10 @@ function render7DayTimeGraph(container, points, seriesKeys, tonightPoint) {
   const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
   g.setAttribute('transform', `translate(${margin.left},${margin.top})`);
   svg.appendChild(g);
+  const drawPlan = createDashboardChartDrawPlan(svg);
+  // Clip boxes: a little past the plot on each side so stroke caps / bullseye masks aren't cut.
+  const drawPad = 10;
+  const drawBox = (x1) => ({ x0: -drawPad, x1: x1 + drawPad, top: -margin.top, height: height });
 
   const ns = (tag) => document.createElementNS('http://www.w3.org/2000/svg', tag);
   const addLine = (x1, y1, x2, y2, cls) => {
@@ -257,12 +482,16 @@ function render7DayTimeGraph(container, points, seriesKeys, tonightPoint) {
     return d;
   };
 
+  // Lines, Tonight connectors and get-up break masks share one left → right sweep.
+  drawPlan.sweep = addDashboardChartSweepLayer(drawPlan, g, 'chart-draw-lines', drawBox(graphWidth));
+  const linesG = drawPlan.sweep.layer;
+
   keys.forEach((key) => {
     const cls = timeSeriesLineClass(key);
     const pathEl = ns('path');
     pathEl.setAttribute('d', path(points, key));
     pathEl.setAttribute('class', cls.data);
-    g.appendChild(pathEl);
+    linesG.appendChild(pathEl);
   });
 
   // Tonight: dotted connector from last night's point to tonight's (per series that has a value).
@@ -276,7 +505,7 @@ function render7DayTimeGraph(container, points, seriesKeys, tonightPoint) {
       conn.setAttribute('x2', xScale(tonight.date));
       conn.setAttribute('y2', yScale(tonight[key]));
       conn.setAttribute('class', `tonight-connector tonight-connector--${tonightSeriesSuffix(key)}`);
-      g.appendChild(conn);
+      linesG.appendChild(conn);
     });
   }
 
@@ -293,9 +522,13 @@ function render7DayTimeGraph(container, points, seriesKeys, tonightPoint) {
       mask.setAttribute('class', 'getup-break-mask');
       breakMasksG.appendChild(mask);
     });
-    g.appendChild(breakMasksG);
+    linesG.appendChild(breakMasksG);
   }
 
+  // Dotted trend lines draw after the data (they stop at last night, not Tonight).
+  drawPlan.trend = addDashboardChartSweepLayer(
+    drawPlan, g, 'chart-draw-trend', drawBox(xScale(points[points.length - 1].date))
+  );
   const deg = regressionDegree(points.length);
   const regPath = (coeffs, key) => {
     let d = '';
@@ -312,7 +545,7 @@ function render7DayTimeGraph(container, points, seriesKeys, tonightPoint) {
     regEl.setAttribute('d', regPath(coeffs, key));
     regEl.setAttribute('class', cls.reg);
     regEl.setAttribute('fill', 'none');
-    g.appendChild(regEl);
+    drawPlan.trend.layer.appendChild(regEl);
   });
 
   points.forEach(p => {
@@ -346,6 +579,7 @@ function render7DayTimeGraph(container, points, seriesKeys, tonightPoint) {
         ng.appendChild(ringInner);
         ng.appendChild(core);
         g.appendChild(ng);
+        drawPlan.points.push({ el: ng, x });
         return;
       }
 
@@ -359,6 +593,7 @@ function render7DayTimeGraph(container, points, seriesKeys, tonightPoint) {
         circle.setAttribute('class', timeSeriesLineClass(key).point);
       }
       g.appendChild(circle);
+      drawPlan.points.push({ el: circle, x });
     });
   });
 
@@ -371,6 +606,7 @@ function render7DayTimeGraph(container, points, seriesKeys, tonightPoint) {
       ring.setAttribute('r', '4');
       ring.setAttribute('class', `data-point-tonight data-point-tonight--${tonightSeriesSuffix(key)}`);
       g.appendChild(ring);
+      drawPlan.points.push({ el: ring, x: xScale(tonight.date) });
     });
   }
 
@@ -419,6 +655,7 @@ function render7DayTimeGraph(container, points, seriesKeys, tonightPoint) {
 
   container.innerHTML = '';
   container.appendChild(svg);
+  registerDashboardChartDraw(drawId, container, drawPlan);
 }
 
 function dashboardT(key, fallback) {
@@ -450,7 +687,7 @@ function formatTonightChartTitle(tonight, tonightKeys) {
   return `${dashboardT('dashboard.sectionTonight', 'Tonight')} (${dashboardT('dashboard.tonight.logged.inProgress', 'in progress')}): ${parts.join(' · ')}`;
 }
 
-function render7DayDurationChart(container, points) {
+function render7DayDurationChart(container, points, drawId) {
   if (!points.length) return;
   const margin = { top: 24, right: 40, bottom: 36, left: 48 };
   const width = getResponsiveDashboardChartWidth(container, points.length);
@@ -479,6 +716,7 @@ function render7DayDurationChart(container, points) {
   const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
   g.setAttribute('transform', `translate(${margin.left},${margin.top})`);
   svg.appendChild(g);
+  const drawPlan = createDashboardChartDrawPlan(svg);
 
   const ns = (tag) => document.createElementNS('http://www.w3.org/2000/svg', tag);
 
@@ -525,9 +763,13 @@ function render7DayDurationChart(container, points) {
 
   const tooltip = document.getElementById('tooltip');
   const barWidth = Math.max(2, slotWidth * 0.72);
+  // Bars rise from the baseline one by one, left → right.
+  const barsG = addDashboardChartBarsLayer(drawPlan, g);
   points.forEach((point, index) => {
     const x = xScaleByIndex(index);
     const mainSleepBarY = sleepYScale(point.mainSleepMinutes);
+    const columnTopY = point.napMinutes > 0 ? sleepYScale(point.sleepDurationMinutes) : mainSleepBarY;
+    addDashboardChartBarColumn(drawPlan, x - barWidth / 2, barWidth, Math.min(columnTopY, mainSleepBarY) - 1, graphHeight);
     const mainRect = ns('rect');
     mainRect.setAttribute('x', x - barWidth / 2);
     mainRect.setAttribute('y', mainSleepBarY);
@@ -553,9 +795,9 @@ function render7DayDurationChart(container, points) {
       showDayPanel(point, e.clientX, e.clientY);
       scheduleDashboardChartDayPanelOutsideClose(container);
     });
-    g.appendChild(mainRect);
+    barsG.appendChild(mainRect);
     const mainBarH = graphHeight - mainSleepBarY;
-    appendSvgSleepBarFragmentation(g, x - barWidth / 2, mainSleepBarY, barWidth, mainBarH, point.fragmentation);
+    appendSvgSleepBarFragmentation(barsG, x - barWidth / 2, mainSleepBarY, barWidth, mainBarH, point.fragmentation);
     if (point.napMinutes > 0) {
       const napBarY = sleepYScale(point.sleepDurationMinutes);
       const napRect = ns('rect');
@@ -582,9 +824,9 @@ function render7DayDurationChart(container, points) {
           showDayPanel(point, e.clientX, e.clientY);
           scheduleDashboardChartDayPanelOutsideClose(container);
         });
-        g.appendChild(napRect);
+        barsG.appendChild(napRect);
         const napBarH = mainSleepBarY - napBarY;
-        appendSvgSleepBarFragmentation(g, x - barWidth / 2, napBarY, barWidth, napBarH, point.fragmentation);
+        appendSvgSleepBarFragmentation(barsG, x - barWidth / 2, napBarY, barWidth, napBarH, point.fragmentation);
       }
   });
 
@@ -598,14 +840,23 @@ function render7DayDurationChart(container, points) {
     const x = xScaleByIndex(i), y = sleepYScale(evaluatePolynomial(sleepReg, i));
     trendD += (i ? ' L ' : 'M ') + x + ' ' + y;
   });
+  // Dotted trend line draws once the bars are up.
+  const drawPad = 10;
+  drawPlan.trend = addDashboardChartSweepLayer(drawPlan, g, 'chart-draw-trend', {
+    x0: xScaleByIndex(0) - drawPad,
+    x1: xScaleByIndex(points.length - 1) + drawPad,
+    top: -margin.top,
+    height: height
+  });
   const trendPath = ns('path');
   trendPath.setAttribute('d', trendD);
   trendPath.setAttribute('class', 'regression-line sleep-trend');
   trendPath.setAttribute('fill', 'none');
-  g.appendChild(trendPath);
+  drawPlan.trend.layer.appendChild(trendPath);
 
   container.innerHTML = '';
   container.appendChild(svg);
+  registerDashboardChartDraw(drawId, container, drawPlan);
 }
 
 function renderDashboard7DayGraphs(days) {
@@ -620,9 +871,10 @@ function renderDashboard7DayGraphs(days) {
   // Tonight column: bed/sleep chart shows the draft values; the stacked wake chart gets an empty
   // Tonight slot so both charts keep the same x columns.
   const tonightPoint = buildTonightPoint(getActiveDashboardPendingNight());
-  if (bedSleepEl) render7DayTimeGraph(bedSleepEl, last7, ['bedTimeMinutes', 'sleepStartMinutes'], tonightPoint);
-  if (wakeEl) render7DayTimeGraph(wakeEl, last7, ['getUpMinutes'], tonightPoint);
-  if (durationEl) render7DayDurationChart(durationEl, last7);
+  resetDashboardChartDrawTargets();
+  if (bedSleepEl) render7DayTimeGraph(bedSleepEl, last7, ['bedTimeMinutes', 'sleepStartMinutes'], tonightPoint, 'bed-sleep');
+  if (wakeEl) render7DayTimeGraph(wakeEl, last7, ['getUpMinutes'], tonightPoint, 'wake');
+  if (durationEl) render7DayDurationChart(durationEl, last7, 'duration');
 }
 
 // --- Tonight (unpromoted draft) ---
@@ -839,6 +1091,7 @@ function mountDashboard(root, _ctx) {
   dashboardMountGeneration++;
   const gen = dashboardMountGeneration;
   dashboardMountedRoot = root;
+  teardownDashboardChartDraw(); // charts draw in again on each visit
   if (dashboardStoreUnsubscribe) {
     dashboardStoreUnsubscribe();
     dashboardStoreUnsubscribe = null;
@@ -908,6 +1161,7 @@ function unmountDashboard() {
   }
   clearDashboardDayPanelDocCloses();
   unbindDashboardResponsiveRerender();
+  teardownDashboardChartDraw();
   if (dashboardTonightGuidanceHandler) {
     window.removeEventListener('tonight-guidance-changed', dashboardTonightGuidanceHandler);
     dashboardTonightGuidanceHandler = null;
