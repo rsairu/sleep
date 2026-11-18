@@ -1,9 +1,7 @@
 // Configuration constants
 const ALARM_TO_WAKE_WARNING_THRESHOLD = 60; // minutes
 /** Earlier logged nights required before timing flags or heatmap colors apply (🌱 learning below this). */
-const DEVIATION_MIN_PRIOR_NIGHTS = 7;
-/** Minimum logged nights before Tonight matrix shows natural / guidance cells (same window as weekly averages). */
-const TONIGHT_MATRIX_MIN_NATURAL_DAYS = 7;
+const DEVIATION_MIN_PRIOR_NIGHTS = RECENT_AVERAGE_FORMING_MIN;
 const DAY_MINUTES = 1440;
 /** Weight when blending sleep-relative vs day-relative variation (internal only). */
 const BLEND_ALPHA = 0.75;
@@ -183,6 +181,8 @@ function getDeviationBaseline(days, currentIndex) {
   return {
     insufficient: false,
     sampleSize: sampleSize,
+    /** 'forming' (🌿, 7–13 earlier nights) or 'established' */
+    stage: getRecentAverageStage(sampleSize),
     avgFellAsleepTime: avg.exact.sleepStartNorm,
     avgWakeTime: avg.exact.sleepEndNorm,
     avgSleepDuration: avg.exact.sleepDuration
@@ -676,9 +676,10 @@ function buildFlagCountMap(days) {
   days.forEach((day, index) => {
     const recentAverages = getDeviationBaseline(days, index);
     const insufficient = !recentAverages || recentAverages.insufficient;
+    const forming = !insufficient && recentAverages.stage === 'forming';
     const types = getFlagTypes(day, recentAverages);
     const qualitySeverity = insufficient ? 'none' : computeWorstQualitySeverity(day, recentAverages);
-    flagMap.set(day.date, { insufficient, qualitySeverity, types });
+    flagMap.set(day.date, { insufficient, forming, qualitySeverity, types });
   });
   return flagMap;
 }
@@ -757,6 +758,7 @@ function generateCalendarHeatmap(year, flagMap, latestDataDate) {
           dateStr: formatDateShort(date),
           day: day,
           insufficient: flagData.insufficient,
+          forming: Boolean(flagData.forming),
           qualitySeverity: flagData.qualitySeverity,
           flagTypes: flagData.types
         });
@@ -819,10 +821,11 @@ function calendarSquareTooltip(dayCell, options) {
       ? `${dayCell.dateStr}: 🌱`
       : `${dayCell.dateStr}: not enough data`;
   }
+  const formingNote = learningCopy && dayCell.forming ? ' 🌿' : '';
   if (dayCell.flagTypes && dayCell.flagTypes.length > 0) {
-    return `${dayCell.dateStr}: ${dayCell.flagTypes.join(' ')}`;
+    return `${dayCell.dateStr}: ${dayCell.flagTypes.join(' ')}${formingNote}`;
   }
-  return `${dayCell.dateStr}: normal`;
+  return `${dayCell.dateStr}: normal${formingNote}`;
 }
 
 /** Aria hint per heatmap flag emoji (matches legend wording). */
@@ -937,9 +940,12 @@ function renderMonthBlock(month, large, options) {
                 : '';
               const tipAttr = tooltip ? ` data-tooltip="${escapeHtmlAttr(tooltip)}" title="${escapeHtmlAttr(tooltip)}"` : '';
               const learningClass = showLearningEmoji && day.insufficient ? ' calendar-square--learning' : '';
+              const formingMark = showLearningEmoji && day.forming
+                ? '<span class="calendar-square-forming-emoji" aria-hidden="true">🌿</span><span class="visually-hidden">Taking shape</span>'
+                : '';
               const dayInner = showLearningEmoji && day.insufficient
                 ? '<span class="calendar-square-learning-emoji" aria-hidden="true">🌱</span><span class="visually-hidden">Learning</span>'
-                : `<span class="calendar-square-day">${day.day}</span>`;
+                : `<span class="calendar-square-day">${day.day}</span>${formingMark}`;
               const inner = `<div class="calendar-square ${colorClass}${learningClass}"${typesAttr}${tipAttr}>${dayInner}</div>`;
               return `<div class="calendar-day-slot">${inner}</div>`;
             }).join('')}
@@ -994,6 +1000,7 @@ function renderCalendarHeatmapHeader(options) {
         <span class="legend-divider">·</span>
         <div class="legend-meaning legend-meaning--inline">
           <span class="legend-meaning-item"><span class="legend-learning-emoji" aria-hidden="true">🌱</span> learning</span>
+          <span class="legend-meaning-item"><span class="legend-learning-emoji" aria-hidden="true">🌿</span> taking shape</span>
           <span class="legend-meaning-item">😴 sleep late vs avg</span>
           <span class="legend-meaning-item">⌛ shorter duration vs avg</span>
           <span class="legend-meaning-item">🌅 wake vs avg</span>
@@ -1080,7 +1087,9 @@ function getTonightProjectionBaseState(recentAverages) {
   }
   const sampleSize =
     recentAverages && typeof recentAverages.sampleSize === 'number' ? recentAverages.sampleSize : 0;
-  const tonightNaturalReliable = sampleSize >= TONIGHT_MATRIX_MIN_NATURAL_DAYS;
+  // Learning stage (docs/recent-average.md): Natural shows from the first night; guidance waits for 🌿.
+  const recentStage = getRecentAverageStage(sampleSize);
+  const guidanceHeld = isTonightGuidanceHeld(sampleSize);
   const avgSleep = recentAverages.avgSleepStart;
   const avgWake = recentAverages.avgSleepEnd;
   // Natural (recent-average) times on the extended axis; always defined (fallback averages when no history).
@@ -1105,7 +1114,7 @@ function getTonightProjectionBaseState(recentAverages) {
     }
     const resolved =
       typeof resolveTonightScheduledWindow === 'function'
-        ? resolveTonightScheduledWindow(avgSleep, avgWake, savedTw)
+        ? resolveTonightScheduledWindow(avgSleep, avgWake, savedTw, { holdGuidance: guidanceHeld })
         : {
             sleep: savedTargetSleep != null ? savedTargetSleep : avgSleep,
             wake: savedTargetWake != null ? savedTargetWake : avgWake,
@@ -1148,17 +1157,22 @@ function getTonightProjectionBaseState(recentAverages) {
     typeof getTonightGuidanceSleepEnabled === 'function' ? getTonightGuidanceSleepEnabled() : false;
   const guidanceWakeEnabled =
     typeof getTonightGuidanceWakeEnabled === 'function' ? getTonightGuidanceWakeEnabled() : false;
-  const naturalSleepMinutes = tonightNaturalReliable ? avgSleep : null;
-  const naturalWakeMinutes = tonightNaturalReliable ? avgWake : null;
+  const naturalSleepMinutes = sampleSize > 0 ? avgSleep : null;
+  const naturalWakeMinutes = sampleSize > 0 ? avgWake : null;
 
   return {
     sampleSize,
-    tonightNaturalReliable,
+    recentStage,
+    guidanceHeld,
     naturalSleepMinutes,
     naturalWakeMinutes,
     paceId,
+    /** Saved guidance preferences (Settings toggles). */
     guidanceSleepEnabled,
     guidanceWakeEnabled,
+    /** Guidance actually applied tonight: preference and not held by the learning stage. */
+    guidanceSleepActive: guidanceSleepEnabled && !guidanceHeld,
+    guidanceWakeActive: guidanceWakeEnabled && !guidanceHeld,
     avgSleepStart: avgSleep,
     avgSleepEnd: avgWake,
     sleepTarget: committedSleep,
@@ -2184,7 +2198,7 @@ function initDashboardTonightAdjuster(recentAverages, onChange, getLiveDays, get
       pole: 'sleep',
       naturalMinutes: base.naturalSleepMinutes,
       savedTargetMinutes: base.savedTargetSleep,
-      guidanceEnabled: base.guidanceSleepEnabled,
+      guidanceEnabled: base.guidanceSleepActive,
       guidedMinutes: state.sleepClock,
       paceId: paceIdLive
     });
@@ -2192,7 +2206,7 @@ function initDashboardTonightAdjuster(recentAverages, onChange, getLiveDays, get
       pole: 'wake',
       naturalMinutes: base.naturalWakeMinutes,
       savedTargetMinutes: base.savedTargetWake,
-      guidanceEnabled: base.guidanceWakeEnabled,
+      guidanceEnabled: base.guidanceWakeActive,
       guidedMinutes: state.wakeClock,
       paceId: paceIdLive
     });
@@ -2212,6 +2226,27 @@ function initDashboardTonightAdjuster(recentAverages, onChange, getLiveDays, get
       }
     }
 
+    /** 🌱 / 🌿 after a Natural time while the recent average is still learning or taking shape. */
+    function appendTonightStageMark(cell) {
+      const stage = base.recentStage;
+      if (stage !== 'learning' && stage !== 'forming') return;
+      const mark = document.createElement('span');
+      mark.className = 'dashboard-tonight-matrix-stage-mark';
+      mark.setAttribute('aria-hidden', 'true');
+      mark.textContent = stage === 'learning' ? '🌱' : '🌿';
+      cell.appendChild(mark);
+    }
+
+    function appendTonightMatrixNote(className, text) {
+      const row = document.createElement('div');
+      row.className = 'dashboard-tonight-matrix-callout dashboard-tonight-matrix-callout--note ' + className;
+      const body = document.createElement('p');
+      body.className = 'dashboard-tonight-matrix-callout-body';
+      body.textContent = text;
+      row.appendChild(body);
+      matrixCallouts.appendChild(row);
+    }
+
     function fillRow(vm, ids) {
       const nat = document.getElementById(ids.nat);
       const guided = document.getElementById(ids.guided);
@@ -2226,6 +2261,7 @@ function initDashboardTonightAdjuster(recentAverages, onChange, getLiveDays, get
         return;
       }
       nat.textContent = tonightMatrixFormatCell(vm.cellNatural);
+      appendTonightStageMark(nat);
       if (vm.rowMode === 'no_target') {
         guided.textContent = TONIGHT_MATRIX_EM;
         tgt.textContent = TONIGHT_MATRIX_EM;
@@ -2233,7 +2269,20 @@ function initDashboardTonightAdjuster(recentAverages, onChange, getLiveDays, get
         return;
       }
       if (vm.rowMode === 'target_no_guidance') {
-        guided.textContent = TONIGHT_MATRIX_EM;
+        const poleGuidanceHeld =
+          base.guidanceHeld && (vm.pole === 'sleep' ? base.guidanceSleepEnabled : base.guidanceWakeEnabled);
+        if (poleGuidanceHeld) {
+          guided.textContent = '';
+          const held = document.createElement('span');
+          held.className = 'dashboard-tonight-matrix-held';
+          held.textContent = tonightInterpolateTemplate(
+            tdT('dashboard.tonight.matrix.guidedHeldCell', '🌱 Starts at {min} nights'),
+            { min: String(RECENT_AVERAGE_FORMING_MIN) }
+          );
+          guided.appendChild(held);
+        } else {
+          guided.textContent = TONIGHT_MATRIX_EM;
+        }
         tgt.textContent = tonightMatrixFormatCell(vm.cellTarget);
         applyTonightMatrixTimeHighlight(vm, nat, guided, tgt);
         return;
@@ -2258,6 +2307,35 @@ function initDashboardTonightAdjuster(recentAverages, onChange, getLiveDays, get
     decorateTonightMatrixTargetCell('dashboard-tonight-matrix-wake-target', 'wake', base.savedTargetWake);
 
     matrixCallouts.textContent = '';
+    const stageTotal = String(RECENT_AVERAGE_WINDOW);
+    const stageCount = String(Math.min(base.sampleSize || 0, RECENT_AVERAGE_WINDOW));
+    if (base.recentStage === 'learning' || base.recentStage === 'forming') {
+      appendTonightMatrixNote(
+        'dashboard-tonight-matrix-callout--stage',
+        tonightInterpolateTemplate(
+          base.recentStage === 'learning'
+            ? tdT('dashboard.tonight.matrix.stageLearning', '🌱 Learning · {n} of {total} nights')
+            : tdT('dashboard.tonight.matrix.stageForming', '🌿 Taking shape · {n} of {total} nights'),
+          { n: stageCount, total: stageTotal }
+        )
+      );
+    }
+    const guidanceHeldWithTarget =
+      base.guidanceHeld &&
+      ((base.savedTargetSleep != null && base.guidanceSleepEnabled) ||
+        (base.savedTargetWake != null && base.guidanceWakeEnabled));
+    if (guidanceHeldWithTarget) {
+      appendTonightMatrixNote(
+        'dashboard-tonight-matrix-callout--held',
+        tonightInterpolateTemplate(
+          tdT(
+            'dashboard.tonight.matrix.guidanceHeldNote',
+            'Using your target directly while Restore learns your rhythm ({n} of {total}).'
+          ),
+          { n: stageCount, total: stageTotal }
+        )
+      );
+    }
     [sleepVm, wakeVm].forEach(function (vm) {
       if (!vm.callout || vm.rowMode !== 'full_guidance') return;
       const parts = buildTonightMatrixCalloutParts(vm, tdT);
@@ -2355,8 +2433,8 @@ function initDashboardTonightAdjuster(recentAverages, onChange, getLiveDays, get
     const wakeFromAverage = base.savedTargetWake == null;
     sleepLabel.textContent = sleepTxt;
     wakeLabel.textContent = wakeTxt;
-    const sleepThumbCompass = base.savedTargetSleep != null && base.guidanceSleepEnabled;
-    const wakeThumbCompass = base.savedTargetWake != null && base.guidanceWakeEnabled;
+    const sleepThumbCompass = base.savedTargetSleep != null && base.guidanceSleepActive;
+    const wakeThumbCompass = base.savedTargetWake != null && base.guidanceWakeActive;
     if (sleepThumbIcon) sleepThumbIcon.textContent = sleepThumbCompass ? '🧭' : '🍃';
     if (wakeThumbIcon) wakeThumbIcon.textContent = wakeThumbCompass ? '🧭' : '🍃';
     syncTonightMatrix();
@@ -2982,8 +3060,8 @@ function initDashboardTonightAdjuster(recentAverages, onChange, getLiveDays, get
   function fillTonightPaceDialog(pole) {
     const current = base.paceId || 'gentle';
     const guidedPoles = [];
-    if (base.guidanceSleepEnabled && base.savedTargetSleep != null) guidedPoles.push('sleep');
-    if (base.guidanceWakeEnabled && base.savedTargetWake != null) guidedPoles.push('wake');
+    if (base.guidanceSleepActive && base.savedTargetSleep != null) guidedPoles.push('sleep');
+    if (base.guidanceWakeActive && base.savedTargetWake != null) guidedPoles.push('wake');
     paceOptionsWrap.querySelectorAll('.dashboard-tonight-pace-option').forEach(function (opt) {
       const id = opt.getAttribute('data-pace');
       const isCurrent = id === current;
@@ -3388,7 +3466,7 @@ function renderDashboardContent(days) {
     return `
     <div class="dashboard-content">
       ${quickActionsHtml}
-      <p class="dashboard-empty-msg">No sleep data yet.</p>
+      <p class="dashboard-empty-msg" data-i18n="dashboard.emptyLearning">🌱 Learning: log your first night</p>
     </div>`;
   }
 

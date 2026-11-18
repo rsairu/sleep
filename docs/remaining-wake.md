@@ -64,7 +64,7 @@ Returned basis:
 
 Fallback behavior:
 
-- If the recent-average basis is unavailable (no logged nights), `getFallbackWakeBasis()` is used.
+- If the recent-average basis is unavailable (no logged nights), `getFallbackWakeBasis()` is used internally, but the nav shows the 🌱 learning display (`getLearningRemainingWakeDisplay`: *learning your rhythm*, no progress bar) instead of a countdown from default times. While the recent average is learning (fewer than 7 nights), Tonight guidance is held, so a saved target applies directly to the basis.
 
 ---
 

@@ -221,7 +221,11 @@
           "setSleepTargetAria": "Set a sleep target",
           "setWakeTargetAria": "Set a wake target",
           "changeSleepTargetAria": "Sleep target {time}. Tap to change.",
-          "changeWakeTargetAria": "Wake target {time}. Tap to change."
+          "changeWakeTargetAria": "Wake target {time}. Tap to change.",
+          "stageLearning": "🌱 Learning · {n} of {total} nights",
+          "stageForming": "🌿 Taking shape · {n} of {total} nights",
+          "guidedHeldCell": "🌱 Starts at {min} nights",
+          "guidanceHeldNote": "Using your target directly while Restore learns your rhythm ({n} of {total})."
         },
         "phaseCallout": {
           "phase": {
@@ -283,7 +287,8 @@
         "aboutAria": "About quick actions"
       },
       "sectionTonight": "Tonight",
-      "sectionSleepQuality": "Sleep quality"
+      "sectionSleepQuality": "Sleep quality",
+      "emptyLearning": "🌱 Learning: log your first night"
     },
     "about": {
       "dashboardHints": {
@@ -292,6 +297,19 @@
         "bringBackLead": "You can bring it back in",
         "bringBackSettings": "Settings",
         "bringBackTrail": "."
+      },
+      "tonightLearning": {
+        "heading": "While Restore learns your rhythm",
+        "intro": "Your recent average is built from your last 14 logged nights, with the newest counting most. Until there are enough nights, Tonight and Sleep quality show how far along it is.",
+        "listAria": "Learning stages",
+        "emptyName": "No nights yet",
+        "emptyDesc": "Tonight waits for your first logged night. No times are guessed.",
+        "learningName": "Learning · 1–6 nights",
+        "learningDesc": "Natural shows an early read of your times. Guidance waits; if you have a saved target, Tonight uses it directly. Sleep quality shows 🌱 instead of flags.",
+        "formingName": "Taking shape · 7–13 nights",
+        "formingDesc": "Guidance and quality flags turn on. 🌿 marks Natural and the quality calendar while the average fills out.",
+        "settledName": "Settled · 14+ nights",
+        "settledDesc": "No marker. The average uses your full 14 nights."
       },
       "tonightSymbols": {
         "heading": "What the icons mean on Tonight",
@@ -586,7 +604,11 @@
           "setSleepTargetAria": "睡眠の目標を設定",
           "setWakeTargetAria": "起床の目標を設定",
           "changeSleepTargetAria": "睡眠の目標 {time}。タップで変更。",
-          "changeWakeTargetAria": "起床の目標 {time}。タップで変更。"
+          "changeWakeTargetAria": "起床の目標 {time}。タップで変更。",
+          "stageLearning": "🌱 学習中 · {total}夜中{n}夜",
+          "stageForming": "🌿 形になってきました · {total}夜中{n}夜",
+          "guidedHeldCell": "🌱 {min}夜から開始",
+          "guidanceHeldNote": "Restoreがあなたのリズムを学習している間は、目標をそのまま使います（{total}夜中{n}夜）。"
         },
         "phaseCallout": {
           "phase": {
@@ -648,7 +670,8 @@
         "aboutAria": "クイックアクションについて"
       },
       "sectionTonight": "今夜",
-      "sectionSleepQuality": "睡眠の質"
+      "sectionSleepQuality": "睡眠の質",
+      "emptyLearning": "🌱 学習中：最初の夜を記録しましょう"
     },
     "about": {
       "dashboardHints": {
@@ -657,6 +680,19 @@
         "bringBackLead": "表示を戻すには",
         "bringBackSettings": "設定",
         "bringBackTrail": "から。"
+      },
+      "tonightLearning": {
+        "heading": "Restoreがリズムを学習している間",
+        "intro": "直近の平均は、記録した最新14夜から計算され、新しい夜ほど重く数えられます。夜の数がそろうまで、「今夜」と「睡眠の質」に学習の進み具合が表示されます。",
+        "listAria": "学習の段階",
+        "emptyName": "まだ記録なし",
+        "emptyDesc": "最初の夜が記録されるまで「今夜」は待機します。時刻を推測で埋めることはありません。",
+        "learningName": "学習中 · 1〜6夜",
+        "learningDesc": "「自然」に暫定の時刻が表示されます。ガイドは待機し、保存した目標があれば「今夜」はそれをそのまま使います。睡眠の質ではフラグの代わりに🌱が表示されます。",
+        "formingName": "形になってきました · 7〜13夜",
+        "formingDesc": "ガイドと睡眠の質のフラグが有効になります。平均がそろうまで、「自然」と睡眠の質カレンダーに🌿が付きます。",
+        "settledName": "安定 · 14夜以上",
+        "settledDesc": "マークは付きません。平均には14夜すべてが使われます。"
       },
       "tonightSymbols": {
         "heading": "「今夜」の横にある記号の意味",

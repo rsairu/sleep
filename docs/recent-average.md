@@ -33,6 +33,21 @@ Last night's influence (~15%) is about the same as the former flat 7-entry mean 
 
 ---
 
+## Learning stages
+
+`getRecentAverageStage(sampleSize)` (`sleep-utils.js`), by logged entries in the window:
+
+| Entries | Stage | What changes |
+|---|---|---|
+| 0 | `empty` | Dashboard shows *🌱 Learning: log your first night*; nav shows 🌱 *learning your rhythm* instead of a countdown. No times are derived from the 22:30 / 07:00 defaults on screen (the night key still uses them internally — [wake-day-key.md](wake-day-key.md)). |
+| 1–6 | `learning` 🌱 | Natural shows the early average with 🌱 and a note *Learning · n of 14 nights*. Guidance is **held** (`isTonightGuidanceHeld`): a saved target applies directly (`resolveTonightScheduledWindow(..., { holdGuidance })`), the Guided cell reads *🌱 Starts at 7 nights*, and a note says the target is used directly. Flags: 🌱 (fewer than 7 earlier nights). |
+| 7–13 | `forming` 🌿 | Guidance and flags on. Natural and the note show 🌿 *Taking shape · n of 14 nights*; quality-calendar squares for nights with 7–13 earlier nights get a 🌿 corner mark. |
+| 14+ | `established` | No marker. |
+
+`RECENT_AVERAGE_FORMING_MIN` (7) is the unlock point for guidance (`isTonightGuidanceHeld`) and flags (`DEVIATION_MIN_PRIOR_NIGHTS` in `nightly.js`). Guidance preferences are kept while held: Tonight's base state carries `guidanceSleepEnabled` / `guidanceWakeEnabled` (saved toggles, shown in the target editor) and `guidanceSleepActive` / `guidanceWakeActive` (applied tonight: knobs, matrix, pace dialog).
+
+User-facing copy: About → *While Restore learns your rhythm* (`about.tonightLearning.*` in `locales.json`).
+
 ## Fixed lists
 
 `averageSleepNights(nights)` with no weights is an **equal-weight** mean. Week summaries (timeline) and lifetime stats use it this way; only `computeRecentAverages` applies recency weights.

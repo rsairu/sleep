@@ -3442,6 +3442,26 @@ body{
   background: var(--color-background-secondary, var(--panel));
 }
 
+/* Learning-stage notes under the matrix (🌱 learning / 🌿 taking shape / guidance held): quieter than guidance callouts. */
+.dashboard-tonight-matrix-callout--note {
+  padding: 6px 12px;
+  border-style: dashed;
+  background: transparent;
+  opacity: 0.85;
+}
+
+.dashboard-tonight-matrix-stage-mark {
+  margin-left: 0.25em;
+  font-size: 0.8em;
+}
+
+.dashboard-tonight-matrix-held {
+  font-size: 0.78em;
+  opacity: 0.8;
+  white-space: normal;
+  line-height: 1.2;
+}
+
 .dashboard-tonight-matrix-callout--sleep .dashboard-tonight-matrix-callout-dot {
   flex-shrink: 0;
   width: 7px;
@@ -7173,6 +7193,16 @@ body.page-stats .stats-page-shell .container {
 
 .quality-page .calendar-square-learning-emoji {
   font-size: 15px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* 🌿 taking shape (7–13 earlier nights): small corner mark; the square keeps its quality color. */
+.quality-page .calendar-square-forming-emoji {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  font-size: 9px;
   line-height: 1;
   pointer-events: none;
 }

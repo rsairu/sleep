@@ -197,9 +197,12 @@ async function runTests() {
   expectEqual(rOn.mode, 'guided', 'resolveTonightScheduledWindow both poles guided when gap');
   expectEqual(rOn.sleep, 1370, 'normal pace nudges sleep 10m toward earlier target');
   expectEqual(rOn.wake, 420, 'wake unchanged when already at target');
-  const guidedBasis = u.getTonightWakePhaseBasisFromDays(basisDays);
-  expectEqual(guidedBasis.avgSleepStart, 1370, 'getTonightWakePhaseBasisFromDays uses guided sleep');
+  // Guidance needs the taking-shape stage (7+ nights); with 3 nights it is held and the target applies directly.
+  const basisDays7 = basisDays.concat(basisDays, basisDays).slice(0, 7);
+  const guidedBasis = u.getTonightWakePhaseBasisFromDays(basisDays7);
+  expectEqual(guidedBasis.avgSleepStart, 1370, 'getTonightWakePhaseBasisFromDays uses guided sleep (7 nights)');
   expectEqual(guidedBasis.avgSleepEnd, 420, 'guided basis wake');
+  expectEqual(u.getTonightWakePhaseBasisFromDays(basisDays).avgSleepStart, 1320, 'phase basis with 3 nights: guidance held, target directly');
   u.localStorage.setItem('sleep-app-tonight-guidance-pace', 'steady');
   const rSteady = u.resolveTonightScheduledWindow(1380, 420, { sleep: 1320, wake: 420 });
   expectEqual(rSteady.sleep, 1365, 'steady pace nudges sleep 15m toward earlier target');
@@ -569,6 +572,53 @@ async function runTests() {
   const lateNight = { date: '2026-11-17', bed: '02:40', sleepStart: '03:00', sleepEnd: '13:00', alarm: [], bathroom: [], WASO: 0 };
   const flagDays = [lateNight].concat(avgFixture);
   expectEqual(JSON.stringify(u.getFlagTypes(lateNight, u.getDeviationBaseline(flagDays, 0))), JSON.stringify(['😴', '🌅']), 'late night flags 😴 and 🌅 against weighted baseline');
+
+  // Learning stages (docs/recent-average.md § Learning stages)
+  expectEqual(u.getRecentAverageStage(0), 'empty', 'stage: 0 nights empty');
+  expectEqual(u.getRecentAverageStage(1), 'learning', 'stage: 1 night learning');
+  expectEqual(u.getRecentAverageStage(6), 'learning', 'stage: 6 nights learning');
+  expectEqual(u.getRecentAverageStage(7), 'forming', 'stage: 7 nights taking shape');
+  expectEqual(u.getRecentAverageStage(13), 'forming', 'stage: 13 nights taking shape');
+  expectEqual(u.getRecentAverageStage(14), 'established', 'stage: 14 nights established');
+  expectEqual(u.isTonightGuidanceHeld(6), true, 'guidance held below 7 nights');
+  expectEqual(u.isTonightGuidanceHeld(7), false, 'guidance active from 7 nights');
+  expectEqual(u.getDeviationBaseline(avgFixture, 2).stage, 'forming', 'flag baseline with 7 earlier nights is taking shape');
+  expectEqual(u.getDeviationBaseline(twentyNights, 0).stage, 'established', 'flag baseline with 14 earlier nights is established');
+  const fm = u.buildFlagCountMap(avgFixture);
+  expectEqual(fm.get('2026-11-14').forming, true, 'calendar: night with 7 earlier nights marked forming');
+  expectEqual(fm.get('2026-11-13').insufficient, true, 'calendar: night with 6 earlier nights stays learning');
+  expectEqual(fm.get('2026-11-13').forming, false, 'calendar: learning night is not forming');
+  // 0 nights: nav shows learning instead of a countdown from default times.
+  const learnNav = u.getRemainingWakeDisplayFromDays([]);
+  expectEqual(learnNav.phase, 'learning', 'nav with no nights: learning phase');
+  expectEqual(learnNav.percentRemaining, null, 'nav with no nights: no progress bar');
+  // Guidance held while learning: a saved target applies directly.
+  u.localStorage.setItem('sleep-app-tonight-target-window', JSON.stringify({ sleep: 1320, wake: 420 }));
+  u.localStorage.setItem('sleep-app-tonight-guidance-sleep-enabled', '1');
+  u.localStorage.setItem('sleep-app-tonight-guidance-wake-enabled', '1');
+  const rHeld = u.resolveTonightScheduledWindow(1380, 450, { sleep: 1320, wake: 420 }, { holdGuidance: true });
+  expectEqual(rHeld.mode, 'target', 'held guidance: mode target');
+  expectEqual(rHeld.sleep, 1320, 'held guidance: target sleep applied directly');
+  expectEqual(rHeld.wake, 420, 'held guidance: target wake applied directly');
+  const rLive = u.resolveTonightScheduledWindow(1380, 450, { sleep: 1320, wake: 420 });
+  expectEqual(rLive.mode, 'guided', 'not held: guidance steps toward target');
+  const threeNights = avgFixture.slice(0, 3);
+  const heldBasis = u.getTonightWakePhaseBasisFromDays(threeNights);
+  expectEqual(heldBasis.avgSleepStart, 1320, 'phase basis while learning: target sleep directly');
+  expectEqual(heldBasis.avgSleepEnd, 420, 'phase basis while learning: target wake directly');
+  const learnBase = u.getTonightProjectionBaseState(u.computeRecentAverages(threeNights));
+  expectEqual(learnBase.recentStage, 'learning', 'Tonight base: learning with 3 nights');
+  expectEqual(learnBase.guidanceHeld, true, 'Tonight base: guidance held with 3 nights');
+  expectEqual(learnBase.guidanceSleepEnabled, true, 'Tonight base: saved preference kept');
+  expectEqual(learnBase.guidanceSleepActive, false, 'Tonight base: guidance not active while held');
+  expectEqual(learnBase.naturalSleepMinutes, u.computeRecentAverages(threeNights).avgSleepStart, 'Tonight base: Natural shown from early nights');
+  expectEqual(learnBase.committedSleep, 1320, 'Tonight base: schedule uses target directly while held');
+  const formingBase = u.getTonightProjectionBaseState(u.computeRecentAverages(avgFixture));
+  expectEqual(formingBase.recentStage, 'forming', 'Tonight base: taking shape with 10 nights');
+  expectEqual(formingBase.guidanceSleepActive, true, 'Tonight base: guidance active once taking shape');
+  u.localStorage.removeItem('sleep-app-tonight-target-window');
+  u.localStorage.removeItem('sleep-app-tonight-guidance-sleep-enabled');
+  u.localStorage.removeItem('sleep-app-tonight-guidance-wake-enabled');
 
   // stats-aggregates: mid-sleep geometry (must match stats.js)
   const SA = u.StatsAggregates;

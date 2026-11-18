@@ -2853,9 +2853,11 @@ function syncInAppTipsSettingsEyeButtonsFromState() {
 /**
  * Effective Tonight sleep/wake from recent averages and optional saved target + guidance.
  * Missing saved pole uses the recent average for that pole as its effective target.
+ * `options.holdGuidance` (learning stage): guidance toggles are treated as off, so a saved target applies directly.
+ * @param {{ holdGuidance?: boolean }} [options]
  * @returns {{ sleep: number, wake: number, mode: 'average'|'target'|'guided' }}
  */
-function resolveTonightScheduledWindow(avgSleep, avgWake, savedTw) {
+function resolveTonightScheduledWindow(avgSleep, avgWake, savedTw, options) {
   const as = modMinutes1440(avgSleep);
   const aw = modMinutes1440(avgWake);
   const tw = normalizeTonightTargetWindowObject(savedTw);
@@ -2873,8 +2875,9 @@ function resolveTonightScheduledWindow(avgSleep, avgWake, savedTw) {
     return { sleep: as, wake: aw, mode: 'average' };
   }
   const cap = getTonightGuidancePaceMaxMinutes();
-  const gSleep = getTonightGuidanceSleepEnabled();
-  const gWake = getTonightGuidanceWakeEnabled();
+  const held = Boolean(options && options.holdGuidance);
+  const gSleep = !held && getTonightGuidanceSleepEnabled();
+  const gWake = !held && getTonightGuidanceWakeEnabled();
 
   let outS;
   if (hasS && gSleep) {
@@ -3608,6 +3611,28 @@ function recentAverageWeights(count) {
   return weights;
 }
 
+/**
+ * Learning stages by logged entries in the recent average (docs/recent-average.md § Learning stages):
+ *   'empty' 0 · 'learning' 1–6 🌱 · 'forming' 7–13 🌿 · 'established' 14+ (RECENT_AVERAGE_WINDOW).
+ * Guidance and deviation flags unlock at RECENT_AVERAGE_FORMING_MIN.
+ */
+const RECENT_AVERAGE_FORMING_MIN = 7;
+
+/** @returns {'empty'|'learning'|'forming'|'established'} */
+function getRecentAverageStage(sampleSize) {
+  const n = Number.isFinite(sampleSize) ? sampleSize : 0;
+  if (n <= 0) return 'empty';
+  if (n < RECENT_AVERAGE_FORMING_MIN) return 'learning';
+  if (n < RECENT_AVERAGE_WINDOW) return 'forming';
+  return 'established';
+}
+
+/** Tonight guidance waits for the forming stage; until then a saved target applies directly. */
+function isTonightGuidanceHeld(sampleSize) {
+  const stage = getRecentAverageStage(sampleSize);
+  return stage === 'empty' || stage === 'learning';
+}
+
 function equalWeights(count) {
   const weights = [];
   for (let i = 0; i < count; i++) weights.push(1);
@@ -3719,9 +3744,12 @@ function getTonightWakePhaseBasisFromDays(days) {
   if (!basis || !Number.isFinite(basis.avgSleepStart) || !Number.isFinite(basis.avgSleepEnd)) {
     basis = getFallbackWakeBasis();
   }
+  const recent = computeRecentAverages(liveDays);
   const tw = getTonightTargetWindow();
   if (tw) {
-    const resolved = resolveTonightScheduledWindow(basis.avgSleepStart, basis.avgSleepEnd, tw);
+    const resolved = resolveTonightScheduledWindow(basis.avgSleepStart, basis.avgSleepEnd, tw, {
+      holdGuidance: isTonightGuidanceHeld(recent ? recent.sampleSize : 0)
+    });
     basis = {
       avgSleepStart: resolved.sleep,
       avgSleepEnd: resolved.wake,
@@ -5880,8 +5908,19 @@ function getRemainingWakeDisplayFromBasis(basis, days) {
 
 /** Returns { phase, icon, timeLabel, percentRemaining } from raw days (used when nightly.js not loaded).
  * Recent averages: average get-up and fell-asleep; phase uses minutes-until-sleep vs that wake-window length. */
+/** Nav display before any night is logged: no times are derived from defaults. */
+function getLearningRemainingWakeDisplay() {
+  return {
+    phase: 'learning',
+    icon: '🌱',
+    timeLabel: 'learning your rhythm',
+    timeLabelSoft: true,
+    percentRemaining: null
+  };
+}
+
 function getRemainingWakeDisplayFromDays(days) {
-  if (!days || days.length === 0) return null;
+  if (!days || days.length === 0) return getLearningRemainingWakeDisplay();
   const basis = getEffectiveRemainingWakeBasis(days);
   return getRemainingWakeDisplayFromBasis(basis, days);
 }
@@ -6099,11 +6138,10 @@ function initRemainingWakeNav(options) {
   loadSleepData()
     .then(data => {
       const days = Array.isArray(data.days) ? data.days : [];
-      const basis = getEffectiveRemainingWakeBasis(days);
-      updateRemainingWakeNav(getRemainingWakeDisplayFromBasis(basis, days));
+      updateRemainingWakeNav(getRemainingWakeDisplayFromDays(days));
       if (runInterval && typeof window !== 'undefined') {
         window[timerKey] = setInterval(function () {
-          updateRemainingWakeNav(getRemainingWakeDisplayFromBasis(basis, days));
+          updateRemainingWakeNav(getRemainingWakeDisplayFromDays(days));
         }, 60000);
       }
     })
