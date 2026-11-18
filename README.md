@@ -74,13 +74,13 @@ The repo commits `data/.gitkeep` so the `data/` folder exists in fresh clones.
 
 ### `public.sleep_days`
 
-One logged night per user per calendar date.
+One logged night per user per wake date.
 
 | Column | Type | Notes |
 |--------|------|--------|
 | `id` | `bigint` | Surrogate primary key (identity). |
 | `user_id` | `uuid` | Tenant scope (MVP default single-user id in schema). |
-| `sleep_date` | **`date`** | Calendar night (not a free-form string). |
+| `sleep_date` | **`date`** | **Wake date** — the morning the night ends. A night from 23:00 Nov 18 to 07:00 Nov 19 is `2026-11-19`; a night that starts after midnight (02:00 Nov 19 → 11:00 Nov 19) is also `2026-11-19`. See [docs/wake-day-key.md](docs/wake-day-key.md). |
 | `bed`, `sleep_start`, `sleep_end` | `text` | Wall-clock times (app normalizes to 24h `HH:MM` for Supabase). |
 | `bathroom`, `alarm` | `text[]` | Ordered time-of-night strings. |
 | `nap_start`, `nap_end` | `text` | Nullable; nap interval split across two columns. |
@@ -112,7 +112,7 @@ Time is normalized as **minutes from midnight** (0–1440) in logic, with explic
 
 ### 2. Sleep Quality (`/quality`)
 - Loads shared sleep data (Supabase when configured, local JSON fallback).
-- Renders the **full** sleep quality history: all months in a calendar heatmap of "flag" days (deviations vs 7-day avg).
+- Renders the **full** sleep quality history: all months in a calendar heatmap of "flag" days (deviations vs each night's recent baseline).
 - Uses `renderCalendarHeatmapFullHistory()`, `buildFlagCountMap()`, `getLatestDataDate()` from `daily.js`.
 
 ### 3. Daily Timeline (`/timeline`)
@@ -141,9 +141,10 @@ Time is normalized as **minutes from midnight** (0–1440) in logic, with explic
 - Averages for "evening" times use **normalization** (`normalizeTimeForAveraging`, `normalizeTimeForComparison`) so e.g. 01:00 and 23:00 are combined correctly.
 
 ### Deviations / "flags"
-- In `daily.js`: `calculateRecentAverages()` (e.g. 7-day lookback), `checkDeviations()`, `getFlagTypes()`.
-- Flags when bed time, fell-asleep time, or total sleep deviates from recent average by ≥ `DEVIATION_FLAG_THRESHOLD` (20 minutes).
-- Dashboard shows these and the heatmap uses them.
+- In `src/lib/nightly.js`: `getDeviationBaseline()`, `analyzeTimingDeviations()`, `checkDeviations()`, `getFlagTypes()`, `buildFlagCountMap()`.
+- Each night is compared with its **baseline**: the recent average of the logged entries *before* it (up to 14, weighted toward the newest; the night itself excluded). See [docs/recent-average.md](docs/recent-average.md).
+- 😴 fell asleep later than baseline · ⌛ shorter than baseline or under 6 / 5 / 4 h · 🌅 wake shifted either way · 👁️ wakeful night (WASO, baseline-independent). Severity tiers come from a blended sleep- / day-relative percentage.
+- Fewer than 7 earlier nights → 🌱 learning (no flags). Dashboard, Nightly, and the Quality heatmap all use these.
 
 ### Weekends & holidays
 - `isWeekend()`, `isHoliday()` in `src/lib/sleep-utils.js`; holiday data is `HOLIDAYS_BY_YEAR` in the same file (`{ year: { month: [day, ...] } }`). Optional second arg to `isHoliday()`; defaults to `HOLIDAYS_BY_YEAR`.

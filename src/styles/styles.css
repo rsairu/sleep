@@ -3257,22 +3257,7 @@ body{
   text-align: center;
 }
 
-.dashboard-projection-duration--recommended {
-  margin-top: 4px;
-  opacity: 0.65;
-}
-
 .dashboard-projection-duration--hidden {
-  visibility: hidden;
-}
-
-.dashboard-projection-recommended {
-  font-size: 0.75rem;
-  opacity: 0.68;
-  min-height: 1.1em;
-}
-
-.dashboard-projection-recommended--hidden {
   visibility: hidden;
 }
 
@@ -3457,6 +3442,26 @@ body{
   background: var(--color-background-secondary, var(--panel));
 }
 
+/* Learning-stage notes under the matrix (🌱 learning / 🌿 taking shape / guidance held): quieter than guidance callouts. */
+.dashboard-tonight-matrix-callout--note {
+  padding: 6px 12px;
+  border-style: dashed;
+  background: transparent;
+  opacity: 0.85;
+}
+
+.dashboard-tonight-matrix-stage-mark {
+  margin-left: 0.25em;
+  font-size: 0.8em;
+}
+
+.dashboard-tonight-matrix-held {
+  font-size: 0.78em;
+  opacity: 0.8;
+  white-space: normal;
+  line-height: 1.2;
+}
+
 .dashboard-tonight-matrix-callout--sleep .dashboard-tonight-matrix-callout-dot {
   flex-shrink: 0;
   width: 7px;
@@ -3594,8 +3599,6 @@ body{
   --tonight-sleep-pct: 40%;
   --tonight-wake-pct: 60%;
   --tonight-mid-pct: 50%;
-  --tonight-rec-start-pct: 42%;
-  --tonight-rec-end-pct: 58%;
   --tonight-committed-sleep-pct: 42%;
   --tonight-committed-wake-pct: 58%;
   --tonight-saved-target-sleep-pct: 0%;
@@ -3621,8 +3624,7 @@ body{
   height: 24px;
 }
 
-.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-range-fill,
-.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-recommended-window {
+.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-range-fill {
   border-radius: 999px;
 }
 
@@ -3631,11 +3633,6 @@ body{
   z-index: 2;
   left: var(--tonight-fill-start-pct, var(--tonight-sleep-pct));
   width: max(0%, calc(var(--tonight-fill-end-pct, var(--tonight-wake-pct)) - var(--tonight-fill-start-pct, var(--tonight-sleep-pct))));
-}
-
-.dashboard-tonight-adjust-slider--main .dashboard-tonight-adjust-recommended-window {
-  z-index: 3;
-  background: transparent;
 }
 
 /* Input box height matches visual track so the native track lines up with .dashboard-tonight-adjust-track */
@@ -4279,12 +4276,12 @@ body{
 }
 
 .dashboard-tonight-adjust-committed-ghost--sleep {
-  left: var(--tonight-committed-sleep-pct, var(--tonight-rec-start-pct));
+  left: var(--tonight-committed-sleep-pct, var(--tonight-sleep-pct));
   color: color-mix(in srgb, var(--color-sleep) 58%, var(--text));
 }
 
 .dashboard-tonight-adjust-committed-ghost--wake {
-  left: var(--tonight-committed-wake-pct, var(--tonight-rec-end-pct));
+  left: var(--tonight-committed-wake-pct, var(--tonight-wake-pct));
   color: color-mix(in srgb, var(--color-up) 58%, var(--text));
 }
 
@@ -4389,18 +4386,6 @@ body{
   overflow: hidden;
   display: flex;
   align-items: center;
-}
-
-.dashboard-tonight-adjust-recommended-window {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: var(--tonight-rec-start-pct);
-  width: calc(var(--tonight-rec-end-pct) - var(--tonight-rec-start-pct));
-  border-radius: 999px;
-  background: transparent;
-  pointer-events: none;
-  z-index: 1;
 }
 
 /* Sleep→wake gradient wave inside the range-fill: vertical bars at constant pixel size; the
@@ -4580,12 +4565,12 @@ body{
 }
 
 .dashboard-tonight-adjust-baseline-label--sleep {
-  left: var(--tonight-committed-sleep-pct, var(--tonight-rec-start-pct));
+  left: var(--tonight-committed-sleep-pct, var(--tonight-sleep-pct));
   background: transparent;
 }
 
 .dashboard-tonight-adjust-baseline-label--wake {
-  left: var(--tonight-committed-wake-pct, var(--tonight-rec-end-pct));
+  left: var(--tonight-committed-wake-pct, var(--tonight-wake-pct));
   background: transparent;
 }
 
@@ -6488,6 +6473,32 @@ svg {
   opacity: 0.8;
 }
 
+/* Dashboard 7-day charts: scroll-in draw (dashboard.js, registerDashboardChartDraw).
+   Lines / bars / trend are revealed by animated clip rects; points pop in as the line reaches them.
+   Classes are only present while a draw is pending or playing. */
+svg .chart-draw-point {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition:
+    r 0.2s,
+    opacity 0.22s ease-out,
+    transform 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+svg .chart-draw-point--pending {
+  opacity: 0;
+  transform: scale(0.3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  svg .chart-draw-point,
+  svg .chart-draw-point--pending {
+    transition: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* Stats page: shell + sticky period (scrollport is viewport — avoid overflow-x on parent .container) */
 .stats-page-shell {
   display: flex;
@@ -7208,6 +7219,16 @@ body.page-stats .stats-page-shell .container {
 
 .quality-page .calendar-square-learning-emoji {
   font-size: 15px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* 🌿 taking shape (7–13 earlier nights): small corner mark; the square keeps its quality color. */
+.quality-page .calendar-square-forming-emoji {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  font-size: 9px;
   line-height: 1;
   pointer-events: none;
 }
@@ -8871,7 +8892,7 @@ body.page-stats .stats-page-shell .container {
   font-size: 0.88rem;
 }
 
-/* Dashboard quick add — pull-down drawer under nav */
+/* Log page night form panel (class names kept from the removed dashboard drawer) */
 .quick-add-drawer {
   margin: 0 0 var(--space-3) 0;
   border: 1px solid var(--panel-border-color);
@@ -9006,74 +9027,18 @@ button.dashboard-quick-action-btn {
   border-radius: var(--panel-radius, 10px);
 }
 
+/* Short secondary line inside a quick action (e.g. late Wake up: "Woke earlier?…") */
+.dashboard-quick-action-note {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.74rem;
+  font-weight: 500;
+  opacity: 0.72;
+}
+
 .dashboard-quick-actions-row .dashboard-quick-action-btn + .dashboard-quick-action-btn,
 .dashboard-quick-actions-row .dashboard-quick-action-btn + .dashboard-quick-action-link {
   margin-left: 0;
-}
-
-.quick-add-drawer-shell {
-  display: grid;
-  grid-template-rows: auto 0fr;
-  transition: grid-template-rows 0.38s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.quick-add-drawer.is-expanded .quick-add-drawer-shell {
-  grid-template-rows: auto 1fr;
-}
-
-.quick-add-drawer-handle {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  width: 100%;
-  margin: 0;
-  padding: 10px 12px 12px;
-  border: none;
-  border-bottom: 1px solid transparent;
-  background: color-mix(in srgb, var(--panel) 92%, var(--bar));
-  color: var(--text);
-  font: inherit;
-  cursor: grab;
-  touch-action: none;
-  transition: background 0.2s, border-color 0.2s;
-}
-
-.quick-add-drawer.is-expanded .quick-add-drawer-handle {
-  border-bottom-color: var(--panel-border-color);
-}
-
-.quick-add-drawer-handle:hover {
-  background: var(--hover-bg);
-}
-
-.quick-add-drawer-handle:active {
-  cursor: grabbing;
-}
-
-.quick-add-drawer-grip {
-  width: 40px;
-  height: 5px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--text) 28%, transparent);
-  opacity: 0.9;
-}
-
-.quick-add-drawer-label {
-  font-size: 0.95rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-
-.quick-add-drawer-hint {
-  font-size: 0.72rem;
-  opacity: 0.6;
-  font-weight: 500;
-}
-
-.quick-add-drawer-body {
-  overflow: hidden;
-  min-height: 0;
 }
 
 .quick-add-drawer-body-inner {
@@ -9237,14 +9202,6 @@ button.dashboard-quick-action-btn {
 .quick-add-form {
   display: grid;
   gap: var(--space-2);
-}
-
-.quick-add-field-compact {
-  max-width: min(17rem, 100%);
-}
-
-.quick-add-field-compact.quick-add-log-pair {
-  max-width: min(36rem, 100%);
 }
 
 .quick-add-date-row--page {
@@ -9553,10 +9510,6 @@ button.quick-add-label.quick-add-label-hit.quick-add-label--nap-end:hover {
   letter-spacing: 0.02em;
 }
 
-.quick-add-field-compact .quick-add-label {
-  margin-bottom: 6px;
-}
-
 .quick-add-label {
   font-size: 0.92rem;
   color: var(--nav-app-text-color);
@@ -9796,14 +9749,5 @@ button.quick-add-label.quick-add-label-hit.quick-add-label--nap-end:hover {
 
 .quick-add-status--error {
   color: var(--color-warning);
-}
-
-.quick-add-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
 }
 

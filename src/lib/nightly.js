@@ -1,9 +1,7 @@
 // Configuration constants
 const ALARM_TO_WAKE_WARNING_THRESHOLD = 60; // minutes
-/** Prior nights required before timing flags or heatmap colors apply. */
-const LOOKBACK_DAYS = 7;
-/** Minimum logged nights before Tonight matrix shows natural / guidance cells (same window as weekly averages). */
-const TONIGHT_MATRIX_MIN_NATURAL_DAYS = 7;
+/** Earlier logged nights required before timing flags or heatmap colors apply (🌱 learning below this). */
+const DEVIATION_MIN_PRIOR_NIGHTS = RECENT_AVERAGE_FORMING_MIN;
 const DAY_MINUTES = 1440;
 /** Weight when blending sleep-relative vs day-relative variation (internal only). */
 const BLEND_ALPHA = 0.75;
@@ -168,39 +166,26 @@ function wasoQualitySeverity(day) {
   return 'severe';
 }
 
-// Calculate recent averages for deviation detection (excluding current day)
-function calculateRecentAverages(days, currentIndex, lookbackDays = LOOKBACK_DAYS) {
-  const startIndex = Math.max(0, currentIndex + 1);
-  const endIndex = Math.min(days.length, currentIndex + 1 + lookbackDays);
-  const recentDays = days.slice(startIndex, endIndex);
-
-  if (recentDays.length < lookbackDays) {
-    return {
-      insufficient: true,
-      sampleSize: recentDays.length
-    };
+/**
+ * Deviation-flag baseline for days[currentIndex]: the recent average of the logged entries *before* it
+ * (`computeRecentAverages` with endBeforeIndex — same window and recency weights as Natural, night excluded).
+ * Fell-asleep / wake are unrounded means on the extended axis. Learning until DEVIATION_MIN_PRIOR_NIGHTS.
+ * Spec: docs/recent-average.md § Per-night baselines.
+ */
+function getDeviationBaseline(days, currentIndex) {
+  const avg = computeRecentAverages(days, { endBeforeIndex: currentIndex });
+  const sampleSize = avg ? avg.sampleSize : 0;
+  if (sampleSize < DEVIATION_MIN_PRIOR_NIGHTS) {
+    return { insufficient: true, sampleSize: sampleSize };
   }
-
-  let fellAsleepTimeSum = 0;
-  let wakeTimeSum = 0;
-  let sleepDurationSum = 0;
-
-  recentDays.forEach(day => {
-    const fellAsleepTime = timeToMinutes(day.sleepStart);
-    const normalizedFellAsleepTime = normalizeTimeForAveraging(fellAsleepTime);
-    fellAsleepTimeSum += normalizedFellAsleepTime;
-
-    const wakeTime = timeToMinutes(day.sleepEnd);
-    wakeTimeSum += normalizeWakeTimeForAveraging(fellAsleepTime, wakeTime);
-
-    sleepDurationSum += calculateTotalSleep(day);
-  });
-
   return {
     insufficient: false,
-    avgFellAsleepTime: fellAsleepTimeSum / recentDays.length,
-    avgWakeTime: wakeTimeSum / recentDays.length,
-    avgSleepDuration: sleepDurationSum / recentDays.length
+    sampleSize: sampleSize,
+    /** 'forming' (🌿, 7–13 earlier nights) or 'established' */
+    stage: getRecentAverageStage(sampleSize),
+    avgFellAsleepTime: avg.exact.sleepStartNorm,
+    avgWakeTime: avg.exact.sleepEndNorm,
+    avgSleepDuration: avg.exact.sleepDuration
   };
 }
 
@@ -497,7 +482,7 @@ function renderDay(day, days, dayIndex, options) {
   const dayOfWeek = getDateFromString(day.date).toLocaleDateString('en-US', { weekday: 'short' });
   
   // Check for deviations from recent averages
-  const recentAverages = calculateRecentAverages(days, dayIndex);
+  const recentAverages = getDeviationBaseline(days, dayIndex);
   const deviations = checkDeviations(day, recentAverages);
   const deviationWarnings = deviations.length > 0
     ? `<div class="deviation-warnings deviation-warnings--chips">${deviations.map(deviationWarningMarkup).join('')}</div>`
@@ -603,42 +588,7 @@ function renderDay(day, days, dayIndex, options) {
 
 // Note: normalizeTimeForAveraging and denormalizeTimeForAveraging are in time-utils.js (global).
 
-// Calculate average stats
-function calculateAverages(days) {
-  let sleepDurationSum = 0;
-  let longestUninterruptedSum = 0;
-  let firstAlarmToWakeSum = 0;
-  let firstAlarmToWakeCount = 0;
-  let sleepStartSum = 0;
-  let sleepEndSum = 0;
-  let bedToSleepDelaySum = 0;
-  
-  days.forEach(day => {
-    sleepDurationSum += calculateTotalSleep(day);
-    longestUninterruptedSum += calculateLongestUninterrupted(day);
-    bedToSleepDelaySum += calculateSleepDelay(day);
-    const firstAlarmToWake = calculateFirstAlarmToWake(day);
-    if (firstAlarmToWake !== null) {
-      firstAlarmToWakeSum += firstAlarmToWake;
-      firstAlarmToWakeCount++;
-    }
-    // Normalize times for averaging to handle midnight crossover
-    const ss = timeToMinutes(day.sleepStart);
-    sleepStartSum += normalizeTimeForAveraging(ss);
-    sleepEndSum += normalizeWakeTimeForAveraging(ss, timeToMinutes(day.sleepEnd));
-  });
-  
-  const n = days.length;
-  return {
-    sampleSize: n,
-    avgSleepStart: denormalizeTimeForAveraging(Math.round(sleepStartSum / n)),
-    avgSleepEnd: denormalizeTimeForAveraging(Math.round(sleepEndSum / n)),
-    avgSleepDuration: Math.round(sleepDurationSum / n),
-    avgLongestUninterrupted: Math.round(longestUninterruptedSum / n),
-    avgBedToSleepDelay: n > 0 ? Math.round(bedToSleepDelaySum / n) : 0,
-    avgFirstAlarmToWake: firstAlarmToWakeCount > 0 ? Math.round(firstAlarmToWakeSum / firstAlarmToWakeCount) : null
-  };
-}
+// Averages: averageSleepNights / computeRecentAverages live in sleep-utils.js (single source of truth).
 
 // Render averages stats HTML (inner content only)
 function renderAveragesStats(averages) {
@@ -665,7 +615,7 @@ function renderAveragesColumn(averages, title) {
 
 // Render week summary stats (for collapsed state)
 function renderWeekSummary(days) {
-  const averages = calculateAverages(days);
+  const averages = averageSleepNights(days);
   const avgSleepStart = averages.avgSleepStart;
   const avgSleepEnd = averages.avgSleepEnd;
   const avgSleepStartPos = timeToTimelinePosition(avgSleepStart);
@@ -724,11 +674,12 @@ function renderWeek(week, weekIndex, allDays) {
 function buildFlagCountMap(days) {
   const flagMap = new Map();
   days.forEach((day, index) => {
-    const recentAverages = calculateRecentAverages(days, index);
+    const recentAverages = getDeviationBaseline(days, index);
     const insufficient = !recentAverages || recentAverages.insufficient;
+    const forming = !insufficient && recentAverages.stage === 'forming';
     const types = getFlagTypes(day, recentAverages);
     const qualitySeverity = insufficient ? 'none' : computeWorstQualitySeverity(day, recentAverages);
-    flagMap.set(day.date, { insufficient, qualitySeverity, types });
+    flagMap.set(day.date, { insufficient, forming, qualitySeverity, types });
   });
   return flagMap;
 }
@@ -807,6 +758,7 @@ function generateCalendarHeatmap(year, flagMap, latestDataDate) {
           dateStr: formatDateShort(date),
           day: day,
           insufficient: flagData.insufficient,
+          forming: Boolean(flagData.forming),
           qualitySeverity: flagData.qualitySeverity,
           flagTypes: flagData.types
         });
@@ -869,10 +821,11 @@ function calendarSquareTooltip(dayCell, options) {
       ? `${dayCell.dateStr}: 🌱`
       : `${dayCell.dateStr}: not enough data`;
   }
+  const formingNote = learningCopy && dayCell.forming ? ' 🌿' : '';
   if (dayCell.flagTypes && dayCell.flagTypes.length > 0) {
-    return `${dayCell.dateStr}: ${dayCell.flagTypes.join(' ')}`;
+    return `${dayCell.dateStr}: ${dayCell.flagTypes.join(' ')}${formingNote}`;
   }
-  return `${dayCell.dateStr}: normal`;
+  return `${dayCell.dateStr}: normal${formingNote}`;
 }
 
 /** Aria hint per heatmap flag emoji (matches legend wording). */
@@ -987,9 +940,12 @@ function renderMonthBlock(month, large, options) {
                 : '';
               const tipAttr = tooltip ? ` data-tooltip="${escapeHtmlAttr(tooltip)}" title="${escapeHtmlAttr(tooltip)}"` : '';
               const learningClass = showLearningEmoji && day.insufficient ? ' calendar-square--learning' : '';
+              const formingMark = showLearningEmoji && day.forming
+                ? '<span class="calendar-square-forming-emoji" aria-hidden="true">🌿</span><span class="visually-hidden">Taking shape</span>'
+                : '';
               const dayInner = showLearningEmoji && day.insufficient
                 ? '<span class="calendar-square-learning-emoji" aria-hidden="true">🌱</span><span class="visually-hidden">Learning</span>'
-                : `<span class="calendar-square-day">${day.day}</span>`;
+                : `<span class="calendar-square-day">${day.day}</span>${formingMark}`;
               const inner = `<div class="calendar-square ${colorClass}${learningClass}"${typesAttr}${tipAttr}>${dayInner}</div>`;
               return `<div class="calendar-day-slot">${inner}</div>`;
             }).join('')}
@@ -1044,6 +1000,7 @@ function renderCalendarHeatmapHeader(options) {
         <span class="legend-divider">·</span>
         <div class="legend-meaning legend-meaning--inline">
           <span class="legend-meaning-item"><span class="legend-learning-emoji" aria-hidden="true">🌱</span> learning</span>
+          <span class="legend-meaning-item"><span class="legend-learning-emoji" aria-hidden="true">🌿</span> taking shape</span>
           <span class="legend-meaning-item">😴 sleep late vs avg</span>
           <span class="legend-meaning-item">⌛ shorter duration vs avg</span>
           <span class="legend-meaning-item">🌅 wake vs avg</span>
@@ -1112,9 +1069,6 @@ function renderCalendarHeatmapFullHistoryMulti(years, flagMap, latestDataDate) {
   `;
 }
 
-// Recommended sleep/wake window: sleep band ±30 min; wake band ±15 min (wake consistency is more important).
-const PROJECTION_BAND_MINUTES = 30;
-const WAKE_PROJECTION_BAND_MINUTES = 15;
 const TONIGHT_ADJUST_SCOPE_PAD_MINUTES = 180;
 const TONIGHT_ADJUST_MIN_GAP_MINUTES = 1;
 /** Painted width of Tonight emoji knobs (px); must match CSS range thumb width for fill inset math. */
@@ -1133,17 +1087,14 @@ function getTonightProjectionBaseState(recentAverages) {
   }
   const sampleSize =
     recentAverages && typeof recentAverages.sampleSize === 'number' ? recentAverages.sampleSize : 0;
-  const tonightNaturalReliable = sampleSize >= TONIGHT_MATRIX_MIN_NATURAL_DAYS;
+  // Learning stage (docs/recent-average.md): Natural shows from the first night; guidance waits for 🌿.
+  const recentStage = getRecentAverageStage(sampleSize);
+  const guidanceHeld = isTonightGuidanceHeld(sampleSize);
   const avgSleep = recentAverages.avgSleepStart;
   const avgWake = recentAverages.avgSleepEnd;
-  const sleepByLow = modMinutes1440(avgSleep - PROJECTION_BAND_MINUTES);
-  const sleepByHigh = modMinutes1440(avgSleep + PROJECTION_BAND_MINUTES);
-  const wakeByLow = modMinutes1440(avgWake - WAKE_PROJECTION_BAND_MINUTES);
-  const wakeByHigh = modMinutes1440(avgWake + WAKE_PROJECTION_BAND_MINUTES);
-  const recommendedDurationMins = durationMinutes(avgSleep, avgWake);
-
-  const recommendedSleepNorm = normalizeTimeForAveraging(avgSleep);
-  const recommendedWakeNorm = normalizeWakeTimeForAveraging(avgSleep, avgWake);
+  // Natural (recent-average) times on the extended axis; always defined (fallback averages when no history).
+  const naturalSleepNorm = normalizeTimeForAveraging(avgSleep);
+  const naturalWakeNorm = normalizeWakeTimeForAveraging(avgSleep, avgWake);
 
   let committedSleep = avgSleep;
   let committedWake = avgWake;
@@ -1163,7 +1114,7 @@ function getTonightProjectionBaseState(recentAverages) {
     }
     const resolved =
       typeof resolveTonightScheduledWindow === 'function'
-        ? resolveTonightScheduledWindow(avgSleep, avgWake, savedTw)
+        ? resolveTonightScheduledWindow(avgSleep, avgWake, savedTw, { holdGuidance: guidanceHeld })
         : {
             sleep: savedTargetSleep != null ? savedTargetSleep : avgSleep,
             wake: savedTargetWake != null ? savedTargetWake : avgWake,
@@ -1178,8 +1129,8 @@ function getTonightProjectionBaseState(recentAverages) {
   const committedSleepNorm = normalizeTimeForAveraging(committedSleep);
   const committedWakeNorm = normalizeWakeTimeForAveraging(committedSleep, committedWake);
 
-  let scopeStartNorm = Math.min(recommendedSleepNorm, committedSleepNorm) - TONIGHT_ADJUST_SCOPE_PAD_MINUTES;
-  let scopeEndNorm = Math.max(recommendedWakeNorm, committedWakeNorm) + TONIGHT_ADJUST_SCOPE_PAD_MINUTES;
+  let scopeStartNorm = Math.min(naturalSleepNorm, committedSleepNorm) - TONIGHT_ADJUST_SCOPE_PAD_MINUTES;
+  let scopeEndNorm = Math.max(naturalWakeNorm, committedWakeNorm) + TONIGHT_ADJUST_SCOPE_PAD_MINUTES;
   if (savedTw) {
     if (savedTargetSleep != null) {
       savedTargetSleepNorm = normalizeTimeForAveraging(savedTargetSleep);
@@ -1206,17 +1157,22 @@ function getTonightProjectionBaseState(recentAverages) {
     typeof getTonightGuidanceSleepEnabled === 'function' ? getTonightGuidanceSleepEnabled() : false;
   const guidanceWakeEnabled =
     typeof getTonightGuidanceWakeEnabled === 'function' ? getTonightGuidanceWakeEnabled() : false;
-  const naturalSleepMinutes = tonightNaturalReliable ? avgSleep : null;
-  const naturalWakeMinutes = tonightNaturalReliable ? avgWake : null;
+  const naturalSleepMinutes = sampleSize > 0 ? avgSleep : null;
+  const naturalWakeMinutes = sampleSize > 0 ? avgWake : null;
 
   return {
     sampleSize,
-    tonightNaturalReliable,
+    recentStage,
+    guidanceHeld,
     naturalSleepMinutes,
     naturalWakeMinutes,
     paceId,
+    /** Saved guidance preferences (Settings toggles). */
     guidanceSleepEnabled,
     guidanceWakeEnabled,
+    /** Guidance actually applied tonight: preference and not held by the learning stage. */
+    guidanceSleepActive: guidanceSleepEnabled && !guidanceHeld,
+    guidanceWakeActive: guidanceWakeEnabled && !guidanceHeld,
     avgSleepStart: avgSleep,
     avgSleepEnd: avgWake,
     sleepTarget: committedSleep,
@@ -1226,13 +1182,8 @@ function getTonightProjectionBaseState(recentAverages) {
     committedSleepNorm,
     committedWakeNorm,
     hasSavedTonightTarget: Boolean(savedTw),
-    sleepByLow,
-    sleepByHigh,
-    wakeByLow,
-    wakeByHigh,
-    recommendedDurationMins,
-    recommendedSleepNorm,
-    recommendedWakeNorm,
+    naturalSleepNorm,
+    naturalWakeNorm,
     scopeStartNorm,
     scopeEndNorm,
     tonightGuidanceMode,
@@ -1360,10 +1311,10 @@ function getTonightDashboardLiveSleepRemaining(now, stateWakeClock, committedSle
   const days = Array.isArray(liveDays) ? liveDays : [];
   if (
     days.length &&
-    typeof recordDateMdForSleepPeriod === 'function' &&
+    typeof getCurrentNightKey === 'function' &&
     typeof isNightSleepOrIntentLoggedNav === 'function'
   ) {
-    const nightMd = recordDateMdForSleepPeriod(now, committedWake);
+    const nightMd = getCurrentNightKey(now, days);
     const averagesFallback =
       typeof QUICK_ADD_FALLBACK_AVERAGES !== 'undefined' ? QUICK_ADD_FALLBACK_AVERAGES : null;
     if (nightMd && isNightSleepOrIntentLoggedNav(nightMd, days, now, averagesFallback)) {
@@ -1398,73 +1349,11 @@ const QUICK_ADD_FALLBACK_AVERAGES = {
   avgFirstAlarmToWake: null
 };
 
-/** Average bed time on the same extended axis as sleep (for slider init). */
-function averageBedClockNormalizedMinutes(recentDays) {
-  if (!recentDays || recentDays.length === 0) {
-    return normalizeTimeForAveraging(22 * 60 + 8);
-  }
-  let sum = 0;
-  recentDays.forEach(function (d) {
-    sum += normalizeTimeForAveraging(timeToMinutes(d.bed));
-  });
-  return Math.round(sum / recentDays.length);
-}
-
-function getQuickAddInitialBedNorm(base, sleepNorm, recentDays) {
-  const g = TONIGHT_ADJUST_MIN_GAP_MINUTES;
-  const rec = averageBedClockNormalizedMinutes(recentDays);
-  const maxBed = sleepNorm - g;
-  let b = rec;
-  if (b > maxBed) b = maxBed;
-  if (b < base.scopeStartNorm) b = base.scopeStartNorm;
-  return b;
-}
-
-function getQuickAddSliderProjection(recentAverages, recentDays) {
-  const base = getTonightProjectionBaseState(recentAverages);
-  const sleepNorm = base.committedSleepNorm;
-  const wakeNorm = base.committedWakeNorm;
-  const clamped = clampTonightProjectionNorms(base, sleepNorm, wakeNorm);
-  const scopeSpan = base.scopeEndNorm - base.scopeStartNorm;
-  const sleepPct = ((clamped.sleepNorm - base.scopeStartNorm) / scopeSpan) * 100;
-  const wakePct = ((clamped.wakeNorm - base.scopeStartNorm) / scopeSpan) * 100;
-  const bedNorm = getQuickAddInitialBedNorm(base, clamped.sleepNorm, recentDays || []);
-  const bedPct = ((bedNorm - base.scopeStartNorm) / scopeSpan) * 100;
-  const recStartPct = ((base.recommendedSleepNorm - base.scopeStartNorm) / scopeSpan) * 100;
-  const recEndPct = ((base.recommendedWakeNorm - base.scopeStartNorm) / scopeSpan) * 100;
-  const sleepClock = modMinutes1440(clamped.sleepNorm);
-  const wakeClock = modMinutes1440(clamped.wakeNorm);
-  const bedClock = modMinutes1440(bedNorm);
-  return {
-    base,
-    bedNorm,
-    sleepNorm: clamped.sleepNorm,
-    wakeNorm: clamped.wakeNorm,
-    bedClock,
-    sleepClock,
-    wakeClock,
-    bedPct,
-    sleepPct,
-    wakePct,
-    recStartPct,
-    recEndPct,
-    midPct: (sleepPct + wakePct) / 2
-  };
-}
-
-/** @param {'drawer'|'page'} layout — drawer: dashboard strip; page: full log screen, advanced fields always visible */
-function renderQuickAddDrawer(recentAverages, recentDays, layout = 'drawer') {
-  const proj = getQuickAddSliderProjection(recentAverages, recentDays);
-  const bedVal = formatMinutesTo24hString(proj.bedClock);
-  const sleepVal = formatMinutesTo24hString(proj.sleepClock);
-  const wakeVal = formatMinutesTo24hString(proj.wakeClock);
-  const isPage = layout === 'page';
-  const mainBedVal = isPage ? '' : bedVal;
-  const mainSleepVal = isPage ? '' : sleepVal;
-  const mainWakeVal = isPage ? '' : wakeVal;
-  const initialBedAttr = isPage ? '' : bedVal;
-  const initialSleepAttr = isPage ? '' : sleepVal;
-  const initialWakeAttr = isPage ? '' : wakeVal;
+/**
+ * Log page night form: wake date, bed / fell-asleep / wake, and additional fields.
+ * Times start blank; entry-modal.js loads the selected night's saved values into the form.
+ */
+function renderLogNightForm() {
 
   const mainTimeSpin = (suffix) =>
     `<div class="quick-add-time-spin">
@@ -1472,17 +1361,13 @@ function renderQuickAddDrawer(recentAverages, recentDays, layout = 'drawer') {
                           <button type="button" class="quick-add-time-spin-btn quick-add-time-spin-btn--down" aria-label="${suffix} one minute earlier">▼</button>
                         </div>`;
 
-  const bathAlarmActions = isPage
-    ? `<div class="quick-add-time-inline-actions">
+  const bathAlarmActions = `<div class="quick-add-time-inline-actions">
                       <button type="button" class="quick-add-time-add-btn" id="quick-add-bathroom-add" data-i18n-aria-label="log.addTimeAria" aria-label="Add time">+</button>
-                    </div>`
-    : `<button type="button" class="quick-add-time-add-btn" id="quick-add-bathroom-add" data-i18n-aria-label="log.addTimeAria" aria-label="Add time">+</button>`;
+                    </div>`;
 
-  const alarmActions = isPage
-    ? `<div class="quick-add-time-inline-actions">
+  const alarmActions = `<div class="quick-add-time-inline-actions">
                       <button type="button" class="quick-add-time-add-btn" id="quick-add-alarm-add" data-i18n-aria-label="log.addTimeAria" aria-label="Add time">+</button>
-                    </div>`
-    : `<button type="button" class="quick-add-time-add-btn" id="quick-add-alarm-add" data-i18n-aria-label="log.addTimeAria" aria-label="Add time">+</button>`;
+                    </div>`;
 
   const labelsRow = `<div class="quick-add-adv-row quick-add-labels-row quick-add-log-pair">
                     <span class="quick-add-label quick-add-label--emoji-line" id="quick-add-labels-legend"><span class="quick-add-log-emoji" aria-hidden="true">🏷️</span><span class="quick-add-label-text" data-i18n="log.nightLabels">Night notes</span></span>
@@ -1495,14 +1380,14 @@ function renderQuickAddDrawer(recentAverages, recentDays, layout = 'drawer') {
                 <div class="quick-add-advanced-blocks">
                   <div class="quick-add-adv-row quick-add-log-pair">
                     <button type="button" class="quick-add-label quick-add-label--emoji-line quick-add-label--bathroom quick-add-label-hit" id="quick-add-bathroom-legend" data-i18n-aria-label="log.bathroomLabelNowAria" aria-label="Add bathroom time now"><span class="quick-add-log-emoji" aria-hidden="true">🧻</span><span class="quick-add-label-text" data-i18n="log.bathroom">Bathroom</span></button>
-                    <div class="quick-add-log-pair__right quick-add-log-pair__right--with-add${isPage ? ' quick-add-log-pair__right--inline-actions' : ''}">
+                    <div class="quick-add-log-pair__right quick-add-log-pair__right--with-add quick-add-log-pair__right--inline-actions">
                       <div class="quick-add-time-list" id="quick-add-bathroom-list" aria-labelledby="quick-add-bathroom-legend"></div>
                       ${bathAlarmActions}
                     </div>
                   </div>
                   <div class="quick-add-adv-row quick-add-log-pair">
                     <button type="button" class="quick-add-label quick-add-label--emoji-line quick-add-label--alarm quick-add-label-hit" id="quick-add-alarm-legend" data-i18n-aria-label="log.alarmLabelNowAria" aria-label="Add alarm time now"><span class="quick-add-log-emoji" aria-hidden="true">🕐</span><span class="quick-add-label-text" data-i18n="log.alarms">Alarm(s)</span></button>
-                    <div class="quick-add-log-pair__right quick-add-log-pair__right--with-add${isPage ? ' quick-add-log-pair__right--inline-actions' : ''}">
+                    <div class="quick-add-log-pair__right quick-add-log-pair__right--with-add quick-add-log-pair__right--inline-actions">
                       <div class="quick-add-time-list" id="quick-add-alarm-list" aria-labelledby="quick-add-alarm-legend"></div>
                       ${alarmActions}
                     </div>
@@ -1537,15 +1422,9 @@ function renderQuickAddDrawer(recentAverages, recentDays, layout = 'drawer') {
                       </div>
                     </div>
                   </div>
-                  ${isPage ? '' : labelsRow}
                 </div>`;
   const advancedSection =
-    layout === 'drawer'
-      ? `<details class="quick-add-advanced">
-                <summary>Advanced fields (optional)</summary>
-                ${advancedBlocks}
-              </details>`
-      : `<div class="quick-add-advanced quick-add-advanced--page" data-i18n-aria-label="log.advancedAria" aria-label="Additional fields">
+    `<div class="quick-add-advanced quick-add-advanced--page" data-i18n-aria-label="log.advancedAria" aria-label="Additional fields">
                 ${advancedBlocks}
               </div>`;
 
@@ -1559,8 +1438,7 @@ function renderQuickAddDrawer(recentAverages, recentDays, layout = 'drawer') {
       </div>
     </dialog>`;
 
-  const pageTopToolbar = layout === 'page'
-    ? `<div class="quick-add-page-toolbar">
+  const pageTopToolbar = `<div class="quick-add-page-toolbar">
               <div class="quick-add-page-toolbar__bar" id="quick-add-toolbar-bar" data-i18n-aria-label="log.commitBarAria" aria-label="Save, undo, or review changes">
                 <div class="quick-add-toolbar-changes-head" data-i18n-aria-label="log.changesPanelAria" aria-label="Unsaved edits">
                   <p class="quick-add-changes-caption" data-i18n="log.changesCaption">Changes</p>
@@ -1571,95 +1449,55 @@ function renderQuickAddDrawer(recentAverages, recentDays, layout = 'drawer') {
                   <button type="submit" class="quick-add-toolbar-btn quick-add-toolbar-btn--save" id="quick-add-save" data-i18n="log.save">Save</button>
                 </div>
               </div>
-            </div>`
-    : '';
-  const actionsInner =
-    layout === 'page'
-      ? ''
-      : `
-                <button type="submit" class="about-theme-option" id="quick-add-save" data-i18n="log.save">Save</button>
-                <button type="button" class="about-theme-option" id="quick-add-cancel" data-i18n="log.undoCancel">Undo / Cancel</button>`;
-
-  const dateFieldRow = isPage
-    ? `<div class="quick-add-date-row quick-add-date-row--page" role="group" data-i18n-aria-label="log.dateRowAria" aria-label="Wake date">
+            </div>`;
+  const dateFieldRow = `<div class="quick-add-date-row quick-add-date-row--page" role="group" data-i18n-aria-label="log.dateRowAria" aria-label="Wake date">
                 <span class="quick-add-date-context" id="quick-add-date-context">Waking on</span>
                 <div class="quick-add-date-controls">
                   <button type="button" class="quick-add-date-step quick-add-date-step--prev" id="quick-add-date-prev" data-i18n-aria-label="log.datePrevAria" aria-label="Previous day">◀</button>
                   <input class="quick-add-input quick-add-input--date" id="quick-add-date" type="date" data-i18n-aria-label="log.dateInputAria" aria-label="Wake date">
                   <button type="button" class="quick-add-date-step quick-add-date-step--next" id="quick-add-date-next" data-i18n-aria-label="log.dateNextAria" aria-label="Next day">▶</button>
                 </div>
-              </div>`
-    : `<div class="quick-add-field-compact quick-add-log-pair">
-                <label class="quick-add-label" for="quick-add-date"><span data-i18n="log.date">Date</span></label>
-                <input class="quick-add-input quick-add-input--date" id="quick-add-date" type="date">
-              </div>`;
-
-  const formActionsRow = isPage
-    ? ''
-    : `<div class="quick-add-actions">
-                ${actionsInner}
               </div>`;
 
   const formHtml = `
-            <form id="quick-add-form" class="quick-add-form" data-initial-bed="${initialBedAttr}" data-initial-sleep="${initialSleepAttr}" data-initial-wake="${initialWakeAttr}">
+            <form id="quick-add-form" class="quick-add-form">
               ${pageTopToolbar}
               ${dateFieldRow}
-              ${isPage ? labelsRow : ''}
+              ${labelsRow}
               <div class="quick-add-main-times" role="group" data-i18n-aria-label="log.mainTimesAria" aria-label="Bed, sleep, and wake">
                 <div class="quick-add-adv-row quick-add-log-pair">
                   <button type="button" class="quick-add-label quick-add-label--emoji-line quick-add-label--bed quick-add-label-hit" id="quick-add-bed-legend" data-i18n-aria-label="log.bedNowAria" aria-label="Set bed time to current time"><span class="quick-add-log-emoji" aria-hidden="true">🛏️</span><span class="quick-add-label-text" data-i18n="log.bed">Bed</span></button>
                   <div class="quick-add-time-row quick-add-time-row--nap">
-                    <input class="quick-add-input quick-add-time-native" id="quick-add-bed" type="time" step="60" value="${mainBedVal}" aria-labelledby="quick-add-bed-legend" aria-label="Bed time">
+                    <input class="quick-add-input quick-add-time-native" id="quick-add-bed" type="time" step="60" value="" aria-labelledby="quick-add-bed-legend" aria-label="Bed time">
                     ${mainTimeSpin('Bed time')}
                   </div>
                 </div>
                 <div class="quick-add-adv-row quick-add-log-pair">
                   <button type="button" class="quick-add-label quick-add-label--emoji-line quick-add-label--sleep quick-add-label-hit" id="quick-add-sleep-legend" data-i18n-aria-label="log.sleepNowAria" aria-label="Set sleep time to current time"><span class="quick-add-log-emoji" aria-hidden="true">🌙</span><span class="quick-add-label-text" data-i18n="log.sleep">Sleep</span></button>
                   <div class="quick-add-time-row quick-add-time-row--nap">
-                    <input class="quick-add-input quick-add-time-native" id="quick-add-sleep" type="time" step="60" value="${mainSleepVal}" aria-labelledby="quick-add-sleep-legend" aria-label="Fell asleep">
+                    <input class="quick-add-input quick-add-time-native" id="quick-add-sleep" type="time" step="60" value="" aria-labelledby="quick-add-sleep-legend" aria-label="Fell asleep">
                     ${mainTimeSpin('Fell asleep')}
                   </div>
                 </div>
                 <div class="quick-add-adv-row quick-add-log-pair">
                   <button type="button" class="quick-add-label quick-add-label--emoji-line quick-add-label--wake quick-add-label-hit" id="quick-add-wake-legend" data-i18n-aria-label="log.wakeNowAria" aria-label="Set wake time to current time"><span class="quick-add-log-emoji" aria-hidden="true">🌅</span><span class="quick-add-label-text" data-i18n="log.wake">Wake</span></button>
                   <div class="quick-add-time-row quick-add-time-row--nap">
-                    <input class="quick-add-input quick-add-time-native" id="quick-add-wake" type="time" step="60" value="${mainWakeVal}" aria-labelledby="quick-add-wake-legend" aria-label="Wake up">
+                    <input class="quick-add-input quick-add-time-native" id="quick-add-wake" type="time" step="60" value="" aria-labelledby="quick-add-wake-legend" aria-label="Wake up">
                     ${mainTimeSpin('Wake up')}
                   </div>
                 </div>
               </div>
               ${advancedSection}
               <p class="quick-add-status" id="quick-add-status"></p>
-              ${formActionsRow}
             </form>`;
 
-  if (layout === 'page') {
-    return `
+  return `
     <div class="quick-add-drawer quick-add-drawer--page" id="quick-add-drawer">
       <div class="quick-add-drawer-body-inner quick-add-drawer-body-inner--page">
         ${undoConfirmDialog}
         ${formHtml}
       </div>
     </div>`;
-  }
-
-  return `
-    <div class="quick-add-drawer" id="quick-add-drawer">
-      <div class="quick-add-drawer-shell">
-        <button type="button" class="quick-add-drawer-handle" id="quick-add-drawer-handle" aria-expanded="false" aria-controls="quick-add-drawer-body">
-          <span class="quick-add-drawer-grip" aria-hidden="true"></span>
-          <span class="quick-add-drawer-label">Log night</span>
-          <span class="quick-add-drawer-hint" aria-hidden="true">Pull down or tap</span>
-        </button>
-        <div class="quick-add-drawer-body" id="quick-add-drawer-body">
-          <div class="quick-add-drawer-body-inner">
-            ${undoConfirmDialog}
-            ${formHtml}
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
 }
 
 function renderQuickActionsSection() {
@@ -1727,8 +1565,6 @@ function getTonightProjectionState(recentAverages) {
   const scopeSpan = base.scopeEndNorm - base.scopeStartNorm;
   const sleepPct = ((clamped.sleepNorm - base.scopeStartNorm) / scopeSpan) * 100;
   const wakePct = ((clamped.wakeNorm - base.scopeStartNorm) / scopeSpan) * 100;
-  const recStartPct = ((base.recommendedSleepNorm - base.scopeStartNorm) / scopeSpan) * 100;
-  const recEndPct = ((base.recommendedWakeNorm - base.scopeStartNorm) / scopeSpan) * 100;
   const committedSleepPct = ((base.committedSleepNorm - base.scopeStartNorm) / scopeSpan) * 100;
   const committedWakePct = ((base.committedWakeNorm - base.scopeStartNorm) / scopeSpan) * 100;
   let savedTargetSleepPct = null;
@@ -1751,8 +1587,6 @@ function getTonightProjectionState(recentAverages) {
     isAdjusted,
     sleepPct,
     wakePct,
-    recStartPct,
-    recEndPct,
     committedSleepPct,
     committedWakePct,
     savedTargetSleepPct,
@@ -1830,7 +1664,7 @@ function renderDashboardProjection(recentAverages) {
             id="dashboard-tonight-adjust-slider"
             role="group"
             aria-label="Tonight sleep and wake schedule."
-            style="--tonight-sleep-pct:${projection.sleepPct}%;--tonight-wake-pct:${projection.wakePct}%;--tonight-mid-pct:${(projection.sleepPct + projection.wakePct) / 2}%;--tonight-rec-start-pct:${projection.recStartPct}%;--tonight-rec-end-pct:${projection.recEndPct}%;--tonight-committed-sleep-pct:${projection.committedSleepPct}%;--tonight-committed-wake-pct:${projection.committedWakePct}%;--tonight-saved-target-sleep-pct:${savedSleepPct};--tonight-saved-target-wake-pct:${savedWakePct};">
+            style="--tonight-sleep-pct:${projection.sleepPct}%;--tonight-wake-pct:${projection.wakePct}%;--tonight-mid-pct:${(projection.sleepPct + projection.wakePct) / 2}%;--tonight-committed-sleep-pct:${projection.committedSleepPct}%;--tonight-committed-wake-pct:${projection.committedWakePct}%;--tonight-saved-target-sleep-pct:${savedSleepPct};--tonight-saved-target-wake-pct:${savedWakePct};">
             <div class="dashboard-tonight-adjust-top-band">
               <div
                 class="dashboard-tonight-adjust-committed-ghost dashboard-tonight-adjust-committed-ghost--sleep dashboard-tonight-adjust-committed-ghost--hidden"
@@ -1854,7 +1688,6 @@ function renderDashboardProjection(recentAverages) {
             <div class="dashboard-tonight-adjust-slider-core">
               <div class="dashboard-tonight-adjust-track">
                 <div class="dashboard-tonight-adjust-range-fill" aria-hidden="true">${trackWaveSvg}</div>
-                <div class="dashboard-tonight-adjust-recommended-window" aria-hidden="true"></div>
               </div>
               <input type="range" id="dashboard-tonight-sleep-slider" min="${base.scopeStartNorm}" max="${base.scopeEndNorm}" step="1" value="${projection.sleepNorm}" aria-label="Tonight sleep target" title="Sleep" data-i18n-title="dashboard.tonight.sleepKnobTooltip">
               <input type="range" id="dashboard-tonight-wake-slider" min="${base.scopeStartNorm}" max="${base.scopeEndNorm}" step="1" value="${projection.wakeNorm}" aria-label="Tomorrow wake target" title="Wake" data-i18n-title="dashboard.tonight.wakeKnobTooltip">
@@ -2365,7 +2198,7 @@ function initDashboardTonightAdjuster(recentAverages, onChange, getLiveDays, get
       pole: 'sleep',
       naturalMinutes: base.naturalSleepMinutes,
       savedTargetMinutes: base.savedTargetSleep,
-      guidanceEnabled: base.guidanceSleepEnabled,
+      guidanceEnabled: base.guidanceSleepActive,
       guidedMinutes: state.sleepClock,
       paceId: paceIdLive
     });
@@ -2373,7 +2206,7 @@ function initDashboardTonightAdjuster(recentAverages, onChange, getLiveDays, get
       pole: 'wake',
       naturalMinutes: base.naturalWakeMinutes,
       savedTargetMinutes: base.savedTargetWake,
-      guidanceEnabled: base.guidanceWakeEnabled,
+      guidanceEnabled: base.guidanceWakeActive,
       guidedMinutes: state.wakeClock,
       paceId: paceIdLive
     });
@@ -2393,6 +2226,27 @@ function initDashboardTonightAdjuster(recentAverages, onChange, getLiveDays, get
       }
     }
 
+    /** 🌱 / 🌿 after a Natural time while the recent average is still learning or taking shape. */
+    function appendTonightStageMark(cell) {
+      const stage = base.recentStage;
+      if (stage !== 'learning' && stage !== 'forming') return;
+      const mark = document.createElement('span');
+      mark.className = 'dashboard-tonight-matrix-stage-mark';
+      mark.setAttribute('aria-hidden', 'true');
+      mark.textContent = stage === 'learning' ? '🌱' : '🌿';
+      cell.appendChild(mark);
+    }
+
+    function appendTonightMatrixNote(className, text) {
+      const row = document.createElement('div');
+      row.className = 'dashboard-tonight-matrix-callout dashboard-tonight-matrix-callout--note ' + className;
+      const body = document.createElement('p');
+      body.className = 'dashboard-tonight-matrix-callout-body';
+      body.textContent = text;
+      row.appendChild(body);
+      matrixCallouts.appendChild(row);
+    }
+
     function fillRow(vm, ids) {
       const nat = document.getElementById(ids.nat);
       const guided = document.getElementById(ids.guided);
@@ -2407,6 +2261,7 @@ function initDashboardTonightAdjuster(recentAverages, onChange, getLiveDays, get
         return;
       }
       nat.textContent = tonightMatrixFormatCell(vm.cellNatural);
+      appendTonightStageMark(nat);
       if (vm.rowMode === 'no_target') {
         guided.textContent = TONIGHT_MATRIX_EM;
         tgt.textContent = TONIGHT_MATRIX_EM;
@@ -2414,7 +2269,20 @@ function initDashboardTonightAdjuster(recentAverages, onChange, getLiveDays, get
         return;
       }
       if (vm.rowMode === 'target_no_guidance') {
-        guided.textContent = TONIGHT_MATRIX_EM;
+        const poleGuidanceHeld =
+          base.guidanceHeld && (vm.pole === 'sleep' ? base.guidanceSleepEnabled : base.guidanceWakeEnabled);
+        if (poleGuidanceHeld) {
+          guided.textContent = '';
+          const held = document.createElement('span');
+          held.className = 'dashboard-tonight-matrix-held';
+          held.textContent = tonightInterpolateTemplate(
+            tdT('dashboard.tonight.matrix.guidedHeldCell', '🌱 Starts at {min} nights'),
+            { min: String(RECENT_AVERAGE_FORMING_MIN) }
+          );
+          guided.appendChild(held);
+        } else {
+          guided.textContent = TONIGHT_MATRIX_EM;
+        }
         tgt.textContent = tonightMatrixFormatCell(vm.cellTarget);
         applyTonightMatrixTimeHighlight(vm, nat, guided, tgt);
         return;
@@ -2439,6 +2307,35 @@ function initDashboardTonightAdjuster(recentAverages, onChange, getLiveDays, get
     decorateTonightMatrixTargetCell('dashboard-tonight-matrix-wake-target', 'wake', base.savedTargetWake);
 
     matrixCallouts.textContent = '';
+    const stageTotal = String(RECENT_AVERAGE_WINDOW);
+    const stageCount = String(Math.min(base.sampleSize || 0, RECENT_AVERAGE_WINDOW));
+    if (base.recentStage === 'learning' || base.recentStage === 'forming') {
+      appendTonightMatrixNote(
+        'dashboard-tonight-matrix-callout--stage',
+        tonightInterpolateTemplate(
+          base.recentStage === 'learning'
+            ? tdT('dashboard.tonight.matrix.stageLearning', '🌱 Learning · {n} of {total} nights')
+            : tdT('dashboard.tonight.matrix.stageForming', '🌿 Taking shape · {n} of {total} nights'),
+          { n: stageCount, total: stageTotal }
+        )
+      );
+    }
+    const guidanceHeldWithTarget =
+      base.guidanceHeld &&
+      ((base.savedTargetSleep != null && base.guidanceSleepEnabled) ||
+        (base.savedTargetWake != null && base.guidanceWakeEnabled));
+    if (guidanceHeldWithTarget) {
+      appendTonightMatrixNote(
+        'dashboard-tonight-matrix-callout--held',
+        tonightInterpolateTemplate(
+          tdT(
+            'dashboard.tonight.matrix.guidanceHeldNote',
+            'Using your target directly while Restore learns your rhythm ({n} of {total}).'
+          ),
+          { n: stageCount, total: stageTotal }
+        )
+      );
+    }
     [sleepVm, wakeVm].forEach(function (vm) {
       if (!vm.callout || vm.rowMode !== 'full_guidance') return;
       const parts = buildTonightMatrixCalloutParts(vm, tdT);
@@ -2482,10 +2379,6 @@ function initDashboardTonightAdjuster(recentAverages, onChange, getLiveDays, get
     const hiPct = Math.max(sleepPct, wakePct);
     let fillStartPct = loPct;
     let fillEndPct = hiPct;
-    const recStartRaw = ((base.recommendedSleepNorm - base.scopeStartNorm) / scopeSpan) * 100;
-    const recEndRaw = ((base.recommendedWakeNorm - base.scopeStartNorm) / scopeSpan) * 100;
-    let recLo = Math.min(recStartRaw, recEndRaw);
-    let recHi = Math.max(recStartRaw, recEndRaw);
     if (wrapW > 0) {
       const insetPct = (TONIGHT_KNOB_OUTER_PX / 2 / wrapW) * 100;
       const spanPct = hiPct - loPct;
@@ -2496,18 +2389,10 @@ function initDashboardTonightAdjuster(recentAverages, onChange, getLiveDays, get
       if (spanPct > 0) {
         fillStartPct = loPct + insetLeft;
         fillEndPct = hiPct - insetRight;
-        recLo = Math.max(recLo, fillStartPct);
-        recHi = Math.min(recHi, fillEndPct);
-        if (recLo >= recHi) {
-          recHi = recLo + 0.05;
-        }
       }
     }
     sliderWrap.style.setProperty('--tonight-fill-start-pct', `${fillStartPct}%`);
     sliderWrap.style.setProperty('--tonight-fill-end-pct', `${fillEndPct}%`);
-
-    sliderWrap.style.setProperty('--tonight-rec-start-pct', `${recLo}%`);
-    sliderWrap.style.setProperty('--tonight-rec-end-pct', `${recHi}%`);
 
     const committedSleepPct = ((base.committedSleepNorm - base.scopeStartNorm) / scopeSpan) * 100;
     const committedWakePct = ((base.committedWakeNorm - base.scopeStartNorm) / scopeSpan) * 100;
@@ -2548,8 +2433,8 @@ function initDashboardTonightAdjuster(recentAverages, onChange, getLiveDays, get
     const wakeFromAverage = base.savedTargetWake == null;
     sleepLabel.textContent = sleepTxt;
     wakeLabel.textContent = wakeTxt;
-    const sleepThumbCompass = base.savedTargetSleep != null && base.guidanceSleepEnabled;
-    const wakeThumbCompass = base.savedTargetWake != null && base.guidanceWakeEnabled;
+    const sleepThumbCompass = base.savedTargetSleep != null && base.guidanceSleepActive;
+    const wakeThumbCompass = base.savedTargetWake != null && base.guidanceWakeActive;
     if (sleepThumbIcon) sleepThumbIcon.textContent = sleepThumbCompass ? '🧭' : '🍃';
     if (wakeThumbIcon) wakeThumbIcon.textContent = wakeThumbCompass ? '🧭' : '🍃';
     syncTonightMatrix();
@@ -3175,8 +3060,8 @@ function initDashboardTonightAdjuster(recentAverages, onChange, getLiveDays, get
   function fillTonightPaceDialog(pole) {
     const current = base.paceId || 'gentle';
     const guidedPoles = [];
-    if (base.guidanceSleepEnabled && base.savedTargetSleep != null) guidedPoles.push('sleep');
-    if (base.guidanceWakeEnabled && base.savedTargetWake != null) guidedPoles.push('wake');
+    if (base.guidanceSleepActive && base.savedTargetSleep != null) guidedPoles.push('sleep');
+    if (base.guidanceWakeActive && base.savedTargetWake != null) guidedPoles.push('wake');
     paceOptionsWrap.querySelectorAll('.dashboard-tonight-pace-option').forEach(function (opt) {
       const id = opt.getAttribute('data-pace');
       const isCurrent = id === current;
@@ -3581,12 +3466,11 @@ function renderDashboardContent(days) {
     return `
     <div class="dashboard-content">
       ${quickActionsHtml}
-      <p class="dashboard-empty-msg">No sleep data yet.</p>
+      <p class="dashboard-empty-msg" data-i18n="dashboard.emptyLearning">🌱 Learning: log your first night</p>
     </div>`;
   }
 
-  const recentDays = days.slice(0, Math.min(7, days.length));
-  const recentAverages = calculateAverages(recentDays);
+  const recentAverages = computeRecentAverages(days);
   const flagMap = buildFlagCountMap(days);
   const latestDataDate = getLatestDataDate(days);
   const dashboardYear = getAppDate().getFullYear();

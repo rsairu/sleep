@@ -1281,8 +1281,8 @@ function deleteSleepDraftIfNapOnlyResidual(sleepDateKey, hadSleepDayRow) {
 }
 
 /**
- * Default wake-day key for the log quick-add form: max(latest sleep_days date, latest draft date),
- * else remaining-wake phase from loaded days.
+ * Default wake-day key for the Log form: max(latest sleep_days date, latest draft date),
+ * else the current night key (natural wake cutover).
  * @param {Array} days — loaded sleep days (may be empty)
  * @returns {Promise<string>}
  */
@@ -1300,13 +1300,7 @@ function resolveDefaultQuickAddNightDateMd(days) {
     if (latestDay && latestDraft) pick = latestDay > latestDraft ? latestDay : latestDraft;
     else pick = latestDay || latestDraft;
     if (pick) return pick;
-    const liveDays = Array.isArray(days) ? days : [];
-    const basis = getEffectiveRemainingWakeBasis(liveDays) || getFallbackWakeBasis();
-    if (!basis || !Number.isFinite(basis.avgSleepEnd)) {
-      const fb = getFallbackWakeBasis();
-      return recordDateMdForSleepPeriod(getAppDate(), fb.avgSleepEnd);
-    }
-    return recordDateMdForSleepPeriod(getAppDate(), basis.avgSleepEnd);
+    return getCurrentNightKey(getAppDate(), Array.isArray(days) ? days : []);
   });
 }
 
@@ -2859,9 +2853,11 @@ function syncInAppTipsSettingsEyeButtonsFromState() {
 /**
  * Effective Tonight sleep/wake from recent averages and optional saved target + guidance.
  * Missing saved pole uses the recent average for that pole as its effective target.
+ * `options.holdGuidance` (learning stage): guidance toggles are treated as off, so a saved target applies directly.
+ * @param {{ holdGuidance?: boolean }} [options]
  * @returns {{ sleep: number, wake: number, mode: 'average'|'target'|'guided' }}
  */
-function resolveTonightScheduledWindow(avgSleep, avgWake, savedTw) {
+function resolveTonightScheduledWindow(avgSleep, avgWake, savedTw, options) {
   const as = modMinutes1440(avgSleep);
   const aw = modMinutes1440(avgWake);
   const tw = normalizeTonightTargetWindowObject(savedTw);
@@ -2879,8 +2875,9 @@ function resolveTonightScheduledWindow(avgSleep, avgWake, savedTw) {
     return { sleep: as, wake: aw, mode: 'average' };
   }
   const cap = getTonightGuidancePaceMaxMinutes();
-  const gSleep = getTonightGuidanceSleepEnabled();
-  const gWake = getTonightGuidanceWakeEnabled();
+  const held = Boolean(options && options.holdGuidance);
+  const gSleep = !held && getTonightGuidanceSleepEnabled();
+  const gWake = !held && getTonightGuidanceWakeEnabled();
 
   let outS;
   if (hasS && gSleep) {
@@ -3201,6 +3198,150 @@ function resolveRecordDateMdForWake(now, avgWakeMins, liveDays) {
   return primary;
 }
 
+// ---------------------------------------------------------------------------
+// Night key and open night. Spec: docs/wake-day-key.md.
+//   Night key      — which row (wake date) a night belongs to.
+//   Night saves    — write an event to a night row (quick actions, Log).
+//   Night lookups  — read "is the current night already logged?" (nav, quick-action visibility,
+//                    default Log date, Tonight live countdown).
+//   Schedule timing — phase, countdowns, bedtime cues; uses the scheduled (Tonight) times instead.
+// Saves and lookups both anchor the cutover on the natural (recent-average) wake.
+// ---------------------------------------------------------------------------
+
+/** A night with bed or fell-asleep but no wake stops being open this long after its sleep entry. */
+const OPEN_NIGHT_MAX_AGE_HOURS = 24;
+/** Wake up shows a short "woke earlier?" note when it is this far past the natural wake. */
+const WAKE_LATE_NOTE_MINUTES = 180;
+/** Newest drafts fetched to resolve the open night. */
+const OPEN_NIGHT_DRAFT_LOOKBACK = 5;
+
+/** Wake clock (minutes) that anchors the night-key cutover: natural recent-average wake, else fallback. */
+function getNightKeyWakeMinutes(days) {
+  const avg = computeRecentAverages(days);
+  if (avg && Number.isFinite(avg.avgSleepEnd)) return avg.avgSleepEnd;
+  return getFallbackWakeBasis().avgSleepEnd;
+}
+
+/** Night key for an event logged at `now` (cutover rule on the natural wake). */
+function getCurrentNightKey(now, days) {
+  return recordDateMdForSleepPeriod(now, getNightKeyWakeMinutes(days));
+}
+
+function nightKeyHasClock(value) {
+  return Number.isFinite(timeToMinutes(value));
+}
+
+/**
+ * Epoch ms of a bed / fell-asleep clock that belongs to night `nightKey` (the wake date).
+ * Clocks from 12:00 on fall on the evening before the wake date; earlier clocks on the wake date.
+ */
+function nightClockToInstantMs(nightKey, clock) {
+  const d = parseSleepDateToLocalDate(nightKey);
+  const m = timeToMinutes(clock);
+  if (Number.isNaN(d.getTime()) || !Number.isFinite(m)) return NaN;
+  const mins = modMinutes1440(m);
+  const dayOffset = mins >= 720 ? -1 : 0;
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + dayOffset, Math.floor(mins / 60), mins % 60, 0, 0).getTime();
+}
+
+/** Minutes from the natural wake on night `nightKey`'s wake date to `nowMs` (negative before it). */
+function minutesPastNaturalWake(nightKey, naturalWakeMinutes, nowMs) {
+  const d = parseSleepDateToLocalDate(nightKey);
+  if (Number.isNaN(d.getTime()) || !Number.isFinite(naturalWakeMinutes)) return NaN;
+  const w = modMinutes1440(naturalWakeMinutes);
+  const wakeMs = new Date(d.getFullYear(), d.getMonth(), d.getDate(), Math.floor(w / 60), w % 60, 0, 0).getTime();
+  return Math.round((nowMs - wakeMs) / 60000);
+}
+
+/**
+ * The open night: the newest night with bed or fell-asleep logged and no wake yet.
+ * It is abandoned (null) when a completed row exists at or after it, when it already has a wake,
+ * or when more than OPEN_NIGHT_MAX_AGE_HOURS have passed since its sleep entry (bed if sleep is missing).
+ * A newer night with bed or sleep supersedes it automatically (that newer night is the candidate).
+ * Abandoned nights stay as drafts; they just stop receiving wake / alarm saves.
+ * Pure — callers pass the newest drafts and the newest completed `sleep_days` date.
+ * @param {Array<{date: string, bed?: string, sleepStart?: string, sleepEnd?: string}>} drafts
+ * @param {string|null} latestCompletedKey
+ * @param {number} nowMs
+ * @returns {null | { date: string, anchorMs: number }}
+ */
+function resolveOpenNight(drafts, latestCompletedKey, nowMs) {
+  const candidates = (Array.isArray(drafts) ? drafts : [])
+    .filter(function (d) {
+      return d && normalizeSleepDateKey(d.date) && (nightKeyHasClock(d.bed) || nightKeyHasClock(d.sleepStart));
+    })
+    .sort(function (a, b) {
+      const ka = normalizeSleepDateKey(a.date);
+      const kb = normalizeSleepDateKey(b.date);
+      return ka < kb ? 1 : ka > kb ? -1 : 0;
+    });
+  const newest = candidates[0];
+  if (!newest) return null;
+  const key = normalizeSleepDateKey(newest.date);
+  const completed = latestCompletedKey ? normalizeSleepDateKey(latestCompletedKey) : '';
+  if (completed && completed >= key) return null;
+  if (nightKeyHasClock(newest.sleepEnd)) return null;
+  const anchorClock = nightKeyHasClock(newest.sleepStart) ? newest.sleepStart : newest.bed;
+  const anchorMs = nightClockToInstantMs(key, anchorClock);
+  if (!Number.isFinite(anchorMs)) return null;
+  if (nowMs - anchorMs > OPEN_NIGHT_MAX_AGE_HOURS * 3600000) return null;
+  return { date: key, anchorMs: anchorMs };
+}
+
+/** Newest cloud drafts (any content), newest first. Resolves to [] when cloud is off or on error. */
+function fetchRecentNightDrafts(limit) {
+  const config = getSupabaseConfig();
+  if (!config.enabled) return Promise.resolve([]);
+  const n = Number.isInteger(limit) && limit > 0 ? limit : OPEN_NIGHT_DRAFT_LOOKBACK;
+  const select = 'user_id,sleep_date,bed,sleep_start,sleep_end,bathroom,alarm,nap_start,nap_end,waso,labels';
+  const url =
+    config.url.replace(/\/+$/, '') +
+    '/rest/v1/sleep_day_drafts?select=' +
+    select +
+    '&user_id=eq.' +
+    encodeURIComponent(RESTORE_CLOUD_USER_ID) +
+    '&order=sleep_date.desc' +
+    '&limit=' +
+    n;
+  return fetch(url, { headers: getSupabaseAuthHeaders(config, false) })
+    .then(function (res) {
+      return res.ok ? res.json() : [];
+    })
+    .then(function (rows) {
+      return (Array.isArray(rows) ? rows : []).map(mapSupabaseRowToDay).filter(Boolean);
+    })
+    .catch(function () {
+      return [];
+    });
+}
+
+/**
+ * Open night from cloud drafts + loaded `sleep_days`, with its draft row.
+ * @returns {Promise<null | { date: string, anchorMs: number, draft: object }>}
+ */
+function getOpenNight(days, now) {
+  return fetchRecentNightDrafts().then(function (drafts) {
+    const open = resolveOpenNight(drafts, getLatestSleepDayDateKeyFromLoadedDays(days), now.getTime());
+    if (!open) return null;
+    const draft = drafts.find(function (d) {
+      return normalizeSleepDateKey(d.date) === open.date;
+    });
+    return { date: open.date, anchorMs: open.anchorMs, draft: draft || null };
+  });
+}
+
+/**
+ * Night key for wake / alarm saves: the open night when there is one; otherwise the cutover on the
+ * natural wake plus the early-morning correction (`resolveRecordDateMdForWake`).
+ * @returns {Promise<string>}
+ */
+function resolveWakeNightKey(days, now) {
+  return getOpenNight(days, now).then(function (open) {
+    if (open) return open.date;
+    return resolveRecordDateMdForWake(now, getNightKeyWakeMinutes(days), days);
+  });
+}
+
 function remainWakeCircDistMinutes(a, b) {
   const x = modMinutes1440(a);
   const y = modMinutes1440(b);
@@ -3291,11 +3432,11 @@ function isWallClockWithinRecentHoursNav(now, timeStr, hoursBack) {
 }
 
 /**
- * Stub row for a night md; uses 7-day basis + days[0] template, or averagesFallback when no logged days.
+ * Stub row for a night md; uses the recent-average basis + days[0] template, or averagesFallback when no logged days.
  */
 function buildStubDayForNightMd(dateMd, days, averagesFallback) {
   const template = days && days.length ? days[0] : null;
-  const basis = computeRecentSevenDayWakeBasis(days);
+  const basis = computeRecentWakeBasis(days);
   const avgS = basis ? basis.avgSleepStart : (averagesFallback ? averagesFallback.avgSleepStart : NaN);
   const avgE = basis ? basis.avgSleepEnd : (averagesFallback ? averagesFallback.avgSleepEnd : NaN);
   if (!Number.isFinite(avgS) || !Number.isFinite(avgE)) return null;
@@ -3332,10 +3473,11 @@ function wakeLoggedForWakeDayMd(nightMd, liveDays, averagesFallback) {
 
 /**
  * Bed or fell-asleep logged for this wake-day row (QA flags or user values differ from stub).
- * Stub diff alone counts: remaining-wake nav must not depend on wall-clock recency (backfill / evening
- * row-key mismatch vs recordDateMdForSleepPeriod).
+ * Stub diff alone counts: remaining-wake nav must not depend on wall-clock recency (backfill).
+ * Callers pass the night key (`getCurrentNightKey`); saves use the same key, so tonight's bed is
+ * always on that row. A previous row still awaiting wake (forgotten wake) does not count.
  */
-function isNightBedOrSleepLoggedCore(nightMd, liveDays, averagesFallback) {
+function isNightBedOrSleepLogged(nightMd, liveDays, averagesFallback) {
   const qa = readNightQaSleepFlagMap()[nightMd];
   if (qa && (qa.bed || qa.sleep)) return true;
   const day = pickDayForNightMdNav(nightMd, liveDays);
@@ -3347,27 +3489,8 @@ function isNightBedOrSleepLoggedCore(nightMd, liveDays, averagesFallback) {
   return Boolean(bedDiff || sleepDiff);
 }
 
-/**
- * Same as core, plus evening alignment: after local calendar evening, `recordDateMdForSleepPeriod` uses
- * tomorrow's wake-day key while the user may still have bed/sleep on today's row — treat that as logged.
- */
-function isNightBedOrSleepLogged(nightMd, liveDays, now, averagesFallback) {
-  if (isNightBedOrSleepLoggedCore(nightMd, liveDays, averagesFallback)) return true;
-  const todayIso = formatIsoDateFromLocalDate(now);
-  const tomorrowIso = addCalendarDaysToSleepDateKey(todayIso, 1);
-  const n = normalizeSleepDateKey(nightMd);
-  const t = normalizeSleepDateKey(tomorrowIso);
-  if (n && t && n === t) {
-    // Align to today's row only while that night is still open (bed/sleep without wake). A
-    // completed prior wake-day row must not count as "logged" for the upcoming sleep period.
-    if (!nightRowAwaitingWake(todayIso, liveDays, averagesFallback)) return false;
-    return isNightBedOrSleepLoggedCore(todayIso, liveDays, averagesFallback);
-  }
-  return false;
-}
-
-/** Bed logged only (QA bed flag or non-stub bed); nav row alignment matches `isNightBedOrSleepLogged`. */
-function isNightBedLoggedCore(nightMd, liveDays, averagesFallback) {
+/** Bed logged only (QA bed flag or non-stub bed) on this wake-day row. */
+function isNightBedLogged(nightMd, liveDays, averagesFallback) {
   const qa = readNightQaSleepFlagMap()[nightMd];
   if (qa && qa.bed) return true;
   const day = pickDayForNightMdNav(nightMd, liveDays);
@@ -3377,24 +3500,11 @@ function isNightBedLoggedCore(nightMd, liveDays, averagesFallback) {
   return String(day.bed || '') !== String(stub.bed || '');
 }
 
-function isNightBedLogged(nightMd, liveDays, now, averagesFallback) {
-  if (isNightBedLoggedCore(nightMd, liveDays, averagesFallback)) return true;
-  const todayIso = formatIsoDateFromLocalDate(now);
-  const tomorrowIso = addCalendarDaysToSleepDateKey(todayIso, 1);
-  const n = normalizeSleepDateKey(nightMd);
-  const t = normalizeSleepDateKey(tomorrowIso);
-  if (n && t && n === t) {
-    if (!nightRowAwaitingWake(todayIso, liveDays, averagesFallback)) return false;
-    return isNightBedLoggedCore(todayIso, liveDays, averagesFallback);
-  }
-  return false;
-}
-
 /**
- * Fell-asleep or sleep intent (e.g. quick-action "Sleep in 10 min") on the row — same stub + 12h wall-clock
- * idea as dashboard `sleepLoggedForSleepPeriod` in `quick-actions.js`.
+ * Fell-asleep or sleep intent (e.g. quick-action "Sleep in 10 min") on this wake-day row — same stub
+ * + 12h wall-clock idea as dashboard `sleepLoggedForSleepPeriod` in `quick-actions.js`.
  */
-function isNightSleepOrIntentLoggedNavCore(nightMd, liveDays, now, averagesFallback) {
+function isNightSleepOrIntentLoggedNav(nightMd, liveDays, now, averagesFallback) {
   const qa = readNightQaSleepFlagMap()[nightMd];
   if (qa && qa.sleep) return true;
   const day = pickDayForNightMdNav(nightMd, liveDays);
@@ -3404,22 +3514,6 @@ function isNightSleepOrIntentLoggedNavCore(nightMd, liveDays, now, averagesFallb
   const sleepDiff = String(day.sleepStart || '') !== String(stub.sleepStart || '');
   if (!sleepDiff) return false;
   return isWallClockWithinRecentHoursNav(now, day.sleepStart, 12);
-}
-
-function isNightSleepOrIntentLoggedNav(nightMd, liveDays, now, averagesFallback) {
-  const coreNight = isNightSleepOrIntentLoggedNavCore(nightMd, liveDays, now, averagesFallback);
-  if (coreNight) {
-    return true;
-  }
-  const todayIso = formatIsoDateFromLocalDate(now);
-  const tomorrowIso = addCalendarDaysToSleepDateKey(todayIso, 1);
-  const n = normalizeSleepDateKey(nightMd);
-  const t = normalizeSleepDateKey(tomorrowIso);
-  if (n && t && n === t) {
-    if (!nightRowAwaitingWake(todayIso, liveDays, averagesFallback)) return false;
-    return isNightSleepOrIntentLoggedNavCore(todayIso, liveDays, now, averagesFallback);
-  }
-  return false;
 }
 
 /**
@@ -3433,7 +3527,7 @@ function shouldShowDynamicSleepNavPhase(days, basis, now, nightMd) {
   }
   const averagesFallback =
     typeof QUICK_ADD_FALLBACK_AVERAGES !== 'undefined' ? QUICK_ADD_FALLBACK_AVERAGES : null;
-  const bedOrSleepLogged = isNightBedOrSleepLogged(nightMd, days, now, averagesFallback);
+  const bedOrSleepLogged = isNightBedOrSleepLogged(nightMd, days, averagesFallback);
   if (!bedOrSleepLogged) {
     return false;
   }
@@ -3443,38 +3537,172 @@ function shouldShowDynamicSleepNavPhase(days, basis, now, nightMd) {
   return inLimbo || inSleepWin;
 }
 
-/** Last 7 days in `days`: average get-up, average fell-asleep, and wake-window length (minutes between them). */
-function computeRecentSevenDayWakeBasis(days) {
-  if (!days || days.length === 0) return null;
-  const recent = days.slice(0, Math.min(7, days.length));
+// ---------------------------------------------------------------------------
+// Recent averages ("Natural" sleep / wake) — single source of truth.
+// Every surface that needs "your recent average" calls computeRecentAverages; do not re-derive it.
+// `days` are newest-first (days[0] = most recent logged entry). The window counts logged
+// entries, not calendar days. Self-contained section: candidate for extraction from sleep-utils.
+// ---------------------------------------------------------------------------
+
+/** Number of most recent logged entries (not calendar days) in the recent average. */
+const RECENT_AVERAGE_WINDOW = 14;
+/**
+ * Recency half-life in logged entries: an entry this many entries back counts half as much as the
+ * newest. With 14 entries and a half-life of 5: newest ≈15%, oldest ≈2.5%, newest 7 ≈72% of the weight.
+ * Spec: docs/recent-average.md.
+ */
+const RECENT_AVERAGE_HALF_LIFE = 5;
+
+/**
+ * Per-entry weights for a recent-average window, newest first: 0.5 ^ (index / half-life).
+ * @param {number} count
+ * @returns {number[]}
+ */
+function recentAverageWeights(count) {
+  const weights = [];
+  for (let i = 0; i < count; i++) weights.push(Math.pow(0.5, i / RECENT_AVERAGE_HALF_LIFE));
+  return weights;
+}
+
+/**
+ * Learning stages by logged entries in the recent average (docs/recent-average.md § Learning stages):
+ *   'empty' 0 · 'learning' 1–6 🌱 · 'forming' 7–13 🌿 · 'established' 14+ (RECENT_AVERAGE_WINDOW).
+ * Guidance and deviation flags unlock at RECENT_AVERAGE_FORMING_MIN.
+ */
+const RECENT_AVERAGE_FORMING_MIN = 7;
+
+/** @returns {'empty'|'learning'|'forming'|'established'} */
+function getRecentAverageStage(sampleSize) {
+  const n = Number.isFinite(sampleSize) ? sampleSize : 0;
+  if (n <= 0) return 'empty';
+  if (n < RECENT_AVERAGE_FORMING_MIN) return 'learning';
+  if (n < RECENT_AVERAGE_WINDOW) return 'forming';
+  return 'established';
+}
+
+/** Tonight guidance waits for the forming stage; until then a saved target applies directly. */
+function isTonightGuidanceHeld(sampleSize) {
+  const stage = getRecentAverageStage(sampleSize);
+  return stage === 'empty' || stage === 'learning';
+}
+
+function equalWeights(count) {
+  const weights = [];
+  for (let i = 0; i < count; i++) weights.push(1);
+  return weights;
+}
+
+/**
+ * Average a list of nights (no window selection). Clock times are averaged on the extended
+ * axis (normalizeTimeForAveraging / normalizeWakeTimeForAveraging) so midnight crossings
+ * average correctly, then returned as minutes from midnight.
+ * @param {Array<object>} nights
+ * @param {number[]} [weights] one per night; defaults to equal weights
+ * @returns {null | {
+ *   sampleSize: number,
+ *   avgSleepStart: number,
+ *   avgSleepEnd: number,
+ *   avgSleepDuration: number,
+ *   avgLongestUninterrupted: number,
+ *   avgBedToSleepDelay: number,
+ *   avgFirstAlarmToWake: number|null,
+ *   exact: { sleepStartNorm: number, sleepEndNorm: number, sleepDuration: number }
+ * }}
+ * `exact` holds the unrounded means — fell-asleep and wake on the extended axis — for comparisons
+ * that must not round-trip through clock minutes (deviation-flag baselines).
+ */
+function averageSleepNights(nights, weights) {
+  const list = Array.isArray(nights) ? nights : [];
+  const n = list.length;
+  if (n === 0) return null;
+  const w = Array.isArray(weights) && weights.length === n ? weights : equalWeights(n);
+
+  let wSum = 0;
   let sleepStartSum = 0;
   let sleepEndSum = 0;
-  for (let i = 0; i < recent.length; i++) {
-    const d = recent[i];
-    const ss = timeToMinutes(d.sleepStart);
-    sleepStartSum += normalizeTimeForAveraging(ss);
-    sleepEndSum += normalizeWakeTimeForAveraging(ss, timeToMinutes(d.sleepEnd));
+  let durationSum = 0;
+  let longestSum = 0;
+  let delaySum = 0;
+  let alarmSum = 0;
+  let alarmW = 0;
+
+  for (let i = 0; i < n; i++) {
+    const day = list[i];
+    const wi = w[i];
+    wSum += wi;
+    const ss = timeToMinutes(day.sleepStart);
+    sleepStartSum += wi * normalizeTimeForAveraging(ss);
+    sleepEndSum += wi * normalizeWakeTimeForAveraging(ss, timeToMinutes(day.sleepEnd));
+    durationSum += wi * calculateTotalSleep(day);
+    longestSum += wi * calculateLongestUninterrupted(day);
+    delaySum += wi * calculateSleepDelay(day);
+    const alarmToWake = calculateFirstAlarmToWake(day);
+    if (alarmToWake !== null) {
+      alarmSum += wi * alarmToWake;
+      alarmW += wi;
+    }
   }
-  const n = recent.length;
-  const avgSleepStart = denormalizeTimeForAveraging(Math.round(sleepStartSum / n));
-  const avgSleepEnd = denormalizeTimeForAveraging(Math.round(sleepEndSum / n));
-  const totalWakeMins = durationMinutes(avgSleepEnd, avgSleepStart);
-  return { avgSleepStart, avgSleepEnd, totalWakeMins };
+
+  return {
+    sampleSize: n,
+    avgSleepStart: denormalizeTimeForAveraging(Math.round(sleepStartSum / wSum)),
+    avgSleepEnd: denormalizeTimeForAveraging(Math.round(sleepEndSum / wSum)),
+    avgSleepDuration: Math.round(durationSum / wSum),
+    avgLongestUninterrupted: Math.round(longestSum / wSum),
+    avgBedToSleepDelay: Math.round(delaySum / wSum),
+    avgFirstAlarmToWake: alarmW > 0 ? Math.round(alarmSum / alarmW) : null,
+    exact: {
+      sleepStartNorm: sleepStartSum / wSum,
+      sleepEndNorm: sleepEndSum / wSum,
+      sleepDuration: durationSum / wSum
+    }
+  };
+}
+
+/**
+ * Recent average: the most recent RECENT_AVERAGE_WINDOW logged entries, weighted toward the newest
+ * (recentAverageWeights). With fewer entries the same weights apply to what exists.
+ * @param {Array<object>} days newest-first
+ * @param {{ endBeforeIndex?: number }} [options] endBeforeIndex: average the entries *before*
+ *   days[endBeforeIndex] (that night excluded) — for per-night baselines.
+ * @returns {ReturnType<typeof averageSleepNights>} null when there are no entries in the window
+ */
+function computeRecentAverages(days, options) {
+  const list = Array.isArray(days) ? days : [];
+  const opts = options || {};
+  const start = Number.isInteger(opts.endBeforeIndex) ? opts.endBeforeIndex + 1 : 0;
+  const recent = list.slice(start, start + RECENT_AVERAGE_WINDOW);
+  if (recent.length === 0) return null;
+  return averageSleepNights(recent, recentAverageWeights(recent.length));
+}
+
+/** Recent average fell-asleep and get-up, plus wake-window length (minutes between them). */
+function computeRecentWakeBasis(days) {
+  const avg = computeRecentAverages(days);
+  if (!avg) return null;
+  return {
+    avgSleepStart: avg.avgSleepStart,
+    avgSleepEnd: avg.avgSleepEnd,
+    totalWakeMins: durationMinutes(avg.avgSleepEnd, avg.avgSleepStart)
+  };
 }
 
 /**
  * Canonical sleep/wake basis for remaining-wake nav, quick actions, and dashboard phase:
- * recent seven-day averages, optional saved Tonight target pair, then optional session slider adjustment.
+ * recent averages (computeRecentAverages), optional saved Tonight target pair, then optional session slider adjustment.
  */
 function getTonightWakePhaseBasisFromDays(days) {
   const liveDays = Array.isArray(days) ? days : [];
-  let basis = computeRecentSevenDayWakeBasis(liveDays);
+  let basis = computeRecentWakeBasis(liveDays);
   if (!basis || !Number.isFinite(basis.avgSleepStart) || !Number.isFinite(basis.avgSleepEnd)) {
     basis = getFallbackWakeBasis();
   }
+  const recent = computeRecentAverages(liveDays);
   const tw = getTonightTargetWindow();
   if (tw) {
-    const resolved = resolveTonightScheduledWindow(basis.avgSleepStart, basis.avgSleepEnd, tw);
+    const resolved = resolveTonightScheduledWindow(basis.avgSleepStart, basis.avgSleepEnd, tw, {
+      holdGuidance: isTonightGuidanceHeld(recent ? recent.sampleSize : 0)
+    });
     basis = {
       avgSleepStart: resolved.sleep,
       avgSleepEnd: resolved.wake,
@@ -3578,7 +3806,8 @@ function getSharedAppTimeContext(days) {
   if (!basis || !Number.isFinite(basis.avgSleepStart) || !Number.isFinite(basis.avgSleepEnd)) {
     return null;
   }
-  const nightMd = recordDateMdForSleepPeriod(now, basis.avgSleepEnd);
+  // Night lookup on the natural wake; phase / proximity / quiet window below stay on the scheduled basis.
+  const nightMd = getCurrentNightKey(now, liveDays);
   const navDisplay = getRemainingWakeDisplayFromBasis(basis, liveDays);
   const averagesFallback = typeof QUICK_ADD_FALLBACK_AVERAGES !== 'undefined' ? QUICK_ADD_FALLBACK_AVERAGES : null;
   const isDynamicSleepPhase =
@@ -3664,7 +3893,7 @@ function applyRemainingWakeThresholdsUI(pos1, pos2) {
     if (tim) tim.textContent = timeOpen;
     percentLeft.setAttribute(
       'aria-label',
-      t('config.remainingWake.leftThumbAria', 'Active until {percent}% wake time remains, around {time} with your 7-day averages')
+      t('config.remainingWake.leftThumbAria', 'Active until {percent}% wake time remains, around {time} with your recent averages')
         .replace('{percent}', String(openMin))
         .replace('{time}', String(timeOpen))
     );
@@ -3677,7 +3906,7 @@ function applyRemainingWakeThresholdsUI(pos1, pos2) {
     if (tim) tim.textContent = timeWinding;
     percentRight.setAttribute(
       'aria-label',
-      t('config.remainingWake.rightThumbAria', 'Winding down until {percent}% wake time remains, around {time} with your 7-day averages')
+      t('config.remainingWake.rightThumbAria', 'Winding down until {percent}% wake time remains, around {time} with your recent averages')
         .replace('{percent}', String(windingMin))
         .replace('{time}', String(timeWinding))
     );
@@ -3823,7 +4052,7 @@ function initRemainingWakeThresholdsConfig() {
 
   loadSleepData()
     .then(function (data) {
-      configRemainingWakeBasis = computeRecentSevenDayWakeBasis(data.days);
+      configRemainingWakeBasis = computeRecentWakeBasis(data.days);
       const { openMin, windingMin } = getRemainingWakeThresholds();
       applyRemainingWakeThresholdsUI(100 - openMin, 100 - windingMin);
     })
@@ -5493,7 +5722,7 @@ function renderNavBar(currentPage) {
 }
 
 // Phase thresholds from getRemainingWakeThresholds(): open >= openMin%, winding openMin–windingMin%, pre-sleep < windingMin%.
-// totalWakeMins = minutes from average get-up to average sleep (recent 7 days).
+// totalWakeMins = minutes from average get-up to average sleep (recent averages).
 function getRemainingWakePhase(remainingMins, totalWakeMins) {
   if (totalWakeMins <= 0) return 'open';
   const percentRemaining = Math.min(100, (remainingMins / totalWakeMins) * 100);
@@ -5568,12 +5797,12 @@ function getRemainingWakeDisplayFromBasis(basis, days) {
   const { avgSleepStart, avgSleepEnd, totalWakeMins } = basis;
   const now = getAppDate();
   const nowMins = now.getHours() * 60 + now.getMinutes();
-  const nightMd = recordDateMdForSleepPeriod(now, avgSleepEnd);
+  const nightMd = getCurrentNightKey(now, days);
   const averagesFallback =
     typeof QUICK_ADD_FALLBACK_AVERAGES !== 'undefined' ? QUICK_ADD_FALLBACK_AVERAGES : null;
 
   if (days && days.length && shouldShowDynamicSleepNavPhase(days, basis, now, nightMd)) {
-    const bedLogged = isNightBedLogged(nightMd, days, now, averagesFallback);
+    const bedLogged = isNightBedLogged(nightMd, days, averagesFallback);
     const sleepOrIntentLogged = isNightSleepOrIntentLoggedNav(nightMd, days, now, averagesFallback);
     const bedOnlyNeedGoSleep = bedLogged && !sleepOrIntentLogged;
     if (bedOnlyNeedGoSleep) {
@@ -5601,7 +5830,7 @@ function getRemainingWakeDisplayFromBasis(basis, days) {
       const bedNav =
         days &&
         days.length &&
-        isNightBedLogged(nightMd, days, now, averagesFallback);
+        isNightBedLogged(nightMd, days, averagesFallback);
       const sleepOrIntentNav =
         days &&
         days.length &&
@@ -5631,9 +5860,20 @@ function getRemainingWakeDisplayFromBasis(basis, days) {
 }
 
 /** Returns { phase, icon, timeLabel, percentRemaining } from raw days (used when nightly.js not loaded).
- * Recent 7 days: average get-up and fell-asleep; phase uses minutes-until-sleep vs that wake-window length. */
+ * Recent averages: average get-up and fell-asleep; phase uses minutes-until-sleep vs that wake-window length. */
+/** Nav display before any night is logged: no times are derived from defaults. */
+function getLearningRemainingWakeDisplay() {
+  return {
+    phase: 'learning',
+    icon: '🌱',
+    timeLabel: 'learning your rhythm',
+    timeLabelSoft: true,
+    percentRemaining: null
+  };
+}
+
 function getRemainingWakeDisplayFromDays(days) {
-  if (!days || days.length === 0) return null;
+  if (!days || days.length === 0) return getLearningRemainingWakeDisplay();
   const basis = getEffectiveRemainingWakeBasis(days);
   return getRemainingWakeDisplayFromBasis(basis, days);
 }
@@ -5851,11 +6091,10 @@ function initRemainingWakeNav(options) {
   loadSleepData()
     .then(data => {
       const days = Array.isArray(data.days) ? data.days : [];
-      const basis = getEffectiveRemainingWakeBasis(days);
-      updateRemainingWakeNav(getRemainingWakeDisplayFromBasis(basis, days));
+      updateRemainingWakeNav(getRemainingWakeDisplayFromDays(days));
       if (runInterval && typeof window !== 'undefined') {
         window[timerKey] = setInterval(function () {
-          updateRemainingWakeNav(getRemainingWakeDisplayFromBasis(basis, days));
+          updateRemainingWakeNav(getRemainingWakeDisplayFromDays(days));
         }, 60000);
       }
     })

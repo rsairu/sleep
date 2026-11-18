@@ -5,7 +5,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test:math": "node tests/math-tests.js"
+    "test:math": "node tests/math-tests.js",
+    "test:qa": "node tests/quick-actions-scenarios.mjs"
   },
   "devDependencies": {
     "vite": "^6.3.5",

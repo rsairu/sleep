@@ -52,7 +52,7 @@ Core split:
 
 Canonical basis comes from `getTonightWakePhaseBasisFromDays(days)`:
 
-1. Recent seven-day averages (`computeRecentSevenDayWakeBasis`).
+1. Recent averages (`computeRecentWakeBasis` → `computeRecentAverages`, the single recent-average helper in `sleep-utils.js`).
 2. Optional saved Tonight target window (`getTonightTargetWindow`).
 3. Optional session projection adjustment (`getTonightProjectionAdjustment`).
 
@@ -64,7 +64,7 @@ Returned basis:
 
 Fallback behavior:
 
-- If seven-day basis is unavailable, `getFallbackWakeBasis()` is used.
+- If the recent-average basis is unavailable (no logged nights), `getFallbackWakeBasis()` is used internally, but the nav shows the 🌱 learning display (`getLearningRemainingWakeDisplay`: *learning your rhythm*, no progress bar) instead of a countdown from default times. While the recent average is learning (fewer than 7 nights), Tonight guidance is held, so a saved target applies directly to the basis.
 
 ---
 
@@ -110,14 +110,14 @@ If true, display returns:
 
 #### Bed / fell-asleep considered “logged” for Dynamic Sleep (nav)
 
-Dynamic Sleep uses `isNightBedOrSleepLogged`, built on **`isNightBedOrSleepLoggedCore`**:
+Dynamic Sleep uses `isNightBedOrSleepLogged` on the night-key row (`nightMd`) only:
 
 - QA flags (`readNightQaSleepFlagMap`) for bed or sleep on that wake-day row, **or**
 - The loaded day row differs from the **stub** built by `buildStubDayForNightMd` for bed or `sleepStart` (same idea as `nightRowAwaitingWake`).
 
 Nav does **not** require wall-clock recency here: backfilled or older entries still count so the nav does not stay stuck on **get in bed soon** when the row is genuinely filled in.
 
-**Evening wake-day alignment:** After local evening, `recordDateMdForSleepPeriod(now, avgWake)` uses **tomorrow’s** ISO wake-day key (`nightMd`), while the user may still have saved bed/sleep on **today’s** row. When `nightMd` equals **tomorrow** (calendar), `isNightBedOrSleepLogged` also treats **today’s** row as logged if core checks pass there **and** `nightRowAwaitingWake(today)` — i.e. today’s wake-day row is still an open night (morning wake not finalized). A **completed** prior row must not satisfy “logged” for the upcoming sleep period.
+**One row only:** bed and sleep saves use the same night key as this lookup (`getCurrentNightKey`, natural-wake cutover), so tonight’s bed is always on `nightMd`. An earlier row still awaiting wake (a forgotten wake) does **not** count as tonight’s bed or sleep. The same holds for `isNightBedLogged` and `isNightSleepOrIntentLoggedNav`. (The former evening alignment to today’s row predated the natural-wake key and was removed.)
 
 **Quick actions are separate:** Dashboard buttons still use stub diff **plus** a **12-hour** wall-clock window where applicable (`docs/quick-actions.md`). Only remaining-wake Dynamic Sleep uses the relaxed nav rules above.
 
@@ -145,7 +145,7 @@ Otherwise:
 
 ## Default Log / quick-add wake-day key
 
-`resolveDefaultQuickAddNightDateMd(days)` chooses an incomplete draft first if any, otherwise **`recordDateMdForSleepPeriod(getAppDate(), basis.avgSleepEnd)`** from `getEffectiveRemainingWakeBasis`. It does **not** add an extra calendar day based on nav phase (that previously could advance the default two days ahead in the evening).
+`resolveDefaultQuickAddNightDateMd(days)` chooses the latest of `sleep_days` / drafts first, otherwise **`getCurrentNightKey(getAppDate(), days)`** — the cutover on the **natural** recent-average wake ([wake-day-key.md](wake-day-key.md)). It does **not** add an extra calendar day based on nav phase (that previously could advance the default two days ahead in the evening).
 
 ---
 
@@ -229,9 +229,9 @@ Read/hydrate path:
 |--------|------------------|
 | Threshold storage + defaults | `REMAINING_WAKE_THRESHOLDS_KEY`, `DEFAULT_REMAINING_WAKE_OPEN_MIN`, `DEFAULT_REMAINING_WAKE_WINDING_MIN`, `getRemainingWakeThresholds`, `setRemainingWakeThresholds` |
 | Heads-up storage + conversion | `REMAINING_WAKE_PHASE_HEADS_UP_KEY`, `REMAINING_WAKE_PHASE_HEADS_UP_ALLOWED`, `getRemainingWakePhaseHeadsUpMinutes`, `setRemainingWakePhaseHeadsUpMinutes`, slider conversion helpers |
-| Basis selection | `computeRecentSevenDayWakeBasis`, `getTonightWakePhaseBasisFromDays`, `getEffectiveRemainingWakeBasis`, `getFallbackWakeBasis` |
+| Basis selection | `computeRecentWakeBasis`, `getTonightWakePhaseBasisFromDays`, `getEffectiveRemainingWakeBasis`, `getFallbackWakeBasis` |
 | Phase/time inference | `getRemainingWakePhase`, `computeRemainingWakePhaseHeadsUp`, `shouldShowGoToBedSoonWakeNav` |
-| Dynamic sleep logic | `shouldShowDynamicSleepNavPhase`, `isNightBedOrSleepLogged`, `isNightBedOrSleepLoggedCore`, `isNightWakeLogged`, `inferNavSleepWindowPhase` |
+| Dynamic sleep logic | `shouldShowDynamicSleepNavPhase`, `isNightBedOrSleepLogged`, `isNightBedLogged`, `isNightSleepOrIntentLoggedNav`, `isNightWakeLogged`, `inferNavSleepWindowPhase` |
 | Display object | `getRemainingWakeDisplayFromBasis`, `getRemainingWakeDisplayFromDays` |
 | Nav render | `updateRemainingWakeNav`, wrapper phase classes, heads-up blend class |
 | Lifecycle/init | `initRemainingWakeNav`, route config `remainingWake` in `src/spa-app.js` |

@@ -37,9 +37,15 @@ async function loadSleepUtils() {
   installRoutesData(context);
   const timeUtilsPath = path.join(__dirname, '..', 'src', 'lib', 'time-utils.js');
   vm.runInContext(fs.readFileSync(timeUtilsPath, 'utf8'), context, { filename: 'src/lib/time-utils.js' });
+  // Same load order as index.html: time-utils → i18n → sleep-utils (sleep-utils reads LANGUAGE_KEY etc. from i18n).
+  const i18nPath = path.join(__dirname, '..', 'src', 'lib', 'i18n.js');
+  vm.runInContext(fs.readFileSync(i18nPath, 'utf8'), context, { filename: 'src/lib/i18n.js' });
   vm.runInContext(code, context, { filename: 'src/lib/sleep-utils.js' });
   const aggPath = path.join(__dirname, '..', 'src', 'lib', 'stats-aggregates.js');
   vm.runInContext(fs.readFileSync(aggPath, 'utf8'), context, { filename: 'src/lib/stats-aggregates.js' });
+  // nightly.js: averages + deviation-flag math (no `document` in this context, so its DOM init is skipped).
+  const nightlyPath = path.join(__dirname, '..', 'src', 'lib', 'nightly.js');
+  vm.runInContext(fs.readFileSync(nightlyPath, 'utf8'), context, { filename: 'src/lib/nightly.js' });
   return context;
 }
 
@@ -162,8 +168,8 @@ async function runTests() {
     { sleepStart: '23:00', sleepEnd: '07:00' },
     { sleepStart: '23:00', sleepEnd: '07:00' }
   ];
-  const basis = u.computeRecentSevenDayWakeBasis(basisDays);
-  expectTruthy(basis, 'computeRecentSevenDayWakeBasis returns basis');
+  const basis = u.computeRecentWakeBasis(basisDays);
+  expectTruthy(basis, 'computeRecentWakeBasis returns basis');
   expectEqual(basis.avgSleepStart, 1380, 'basis avg sleep start');
   expectEqual(basis.avgSleepEnd, 420, 'basis avg wake end');
   expectEqual(basis.totalWakeMins, 960, 'basis total wake minutes');
@@ -191,9 +197,12 @@ async function runTests() {
   expectEqual(rOn.mode, 'guided', 'resolveTonightScheduledWindow both poles guided when gap');
   expectEqual(rOn.sleep, 1370, 'normal pace nudges sleep 10m toward earlier target');
   expectEqual(rOn.wake, 420, 'wake unchanged when already at target');
-  const guidedBasis = u.getTonightWakePhaseBasisFromDays(basisDays);
-  expectEqual(guidedBasis.avgSleepStart, 1370, 'getTonightWakePhaseBasisFromDays uses guided sleep');
+  // Guidance needs the taking-shape stage (7+ nights); with 3 nights it is held and the target applies directly.
+  const basisDays7 = basisDays.concat(basisDays, basisDays).slice(0, 7);
+  const guidedBasis = u.getTonightWakePhaseBasisFromDays(basisDays7);
+  expectEqual(guidedBasis.avgSleepStart, 1370, 'getTonightWakePhaseBasisFromDays uses guided sleep (7 nights)');
   expectEqual(guidedBasis.avgSleepEnd, 420, 'guided basis wake');
+  expectEqual(u.getTonightWakePhaseBasisFromDays(basisDays).avgSleepStart, 1320, 'phase basis with 3 nights: guidance held, target directly');
   u.localStorage.setItem('sleep-app-tonight-guidance-pace', 'steady');
   const rSteady = u.resolveTonightScheduledWindow(1380, 420, { sleep: 1320, wake: 420 });
   expectEqual(rSteady.sleep, 1365, 'steady pace nudges sleep 15m toward earlier target');
@@ -403,12 +412,10 @@ async function runTests() {
   });
   expectTruthy(mWakeDir.callout && mWakeDir.callout.directionEarlier === false, 'wake guided later than natural');
 
-  // Projection window wrap behavior near midnight
-  const sleepTargetNearMidnight = 10; // 00:10
-  const low = u.modMinutes1440(sleepTargetNearMidnight - 30);
-  const high = u.modMinutes1440(sleepTargetNearMidnight + 30);
-  expectEqual(low, 1420, 'projection lower bound wraps to previous day');
-  expectEqual(high, 40, 'projection upper bound wraps forward');
+  // Clock offsets wrap around midnight
+  const nearMidnight = 10; // 00:10
+  expectEqual(u.modMinutes1440(nearMidnight - 30), 1420, 'offset before midnight wraps to previous day');
+  expectEqual(u.modMinutes1440(nearMidnight + 30), 40, 'offset after midnight wraps forward');
 
   // Wake record date: finish prior wake-day row when clock rolls to next calendar morning
   const avgWake = 7 * 60;
@@ -428,6 +435,208 @@ async function runTests() {
     '2026-04-09',
     'resolveRecordDateMdForWake uses sleep-period key outside early-morning band'
   );
+
+  // Wake-day cutover (docs/wake-day-key.md): taps up to avg wake + 120 min → today's row; later → tomorrow's.
+  const cut = (mo, d, h, mi) => u.recordDateMdForSleepPeriod(new Date(2026, mo, d, h, mi, 0, 0), 7 * 60);
+  expectEqual(cut(10, 18, 23, 0), '2026-11-19', 'cutover: 23:00 Nov 18 bed → Nov 19 row');
+  expectEqual(cut(10, 19, 2, 0), '2026-11-19', 'cutover: 02:00 Nov 19 bed → Nov 19 row');
+  expectEqual(cut(10, 19, 9, 0), '2026-11-19', 'cutover: 09:00 (avg wake + 120) still today (inclusive)');
+  expectEqual(cut(10, 19, 9, 1), '2026-11-20', 'cutover: 09:01 rolls to tomorrow');
+
+  // Night key: saves and lookups anchor the cutover on the natural (recent-average) wake.
+  const nkDays = [
+    { date: '2026-11-18', bed: '23:00', sleepStart: '23:20', sleepEnd: '07:40', alarm: [], bathroom: [], WASO: 0 },
+    { date: '2026-11-17', bed: '23:00', sleepStart: '23:20', sleepEnd: '07:20', alarm: [], bathroom: [], WASO: 0 }
+  ];
+  expectEqual(u.getNightKeyWakeMinutes(nkDays), 451, 'night-key wake = natural weighted average (07:31; newest 07:40 weighs more)');
+  expectEqual(u.getNightKeyWakeMinutes([]), 420, 'night-key wake falls back to 07:00 with no history');
+  expectEqual(u.getCurrentNightKey(new Date(2026, 10, 19, 9, 31), nkDays), '2026-11-19', 'night key: 09:31 within natural cutover (09:31)');
+  expectEqual(u.getCurrentNightKey(new Date(2026, 10, 19, 9, 32), nkDays), '2026-11-20', 'night key: 09:32 past natural cutover');
+
+  // "Is tonight logged?" lookups read only the night-key row. A previous row still awaiting wake
+  // (forgotten wake) must not count as tonight's bed / sleep.
+  {
+    const qaKey = 'restore_qa_sleep_logged_v1';
+    const eve = new Date(2026, 10, 19, 21, 0);
+    const tonightKey = u.getCurrentNightKey(eve, nkDays);
+    expectEqual(tonightKey, '2026-11-20', 'lookup: 21:00 Nov 19 night key is Nov 20');
+    u.localStorage.setItem(qaKey, JSON.stringify({ '2026-11-19': { bed: true, sleep: true } }));
+    expectEqual(u.isNightBedOrSleepLogged(tonightKey, nkDays, null), false, 'lookup: forgotten wake on Nov 19 is not tonight\'s bed/sleep');
+    expectEqual(u.isNightBedLogged(tonightKey, nkDays, null), false, 'lookup: forgotten wake is not tonight\'s bed');
+    expectEqual(u.isNightSleepOrIntentLoggedNav(tonightKey, nkDays, eve, null), false, 'lookup: forgotten wake is not tonight\'s sleep');
+    u.localStorage.setItem(qaKey, JSON.stringify({ '2026-11-20': { bed: true } }));
+    expectEqual(u.isNightBedOrSleepLogged(tonightKey, nkDays, null), true, 'lookup: bed saved on tonight\'s key counts');
+    expectEqual(u.isNightBedLogged(tonightKey, nkDays, null), true, 'lookup: bed only on tonight\'s key');
+    expectEqual(u.isNightSleepOrIntentLoggedNav(tonightKey, nkDays, eve, null), false, 'lookup: bed only is not sleep');
+    u.localStorage.removeItem(qaKey);
+  }
+
+  // Night clock → instant: evening clocks fall the day before the wake date.
+  const ms = (mo, d, h, mi) => new Date(2026, mo, d, h, mi, 0, 0).getTime();
+  expectEqual(u.nightClockToInstantMs('2026-11-19', '23:10'), ms(10, 18, 23, 10), 'night clock 23:10 → Nov 18');
+  expectEqual(u.nightClockToInstantMs('2026-11-19', '02:00'), ms(10, 19, 2, 0), 'night clock 02:00 → Nov 19');
+  expectEqual(u.minutesPastNaturalWake('2026-11-19', 420, ms(10, 19, 10, 30)), 210, 'late wake: 10:30 is 210 min past 07:00');
+  expectEqual(u.minutesPastNaturalWake('2026-11-19', 420, ms(10, 18, 23, 30)), -450, 'evening before: negative');
+
+  // Open night: newest night with bed/sleep and no wake; abandoned after 24h from sleep or when superseded.
+  const draft = (date, bed, sleepStart, sleepEnd, nap) => ({ date, bed, sleepStart, sleepEnd, nap: nap || null });
+  const openNov19 = [draft('2026-11-19', '22:50', '23:10', null)];
+  const on1 = u.resolveOpenNight(openNov19, '2026-11-18', ms(10, 19, 10, 30));
+  expectEqual(on1 && on1.date, '2026-11-19', 'open night: sleep logged, no wake');
+  expectEqual(u.resolveOpenNight(openNov19, '2026-11-18', ms(10, 19, 23, 10)) && 'open', 'open', 'open night: exactly 24h after sleep still open');
+  expectEqual(u.resolveOpenNight(openNov19, '2026-11-18', ms(10, 19, 23, 11)), null, 'open night: abandoned 24h after sleep');
+  expectEqual(u.resolveOpenNight(openNov19, '2026-11-19', ms(10, 19, 10, 30)), null, 'open night: completed row for same night → none');
+  expectEqual(u.resolveOpenNight([draft('2026-11-19', '22:50', '23:10', '07:00')], null, ms(10, 19, 10, 30)), null, 'open night: wake already logged → none');
+  const superseded = [draft('2026-11-20', '', '23:40', null), draft('2026-11-19', '22:50', '23:10', null)];
+  const on2 = u.resolveOpenNight(superseded, null, ms(10, 19, 23, 45));
+  expectEqual(on2 && on2.date, '2026-11-20', 'open night: newer sleep supersedes older open night');
+  expectEqual(u.resolveOpenNight([draft('2026-11-20', '', '', null, { start: '14:00', end: '14:30' })].concat(openNov19), null, ms(10, 19, 15, 0)).date, '2026-11-19', 'open night: nap-only draft is not a new sleep');
+  const bedOnly = u.resolveOpenNight([draft('2026-11-19', '23:30', '', null)], null, ms(10, 19, 1, 0));
+  expectEqual(bedOnly && bedOnly.anchorMs, ms(10, 18, 23, 30), 'open night: bed-only night anchors on bed');
+  expectEqual(u.resolveOpenNight([], null, ms(10, 19, 10, 0)), null, 'open night: no drafts → none');
+
+  // averageSleepNights on a fixed list (week summaries, lifetime) is an equal-weight mean. Values recorded
+  // from the pre-refactor nightly.js calculateAverages (flat 7-night mean) and still reproduced.
+  const avgFixture = [
+    { date: '2026-11-16', bed: '23:20', sleepStart: '23:40', sleepEnd: '07:05', alarm: ['07:00'], bathroom: [], WASO: 0 },
+    { date: '2026-11-15', bed: '00:05', sleepStart: '00:30', sleepEnd: '08:10', alarm: [], bathroom: ['03:10'], WASO: 1 },
+    { date: '2026-11-14', bed: '23:45', sleepStart: '00:10', sleepEnd: '07:40', alarm: [], bathroom: [], WASO: 0 },
+    { date: '2026-11-13', bed: '22:50', sleepStart: '23:15', sleepEnd: '06:50', alarm: ['06:45'], bathroom: [], WASO: 0 },
+    { date: '2026-11-12', bed: '23:30', sleepStart: '23:55', sleepEnd: '07:15', alarm: ['07:00', '07:10'], bathroom: [], WASO: 2 },
+    { date: '2026-11-11', bed: '00:40', sleepStart: '01:15', sleepEnd: '07:30', alarm: ['07:30'], bathroom: [], WASO: 0 },
+    { date: '2026-11-10', bed: '23:10', sleepStart: '23:30', sleepEnd: '07:00', alarm: [], bathroom: [], WASO: 0 },
+    { date: '2026-11-09', bed: '22:30', sleepStart: '22:45', sleepEnd: '06:30', alarm: ['06:30'], bathroom: [], WASO: 0 },
+    { date: '2026-11-08', bed: '23:00', sleepStart: '23:20', sleepEnd: '07:50', alarm: [], bathroom: [], WASO: 0 },
+    { date: '2026-11-07', bed: '00:20', sleepStart: '00:45', sleepEnd: '09:00', alarm: [], bathroom: [], WASO: 1 }
+  ];
+  const ca7 = u.averageSleepNights(avgFixture.slice(0, 7));
+  expectEqual(ca7.sampleSize, 7, 'averageSleepNights sampleSize');
+  expectEqual(ca7.avgSleepStart, 2, 'averageSleepNights avgSleepStart 00:02 across midnight');
+  expectEqual(ca7.avgSleepEnd, 441, 'averageSleepNights avgSleepEnd 07:21');
+  expectEqual(ca7.avgSleepDuration, 439, 'averageSleepNights avgSleepDuration');
+  expectEqual(ca7.avgLongestUninterrupted, 436, 'averageSleepNights avgLongestUninterrupted');
+  expectEqual(ca7.avgBedToSleepDelay, 25, 'averageSleepNights avgBedToSleepDelay');
+  expectEqual(ca7.avgFirstAlarmToWake, 6, 'averageSleepNights avgFirstAlarmToWake (alarm nights only)');
+  // Recent average (docs/recent-average.md): newest 14 logged entries, weight 0.5^(i/5).
+  // Expected clock values computed independently (Python) from the same rule.
+  const rw = u.recentAverageWeights(14);
+  expectEqual(rw[0], 1, 'recent weights: newest = 1');
+  expectEqual(rw[5], 0.5, 'recent weights: 5 entries back = 1/2 (half-life)');
+  expectEqual(rw[10], 0.25, 'recent weights: 10 entries back = 1/4');
+  const rwSum = rw.reduce((a, b) => a + b, 0);
+  expectEqual(Math.round((rw[0] / rwSum) * 1000) / 10, 15.1, 'recent weights: newest ≈15.1% of 14');
+  expectEqual(Math.round((rw[13] / rwSum) * 1000) / 10, 2.5, 'recent weights: oldest ≈2.5% of 14');
+  const cr = u.computeRecentAverages(avgFixture);
+  expectEqual(cr.sampleSize, 10, 'computeRecentAverages uses all 10 entries (window 14)');
+  expectEqual(cr.avgSleepStart, 1436, 'weighted recent fell-asleep 23:56');
+  expectEqual(cr.avgSleepEnd, 446, 'weighted recent wake 07:26');
+  expectEqual(
+    JSON.stringify(cr),
+    JSON.stringify(u.averageSleepNights(avgFixture, u.recentAverageWeights(10))),
+    'computeRecentAverages = averageSleepNights with recent weights'
+  );
+  expectEqual(u.computeRecentAverages([]), null, 'computeRecentAverages empty → null');
+  expectEqual(u.computeRecentAverages(avgFixture.slice(0, 3)).sampleSize, 3, 'computeRecentAverages partial window');
+  const twentyNights = [];
+  for (let i = 0; i < 20; i++) twentyNights.push(avgFixture[i % avgFixture.length]);
+  expectEqual(u.computeRecentAverages(twentyNights).sampleSize, 14, 'window counts the newest 14 logged entries');
+  // endBeforeIndex: per-night baseline excludes the night itself.
+  const crBefore0 = u.computeRecentAverages(avgFixture, { endBeforeIndex: 0 });
+  expectEqual(crBefore0.sampleSize, 9, 'endBeforeIndex 0 uses nights 1–9');
+  expectEqual(crBefore0.avgSleepStart, 1439, 'endBeforeIndex 0 weighted fell-asleep 23:59');
+  expectEqual(crBefore0.avgSleepEnd, 451, 'endBeforeIndex 0 weighted wake 07:31');
+  // Catch-up: bedtime moves from 23:00 to 22:00 for the newest k of 14 nights.
+  const stepNights = (k) => {
+    const out = [];
+    for (let i = 0; i < 14; i++) {
+      out.push(i < k
+        ? { date: '2026-11-01', bed: '21:40', sleepStart: '22:00', sleepEnd: '06:00', alarm: [], bathroom: [], WASO: 0 }
+        : { date: '2026-11-01', bed: '22:40', sleepStart: '23:00', sleepEnd: '07:00', alarm: [], bathroom: [], WASO: 0 });
+    }
+    return out;
+  };
+  expectEqual(u.computeRecentAverages(stepNights(1)).avgSleepStart, 1371, 'catch-up: 1 night in → 9 min (22:51)');
+  expectEqual(u.computeRecentAverages(stepNights(3)).avgSleepStart, 1356, 'catch-up: 3 nights in → 24 min (22:36)');
+  expectEqual(u.computeRecentAverages(stepNights(7)).avgSleepStart, 1336, 'catch-up: 7 nights in → 44 min (22:16)');
+  expectEqual(u.computeRecentAverages(stepNights(14)).avgSleepStart, 1320, 'catch-up: 14 nights in → full hour (22:00)');
+  const rb = u.computeRecentWakeBasis(avgFixture);
+  expectEqual(rb.avgSleepStart, cr.avgSleepStart, 'wake basis sleep matches recent average');
+  expectEqual(rb.avgSleepEnd, cr.avgSleepEnd, 'wake basis wake matches recent average');
+  const caTwo = u.averageSleepNights([
+    { date: '2026-11-02', bed: '23:00', sleepStart: '23:30', sleepEnd: '07:00', alarm: [], bathroom: [], WASO: 0 },
+    { date: '2026-11-01', bed: '00:00', sleepStart: '00:30', sleepEnd: '08:00', alarm: [], bathroom: [], WASO: 0 }
+  ]);
+  expectEqual(caTwo.avgSleepStart, 0, '23:30 + 00:30 average to 00:00');
+  expectEqual(caTwo.avgSleepEnd, 450, '07:00 + 08:00 average to 07:30');
+  expectEqual(caTwo.avgFirstAlarmToWake, null, 'no alarm nights → avgFirstAlarmToWake null');
+  // Deviation-flag baseline: recent average of the entries before the night (night excluded), unrounded.
+  const db0 = u.getDeviationBaseline(avgFixture, 0);
+  expectEqual(db0.insufficient, false, 'flag baseline sufficient with 9 prior nights');
+  expectEqual(db0.sampleSize, 9, 'flag baseline uses nights 1–9');
+  expectEqual(Math.round(db0.avgFellAsleepTime * 100) / 100, 1439.35, 'flag baseline fell-asleep: weighted, extended axis, unrounded');
+  expectEqual(Math.round(db0.avgWakeTime * 100) / 100, 1890.84, 'flag baseline wake: weighted, extended axis, unrounded');
+  expectEqual(
+    db0.avgSleepDuration,
+    u.computeRecentAverages(avgFixture, { endBeforeIndex: 0 }).exact.sleepDuration,
+    'flag baseline duration = helper exact duration'
+  );
+  const db2 = u.getDeviationBaseline(avgFixture, 2);
+  expectEqual(db2.insufficient, false, 'flag baseline sufficient with exactly 7 prior nights');
+  const db3 = u.getDeviationBaseline(avgFixture, 3);
+  expectEqual(db3.insufficient, true, 'flag baseline learning with only 6 prior nights');
+  expectEqual(db3.sampleSize, 6, 'flag baseline learning sampleSize');
+  expectEqual(u.getDeviationBaseline(twentyNights, 0).sampleSize, 14, 'flag baseline caps at 14 prior nights');
+  // Flags on a night far from its baseline: 03:00 sleep / 13:00 wake after the fixture's ~00:00 / 07:30.
+  const lateNight = { date: '2026-11-17', bed: '02:40', sleepStart: '03:00', sleepEnd: '13:00', alarm: [], bathroom: [], WASO: 0 };
+  const flagDays = [lateNight].concat(avgFixture);
+  expectEqual(JSON.stringify(u.getFlagTypes(lateNight, u.getDeviationBaseline(flagDays, 0))), JSON.stringify(['😴', '🌅']), 'late night flags 😴 and 🌅 against weighted baseline');
+
+  // Learning stages (docs/recent-average.md § Learning stages)
+  expectEqual(u.getRecentAverageStage(0), 'empty', 'stage: 0 nights empty');
+  expectEqual(u.getRecentAverageStage(1), 'learning', 'stage: 1 night learning');
+  expectEqual(u.getRecentAverageStage(6), 'learning', 'stage: 6 nights learning');
+  expectEqual(u.getRecentAverageStage(7), 'forming', 'stage: 7 nights taking shape');
+  expectEqual(u.getRecentAverageStage(13), 'forming', 'stage: 13 nights taking shape');
+  expectEqual(u.getRecentAverageStage(14), 'established', 'stage: 14 nights established');
+  expectEqual(u.isTonightGuidanceHeld(6), true, 'guidance held below 7 nights');
+  expectEqual(u.isTonightGuidanceHeld(7), false, 'guidance active from 7 nights');
+  expectEqual(u.getDeviationBaseline(avgFixture, 2).stage, 'forming', 'flag baseline with 7 earlier nights is taking shape');
+  expectEqual(u.getDeviationBaseline(twentyNights, 0).stage, 'established', 'flag baseline with 14 earlier nights is established');
+  const fm = u.buildFlagCountMap(avgFixture);
+  expectEqual(fm.get('2026-11-14').forming, true, 'calendar: night with 7 earlier nights marked forming');
+  expectEqual(fm.get('2026-11-13').insufficient, true, 'calendar: night with 6 earlier nights stays learning');
+  expectEqual(fm.get('2026-11-13').forming, false, 'calendar: learning night is not forming');
+  // 0 nights: nav shows learning instead of a countdown from default times.
+  const learnNav = u.getRemainingWakeDisplayFromDays([]);
+  expectEqual(learnNav.phase, 'learning', 'nav with no nights: learning phase');
+  expectEqual(learnNav.percentRemaining, null, 'nav with no nights: no progress bar');
+  // Guidance held while learning: a saved target applies directly.
+  u.localStorage.setItem('sleep-app-tonight-target-window', JSON.stringify({ sleep: 1320, wake: 420 }));
+  u.localStorage.setItem('sleep-app-tonight-guidance-sleep-enabled', '1');
+  u.localStorage.setItem('sleep-app-tonight-guidance-wake-enabled', '1');
+  const rHeld = u.resolveTonightScheduledWindow(1380, 450, { sleep: 1320, wake: 420 }, { holdGuidance: true });
+  expectEqual(rHeld.mode, 'target', 'held guidance: mode target');
+  expectEqual(rHeld.sleep, 1320, 'held guidance: target sleep applied directly');
+  expectEqual(rHeld.wake, 420, 'held guidance: target wake applied directly');
+  const rLive = u.resolveTonightScheduledWindow(1380, 450, { sleep: 1320, wake: 420 });
+  expectEqual(rLive.mode, 'guided', 'not held: guidance steps toward target');
+  const threeNights = avgFixture.slice(0, 3);
+  const heldBasis = u.getTonightWakePhaseBasisFromDays(threeNights);
+  expectEqual(heldBasis.avgSleepStart, 1320, 'phase basis while learning: target sleep directly');
+  expectEqual(heldBasis.avgSleepEnd, 420, 'phase basis while learning: target wake directly');
+  const learnBase = u.getTonightProjectionBaseState(u.computeRecentAverages(threeNights));
+  expectEqual(learnBase.recentStage, 'learning', 'Tonight base: learning with 3 nights');
+  expectEqual(learnBase.guidanceHeld, true, 'Tonight base: guidance held with 3 nights');
+  expectEqual(learnBase.guidanceSleepEnabled, true, 'Tonight base: saved preference kept');
+  expectEqual(learnBase.guidanceSleepActive, false, 'Tonight base: guidance not active while held');
+  expectEqual(learnBase.naturalSleepMinutes, u.computeRecentAverages(threeNights).avgSleepStart, 'Tonight base: Natural shown from early nights');
+  expectEqual(learnBase.committedSleep, 1320, 'Tonight base: schedule uses target directly while held');
+  const formingBase = u.getTonightProjectionBaseState(u.computeRecentAverages(avgFixture));
+  expectEqual(formingBase.recentStage, 'forming', 'Tonight base: taking shape with 10 nights');
+  expectEqual(formingBase.guidanceSleepActive, true, 'Tonight base: guidance active once taking shape');
+  u.localStorage.removeItem('sleep-app-tonight-target-window');
+  u.localStorage.removeItem('sleep-app-tonight-guidance-sleep-enabled');
+  u.localStorage.removeItem('sleep-app-tonight-guidance-wake-enabled');
 
   // stats-aggregates: mid-sleep geometry (must match stats.js)
   const SA = u.StatsAggregates;

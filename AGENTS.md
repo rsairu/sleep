@@ -37,6 +37,20 @@ When changing any of these, update the doc and its **Keys and constants** table 
 
 When changing `getQuickActionsPhaseFromSharedContext`, `getSharedAppTimeContext`, `inferSharedSleepContextPhase`, `shouldShowDynamicSleepNavPhase`, or `QUICK_ACTIONS_BY_PHASE`, update the doc and its **Phase and row constants** table if any numbers or order of checks change.
 
+## Wake-day key (night row date)
+
+**Applies to:** `sleep-utils.js`, `quick-actions.js`, `dashboard.js`, `entry-modal.js`, `nightly.js`
+**Spec:** [docs/wake-day-key.md](docs/wake-day-key.md) (wake-date invariant, vocabulary: night key / saves / lookups / schedule timing, cutover rule, open night, callers)
+
+When changing `recordDateMdForSleepPeriod`, `resolveRecordDateMdForWake`, `nightRowAwaitingWake`, `getNightKeyWakeMinutes`, `getCurrentNightKey`, `resolveOpenNight`, `getOpenNight`, `resolveWakeNightKey`, `getDashboardTonightNightKey`, the open-night constants, or any caller's night key, update the doc's caller table and examples, the night-key / open-night tests in `tests/math-tests.js`, and `tests/quick-actions-scenarios.mjs`. Night saves and night lookups use the natural wake only; schedule timing uses the Tonight basis.
+
+## Recent averages (Natural sleep / wake)
+
+**Applies to:** any file that needs "your recent average"
+**Spec:** [docs/recent-average.md](docs/recent-average.md) (14 logged entries, 5-entry half-life weights, catch-up, fixed lists vs recent)
+
+Use `computeRecentAverages(days, { endBeforeIndex? })` (or `averageSleepNights(nights)` for an equal-weight fixed list such as a week) from `sleep-utils.js`; deviation flags go through `getDeviationBaseline` (`nightly.js`), which wraps it. Do not slice `days` and re-average by hand — window size and weighting live only in that section (`RECENT_AVERAGE_WINDOW`, `RECENT_AVERAGE_HALF_LIFE`, `recentAverageWeights`). If you change them, update the doc's tables and the recent-average block in `tests/math-tests.js`.
+
 ## User data and cloud preferences
 
 **Applies to:** `sleep-utils.js`, `supabase/schema.sql`
