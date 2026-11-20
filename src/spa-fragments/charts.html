@@ -5,8 +5,8 @@
       <nav class="graph-chart-toc" aria-label="Jump to a chart">
         <a href="#chart-bed-asleep-wake">Bed, asleep, and wake times</a>
         <a href="#chart-sleep-duration">Sleep duration</a>
-        <a href="#chart-wake-delay">Wake delay (first alarm to get up)</a>
-        <a href="#chart-sol">Sleep onset latency (SOL)</a>
+        <a href="#chart-wake-delay">Wake lag (first alarm to get up)</a>
+        <a href="#chart-sol">Sleep lag (bed to asleep)</a>
       </nav>
     </div>
     <div class="graph-range-toolbar" role="toolbar" aria-label="Chart date range">
@@ -97,10 +97,10 @@
                   <span class="graph-sh-legend-wake-type-sample graph-sh-legend-wake-type-sample--alarm" aria-hidden="true"></span>
                   <span class="graph-sh-wake-paren">(alarm wake)</span>
                 </label>
-                <label class="time-toggle graph-sh-toggle-label graph-sh-toggle-label--wake-points" aria-label="No-alarm wake markers">
+                <label class="time-toggle graph-sh-toggle-label graph-sh-toggle-label--wake-points" aria-label="Natural wake markers">
                   <input type="checkbox" id="show-natural-wake-markers" checked>
                   <span class="graph-sh-legend-wake-type-sample" aria-hidden="true"><span class="graph-sh-legend-natural-bullseye"></span></span>
-                  <span class="graph-sh-wake-paren">(no alarm)</span>
+                  <span class="graph-sh-wake-paren">(natural)</span>
                 </label>
               </div>
             </div>
@@ -123,12 +123,12 @@
       <svg id="bar-chart-svg"></svg>
     </div>
     <div class="graph-chart-heading-row">
-      <h2 class="graph-chart-heading graph-chart-heading--inline graph-chart-heading--skp-wake" id="chart-wake-delay">Wake delay (first alarm to get up)</h2>
-      <div class="graph-chart-mode-rocker" role="group" aria-label="Wake delay chart style">
-        <button type="button" class="graph-chart-mode-seg is-active" data-graph-chart-mode="wakeDelay" data-shape="bar" aria-pressed="true" aria-label="Wake delay: bar chart" title="Bar chart">
+      <h2 class="graph-chart-heading graph-chart-heading--inline graph-chart-heading--skp-wake" id="chart-wake-delay">Wake lag (first alarm to get up)</h2>
+      <div class="graph-chart-mode-rocker" role="group" aria-label="Wake lag chart style">
+        <button type="button" class="graph-chart-mode-seg is-active" data-graph-chart-mode="wakeDelay" data-shape="bar" aria-pressed="true" aria-label="Wake lag: bar chart" title="Bar chart">
           <svg class="graph-chart-mode-icon" viewBox="0 0 24 16" aria-hidden="true"><rect x="2" y="2" width="4" height="12" rx="1"/><rect x="10" y="5" width="4" height="9" rx="1"/><rect x="18" y="8" width="4" height="6" rx="1"/></svg>
         </button>
-        <button type="button" class="graph-chart-mode-seg" data-graph-chart-mode="wakeDelay" data-shape="line" aria-pressed="false" aria-label="Wake delay: dot plot (one point per day)" title="Dot plot">
+        <button type="button" class="graph-chart-mode-seg" data-graph-chart-mode="wakeDelay" data-shape="line" aria-pressed="false" aria-label="Wake lag: dot plot (one point per day)" title="Dot plot">
           <svg class="graph-chart-mode-icon" viewBox="0 0 24 16" aria-hidden="true"><circle cx="4" cy="11" r="2.25"/><circle cx="10" cy="5" r="2.25"/><circle cx="16" cy="10" r="2.25"/><circle cx="21" cy="4" r="2.25"/></svg>
         </button>
       </div>
@@ -137,12 +137,12 @@
       <svg id="delay-chart-svg"></svg>
     </div>
     <div class="graph-chart-heading-row">
-      <h2 class="graph-chart-heading graph-chart-heading--inline graph-chart-heading--skp-bed" id="chart-sol">Sleep onset latency (SOL)</h2>
-      <div class="graph-chart-mode-rocker" role="group" aria-label="SOL chart style">
-        <button type="button" class="graph-chart-mode-seg is-active" data-graph-chart-mode="sol" data-shape="bar" aria-pressed="true" aria-label="SOL: bar chart" title="Bar chart">
+      <h2 class="graph-chart-heading graph-chart-heading--inline graph-chart-heading--skp-bed" id="chart-sol">Sleep lag (bed to asleep)</h2>
+      <div class="graph-chart-mode-rocker" role="group" aria-label="Sleep lag chart style">
+        <button type="button" class="graph-chart-mode-seg is-active" data-graph-chart-mode="sol" data-shape="bar" aria-pressed="true" aria-label="Sleep lag: bar chart" title="Bar chart">
           <svg class="graph-chart-mode-icon" viewBox="0 0 24 16" aria-hidden="true"><rect x="2" y="2" width="4" height="12" rx="1"/><rect x="10" y="5" width="4" height="9" rx="1"/><rect x="18" y="8" width="4" height="6" rx="1"/></svg>
         </button>
-        <button type="button" class="graph-chart-mode-seg" data-graph-chart-mode="sol" data-shape="line" aria-pressed="false" aria-label="SOL: dot plot (one point per day)" title="Dot plot">
+        <button type="button" class="graph-chart-mode-seg" data-graph-chart-mode="sol" data-shape="line" aria-pressed="false" aria-label="Sleep lag: dot plot (one point per day)" title="Dot plot">
           <svg class="graph-chart-mode-icon" viewBox="0 0 24 16" aria-hidden="true"><circle cx="4" cy="11" r="2.25"/><circle cx="10" cy="5" r="2.25"/><circle cx="16" cy="10" r="2.25"/><circle cx="21" cy="4" r="2.25"/></svg>
         </button>
       </div>

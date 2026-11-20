@@ -2,7 +2,8 @@
  * Pure stats helpers for the matrix page (and math-tests).
  * Depends on time-utils.js globals: timeToMinutes, normalizeTimeForAveraging,
  * denormalizeTimeForAveraging, normalizeWakeTimeForAveraging, parseSleepDateToLocalDate.
- * Depends on sleep-utils.js: isWeekend, isHoliday, isNaturalWakeDay.
+ * Depends on sleep-utils.js: isWeekend, isHoliday. Natural wake / wake lag come from
+ * classifyWake (sleep-utils.js) — never classify inline here.
  */
 (function (root) {
   'use strict';
@@ -95,38 +96,6 @@
     return absClockDiffMinutes(f, w);
   }
 
-  function averageWakeClockMinutes(filtered) {
-    if (!filtered || !filtered.length) return null;
-    let sum = 0;
-    let n = 0;
-    for (let i = 0; i < filtered.length; i++) {
-      const day = filtered[i];
-      const ss = root.timeToMinutes(day.sleepStart);
-      const we = root.timeToMinutes(day.sleepEnd);
-      if (!Number.isFinite(ss) || !Number.isFinite(we)) continue;
-      sum += root.normalizeWakeTimeForAveraging(ss, we);
-      n++;
-    }
-    if (!n) return null;
-    return root.denormalizeTimeForAveraging(Math.round(sum / n));
-  }
-
-  /** Natural average minus alarm average (signed); positive ⇒ natural wake clock is later. */
-  function wakeLagMinutes(periodDays) {
-    if (!periodDays || !periodDays.length) return null;
-    const natural = periodDays.filter(function (d) {
-      return root.isNaturalWakeDay(d);
-    });
-    const alarm = periodDays.filter(function (d) {
-      return !root.isNaturalWakeDay(d);
-    });
-    if (!natural.length || !alarm.length) return null;
-    const avgN = averageWakeClockMinutes(natural);
-    const avgA = averageWakeClockMinutes(alarm);
-    if (avgN === null || avgA === null) return null;
-    return signedClockDiffMinutes(avgN, avgA);
-  }
-
   root.StatsAggregates = {
     isScheduledDay: isScheduledDay,
     filterDaysByPeriod: filterDaysByPeriod,
@@ -135,7 +104,6 @@
     averageMidSleepClockMinutes: averageMidSleepClockMinutes,
     absClockDiffMinutes: absClockDiffMinutes,
     signedClockDiffMinutes: signedClockDiffMinutes,
-    socialLagMinutes: socialLagMinutes,
-    wakeLagMinutes: wakeLagMinutes
+    socialLagMinutes: socialLagMinutes
   };
 })(typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : this);

@@ -46,6 +46,9 @@ async function loadSleepUtils() {
   // nightly.js: averages + deviation-flag math (no `document` in this context, so its DOM init is skipped).
   const nightlyPath = path.join(__dirname, '..', 'src', 'lib', 'nightly.js');
   vm.runInContext(fs.readFileSync(nightlyPath, 'utf8'), context, { filename: 'src/lib/nightly.js' });
+  // stats.js: Stats page aggregates (columnExtras, calculateMonthlyAverages); DOM code only runs on mount.
+  const statsPath = path.join(__dirname, '..', 'src', 'routes', 'stats.js');
+  vm.runInContext(fs.readFileSync(statsPath, 'utf8'), context, { filename: 'src/routes/stats.js' });
   return context;
 }
 
@@ -103,26 +106,70 @@ async function runTests() {
   };
   expectEqual(u.calculateTotalSleep(napCrossingMidnightDay), 470, 'calculateTotalSleep with crossing nap');
 
-  // Signed and unsigned alarm behavior
-  const normalAlarmDay = { alarm: ['07:00'], sleepEnd: '07:25' };
-  expectEqual(u.calculateFirstAlarmToWake(normalAlarmDay), 25, 'signed alarm delta positive');
-  expectEqual(u.calculateWakeDelay(normalAlarmDay), 25, 'wake delay positive');
+  // Wake classification and lags (docs/wake-and-lags.md). All alarm math is anchored to sleep start.
+  const wl = (day) => u.classifyWake(day);
+  const wlCase = (label, day, natural, lag, firstAlarm) => {
+    const r = wl(day);
+    expectEqual(r.natural, natural, `classifyWake ${label}: natural`);
+    expectEqual(r.wakeLagMin, lag, `classifyWake ${label}: wakeLagMin`);
+    if (firstAlarm !== undefined) expectEqual(r.firstAlarm, firstAlarm, `classifyWake ${label}: firstAlarm`);
+    expectEqual(u.wakeLagMin(day), lag, `wakeLagMin ${label}`);
+  };
+  wlCase('11/20', { sleepStart: '00:39', sleepEnd: '09:33', alarm: ['09:42'] }, true, -9, '09:42');
+  wlCase('1 min early', { sleepStart: '23:00', sleepEnd: '07:04', alarm: ['07:05'] }, true, -1);
+  wlCase('at alarm', { sleepStart: '23:00', sleepEnd: '07:00', alarm: ['07:00'] }, false, 0);
+  wlCase('multi, all beaten', { sleepStart: '23:00', sleepEnd: '06:50', alarm: ['07:00', '07:10'] }, true, -10, '07:00');
+  wlCase('out of order', { sleepStart: '23:35', sleepEnd: '10:25', alarm: ['09:50', '08:30', '07:30'] }, false, 175, '07:30');
+  wlCase('daytime sleep (8/24)', { sleepStart: '06:01', sleepEnd: '15:05', alarm: ['09:30', '11:30', '13:30'] }, false, 335, '09:30');
+  wlCase('evening alarm, post-midnight wake', { sleepStart: '22:00', sleepEnd: '00:20', alarm: ['23:50'] }, false, 30, '23:50');
+  // Known edge (not in data): an alarm logged before sleep start is treated as next-day
+  // (offset 1420), so wake (offset 450) reads as 970 min early → natural.
+  wlCase('alarm before sleep start (edge)', { sleepStart: '00:30', sleepEnd: '08:00', alarm: ['00:10'] }, true, -970, '00:10');
+  wlCase('no alarm', { sleepStart: '23:00', sleepEnd: '07:00', alarm: [] }, true, null, null);
+  wlCase('alarm field missing', { sleepStart: '23:00', sleepEnd: '07:00' }, true, null, null);
+  wlCase('alarm after wake (multi)', { sleepStart: '23:00', sleepEnd: '07:00', alarm: ['01:00', '04:00'] }, false, 360, '01:00');
+  // sleepStart missing (fixtures only): min clock alarm, shortest signed clock delta.
+  wlCase('no sleepStart, after alarm', { sleepEnd: '07:25', alarm: ['07:00'] }, false, 25);
+  wlCase('no sleepStart, before alarm', { sleepEnd: '07:04', alarm: ['07:05'] }, true, -1);
+  wlCase('no sleepStart, across midnight', { sleepEnd: '00:20', alarm: ['23:50'] }, false, 30);
 
-  const negativeSignedAlarmDay = { alarm: ['07:05'], sleepEnd: '07:04' };
-  expectEqual(u.calculateFirstAlarmToWake(negativeSignedAlarmDay), -1, 'signed alarm delta negative preserved');
-  expectEqual(u.calculateWakeDelay(negativeSignedAlarmDay), -1, 'wake delay preserves negative morning ordering');
+  expectEqual(u.minutesFromSleepStart(9 * 60 + 33, 39), 534, 'minutesFromSleepStart same day');
+  expectEqual(u.minutesFromSleepStart(30, 23 * 60), 90, 'minutesFromSleepStart across midnight');
+  expectTruthy(Number.isNaN(u.minutesFromSleepStart(NaN, 0)), 'minutesFromSleepStart missing → NaN');
+  expectEqual(
+    JSON.stringify(u.sortAlarmsForNight(['01:30', '23:30'], '23:00')),
+    JSON.stringify(['23:30', '01:30']),
+    'sortAlarmsForNight by sleep-start offset'
+  );
+  expectEqual(
+    JSON.stringify(u.sortAlarmsForNight(['09:50', '08:30', '07:30'], '23:35')),
+    JSON.stringify(['07:30', '08:30', '09:50']),
+    'sortAlarmsForNight morning alarms'
+  );
+  expectEqual(
+    JSON.stringify(u.sortAlarmsForNight(['09:00', '07:00', '07:00'], null)),
+    JSON.stringify(['07:00', '07:00', '09:00']),
+    'sortAlarmsForNight no sleepStart → clock order'
+  );
+  expectEqual(
+    JSON.stringify(u.mapDayToSupabaseRow({ date: '2026-11-12', bed: '23:20', sleepStart: '23:35', sleepEnd: '10:25', alarm: ['09:50', '08:30', '07:30'], bathroom: [], WASO: 0 }).alarm),
+    JSON.stringify(['07:30', '08:30', '09:50']),
+    'mapDayToSupabaseRow stores alarms sorted by sleep-start offset'
+  );
+  expectEqual(
+    JSON.stringify(u.mapPartialDayToDraftPatch({ sleepStart: '23:00', alarm: ['01:30', '23:30'] }).alarm),
+    JSON.stringify(['23:30', '01:30']),
+    'mapPartialDayToDraftPatch sorts alarms with partial sleepStart'
+  );
+  expectEqual(
+    JSON.stringify(u.mapPartialDayToDraftPatch({ alarm: ['09:00', '07:00'] }).alarm),
+    JSON.stringify(['07:00', '09:00']),
+    'mapPartialDayToDraftPatch without sleepStart → clock order'
+  );
 
-  const eveningAlarmRollDay = { alarm: ['23:50'], sleepEnd: '00:20' };
-  expectEqual(u.calculateFirstAlarmToWake(eveningAlarmRollDay), -1410, 'signed alarm delta raw overnight');
-  expectEqual(u.calculateWakeDelay(eveningAlarmRollDay), 30, 'wake delay rolls over for evening alarms');
-
-  const wakeAtAlarmDay = { alarm: ['07:00'], sleepEnd: '07:00' };
-  expectEqual(u.calculateFirstAlarmToWake(wakeAtAlarmDay), 0, 'signed alarm delta zero at wake');
-  expectEqual(u.calculateWakeDelay(wakeAtAlarmDay), 0, 'wake delay zero when wake at first alarm');
-
-  // Delay + uninterrupted calculations
-  const bedDelayDay = { bed: '23:50', sleepStart: '00:20' };
-  expectEqual(u.calculateSleepDelay(bedDelayDay), 30, 'bed to sleep delay across midnight');
+  // Sleep lag (bed → asleep) + uninterrupted calculations
+  const bedLagDay = { bed: '23:50', sleepStart: '00:20' };
+  expectEqual(u.sleepLagMin(bedLagDay), 30, 'sleep lag across midnight');
 
   const interruptionsDay = {
     sleepStart: '23:00',
@@ -131,15 +178,9 @@ async function runTests() {
   };
   expectEqual(u.calculateLongestUninterrupted(interruptionsDay), 180, 'longest uninterrupted span');
 
-  expectEqual(u.isNaturalWakeDay({ alarm: [], sleepEnd: '07:00' }), true, 'isNaturalWakeDay no alarms');
-  expectEqual(u.isNaturalWakeDay(normalAlarmDay), false, 'isNaturalWakeDay after single alarm');
-  expectEqual(u.isNaturalWakeDay(negativeSignedAlarmDay), true, 'isNaturalWakeDay before single alarm');
-  expectEqual(u.isNaturalWakeDay({ alarm: ['07:00'], sleepEnd: '07:00' }), false, 'isNaturalWakeDay wake at alarm (delta 0)');
-  expectEqual(u.isNaturalWakeDay(interruptionsDay), false, 'isNaturalWakeDay multi-alarm');
-  expectEqual(u.isNaturalWakeDay(eveningAlarmRollDay), true, 'isNaturalWakeDay single alarm negative delta overnight');
-
-  expectEqual(u.isNoAlarmWakeDay({ alarm: [], sleepEnd: '07:00' }), true, 'isNoAlarmWakeDay empty alarms');
-  expectEqual(u.isNoAlarmWakeDay({ alarm: ['07:00'], sleepEnd: '07:00' }), false, 'isNoAlarmWakeDay with alarm');
+  ['isNaturalWakeDay', 'isNoAlarmWakeDay', 'calculateWakeDelay', 'calculateAlarmToWakeDelta', 'calculateFirstAlarmToWake', 'calculateBedToSleepDelay', 'calculateSleepDelay', 'getFirstAlarmMinutes'].forEach((name) => {
+    expectEqual(typeof u[name], 'undefined', `${name} removed (use classifyWake / sleepLagMin / wakeLagMin)`);
+  });
 
   // Averaging normalization around midnight
   const normalizedAvg = Math.round(
@@ -515,8 +556,10 @@ async function runTests() {
   expectEqual(ca7.avgSleepEnd, 441, 'averageSleepNights avgSleepEnd 07:21');
   expectEqual(ca7.avgSleepDuration, 439, 'averageSleepNights avgSleepDuration');
   expectEqual(ca7.avgLongestUninterrupted, 436, 'averageSleepNights avgLongestUninterrupted');
-  expectEqual(ca7.avgBedToSleepDelay, 25, 'averageSleepNights avgBedToSleepDelay');
-  expectEqual(ca7.avgFirstAlarmToWake, 6, 'averageSleepNights avgFirstAlarmToWake (alarm nights only)');
+  expectEqual(ca7.avgSleepLag, 25, 'averageSleepNights avgSleepLag');
+  expectEqual(ca7.avgWakeLag, 6, 'averageSleepNights avgWakeLag (alarm nights only)');
+  expectEqual(ca7.avgBedToSleepDelay, undefined, 'averageSleepNights old field avgBedToSleepDelay gone');
+  expectEqual(ca7.avgFirstAlarmToWake, undefined, 'averageSleepNights old field avgFirstAlarmToWake gone');
   // Recent average (docs/recent-average.md): newest 14 logged entries, weight 0.5^(i/5).
   // Expected clock values computed independently (Python) from the same rule.
   const rw = u.recentAverageWeights(14);
@@ -568,7 +611,7 @@ async function runTests() {
   ]);
   expectEqual(caTwo.avgSleepStart, 0, '23:30 + 00:30 average to 00:00');
   expectEqual(caTwo.avgSleepEnd, 450, '07:00 + 08:00 average to 07:30');
-  expectEqual(caTwo.avgFirstAlarmToWake, null, 'no alarm nights → avgFirstAlarmToWake null');
+  expectEqual(caTwo.avgWakeLag, null, 'no alarm nights → avgWakeLag null');
   // Deviation-flag baseline: recent average of the entries before the night (night excluded), unrounded.
   const db0 = u.getDeviationBaseline(avgFixture, 0);
   expectEqual(db0.insufficient, false, 'flag baseline sufficient with 9 prior nights');
@@ -678,11 +721,23 @@ async function runTests() {
   );
   expectEqual(social, 75, 'social lag |05:15 − 04:00| = 75 min on shortest arc');
 
-  const wakeLag = SA.wakeLagMinutes([
-    { sleepStart: '23:00', sleepEnd: '07:30', alarm: [] },
-    { sleepStart: '23:00', sleepEnd: '07:00', alarm: ['06:40'] }
-  ]);
-  expectEqual(wakeLag, 30, 'wake lag natural 07:30 vs alarm-assisted 07:00 → +30 min');
+  expectEqual(SA.wakeLagMinutes, undefined, 'legacy StatsAggregates.wakeLagMinutes removed');
+
+  // Stats page column extras: Σ sleep lag (all nights), Σ wake lag (alarm nights, signed, net), % natural.
+  const exFixture = [
+    { date: '2026-11-20', bed: '00:20', sleepStart: '00:39', sleepEnd: '09:33', alarm: ['09:42'], bathroom: [], WASO: 0 },
+    { date: '2026-11-19', bed: '23:00', sleepStart: '23:30', sleepEnd: '07:30', alarm: ['07:00'], bathroom: [], WASO: 0 },
+    { date: '2026-11-18', bed: '22:50', sleepStart: '23:00', sleepEnd: '07:00', alarm: [], bathroom: [], WASO: 0 }
+  ];
+  const ex = u.columnExtras(exFixture);
+  expectEqual(ex.sumSleepLag, 19 + 30 + 10, 'columnExtras sumSleepLag all nights');
+  expectEqual(ex.sumWakeLag, -9 + 30, 'columnExtras sumWakeLag net of early wakes');
+  expectEqual(Math.round(ex.naturalWakePct), 67, 'columnExtras natural wake % (11/20 early wake counts)');
+  expectEqual(u.columnExtras([exFixture[2]]).sumWakeLag, null, 'columnExtras sumWakeLag null without alarm nights');
+  expectEqual(u.columnExtras([]).sumSleepLag, null, 'columnExtras empty → sumSleepLag null');
+  const mav = u.calculateMonthlyAverages(exFixture);
+  expectEqual(mav.avgSleepLag, 20, 'stats calculateMonthlyAverages avgSleepLag');
+  expectEqual(mav.avgWakeLag, 11, 'stats calculateMonthlyAverages avgWakeLag (alarm nights, signed)');
 
   const filtered7 = SA.filterDaysByPeriod(
     [
@@ -726,15 +781,15 @@ async function runTests() {
       }
     }
     days.forEach((d, idx) => {
-      const wakeDelay = u.calculateWakeDelay(d);
-      if (wakeDelay !== null && !Number.isFinite(wakeDelay)) {
-        failures.push(`dataset invariant day ${idx} (${d.date}): wakeDelay must be finite or null`);
+      const lag = u.wakeLagMin(d);
+      if (lag !== null && !Number.isFinite(lag)) {
+        failures.push(`dataset invariant day ${idx} (${d.date}): wake lag must be finite or null`);
       } else {
         passed += 1;
       }
-      const delta = u.calculateFirstAlarmToWake(d);
-      if (delta !== null && !Number.isFinite(delta)) {
-        failures.push(`dataset invariant day ${idx} (${d.date}): signed alarm delta must be finite`);
+      const wake = u.classifyWake(d);
+      if (wake.natural !== (wake.wakeLagMin === null ? true : wake.wakeLagMin < 0)) {
+        failures.push(`dataset invariant day ${idx} (${d.date}): natural must equal (no alarm or wake lag < 0)`);
       } else {
         passed += 1;
       }

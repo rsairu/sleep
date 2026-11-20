@@ -28,13 +28,13 @@ function graphNaturalWakeMarkersOn() {
   return !el || el.checked;
 }
 
-function formatWakeDelayChartTooltipLabel(minutes) {
+function formatWakeLagChartTooltipLabel(minutes) {
   if (minutes === null || minutes === undefined || !Number.isFinite(minutes)) return '';
   if (minutes < 0) return '−' + formatDuration(-minutes);
   return formatDuration(minutes);
 }
 
-function wakeDelayAxisTickText(tick) {
+function wakeLagAxisTickText(tick) {
   if (!Number.isFinite(tick)) return '';
   if (tick !== 0 && tick % 60 === 0) return `${tick / 60}h`;
   if (tick < 0) return '−' + formatDuration(-tick);
@@ -1391,10 +1391,10 @@ function renderGraphPageCharts() {
       document.getElementById('bar-chart-container').appendChild(errorDiv);
     }
 
-    // ===== WAKE DELAY CHART: signed first alarm → get up (bars above/below zero) =====
+    // ===== WAKE LAG CHART: signed first alarm → get up (bars above/below zero) =====
     try {
       if (typeof xScale === 'undefined' || typeof dayWidth === 'undefined' || typeof monthNames === 'undefined' || !points) {
-        throw new Error('Required variables not available for wake delay chart');
+        throw new Error('Required variables not available for wake lag chart');
       }
 
       const wakeChartMargin = { top: 40, right: 80, bottom: 60, left: 80 };
@@ -1405,7 +1405,7 @@ function renderGraphPageCharts() {
 
       const wakeChartSvg = document.getElementById('delay-chart-svg');
       if (!wakeChartSvg) {
-        throw new Error('Wake delay chart SVG element not found');
+        throw new Error('Wake lag chart SVG element not found');
       }
       wakeChartSvg.setAttribute('width', wakeChartWidth);
       wakeChartSvg.setAttribute('height', wakeChartHeight);
@@ -1414,11 +1414,11 @@ function renderGraphPageCharts() {
       wakeChartG.setAttribute('transform', `translate(${wakeChartMargin.left},${wakeChartMargin.top})`);
       wakeChartSvg.appendChild(wakeChartG);
 
-      const wakeDelayFinite = points
-        .map((p) => p.wakeDelayMinutes)
+      const wakeLagFinite = points
+        .map((p) => p.wakeLagMinutes)
         .filter((v) => v != null && v !== undefined && Number.isFinite(v));
-      const wakePosVals = wakeDelayFinite.filter((v) => v > 0);
-      const wakeNegVals = wakeDelayFinite.filter((v) => v < 0);
+      const wakePosVals = wakeLagFinite.filter((v) => v > 0);
+      const wakeNegVals = wakeLagFinite.filter((v) => v < 0);
       const wakeDotR = 4;
       const wakeMaxData = wakePosVals.length ? Math.max(...wakePosVals) : 0;
       const wakeYMax = Math.max(180, Math.ceil(wakeMaxData / 60) * 60);
@@ -1489,7 +1489,7 @@ function renderGraphPageCharts() {
         label.setAttribute('y', y + 4);
         label.setAttribute('class', 'axis-label');
         label.setAttribute('text-anchor', 'end');
-        label.textContent = wakeDelayAxisTickText(tick);
+        label.textContent = wakeLagAxisTickText(tick);
         wakeChartG.appendChild(label);
       });
 
@@ -1531,7 +1531,7 @@ function renderGraphPageCharts() {
       wakeChartYAxisTitle.setAttribute('class', 'axis-title');
       wakeChartYAxisTitle.setAttribute('text-anchor', 'middle');
       wakeChartYAxisTitle.setAttribute('transform', 'rotate(-90)');
-      wakeChartYAxisTitle.textContent = 'Delay';
+      wakeChartYAxisTitle.textContent = 'Lag';
       wakeChartSvg.appendChild(wakeChartYAxisTitle);
 
       wakeYTicks.forEach((tick) => {
@@ -1549,7 +1549,7 @@ function renderGraphPageCharts() {
         label.setAttribute('y', y + 4);
         label.setAttribute('class', 'axis-label');
         label.setAttribute('text-anchor', 'start');
-        label.textContent = wakeDelayAxisTickText(tick);
+        label.textContent = wakeLagAxisTickText(tick);
         wakeChartG.appendChild(label);
       });
 
@@ -1559,68 +1559,68 @@ function renderGraphPageCharts() {
       wakeChartYAxisTitleRight.setAttribute('class', 'axis-title');
       wakeChartYAxisTitleRight.setAttribute('text-anchor', 'middle');
       wakeChartYAxisTitleRight.setAttribute('transform', `rotate(-90 ${wakeChartWidth - 20} ${wakeChartHeight / 2})`);
-      wakeChartYAxisTitleRight.textContent = 'Delay';
+      wakeChartYAxisTitleRight.textContent = 'Lag';
       wakeChartSvg.appendChild(wakeChartYAxisTitleRight);
 
       const wakeBarWidth = Math.max(2, dayWidth * 0.8);
-      const wakeDelayMode = readGraphChartMode('wakeDelay');
-      if (wakeDelayMode === 'bar') {
+      const wakeLagMode = readGraphChartMode('wakeDelay');
+      if (wakeLagMode === 'bar') {
         points.forEach((point) => {
           const x = xScale(point.date);
-          const v = point.wakeDelayMinutes;
+          const v = point.wakeLagMinutes;
           if (v === null || v === undefined || !Number.isFinite(v)) return;
           const y0 = wakeYScale(0);
           if (v > 0) {
             const yTop = wakeYScale(v);
             const yBar = Math.min(y0, yTop);
-            const wakeDelayBarHeight = Math.abs(y0 - yTop);
-            if (wakeDelayBarHeight > 0 && !isNaN(wakeDelayBarHeight)) {
-              const wakeDelayRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-              wakeDelayRect.setAttribute('x', x - wakeBarWidth / 2);
-              wakeDelayRect.setAttribute('y', yBar);
-              wakeDelayRect.setAttribute('width', wakeBarWidth);
-              wakeDelayRect.setAttribute('height', wakeDelayBarHeight);
-              wakeDelayRect.setAttribute('class', 'sleep-bar wake-delay-bar');
+            const wakeLagBarHeight = Math.abs(y0 - yTop);
+            if (wakeLagBarHeight > 0 && !isNaN(wakeLagBarHeight)) {
+              const wakeLagRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+              wakeLagRect.setAttribute('x', x - wakeBarWidth / 2);
+              wakeLagRect.setAttribute('y', yBar);
+              wakeLagRect.setAttribute('width', wakeBarWidth);
+              wakeLagRect.setAttribute('height', wakeLagBarHeight);
+              wakeLagRect.setAttribute('class', 'sleep-bar wake-delay-bar');
 
-              wakeDelayRect.addEventListener('mouseenter', () => {
+              wakeLagRect.addEventListener('mouseenter', () => {
                 const alarmText = point.firstAlarm ? ` (alarm ${point.firstAlarm} → get up ${point.getUpString})` : '';
-                tooltip.textContent = `${formatSleepDateMonthDay(point.dateString)}: ${formatWakeDelayChartTooltipLabel(v)} wake delay${alarmText}`;
+                tooltip.textContent = `${formatSleepDateMonthDay(point.dateString)}: ${formatWakeLagChartTooltipLabel(v)} wake lag${alarmText}`;
                 tooltip.classList.add('visible');
               });
-              wakeDelayRect.addEventListener('mousemove', (e) => {
+              wakeLagRect.addEventListener('mousemove', (e) => {
                 tooltip.style.left = (e.clientX + 10) + 'px';
                 tooltip.style.top = (e.clientY - 10) + 'px';
               });
-              wakeDelayRect.addEventListener('mouseleave', () => {
+              wakeLagRect.addEventListener('mouseleave', () => {
                 tooltip.classList.remove('visible');
               });
-              wakeChartG.appendChild(wakeDelayRect);
+              wakeChartG.appendChild(wakeLagRect);
             }
           } else if (v < 0) {
             const yVal = wakeYScale(v);
             const yBar = Math.min(y0, yVal);
-            const wakeDelayBarHeight = Math.abs(y0 - yVal);
-            if (wakeDelayBarHeight > 0 && !isNaN(wakeDelayBarHeight)) {
-              const wakeDelayRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-              wakeDelayRect.setAttribute('x', x - wakeBarWidth / 2);
-              wakeDelayRect.setAttribute('y', yBar);
-              wakeDelayRect.setAttribute('width', wakeBarWidth);
-              wakeDelayRect.setAttribute('height', wakeDelayBarHeight);
-              wakeDelayRect.setAttribute('class', 'sleep-bar wake-delay-bar wake-delay-bar--negative');
+            const wakeLagBarHeight = Math.abs(y0 - yVal);
+            if (wakeLagBarHeight > 0 && !isNaN(wakeLagBarHeight)) {
+              const wakeLagRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+              wakeLagRect.setAttribute('x', x - wakeBarWidth / 2);
+              wakeLagRect.setAttribute('y', yBar);
+              wakeLagRect.setAttribute('width', wakeBarWidth);
+              wakeLagRect.setAttribute('height', wakeLagBarHeight);
+              wakeLagRect.setAttribute('class', 'sleep-bar wake-delay-bar wake-delay-bar--negative');
 
-              wakeDelayRect.addEventListener('mouseenter', () => {
+              wakeLagRect.addEventListener('mouseenter', () => {
                 const alarmText = point.firstAlarm ? ` (alarm ${point.firstAlarm} → get up ${point.getUpString})` : '';
-                tooltip.textContent = `${formatSleepDateMonthDay(point.dateString)}: ${formatWakeDelayChartTooltipLabel(v)} wake delay${alarmText}`;
+                tooltip.textContent = `${formatSleepDateMonthDay(point.dateString)}: ${formatWakeLagChartTooltipLabel(v)} wake lag${alarmText}`;
                 tooltip.classList.add('visible');
               });
-              wakeDelayRect.addEventListener('mousemove', (e) => {
+              wakeLagRect.addEventListener('mousemove', (e) => {
                 tooltip.style.left = (e.clientX + 10) + 'px';
                 tooltip.style.top = (e.clientY - 10) + 'px';
               });
-              wakeDelayRect.addEventListener('mouseleave', () => {
+              wakeLagRect.addEventListener('mouseleave', () => {
                 tooltip.classList.remove('visible');
               });
-              wakeChartG.appendChild(wakeDelayRect);
+              wakeChartG.appendChild(wakeLagRect);
             }
           } else if (v === 0) {
             const rawY = wakeYScale(0);
@@ -1632,7 +1632,7 @@ function renderGraphPageCharts() {
             circle.setAttribute('class', 'graph-metric-dot graph-wake-delay-dot graph-wake-delay-dot--baseline');
             circle.addEventListener('mouseenter', () => {
               const alarmText = point.firstAlarm ? ` (alarm ${point.firstAlarm} → get up ${point.getUpString})` : '';
-              tooltip.textContent = `${formatSleepDateMonthDay(point.dateString)}: ${formatWakeDelayChartTooltipLabel(0)} wake delay${alarmText}`;
+              tooltip.textContent = `${formatSleepDateMonthDay(point.dateString)}: ${formatWakeLagChartTooltipLabel(0)} wake lag${alarmText}`;
               tooltip.classList.add('visible');
             });
             circle.addEventListener('mousemove', (e) => {
@@ -1647,7 +1647,7 @@ function renderGraphPageCharts() {
         });
       } else {
         points.forEach((point) => {
-          const v = point.wakeDelayMinutes;
+          const v = point.wakeLagMinutes;
           if (v === null || v === undefined || !Number.isFinite(v)) return;
           const x = xScale(point.date);
           const rawY = wakeYScale(v);
@@ -1667,35 +1667,35 @@ function renderGraphPageCharts() {
         });
       }
 
-      const wakeDelayPoints = points.filter(
-        (p) => p.wakeDelayMinutes !== null && p.wakeDelayMinutes !== undefined && Number.isFinite(p.wakeDelayMinutes)
+      const wakeLagPoints = points.filter(
+        (p) => p.wakeLagMinutes !== null && p.wakeLagMinutes !== undefined && Number.isFinite(p.wakeLagMinutes)
       );
-      if (wakeDelayPoints.length > 0) {
-        const wakeDelayXValues = wakeDelayPoints.map((point) => points.indexOf(point));
-        const wakeDelayYValues = wakeDelayPoints.map((point) => point.wakeDelayMinutes);
-        const wakeDelayRegression = polynomialRegression(
-          wakeDelayXValues,
-          wakeDelayYValues,
-          regressionDegree(wakeDelayPoints.length)
+      if (wakeLagPoints.length > 0) {
+        const wakeLagXValues = wakeLagPoints.map((point) => points.indexOf(point));
+        const wakeLagYValues = wakeLagPoints.map((point) => point.wakeLagMinutes);
+        const wakeLagRegression = polynomialRegression(
+          wakeLagXValues,
+          wakeLagYValues,
+          regressionDegree(wakeLagPoints.length)
         );
 
-        const wakeDelayTrendPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        let wakeDelayTrendPathData = '';
+        const wakeLagTrendPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        let wakeLagTrendPathData = '';
         for (let i = 0; i < points.length; i++) {
-          const predictedValue = evaluatePolynomial(wakeDelayRegression, i);
+          const predictedValue = evaluatePolynomial(wakeLagRegression, i);
           const x = xScale(points[i].date);
           const y = wakeYScale(predictedValue);
           const clampedY = Math.min(Math.max(wakeDotR, y), wakeChartGraphHeight - wakeDotR);
-          wakeDelayTrendPathData += wakeDelayTrendPathData ? ` L ${x} ${clampedY}` : `M ${x} ${clampedY}`;
+          wakeLagTrendPathData += wakeLagTrendPathData ? ` L ${x} ${clampedY}` : `M ${x} ${clampedY}`;
         }
-        wakeDelayTrendPath.setAttribute('d', wakeDelayTrendPathData);
-        wakeDelayTrendPath.setAttribute('class', 'regression-line wake-delay-trend');
-        wakeDelayTrendPath.setAttribute('id', 'wake-delay-trend-line');
-        wakeDelayTrendPath.setAttribute('fill', 'none');
-        wakeChartG.appendChild(wakeDelayTrendPath);
+        wakeLagTrendPath.setAttribute('d', wakeLagTrendPathData);
+        wakeLagTrendPath.setAttribute('class', 'regression-line wake-delay-trend');
+        wakeLagTrendPath.setAttribute('id', 'wake-delay-trend-line');
+        wakeLagTrendPath.setAttribute('fill', 'none');
+        wakeChartG.appendChild(wakeLagTrendPath);
       }
 
-      if (wakeDelayMode !== 'bar') {
+      if (wakeLagMode !== 'bar') {
         appendDayColumnHoverWithCrosshairAndDayPanel({
           svg: wakeChartSvg,
           g: wakeChartG,
@@ -1707,18 +1707,18 @@ function renderGraphPageCharts() {
           dayWidth,
         });
       }
-    } catch (wakeDelayChartError) {
-      console.error('Error rendering wake delay chart:', wakeDelayChartError);
+    } catch (wakeLagChartError) {
+      console.error('Error rendering wake lag chart:', wakeLagChartError);
       const errorDiv = document.createElement('div');
       errorDiv.className = 'chart-error';
-      errorDiv.textContent = 'Wake delay chart error: ' + wakeDelayChartError.message;
+      errorDiv.textContent = 'Wake lag chart error: ' + wakeLagChartError.message;
       document.getElementById('delay-chart-container').appendChild(errorDiv);
     }
 
-    // ===== SOL CHART: sleep onset latency (bed → fell asleep), same data as former "sleep delay" bars =====
+    // ===== SLEEP LAG CHART (SOL): bed → fell asleep =====
     try {
       if (typeof xScale === 'undefined' || typeof dayWidth === 'undefined' || typeof monthNames === 'undefined' || !points) {
-        throw new Error('Required variables not available for SOL chart');
+        throw new Error('Required variables not available for sleep lag chart');
       }
 
       const solChartMargin = { top: 40, right: 80, bottom: 60, left: 80 };
@@ -1729,7 +1729,7 @@ function renderGraphPageCharts() {
 
       const solChartSvg = document.getElementById('sol-chart-svg');
       if (!solChartSvg) {
-        throw new Error('SOL chart SVG element not found');
+        throw new Error('Sleep lag chart SVG element not found');
       }
       solChartSvg.setAttribute('width', solChartWidth);
       solChartSvg.setAttribute('height', solChartHeight);
@@ -1738,7 +1738,7 @@ function renderGraphPageCharts() {
       solChartG.setAttribute('transform', `translate(${solChartMargin.left},${solChartMargin.top})`);
       solChartSvg.appendChild(solChartG);
 
-      const solVals = points.map((p) => p.sleepDelayMinutes).filter((v) => v != null && v > 0);
+      const solVals = points.map((p) => p.sleepLagMinutes).filter((v) => v != null && v > 0);
       const solDotR = 4;
       const solMaxData = solVals.length ? Math.max(...solVals) : 0;
       const solYMax = Math.max(180, Math.ceil(solMaxData / 60) * 60);
@@ -1848,7 +1848,7 @@ function renderGraphPageCharts() {
       solChartYAxisTitle.setAttribute('class', 'axis-title');
       solChartYAxisTitle.setAttribute('text-anchor', 'middle');
       solChartYAxisTitle.setAttribute('transform', 'rotate(-90)');
-      solChartYAxisTitle.textContent = 'Delay';
+      solChartYAxisTitle.textContent = 'Lag';
       solChartSvg.appendChild(solChartYAxisTitle);
 
       solYTicks.forEach((tick) => {
@@ -1876,7 +1876,7 @@ function renderGraphPageCharts() {
       solChartYAxisTitleRight.setAttribute('class', 'axis-title');
       solChartYAxisTitleRight.setAttribute('text-anchor', 'middle');
       solChartYAxisTitleRight.setAttribute('transform', `rotate(-90 ${solChartWidth - 20} ${solChartHeight / 2})`);
-      solChartYAxisTitleRight.textContent = 'Delay';
+      solChartYAxisTitleRight.textContent = 'Lag';
       solChartSvg.appendChild(solChartYAxisTitleRight);
 
       const solBarWidth = Math.max(2, dayWidth * 0.8);
@@ -1884,8 +1884,8 @@ function renderGraphPageCharts() {
       if (solChartMode === 'bar') {
         points.forEach((point) => {
           const x = xScale(point.date);
-          if (point.sleepDelayMinutes !== null && point.sleepDelayMinutes !== undefined && point.sleepDelayMinutes > 0) {
-            const solBarY = solYScale(point.sleepDelayMinutes);
+          if (point.sleepLagMinutes !== null && point.sleepLagMinutes !== undefined && point.sleepLagMinutes > 0) {
+            const solBarY = solYScale(point.sleepLagMinutes);
             const solBarHeight = solChartGraphHeight - solBarY;
             if (solBarHeight > 0 && !isNaN(solBarHeight)) {
               const solRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -1896,7 +1896,7 @@ function renderGraphPageCharts() {
               solRect.setAttribute('class', 'sleep-bar delay-bar');
 
               solRect.addEventListener('mouseenter', () => {
-                tooltip.textContent = `${formatSleepDateMonthDay(point.dateString)}: ${formatDuration(point.sleepDelayMinutes)} SOL (bed ${point.bedTimeString} → sleep ${point.sleepStartString})`;
+                tooltip.textContent = `${formatSleepDateMonthDay(point.dateString)}: ${formatDuration(point.sleepLagMinutes)} sleep lag (bed ${point.bedTimeString} → sleep ${point.sleepStartString})`;
                 tooltip.classList.add('visible');
               });
               solRect.addEventListener('mousemove', (e) => {
@@ -1909,8 +1909,8 @@ function renderGraphPageCharts() {
               solChartG.appendChild(solRect);
             }
           } else if (
-            Number.isFinite(point.sleepDelayMinutes) &&
-            point.sleepDelayMinutes === 0
+            Number.isFinite(point.sleepLagMinutes) &&
+            point.sleepLagMinutes === 0
           ) {
             const rawY = solYScale(0);
             const cy = Math.min(Math.max(solDotR, rawY), solChartGraphHeight - solDotR);
@@ -1920,7 +1920,7 @@ function renderGraphPageCharts() {
             circle.setAttribute('r', String(solDotR));
             circle.setAttribute('class', 'graph-metric-dot graph-sol-dot graph-sol-dot--baseline');
             circle.addEventListener('mouseenter', () => {
-              tooltip.textContent = `${formatSleepDateMonthDay(point.dateString)}: ${formatDuration(0)} SOL (bed ${point.bedTimeString} → sleep ${point.sleepStartString})`;
+              tooltip.textContent = `${formatSleepDateMonthDay(point.dateString)}: ${formatDuration(0)} sleep lag (bed ${point.bedTimeString} → sleep ${point.sleepStartString})`;
               tooltip.classList.add('visible');
             });
             circle.addEventListener('mousemove', (e) => {
@@ -1935,11 +1935,11 @@ function renderGraphPageCharts() {
         });
       } else {
         points.forEach((point) => {
-          if (!Number.isFinite(point.sleepDelayMinutes) || point.sleepDelayMinutes < 0) {
+          if (!Number.isFinite(point.sleepLagMinutes) || point.sleepLagMinutes < 0) {
             return;
           }
           const x = xScale(point.date);
-          const rawY = solYScale(point.sleepDelayMinutes);
+          const rawY = solYScale(point.sleepLagMinutes);
           const cy = Math.min(Math.max(solDotR, rawY), solChartGraphHeight - solDotR);
           const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
           circle.setAttribute('cx', String(x));
@@ -1951,33 +1951,33 @@ function renderGraphPageCharts() {
         });
       }
 
-      const sleepDelayPoints = points.filter(
-        (p) => Number.isFinite(p.sleepDelayMinutes) && p.sleepDelayMinutes >= 0
+      const sleepLagPoints = points.filter(
+        (p) => Number.isFinite(p.sleepLagMinutes) && p.sleepLagMinutes >= 0
       );
-      if (sleepDelayPoints.length > 0) {
-        const sleepDelayXValues = sleepDelayPoints.map((point) => points.indexOf(point));
-        const sleepDelayYValues = sleepDelayPoints.map((point) => point.sleepDelayMinutes);
-        const sleepDelayRegression = polynomialRegression(
-          sleepDelayXValues,
-          sleepDelayYValues,
-          regressionDegree(sleepDelayPoints.length)
+      if (sleepLagPoints.length > 0) {
+        const sleepLagXValues = sleepLagPoints.map((point) => points.indexOf(point));
+        const sleepLagYValues = sleepLagPoints.map((point) => point.sleepLagMinutes);
+        const sleepLagRegression = polynomialRegression(
+          sleepLagXValues,
+          sleepLagYValues,
+          regressionDegree(sleepLagPoints.length)
         );
 
-        const sleepDelayTrendPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        let sleepDelayTrendPathData = '';
+        const sleepLagTrendPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        let sleepLagTrendPathData = '';
         for (let i = 0; i < points.length; i++) {
-          const predictedValue = evaluatePolynomial(sleepDelayRegression, i);
+          const predictedValue = evaluatePolynomial(sleepLagRegression, i);
           const displayMinutes = Math.max(0, predictedValue);
           const x = xScale(points[i].date);
           const y = solYScale(displayMinutes);
           const clampedY = Math.min(Math.max(solDotR, y), solChartGraphHeight - solDotR);
-          sleepDelayTrendPathData += sleepDelayTrendPathData ? ` L ${x} ${clampedY}` : `M ${x} ${clampedY}`;
+          sleepLagTrendPathData += sleepLagTrendPathData ? ` L ${x} ${clampedY}` : `M ${x} ${clampedY}`;
         }
-        sleepDelayTrendPath.setAttribute('d', sleepDelayTrendPathData);
-        sleepDelayTrendPath.setAttribute('class', 'regression-line sleep-delay-trend');
-        sleepDelayTrendPath.setAttribute('id', 'sleep-delay-trend-line');
-        sleepDelayTrendPath.setAttribute('fill', 'none');
-        solChartG.appendChild(sleepDelayTrendPath);
+        sleepLagTrendPath.setAttribute('d', sleepLagTrendPathData);
+        sleepLagTrendPath.setAttribute('class', 'regression-line sleep-delay-trend');
+        sleepLagTrendPath.setAttribute('id', 'sleep-delay-trend-line');
+        sleepLagTrendPath.setAttribute('fill', 'none');
+        solChartG.appendChild(sleepLagTrendPath);
       }
 
       if (solChartMode !== 'bar') {
@@ -1993,10 +1993,10 @@ function renderGraphPageCharts() {
         });
       }
     } catch (solChartError) {
-      console.error('Error rendering SOL chart:', solChartError);
+      console.error('Error rendering sleep lag chart:', solChartError);
       const errorDiv = document.createElement('div');
       errorDiv.className = 'chart-error';
-      errorDiv.textContent = 'SOL chart error: ' + solChartError.message;
+      errorDiv.textContent = 'Sleep lag chart error: ' + solChartError.message;
       document.getElementById('sol-chart-container').appendChild(errorDiv);
     }
 
@@ -2022,6 +2022,8 @@ function buildGraphPagePointsFromDays(days) {
       napDuration = napEnd >= napStart ? napEnd - napStart : napEnd + 1440 - napStart;
     }
 
+    const wake = classifyWake(day);
+
     return {
       date: getDateFromString(day.date),
       bedTimeMinutes: normalizeTimeForYAxis(rawBedMinutes),
@@ -2037,11 +2039,11 @@ function buildGraphPagePointsFromDays(days) {
       sleepDurationMinutes: sleepDuration,
       mainSleepMinutes: mainSleep,
       napMinutes: napDuration,
-      wakeDelayMinutes: calculateWakeDelay(day),
-      sleepDelayMinutes: calculateSleepDelay(day),
-      firstAlarm: day.alarm && day.alarm.length > 0 ? day.alarm[0] : null,
+      wakeLagMinutes: wake.wakeLagMin,
+      sleepLagMinutes: sleepLagMin(day),
+      firstAlarm: wake.firstAlarm,
       fragmentation: normalizeFragmentationLevel(day),
-      naturalWake: isNoAlarmWakeDay(day),
+      naturalWake: wake.natural,
     };
   });
 }

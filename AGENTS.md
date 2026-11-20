@@ -51,6 +51,13 @@ When changing `recordDateMdForSleepPeriod`, `resolveRecordDateMdForWake`, `night
 
 Use `computeRecentAverages(days, { endBeforeIndex? })` (or `averageSleepNights(nights)` for an equal-weight fixed list such as a week) from `sleep-utils.js`; deviation flags go through `getDeviationBaseline` (`nightly.js`), which wraps it. Do not slice `days` and re-average by hand — window size and weighting live only in that section (`RECENT_AVERAGE_WINDOW`, `RECENT_AVERAGE_HALF_LIFE`, `recentAverageWeights`). If you change them, update the doc's tables and the recent-average block in `tests/math-tests.js`.
 
+## Wake classification and lags
+
+**Applies to:** `sleep-utils.js`, `stats.js`, `stats-aggregates.js`, `charts.js`, `nightly.js`, `quick-actions.js`
+**Spec:** [docs/wake-and-lags.md](docs/wake-and-lags.md)
+
+Use `classifyWake`, `sleepLagMin`, `wakeLagMin` — never classify natural wake or compute alarm→wake inline. When changing `classifyWake`, `minutesFromSleepStart`, `sortAlarmsForNight`, `sleepLagMin`, `wakeLagMin`, the `averageSleepNights` lag fields, or `socialLagMinutes`, update the doc's rules and caller table and the wake/lag block in `tests/math-tests.js`.
+
 ## User data and cloud preferences
 
 **Applies to:** `sleep-utils.js`, `supabase/schema.sql`

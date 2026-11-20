@@ -14,7 +14,7 @@
 
   /* Color palette */
   --color-sleep: #a78bfa;
-  --color-nap: #c4b5fd;
+  --color-nap: #f0abfc;
   --color-bed: #60a5fa;
   --color-alarm: #c2410c;
   --color-bath: #fbbf24;
@@ -144,7 +144,7 @@
   --frag-dev-sev-border: rgba(185, 28, 28, 0.55);
   /* Darker palette for keyword/legend readability on light background */
   --color-sleep: #5b21b6;
-  --color-nap: #6d28d9;
+  --color-nap: #a21caf;
   --color-bed: #1d4ed8;
   --color-alarm: #9a3412;
   --color-bath: #b45309;
@@ -6945,6 +6945,42 @@ body.page-stats .stats-page-shell .container {
 .stats-matrix-lag-value {
   text-align: left;
   font-weight: 600;
+}
+
+/* Sleep / Wake sections: fixed-width x̄ / Σ / % column, then the label (left-aligned so labels line up). */
+.stats-matrix-metric--sym th[scope='row'] {
+  text-align: left;
+}
+
+.stats-matrix-sym {
+  display: inline-block;
+  width: 1.6em;
+  text-align: center;
+  color: var(--text);
+  opacity: 0.55;
+  font-weight: 400;
+}
+
+/* x̄: hand-drawn bar (text-decoration: overline sits at the ascender line, too high above "x").
+   `top` is tuned for system-ui (Segoe UI: top of "x" ≈ 0.41em into a line-height: 1 box). */
+.stats-matrix-xbar {
+  position: relative;
+  display: inline-block;
+  line-height: 1;
+}
+
+.stats-matrix-xbar::before {
+  content: '';
+  position: absolute;
+  left: 0.02em;
+  right: 0.02em;
+  top: 0.18em;
+  border-top: 1px solid currentColor;
+}
+
+.stats-matrix-label[title] {
+  cursor: help;
+  border-bottom: 1px dotted var(--divider-strong);
 }
 
 @media (max-width: 640px) {

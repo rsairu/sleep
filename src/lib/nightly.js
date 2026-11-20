@@ -449,8 +449,8 @@ function highlightKeyword(label, keywords) {
 }
 
 /** Inline 🛌 +Xm after sleep time (bed→sleep latency; SKP bed-colored via CSS). */
-function bedToSleepStatSuffixHtml(delayMinutes) {
-  const dur = formatDuration(Math.round(delayMinutes));
+function bedToSleepStatSuffixHtml(sleepLagMinutes) {
+  const dur = formatDuration(Math.round(sleepLagMinutes));
   const title = `Time from bed to sleep: ${dur}`;
   return (
     ' <span class="stat-bed-to-sleep-emoji" role="img" aria-label="' +
@@ -471,7 +471,8 @@ function renderDay(day, days, dayIndex, options) {
   const sleepEnd = timeToMinutes(day.sleepEnd);
   const sleepDuration = calculateTotalSleep(day);
   const longestUninterrupted = calculateLongestUninterrupted(day);
-  const firstAlarmToWake = calculateFirstAlarmToWake(day);
+  const wakeClass = classifyWake(day);
+  const wakeLag = wakeClass.wakeLagMin;
   
   const isHolidayDay = isHoliday(day.date, holidays);
   const isWeekendDay = isWeekend(day.date);
@@ -489,30 +490,29 @@ function renderDay(day, days, dayIndex, options) {
     : '';
   const userLabelsBlock = sleepDayUserLabelsMarkup(day);
   const dayFlagsRow = `<div class="day-flags-row"><div class="day-flags-content">${deviationWarnings}${userLabelsBlock}</div></div>`;
-  const hasAlarms = day.alarm && day.alarm.length > 0;
   let wakeValueSuffix = '';
-  if (!hasAlarms) {
+  if (wakeClass.firstAlarm === null) {
     wakeValueSuffix =
       ' <span class="stat-natural-wake-emoji" role="img" aria-label="Natural wake" title="Natural wake">🌄</span>';
-  } else if (firstAlarmToWake !== null && firstAlarmToWake < 0) {
-    const earlyBy = formatDuration(-firstAlarmToWake);
+  } else if (wakeLag !== null && wakeLag < 0) {
+    const earlyBy = formatDuration(-wakeLag);
     const parenInner = `⏰-${earlyBy}`;
     const parenTitle = `Before alarm by ${earlyBy}`;
     wakeValueSuffix =
       ' <span class="stat-natural-wake-emoji" role="img" aria-label="Woke before alarm" title="Woke before alarm">🌄</span>' +
       ` <span class="stat-wake-before-alarm-paren" role="img" aria-label="${escapeHtmlAttr(parenTitle)}" title="${escapeHtmlAttr(parenTitle)}">(${parenInner})</span>`;
-  } else if (firstAlarmToWake !== null && firstAlarmToWake >= 0) {
-    const delayWarn =
-      firstAlarmToWake > ALARM_TO_WAKE_WARNING_THRESHOLD ? ' stat-warning' : '';
+  } else if (wakeLag !== null && wakeLag >= 0) {
+    const lagWarn =
+      wakeLag > ALARM_TO_WAKE_WARNING_THRESHOLD ? ' stat-warning' : '';
     wakeValueSuffix =
       ' <span class="stat-wake-alarm-emoji" role="img" aria-label="Alarm wake" title="Alarm wake">⏰</span>' +
-      `<span class="stat-wake-after-alarm-delay${delayWarn}">+${formatDuration(firstAlarmToWake)}</span>`;
+      `<span class="stat-wake-after-alarm-delay${lagWarn}">+${formatDuration(wakeLag)}</span>`;
   } else {
     wakeValueSuffix =
       ' <span class="stat-wake-alarm-emoji" role="img" aria-label="Alarm set" title="Alarm">⏰</span>';
   }
 
-  const sleepValueSuffix = bedToSleepStatSuffixHtml(calculateSleepDelay(day));
+  const sleepValueSuffix = bedToSleepStatSuffixHtml(sleepLagMin(day));
 
   // Convert times to timeline positions
   const sleepStartPos = timeToTimelinePosition(sleepStart);
@@ -592,12 +592,12 @@ function renderDay(day, days, dayIndex, options) {
 
 // Render averages stats HTML (inner content only)
 function renderAveragesStats(averages) {
-  const sleepAvgSuffix = bedToSleepStatSuffixHtml(averages.avgBedToSleepDelay);
+  const sleepAvgSuffix = bedToSleepStatSuffixHtml(averages.avgSleepLag);
   return `
         <div class="stat-row"><span class="stat-label">${highlightKeyword('sleep:', 'sleep')}</span><span class="stat-value">${formatTime(averages.avgSleepStart)}${sleepAvgSuffix}</span></div>
     <div class="stat-row"><span class="stat-label">${highlightKeyword('duration:', 'duration')}</span><span class="stat-value">${formatDuration(averages.avgSleepDuration)}</span></div>
     <div class="stat-row"><span class="stat-label">uninterrupted:</span><span class="stat-value">${formatDuration(averages.avgLongestUninterrupted)}</span></div>
-    ${averages.avgFirstAlarmToWake !== null ? `<div class="stat-row"><span class="stat-label">${highlightKeyword('Wake delay (avg):', 'wake')}</span><span class="stat-value ${averages.avgFirstAlarmToWake > ALARM_TO_WAKE_WARNING_THRESHOLD ? 'stat-warning' : ''}">${averages.avgFirstAlarmToWake < 0 ? '−' + formatDuration(-averages.avgFirstAlarmToWake) : formatDuration(averages.avgFirstAlarmToWake)}</span></div>` : ''}
+    ${averages.avgWakeLag !== null ? `<div class="stat-row"><span class="stat-label">${highlightKeyword('Wake lag (avg):', 'wake')}</span><span class="stat-value ${averages.avgWakeLag > ALARM_TO_WAKE_WARNING_THRESHOLD ? 'stat-warning' : ''}">${averages.avgWakeLag < 0 ? '−' + formatDuration(-averages.avgWakeLag) : formatDuration(averages.avgWakeLag)}</span></div>` : ''}
   `;
 }
 
@@ -1346,7 +1346,7 @@ const QUICK_ADD_FALLBACK_AVERAGES = {
   avgSleepEnd: 7 * 60,
   avgSleepDuration: Math.round(8.5 * 60),
   avgLongestUninterrupted: Math.round(7.5 * 60),
-  avgFirstAlarmToWake: null
+  avgWakeLag: null
 };
 
 /**

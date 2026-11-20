@@ -25,7 +25,7 @@
     if (recent) return recent;
     return typeof QUICK_ADD_FALLBACK_AVERAGES !== 'undefined'
       ? QUICK_ADD_FALLBACK_AVERAGES
-      : { avgSleepStart: 22 * 60 + 30, avgSleepEnd: 7 * 60, avgFirstAlarmToWake: null };
+      : { avgSleepStart: 22 * 60 + 30, avgSleepEnd: 7 * 60, avgWakeLag: null };
   }
 
   /**
@@ -585,7 +585,7 @@
     const phase = getQuickActionsPhaseFromSharedContext(sharedContext, now, averages);
     const calendarNapMd = napCalendarMd(now);
     const napActiveSync = napActiveFromLoadedDaysAndSession(days, calendarNapMd);
-    const showAlarm = averages.avgFirstAlarmToWake != null;
+    const showAlarm = averages.avgWakeLag != null;
     // Night lookup (natural-wake cutover). Bed / sleep checks below use it; wake uses the open night.
     const nightMd = sharedContext && sharedContext.nightMd
       ? sharedContext.nightMd
