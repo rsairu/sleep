@@ -12,7 +12,7 @@ Implementation: `src/lib/sleep-utils.js`, section "Recent averages". Every calle
 - **Weights:** entry *i* back (0 = newest) has weight **0.5 ^ (i / `RECENT_AVERAGE_HALF_LIFE`)**, half-life **5** entries. Every 5 entries back, an entry counts half as much.
 - **Average:** Σ weight × value / Σ weight. With fewer than 14 entries, the same weights apply to what exists.
 - **Clock times** (fell-asleep, wake) are averaged on the extended axis (`normalizeTimeForAveraging` / `normalizeWakeTimeForAveraging`) so midnight crossings average correctly.
-- **All fields** (fell-asleep, wake, duration, longest uninterrupted, bed-to-sleep delay, first-alarm-to-wake) use the same weights. First-alarm-to-wake averages only entries with an alarm.
+- **All fields** (fell-asleep, wake, duration, longest uninterrupted, sleep lag, wake lag) use the same weights (`avgSleepLag`, `avgWakeLag`). Wake lag averages only entries with an alarm; see [wake-and-lags.md](wake-and-lags.md).
 
 | Entries back | 0 | 1 | 2 | 5 | 10 | 13 |
 |---|---|---|---|---|---|---|

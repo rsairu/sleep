@@ -10,10 +10,10 @@ All SKP variables are defined on `:root` and overridden for light UI on `[data-t
 
 | Token | Typical meaning | CSS variable |
 |--------|-----------------|--------------|
-| Bed | Bed time, SOL / bed-adjacent metrics | `--color-bed` |
+| Bed | Bed time, sleep lag (SOL) / bed-adjacent metrics | `--color-bed` |
 | Sleep | Main sleep span, asleep, duration series | `--color-sleep` |
-| Nap | Nap segment | `--color-nap` |
-| Wake / get up | Wake time, wake delay | `--color-up` |
+| Nap | Nap segment (pink-lavender, hue ~291°: clear of sleep ~255°, alarm/warning ~17°, fragmentation stripes ~338°) | `--color-nap` |
+| Wake / get up | Wake time, wake lag | `--color-up` |
 | Alarm | Alarm events | `--color-alarm` |
 | Bath | Bathroom events | `--color-bath` |
 | Sunrise / sun | Sunrise-related accents | `--color-sunrise` |
@@ -23,7 +23,7 @@ Related non-keyword UI tokens (`--panel`, `--text`, `--grid`, etc.) live in the 
 
 **Remaining-wake nav surfaces:** `--nav-phase-tint-midnight` and `--nav-phase-tint-sleep-soon` blend `--bg` / `--text` (theme) with **`--color-sleep`** for the “sweet dreams” strip and the “start sleep soon” strip between pre-sleep and midnight (`styles.css`).
 
-**Nightly companion:** `--stat-wake-before-alarm-cool` — cool teal for the “woke before first alarm” parenthetical `(⏰-…m)`; intentionally **not** `--color-bed` (sky) so it reads apart from bed and from warm `--color-warning` on after-alarm `+…` delays.
+**Nightly companion:** `--stat-wake-before-alarm-cool` — cool teal for the “woke before first alarm” parenthetical `(⏰-…m)`; intentionally **not** `--color-bed` (sky) so it reads apart from bed and from warm `--color-warning` on after-alarm `+…` wake lag.
 
 ## Usage rules
 

@@ -70,7 +70,7 @@ function buildPoints(days) {
       mainSleepMinutes: mainSleep,
       napMinutes: napDuration,
       fragmentation: normalizeFragmentationLevel(day),
-      naturalWake: isNoAlarmWakeDay(day)
+      naturalWake: classifyWake(day).natural
     };
   });
 }

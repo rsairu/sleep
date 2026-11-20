@@ -123,12 +123,12 @@ Time is normalized as **minutes from midnight** (0–1440) in logic, with explic
 ### 4. Graphs (`/charts`)
 - Loads shared sleep data; no `daily.js`, only `src/lib/sleep-utils.js`.
 - **Line chart:** bed time, fell-asleep time, get-up time over days (Y = time 17:00→17:00 next day); **quadratic regression** (polynomial regression + Gaussian elimination in `graph.js`) for trend lines; toggles to show/hide series.
-- **Bar charts:** sleep duration and "delay" (e.g. bed-to-sleep) per day.
+- **Bar charts:** sleep duration, wake lag (first alarm → get up), and sleep lag (bed → asleep) per day.
 - All charts are **SVG** drawn in code.
 
 ### 5. Stats (`/stats`)
-- **Monthly** stats: total sleep, averages, longest uninterrupted stretch, alarm-to-wake, bed-to-sleep delay, nap stats.
-- Uses `groupDaysByMonth()`, `calculateLongestUninterrupted()`, `calculateFirstAlarmToWake()`, `calculateBedToSleepDelay()`, `calculateNapDuration()` in `stats.js`.
+- **Monthly** stats: total sleep, averages, longest uninterrupted stretch, wake lag, sleep lag, nap stats.
+- Uses `groupDaysByMonth()`, `calculateLongestUninterrupted()`, `classifyWake()`, `wakeLagMin()`, `sleepLagMin()`, `calculateNapDuration()` in `stats.js` (see [docs/wake-and-lags.md](docs/wake-and-lags.md)).
 - Renders comparison vs other months (e.g. "higher/lower than average").
 
 ---

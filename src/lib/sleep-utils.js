@@ -381,7 +381,9 @@ function mergePartialSleepDayForUpsert(existing, dateMd, partial) {
 
 function mapDayToSupabaseRow(day) {
   const bathroom = Array.isArray(day.bathroom) ? day.bathroom.map(normalizeTimeStringForSupabase) : [];
-  const alarm = Array.isArray(day.alarm) ? day.alarm.map(normalizeTimeStringForSupabase) : [];
+  const alarm = Array.isArray(day.alarm)
+    ? sortAlarmsForNight(day.alarm, day.sleepStart).map(normalizeTimeStringForSupabase)
+    : [];
   const dateMd = normalizeSleepDateKey(day.date) || '';
   return {
     user_id: RESTORE_CLOUD_USER_ID,
@@ -411,7 +413,7 @@ function mapPartialDayToDraftPatch(partial) {
   }
   if ('alarm' in partial) {
     patch.alarm = Array.isArray(partial.alarm)
-      ? partial.alarm.map(normalizeTimeStringForSupabase)
+      ? sortAlarmsForNight(partial.alarm, partial.sleepStart).map(normalizeTimeStringForSupabase)
       : [];
   }
   if ('nap' in partial) {
@@ -1712,66 +1714,94 @@ function calculateLongestUninterrupted(day) {
   return longest;
 }
 
-function getFirstAlarmMinutes(day) {
-  if (!day.alarm || day.alarm.length === 0) return null;
-  return Math.min(...day.alarm.map(timeToMinutes));
+// --- Wake classification and lags (spec: docs/wake-and-lags.md) ---
+
+/** Minutes after sleep start, 0..1439. NaN if either time is missing. */
+function minutesFromSleepStart(clockMinutes, sleepStartMinutes) {
+  if (!Number.isFinite(clockMinutes) || !Number.isFinite(sleepStartMinutes)) return NaN;
+  return (((clockMinutes - sleepStartMinutes) % 1440) + 1440) % 1440;
 }
 
-// Signed alarm-to-wake delta (minutes): wake - firstAlarm.
-// Negative values are meaningful and preserved for analysis.
-function calculateAlarmToWakeDelta(day) {
-  const firstAlarm = getFirstAlarmMinutes(day);
-  if (firstAlarm === null) return null;
-  const wakeTime = timeToMinutes(day.sleepEnd);
-  return wakeTime - firstAlarm;
+function wakeLagClockMinutesOrNaN(time) {
+  if (time === null || time === undefined || time === '') return NaN;
+  const m = timeToMinutes(time);
+  return Number.isFinite(m) ? m : NaN;
 }
 
-// Backward-compatible alias for existing callers.
-function calculateFirstAlarmToWake(day) {
-  return calculateAlarmToWakeDelta(day);
+/** Copy of alarm strings, stable-sorted by sleep-start offset; clock order if sleepStart missing. */
+function sortAlarmsForNight(alarms, sleepStart) {
+  if (!Array.isArray(alarms)) return [];
+  const ss = wakeLagClockMinutesOrNaN(sleepStart);
+  const keyed = alarms.map(function (a, i) {
+    const m = wakeLagClockMinutesOrNaN(a);
+    let key = Number.isFinite(ss) ? minutesFromSleepStart(m, ss) : m;
+    if (!Number.isFinite(key)) key = Infinity;
+    return { a: a, i: i, key: key };
+  });
+  keyed.sort(function (x, y) {
+    return x.key - y.key || x.i - y.i;
+  });
+  return keyed.map(function (k) {
+    return k.a;
+  });
 }
 
 /**
- * Natural wake: no alarms, or exactly one alarm with wake strictly before it (negative alarm-to-wake delta).
- * Multiple alarm times imply snooze / backup alarms → not natural.
+ * Single source of truth for wake type and alarm→wake.
+ * @returns {{ natural: boolean, firstAlarm: string|null, wakeLagMin: number|null }}
+ *  - no alarms → { natural: true, firstAlarm: null, wakeLagMin: null }
+ *  - else first = alarm with smallest sleep-start offset;
+ *    wakeLagMin = offset(wake) − offset(first)   (signed)
+ *    natural = wakeLagMin < 0
+ *  - sleepStart missing (fixtures only; prod sleep_start is NOT NULL):
+ *    first = min clock alarm; wakeLagMin = shortest signed clock delta in [−720, 720)
  */
-function isNaturalWakeDay(day) {
-  const alarms = day && day.alarm;
-  if (!alarms || alarms.length === 0) return true;
-  if (alarms.length !== 1) return false;
-  const delta = calculateAlarmToWakeDelta(day);
-  return delta !== null && delta < 0;
+function classifyWake(day) {
+  const alarms = day && Array.isArray(day.alarm)
+    ? day.alarm.filter(function (a) {
+        return Number.isFinite(wakeLagClockMinutesOrNaN(a));
+      })
+    : [];
+  if (alarms.length === 0) return { natural: true, firstAlarm: null, wakeLagMin: null };
+
+  const ss = wakeLagClockMinutesOrNaN(day.sleepStart);
+  const wake = wakeLagClockMinutesOrNaN(day.sleepEnd);
+  const anchored = Number.isFinite(ss);
+
+  let firstAlarm = null;
+  let firstKey = Infinity;
+  for (let i = 0; i < alarms.length; i++) {
+    const m = timeToMinutes(alarms[i]);
+    const key = anchored ? minutesFromSleepStart(m, ss) : m;
+    if (key < firstKey) {
+      firstKey = key;
+      firstAlarm = alarms[i];
+    }
+  }
+
+  if (!Number.isFinite(wake)) return { natural: false, firstAlarm: firstAlarm, wakeLagMin: null };
+
+  let lag;
+  if (anchored) {
+    lag = minutesFromSleepStart(wake, ss) - firstKey;
+  } else {
+    lag = ((((wake - firstKey + 720) % 1440) + 1440) % 1440) - 720;
+  }
+  return { natural: lag < 0, firstAlarm: firstAlarm, wakeLagMin: lag };
 }
 
-/** True when no alarm times are recorded (chart “natural wake” markers only; analytics still use {@link isNaturalWakeDay}). */
-function isNoAlarmWakeDay(day) {
-  const alarms = day && day.alarm;
-  return !alarms || alarms.length === 0;
-}
-
-// Calculate delay from bed time to falling asleep
-function calculateSleepDelay(day) {
+/** Bed → asleep, minutes. */
+function sleepLagMin(day) {
   const bedTime = timeToMinutes(day.bed);
   const sleepStart = timeToMinutes(day.sleepStart);
-  let delay = sleepStart - bedTime;
-  if (delay < 0) delay += 1440;
-  return delay;
+  let lag = sleepStart - bedTime;
+  if (lag < 0) lag += 1440;
+  return lag;
 }
 
-// Backward-compatible alias for existing callers.
-function calculateWakeDelay(day) {
-  const firstAlarm = getFirstAlarmMinutes(day);
-  if (firstAlarm === null) return null;
-  const wakeTime = timeToMinutes(day.sleepEnd);
-  let delay = wakeTime - firstAlarm;
-  if (delay < 0 && firstAlarm >= 1080) {
-    delay = (wakeTime + 1440) - firstAlarm;
-  }
-  return delay;
-}
-
-function calculateBedToSleepDelay(day) {
-  return calculateSleepDelay(day);
+/** classifyWake(day).wakeLagMin — signed, null when no alarm. */
+function wakeLagMin(day) {
+  return classifyWake(day).wakeLagMin;
 }
 
 function calculateNapDuration(day) {
@@ -3621,8 +3651,8 @@ function equalWeights(count) {
  *   avgSleepEnd: number,
  *   avgSleepDuration: number,
  *   avgLongestUninterrupted: number,
- *   avgBedToSleepDelay: number,
- *   avgFirstAlarmToWake: number|null,
+ *   avgSleepLag: number,
+ *   avgWakeLag: number|null,
  *   exact: { sleepStartNorm: number, sleepEndNorm: number, sleepDuration: number }
  * }}
  * `exact` holds the unrounded means — fell-asleep and wake on the extended axis — for comparisons
@@ -3639,9 +3669,9 @@ function averageSleepNights(nights, weights) {
   let sleepEndSum = 0;
   let durationSum = 0;
   let longestSum = 0;
-  let delaySum = 0;
-  let alarmSum = 0;
-  let alarmW = 0;
+  let sleepLagSum = 0;
+  let wakeLagSum = 0;
+  let wakeLagW = 0;
 
   for (let i = 0; i < n; i++) {
     const day = list[i];
@@ -3652,11 +3682,11 @@ function averageSleepNights(nights, weights) {
     sleepEndSum += wi * normalizeWakeTimeForAveraging(ss, timeToMinutes(day.sleepEnd));
     durationSum += wi * calculateTotalSleep(day);
     longestSum += wi * calculateLongestUninterrupted(day);
-    delaySum += wi * calculateSleepDelay(day);
-    const alarmToWake = calculateFirstAlarmToWake(day);
-    if (alarmToWake !== null) {
-      alarmSum += wi * alarmToWake;
-      alarmW += wi;
+    sleepLagSum += wi * sleepLagMin(day);
+    const wakeLag = wakeLagMin(day);
+    if (wakeLag !== null) {
+      wakeLagSum += wi * wakeLag;
+      wakeLagW += wi;
     }
   }
 
@@ -3666,8 +3696,8 @@ function averageSleepNights(nights, weights) {
     avgSleepEnd: denormalizeTimeForAveraging(Math.round(sleepEndSum / wSum)),
     avgSleepDuration: Math.round(durationSum / wSum),
     avgLongestUninterrupted: Math.round(longestSum / wSum),
-    avgBedToSleepDelay: Math.round(delaySum / wSum),
-    avgFirstAlarmToWake: alarmW > 0 ? Math.round(alarmSum / alarmW) : null,
+    avgSleepLag: Math.round(sleepLagSum / wSum),
+    avgWakeLag: wakeLagW > 0 ? Math.round(wakeLagSum / wakeLagW) : null,
     exact: {
       sleepStartNorm: sleepStartSum / wSum,
       sleepEndNorm: sleepEndSum / wSum,

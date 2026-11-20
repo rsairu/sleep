@@ -9,10 +9,10 @@ function calculateMonthlyAverages(monthDays) {
   let bedTimeSum = 0;
   let sleepStartSum = 0;
   let sleepEndSum = 0;
-  let bedToSleepDelaySum = 0;
+  let sleepLagSum = 0;
   let longestUninterruptedSum = 0;
-  let firstAlarmToWakeSum = 0;
-  let firstAlarmToWakeCount = 0;
+  let wakeLagSum = 0;
+  let wakeLagCount = 0;
   let sleepDurationSum = 0;
   let napDurationSum = 0;
   let napCount = 0;
@@ -27,13 +27,13 @@ function calculateMonthlyAverages(monthDays) {
     const sleepEnd = timeToMinutes(day.sleepEnd);
     sleepEndSum += normalizeWakeTimeForAveraging(sleepStart, sleepEnd);
 
-    bedToSleepDelaySum += calculateBedToSleepDelay(day);
+    sleepLagSum += sleepLagMin(day);
     longestUninterruptedSum += calculateLongestUninterrupted(day);
 
-    const firstAlarmToWake = calculateFirstAlarmToWake(day);
-    if (firstAlarmToWake !== null) {
-      firstAlarmToWakeSum += firstAlarmToWake;
-      firstAlarmToWakeCount++;
+    const wakeLag = wakeLagMin(day);
+    if (wakeLag !== null) {
+      wakeLagSum += wakeLag;
+      wakeLagCount++;
     }
 
     sleepDurationSum += calculateTotalSleep(day);
@@ -48,10 +48,9 @@ function calculateMonthlyAverages(monthDays) {
   const avgBedTime = denormalizeTimeForAveraging(Math.round(bedTimeSum / monthDays.length));
   const avgSleepStart = denormalizeTimeForAveraging(Math.round(sleepStartSum / monthDays.length));
   const avgSleepEnd = denormalizeTimeForAveraging(Math.round(sleepEndSum / monthDays.length));
-  const avgBedToSleepDelay = Math.round(bedToSleepDelaySum / monthDays.length);
+  const avgSleepLag = Math.round(sleepLagSum / monthDays.length);
   const avgLongestUninterrupted = Math.round(longestUninterruptedSum / monthDays.length);
-  const avgFirstAlarmToWake =
-    firstAlarmToWakeCount > 0 ? Math.round(firstAlarmToWakeSum / firstAlarmToWakeCount) : null;
+  const avgWakeLag = wakeLagCount > 0 ? Math.round(wakeLagSum / wakeLagCount) : null;
   const avgSleepDuration = Math.round(sleepDurationSum / monthDays.length);
   const avgNapDuration = napCount > 0 ? Math.round(napDurationSum / napCount) : null;
 
@@ -111,9 +110,9 @@ function calculateMonthlyAverages(monthDays) {
     avgBedTime: avgBedTime,
     avgSleepStart: avgSleepStart,
     avgSleepEnd: avgSleepEnd,
-    avgBedToSleepDelay: avgBedToSleepDelay,
+    avgSleepLag: avgSleepLag,
     avgLongestUninterrupted: avgLongestUninterrupted,
-    avgFirstAlarmToWake: avgFirstAlarmToWake,
+    avgWakeLag: avgWakeLag,
     avgSleepDuration: avgSleepDuration,
     avgNapDuration: avgNapDuration,
     napFrequency: napFrequency,
@@ -158,6 +157,8 @@ function columnExtras(days) {
       sumTotalSleep: null,
       sumNap: null,
       naturalWakePct: null,
+      sumSleepLag: null,
+      sumWakeLag: null,
       avgMidSleep: null,
       longestNightly: null,
       shortestNightly: null
@@ -166,17 +167,28 @@ function columnExtras(days) {
   let sumTotal = 0;
   let sumNap = 0;
   let natural = 0;
+  let sumSleepLag = 0;
+  let sumWakeLag = 0;
+  let wakeLagNights = 0;
   for (let i = 0; i < days.length; i++) {
     sumTotal += calculateTotalSleep(days[i]);
     const n = calculateNapDuration(days[i]);
     if (n !== null) sumNap += n;
-    if (isNaturalWakeDay(days[i])) natural++;
+    const wake = classifyWake(days[i]);
+    if (wake.natural) natural++;
+    if (wake.wakeLagMin !== null) {
+      sumWakeLag += wake.wakeLagMin;
+      wakeLagNights++;
+    }
+    sumSleepLag += sleepLagMin(days[i]);
   }
   const bounds = nightlyTotalSleepBounds(days);
   return {
     sumTotalSleep: sumTotal,
     sumNap: sumNap,
     naturalWakePct: (natural / days.length) * 100,
+    sumSleepLag: sumSleepLag,
+    sumWakeLag: wakeLagNights > 0 ? sumWakeLag : null,
     avgMidSleep: StatsAggregates.averageMidSleepClockMinutes(days),
     longestNightly: bounds.max,
     shortestNightly: bounds.min
@@ -244,36 +256,55 @@ function buildColumnBundle(days) {
   };
 }
 
+// x̄ is drawn as "x" + CSS overline: the combining macron (U+0304) renders as a separate glyph in many fonts.
+const STATS_SYM_AVG =
+  '<span class="stats-matrix-sym" aria-label="average"><span class="stats-matrix-xbar" aria-hidden="true">x</span></span>';
+const STATS_SYM_SUM = '<span class="stats-matrix-sym" aria-label="total">Σ</span>';
+const STATS_SYM_PCT = '<span class="stats-matrix-sym" aria-label="percent">%</span>';
+const STATS_SYM_NONE = '<span class="stats-matrix-sym" aria-hidden="true"></span>';
+
+function statsKeyword(kind, text) {
+  return '<span class="keyword ' + kind + '">' + escapeHtml(text) + '</span>';
+}
+
 function renderStatsMatrix(periodDays) {
   const split = StatsAggregates.splitAllWorkFree(periodDays);
   const colAll = buildColumnBundle(split.all);
   const colWork = buildColumnBundle(split.work);
   const colFree = buildColumnBundle(split.free);
+  const cols = [colAll, colWork, colFree];
 
   const social = StatsAggregates.socialLagMinutes(split.work, split.free);
-  const wakeLag = StatsAggregates.wakeLagMinutes(periodDays);
 
   const TOOLTIP_SOCIAL =
-    'How much the middle of your sleep shifts between workdays and free days (weekends and holidays). A bigger gap often means your weekday schedule and your days off are asking your body for different sleep times.';
-  const TOOLTIP_WAKE =
-    'Compares mornings with an alarm to mornings without one. A positive value means you tend to wake later on your own than when the alarm gets you up.';
+    'How far the middle of your sleep shifts between work days and free days (weekends and holidays). This is the MCTQ social jetlag measure. A bigger gap means your weekday and day-off rhythms are pulling apart.';
 
   const rows = [];
 
-  function section(title) {
+  /** `titleHtml` is trusted markup (may carry a keyword span). */
+  function section(titleHtml) {
     rows.push(
       '<tr class="stats-matrix-section"><th colspan="4" scope="colgroup">' +
-        escapeHtml(title) +
+        titleHtml +
         '</th></tr>'
     );
   }
 
-  function metricRow(labelHtml, a, w, f) {
+  function labelTh(symHtml, labelHtml, tooltip) {
+    return (
+      '<th scope="row">' +
+      symHtml +
+      (tooltip
+        ? '<span class="stats-matrix-label" title="' + escapeHtml(tooltip) + '">' + labelHtml + '</span>'
+        : '<span class="stats-matrix-label">' + labelHtml + '</span>') +
+      '</th>'
+    );
+  }
+
+  function metricRow(symHtml, labelHtml, a, w, f, tooltip) {
     rows.push(
-      '<tr class="stats-matrix-metric">' +
-        '<th scope="row">' +
-        labelHtml +
-        '</th>' +
+      '<tr class="stats-matrix-metric stats-matrix-metric--sym">' +
+        labelTh(symHtml, labelHtml, tooltip) +
         '<td class="stats-matrix-cell">' +
         a +
         '</td>' +
@@ -284,6 +315,14 @@ function renderStatsMatrix(periodDays) {
         f +
         '</td></tr>'
     );
+  }
+
+  /** One row from a per-column formatter `(bundle) => string|null`. */
+  function colRow(symHtml, labelHtml, fmt, tooltip) {
+    const cells = cols.map(function (c) {
+      return dashCell(fmt(c));
+    });
+    metricRow(symHtml, labelHtml, cells[0], cells[1], cells[2], tooltip);
   }
 
   function ultimateRow(kind, colA, colW, colF) {
@@ -303,128 +342,135 @@ function renderStatsMatrix(periodDays) {
     );
   }
 
-  section('Sleep Duration');
-  metricRow(
-    'Total <span class="keyword sleep">sleep</span>',
-    colAll.ex.sumTotalSleep === null ? '—' : formatTotalSleepCell(colAll.ex),
-    colWork.ex.sumTotalSleep === null ? '—' : formatTotalSleepCell(colWork.ex),
-    colFree.ex.sumTotalSleep === null ? '—' : formatTotalSleepCell(colFree.ex)
-  );
-  metricRow(
-    'Average <span class="keyword sleep">sleep</span> duration',
-    dashCell(colAll.av ? formatDuration(colAll.av.avgSleepDuration) : null),
-    dashCell(colWork.av ? formatDuration(colWork.av.avgSleepDuration) : null),
-    dashCell(colFree.av ? formatDuration(colFree.av.avgSleepDuration) : null)
-  );
-  metricRow(
-    'Average <span class="keyword nap">nap</span>',
-    dashCell(colAll.av ? formatNapCell(colAll.av) : null),
-    dashCell(colWork.av ? formatNapCell(colWork.av) : null),
-    dashCell(colFree.av ? formatNapCell(colFree.av) : null)
-  );
-  metricRow(
-    'Longest <span class="keyword sleep">sleep</span> (one night)',
-    dashCell(
-      colAll.ex.longestNightly !== null ? formatDuration(colAll.ex.longestNightly) : null
-    ),
-    dashCell(
-      colWork.ex.longestNightly !== null ? formatDuration(colWork.ex.longestNightly) : null
-    ),
-    dashCell(
-      colFree.ex.longestNightly !== null ? formatDuration(colFree.ex.longestNightly) : null
-    )
-  );
-  metricRow(
-    'Shortest <span class="keyword sleep">sleep</span> (one night)',
-    dashCell(
-      colAll.ex.shortestNightly !== null ? formatDuration(colAll.ex.shortestNightly) : null
-    ),
-    dashCell(
-      colWork.ex.shortestNightly !== null ? formatDuration(colWork.ex.shortestNightly) : null
-    ),
-    dashCell(
-      colFree.ex.shortestNightly !== null ? formatDuration(colFree.ex.shortestNightly) : null
-    )
-  );
-
-  section('Uninterrupted');
-  metricRow(
-    'Longest uninterrupted <span class="keyword sleep">sleep</span> (avg)',
-    dashCell(colAll.av ? formatDuration(colAll.av.avgLongestUninterrupted) : null),
-    dashCell(colWork.av ? formatDuration(colWork.av.avgLongestUninterrupted) : null),
-    dashCell(colFree.av ? formatDuration(colFree.av.avgLongestUninterrupted) : null)
-  );
-
-  section('Natural Wake');
-  function pctCell(ex) {
-    if (ex.naturalWakePct === null) return '—';
-    return Math.round(ex.naturalWakePct) + '%';
+  function avDuration(field) {
+    return function (c) {
+      return c.av ? formatDuration(c.av[field]) : null;
+    };
   }
-  metricRow(
-    'Natural wake %',
-    pctCell(colAll.ex),
-    pctCell(colWork.ex),
-    pctCell(colFree.ex)
-  );
+  function avTime(field) {
+    return function (c) {
+      return c.av ? formatTime(c.av[field]) : null;
+    };
+  }
+  function exDuration(field) {
+    return function (c) {
+      return c.ex[field] !== null ? formatDuration(c.ex[field]) : null;
+    };
+  }
 
-  section('Timing');
-  metricRow(
-    'Time to <span class="keyword bed">bed</span>',
-    dashCell(colAll.av ? formatTime(colAll.av.avgBedTime) : null),
-    dashCell(colWork.av ? formatTime(colWork.av.avgBedTime) : null),
-    dashCell(colFree.av ? formatTime(colFree.av.avgBedTime) : null)
+  // ----- Sleep -----
+  section(statsKeyword('sleep', 'Sleep'));
+  colRow(
+    STATS_SYM_SUM,
+    statsKeyword('sleep', 'Sleep') + ' (duration)',
+    function (c) {
+      return c.ex.sumTotalSleep === null ? null : formatTotalSleepCell(c.ex);
+    },
+    'All sleep in this period, naps included.'
   );
-  metricRow(
-    'Fell <span class="keyword asleep">asleep</span>',
-    dashCell(colAll.av ? formatTime(colAll.av.avgSleepStart) : null),
-    dashCell(colWork.av ? formatTime(colWork.av.avgSleepStart) : null),
-    dashCell(colFree.av ? formatTime(colFree.av.avgSleepStart) : null)
+  colRow(
+    STATS_SYM_AVG,
+    statsKeyword('sleep', 'Sleep') + ' (duration)',
+    avDuration('avgSleepDuration'),
+    'Average sleep per night.'
   );
-  metricRow(
-    'Time to <span class="keyword wake">wake</span>',
-    dashCell(colAll.av ? formatTime(colAll.av.avgSleepEnd) : null),
-    dashCell(colWork.av ? formatTime(colWork.av.avgSleepEnd) : null),
-    dashCell(colFree.av ? formatTime(colFree.av.avgSleepEnd) : null)
+  colRow(
+    STATS_SYM_AVG,
+    statsKeyword('nap', 'Nap'),
+    function (c) {
+      return c.av ? formatNapCell(c.av) : null;
+    },
+    'Average nap length and how often you nap.'
   );
-  metricRow(
-    'Mid-sleep time',
-    dashCell(colAll.ex.avgMidSleep !== null ? formatTime(colAll.ex.avgMidSleep) : null),
-    dashCell(colWork.ex.avgMidSleep !== null ? formatTime(colWork.ex.avgMidSleep) : null),
-    dashCell(colFree.ex.avgMidSleep !== null ? formatTime(colFree.ex.avgMidSleep) : null)
+  colRow(
+    STATS_SYM_NONE,
+    'Longest ' + statsKeyword('sleep', 'sleep') + ' (one night)',
+    exDuration('longestNightly'),
+    'Your longest single night in this period.'
   );
-
-  section('Delays');
-  metricRow(
-    '<span class="keyword sleep">Sleep</span> delay',
-    dashCell(colAll.av ? formatDuration(colAll.av.avgBedToSleepDelay) : null),
-    dashCell(colWork.av ? formatDuration(colWork.av.avgBedToSleepDelay) : null),
-    dashCell(colFree.av ? formatDuration(colFree.av.avgBedToSleepDelay) : null)
+  colRow(
+    STATS_SYM_NONE,
+    'Shortest ' + statsKeyword('sleep', 'sleep') + ' (one night)',
+    exDuration('shortestNightly'),
+    'Your shortest single night in this period.'
   );
-  metricRow(
-    '<span class="keyword wake">Wake</span> delay',
-    dashCell(colAll.av ? formatSignedDurationStats(colAll.av.avgFirstAlarmToWake) : null),
-    dashCell(colWork.av ? formatSignedDurationStats(colWork.av.avgFirstAlarmToWake) : null),
-    dashCell(colFree.av ? formatSignedDurationStats(colFree.av.avgFirstAlarmToWake) : null)
+  colRow(
+    STATS_SYM_AVG,
+    'Uninterrupted ' + statsKeyword('sleep', 'sleep'),
+    avDuration('avgLongestUninterrupted'),
+    'Your longest unbroken stretch each night, averaged.'
   );
-
-  section('Lags');
+  colRow(
+    STATS_SYM_AVG,
+    statsKeyword('bed', 'Bed') + ' (time)',
+    avTime('avgBedTime'),
+    'When you went to bed, on average.'
+  );
+  colRow(
+    STATS_SYM_AVG,
+    statsKeyword('sleep', 'Sleep') + ' (time)',
+    avTime('avgSleepStart'),
+    'When you fell asleep, on average.'
+  );
+  colRow(
+    STATS_SYM_AVG,
+    statsKeyword('bed', 'Sleep lag'),
+    avDuration('avgSleepLag'),
+    'Time in bed before falling asleep, on average.'
+  );
+  colRow(
+    STATS_SYM_SUM,
+    statsKeyword('bed', 'Sleep lag'),
+    exDuration('sumSleepLag'),
+    'All time in bed before falling asleep, added up for this period.'
+  );
+  colRow(
+    STATS_SYM_AVG,
+    statsKeyword('sleep', 'Mid-sleep'),
+    function (c) {
+      return c.ex.avgMidSleep !== null ? formatTime(c.ex.avgMidSleep) : null;
+    },
+    'Halfway between falling asleep and waking, on average.'
+  );
   rows.push(
-    '<tr class="stats-matrix-metric stats-matrix-lag-row">' +
-      '<th scope="row"><span class="stats-matrix-lag-label" title="' +
-      escapeHtml(TOOLTIP_SOCIAL) +
-      '">Social lag</span></th>' +
+    '<tr class="stats-matrix-metric stats-matrix-metric--sym stats-matrix-lag-row">' +
+      labelTh(STATS_SYM_NONE, 'Social lag', TOOLTIP_SOCIAL) +
       '<td class="stats-matrix-cell stats-matrix-lag-value" colspan="3">' +
       (social === null ? '—' : formatDuration(social)) +
       '</td></tr>'
   );
-  rows.push(
-    '<tr class="stats-matrix-metric stats-matrix-lag-row">' +
-      '<th scope="row"><span class="stats-matrix-lag-label" title="' +
-      escapeHtml(TOOLTIP_WAKE) +
-      '">Wake lag</span></th>' +
-      '<td class="stats-matrix-cell stats-matrix-lag-value" colspan="3">' +
-      (wakeLag === null ? '—' : formatSignedDurationStats(wakeLag)) +
-      '</td></tr>'
+
+  // ----- Wake -----
+  section(statsKeyword('wake', 'Wake'));
+  colRow(
+    STATS_SYM_AVG,
+    statsKeyword('wake', 'Wake') + ' (time)',
+    avTime('avgSleepEnd'),
+    'When you woke up, on average.'
+  );
+  colRow(
+    STATS_SYM_PCT,
+    statsKeyword('wake', 'Natural wake'),
+    function (c) {
+      return c.ex.naturalWakePct === null ? null : Math.round(c.ex.naturalWakePct) + '%';
+    },
+    'Mornings you woke on your own: no alarm, or before the first one.'
+  );
+  colRow(
+    STATS_SYM_AVG,
+    statsKeyword('wake', 'Wake lag') + ' (snooze)',
+    function (c) {
+      return c.av ? formatSignedDurationStats(c.av.avgWakeLag) : null;
+    },
+    'Time from your first alarm to waking, on mornings with an alarm. Negative when you woke before it.'
+  );
+  colRow(
+    STATS_SYM_SUM,
+    statsKeyword('wake', 'Wake lag') + ' (snooze)',
+    function (c) {
+      return formatSignedDurationStats(c.ex.sumWakeLag);
+    },
+    'Wake lag added up for this period. Early wakes subtract.'
   );
 
   section('Ultimates');
