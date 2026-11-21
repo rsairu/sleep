@@ -35,5 +35,7 @@ Related non-keyword UI tokens (`--panel`, `--text`, `--grid`, etc.) live in the 
 
 - **Daily timeline**: classes such as `.event.bed`, `.span.sleep`, `.event.up`.
 - **Graph page**: `.data-line.*`, `.data-point.*`, `.sleep-bar`, wake marker rings, dashed trend lines tied to the same variables.
+- **Dashboard total sleep**: `.duration-dot` (`--color-sleep`); nap nights use a hollow `.duration-dot--main` ring, a `.duration-nap-connector` dash and a `.duration-dot--nap-total` dot in `--color-nap`; `.usual-line` in `--color-sleep`.
+- **Dashboard time charts**: `.time-dot--bedtime` / `--sleep-start` / `--getup` (`--color-bed` / `--color-sleep` / `--color-up`); natural wake is a `.time-dot-natural` bullseye in `--color-up`; usual lines `.usual-line` (fell-asleep, `--color-sleep`) and `.usual-line--getup` (`--color-up`).
 
 When adding a feature, if the copy says “bed”, “asleep”, or “wake”, default to the matching SKP variable unless there is a deliberate exception.

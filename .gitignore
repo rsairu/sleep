@@ -17,6 +17,9 @@ local/dev-git-branch.js
 # Local Supabase dev/prod presets for dev-banner toggle (see local-supabase-presets.example.js)
 local/local-supabase-presets.js
 
+# Local GitHub token for the dev-banner prod → dev sync button (see local/local-github-dispatch.example.js)
+local/local-github-dispatch.js
+
 # Local datasets and manual restore exports (see README: Data on disk)
 data/sleep-data.json
 data/backup/

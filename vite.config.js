@@ -34,6 +34,9 @@ if (fs.existsSync('local/dev-git-branch.js')) {
 if (fs.existsSync('local/local-supabase-presets.js')) {
   staticCopyTargets.push({ src: 'local/local-supabase-presets.js', dest: '.' });
 }
+if (fs.existsSync('local/local-github-dispatch.js')) {
+  staticCopyTargets.push({ src: 'local/local-github-dispatch.js', dest: '.' });
+}
 
 export default defineConfig({
   appType: 'spa',

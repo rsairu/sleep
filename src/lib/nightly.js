@@ -1207,52 +1207,6 @@ function tonightInterpolateTemplate(str, vars) {
   });
 }
 
-function buildTonightMatrixCalloutParts(vm, tdT) {
-  if (!vm || !vm.callout || vm.rowMode !== 'full_guidance') return null;
-  const c = vm.callout;
-  const phaseDefaults = {
-    initiating: 'initiating',
-    transitioning: 'transitioning',
-    locking_in: 'locking in',
-    on_target: 'on target'
-  };
-  const phaseWord = tdT('dashboard.tonight.phaseCallout.phase.' + vm.phase, phaseDefaults[vm.phase] || vm.phase);
-  const verb =
-    vm.phase === 'on_target'
-      ? tdT('dashboard.tonight.phaseCallout.verbHolding', 'holding')
-      : tdT('dashboard.tonight.phaseCallout.verbNudging', 'nudging');
-  const dirWord = c.directionEarlier
-    ? tdT('dashboard.tonight.phaseCallout.dirEarlier', 'earlier')
-    : tdT('dashboard.tonight.phaseCallout.dirLater', 'later');
-  const delta = formatDuration(c.deltaMins);
-  const gap = formatDuration(c.gapMins);
-  const target = formatTime(c.targetMins);
-  const vars = { verb: verb, dir: dirWord, delta: delta, gap: gap, target: target };
-  let detail;
-  if (vm.pole === 'sleep') {
-    const key =
-      vm.phase === 'on_target'
-        ? 'dashboard.tonight.phaseCallout.sleepHoldingDetail'
-        : 'dashboard.tonight.phaseCallout.sleepNudgingDetail';
-    const fallback =
-      vm.phase === 'on_target'
-        ? '{verb} at target bedtime {target} (gap {gap}).'
-        : '{verb} bedtime {dir} by {delta} toward target {target} (gap {gap}).';
-    detail = tonightInterpolateTemplate(tdT(key, fallback), vars);
-  } else {
-    const keyW =
-      vm.phase === 'on_target'
-        ? 'dashboard.tonight.phaseCallout.wakeHoldingDetail'
-        : 'dashboard.tonight.phaseCallout.wakeNudgingDetail';
-    const fallbackW =
-      vm.phase === 'on_target'
-        ? '{verb} at target wake {target} (gap {gap}).'
-        : '{verb} wake {dir} by {delta} toward target {target} (gap {gap}).';
-    detail = tonightInterpolateTemplate(tdT(keyW, fallbackW), vars);
-  }
-  return { phaseWord: phaseWord, detail: detail };
-}
-
 function clampTonightProjectionNorms(base, sleepNorm, wakeNorm) {
   const min = base.scopeStartNorm;
   const max = base.scopeEndNorm;
@@ -2336,33 +2290,6 @@ function initDashboardTonightAdjuster(recentAverages, onChange, getLiveDays, get
         )
       );
     }
-    [sleepVm, wakeVm].forEach(function (vm) {
-      if (!vm.callout || vm.rowMode !== 'full_guidance') return;
-      const parts = buildTonightMatrixCalloutParts(vm, tdT);
-      if (!parts) return;
-      const row = document.createElement('div');
-      row.className = 'dashboard-tonight-matrix-callout dashboard-tonight-matrix-callout--' + vm.pole;
-      const dot = document.createElement('span');
-      dot.className = 'dashboard-tonight-matrix-callout-dot';
-      dot.setAttribute('aria-hidden', 'true');
-      const body = document.createElement('p');
-      body.className = 'dashboard-tonight-matrix-callout-body';
-      const phaseSpan = document.createElement('span');
-      phaseSpan.className = 'dashboard-tonight-matrix-callout-phase';
-      phaseSpan.textContent = parts.phaseWord;
-      const sep = document.createElement('span');
-      sep.className = 'dashboard-tonight-matrix-callout-sep';
-      sep.textContent = ' \u2014 ';
-      const rest = document.createElement('span');
-      rest.className = 'dashboard-tonight-matrix-callout-rest';
-      rest.textContent = parts.detail;
-      body.appendChild(phaseSpan);
-      body.appendChild(sep);
-      body.appendChild(rest);
-      row.appendChild(dot);
-      row.appendChild(body);
-      matrixCallouts.appendChild(row);
-    });
   }
 
   function updateVisualState(persistOverride) {
@@ -3494,7 +3421,7 @@ function renderDashboardContent(days) {
       <div class="dashboard-7d-col">
         <div class="dashboard-7d-time-stack">
           <div>
-            <h3 class="dashboard-7d-subtitle dashboard-7d-subtitle--skp-time">
+            <h3 class="dashboard-7d-subtitle dashboard-7d-subtitle--skp-bed-sleep">
               <a class="dashboard-7d-subtitle__link" href="${restoreMpaHref('charts.bedAsleepWake')}">Bed &amp; sleep start</a>
             </h3>
             <div class="dashboard-7d-graph-container" id="dashboard-7d-bed-sleep-graph"></div>

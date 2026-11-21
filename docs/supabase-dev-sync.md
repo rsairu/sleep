@@ -28,4 +28,4 @@ If you need dev to differ from prod for longer (e.g. a risky change under test),
 
 ## Running it by hand
 
-GitHub → **Actions** → *Sync Supabase dev from prod* → **Run workflow**. Useful right after a prod migration to pull the new schema into dev immediately, or to reset dev after messy testing.
+GitHub → **Actions** → *Sync Supabase dev from prod* → **Run workflow**, or the **📥** button in the dev banner's cloud row (needs a local token; see `docs/dev-banner.md` → *Prod → dev sync button*). When it finishes, press **🔄** to load the fresh dev data. Useful right after a prod migration to pull the new schema into dev immediately, or to reset dev after messy testing.

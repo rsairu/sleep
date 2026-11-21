@@ -599,6 +599,34 @@ body{
   outline-offset: 2px;
 }
 
+.nav-dev-banner-supabase-sync--running .nav-dev-banner-cloud-refresh-icon {
+  animation: nav-dev-banner-supabase-sync-pulse 1.2s ease-in-out infinite;
+}
+
+.nav-dev-banner-supabase-sync--success {
+  border-color: rgba(134, 239, 172, 0.95);
+}
+
+.nav-dev-banner-supabase-sync--failure {
+  border-color: rgba(252, 165, 165, 0.95);
+}
+
+@keyframes nav-dev-banner-supabase-sync-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-dev-banner-supabase-sync--running .nav-dev-banner-cloud-refresh-icon {
+    animation: none;
+  }
+}
+
 .nav-dev-banner-db-switch {
   position: relative;
   flex-shrink: 0;
@@ -3686,7 +3714,7 @@ html.restore-phase-wallpaper .nav-header-twinkle-layer {
   background: var(--color-background-secondary, var(--panel));
 }
 
-/* Learning-stage notes under the matrix (🌱 learning / 🌿 taking shape / guidance held): quieter than guidance callouts. */
+/* Learning-stage notes under the matrix (🌱 learning / 🌿 taking shape / guidance held). */
 .dashboard-tonight-matrix-callout--note {
   padding: 6px 12px;
   border-style: dashed;
@@ -3706,51 +3734,12 @@ html.restore-phase-wallpaper .nav-header-twinkle-layer {
   line-height: 1.2;
 }
 
-.dashboard-tonight-matrix-callout--sleep .dashboard-tonight-matrix-callout-dot {
-  flex-shrink: 0;
-  width: 7px;
-  height: 7px;
-  margin-top: 0.35em;
-  border-radius: 50%;
-  background: var(--color-sleep);
-}
-
-.dashboard-tonight-matrix-callout--wake .dashboard-tonight-matrix-callout-dot {
-  flex-shrink: 0;
-  width: 7px;
-  height: 7px;
-  margin-top: 0.35em;
-  border-radius: 50%;
-  background: var(--color-up);
-}
-
 .dashboard-tonight-matrix-callout-body {
   margin: 0;
   font-size: 0.82rem;
   line-height: 1.35;
   color: color-mix(in srgb, var(--text) 78%, transparent);
   min-width: 0;
-}
-
-.dashboard-tonight-matrix-callout-phase {
-  font-weight: 500;
-}
-
-.dashboard-tonight-matrix-callout--sleep .dashboard-tonight-matrix-callout-phase {
-  color: var(--color-sleep);
-}
-
-.dashboard-tonight-matrix-callout--wake .dashboard-tonight-matrix-callout-phase {
-  color: var(--color-up);
-}
-
-.dashboard-tonight-matrix-callout-sep {
-  font-weight: 400;
-  color: color-mix(in srgb, var(--text) 55%, transparent);
-}
-
-.dashboard-tonight-matrix-callout-rest {
-  font-weight: 400;
 }
 
 .dashboard-tonight-knob-actions {
@@ -6125,7 +6114,7 @@ h1,
 .graph-chart-heading--skp-sleep,
 .graph-chart-heading--skp-wake,
 .graph-chart-heading--skp-bed,
-.dashboard-7d-subtitle--skp-time,
+.dashboard-7d-subtitle--skp-bed-sleep,
 .dashboard-7d-subtitle--skp-sleep,
 .dashboard-7d-subtitle--skp-wake {
   position: relative;
@@ -6136,7 +6125,7 @@ h1,
 .graph-chart-heading--skp-sleep::before,
 .graph-chart-heading--skp-wake::before,
 .graph-chart-heading--skp-bed::before,
-.dashboard-7d-subtitle--skp-time::before,
+.dashboard-7d-subtitle--skp-bed-sleep::before,
 .dashboard-7d-subtitle--skp-sleep::before,
 .dashboard-7d-subtitle--skp-wake::before {
   content: '';
@@ -6148,9 +6137,13 @@ h1,
   border-radius: 2px;
 }
 
-.graph-chart-heading--skp-time::before,
-.dashboard-7d-subtitle--skp-time::before {
-  background: linear-gradient(180deg, var(--color-bed), var(--color-sleep) 50%, var(--color-up));
+/* Heading chips run top → bottom in the same order as the series on the chart (later times on top). */
+.graph-chart-heading--skp-time::before {
+  background: linear-gradient(180deg, var(--color-up), var(--color-sleep) 50%, var(--color-bed));
+}
+
+.dashboard-7d-subtitle--skp-bed-sleep::before {
+  background: linear-gradient(180deg, var(--color-sleep), var(--color-bed));
 }
 
 .graph-chart-heading--skp-sleep::before,
@@ -6421,23 +6414,7 @@ svg {
 }
 
 /* Dashboard 7-day: "Tonight" column from the unpromoted draft (bed / sleep start only).
-   Dotted (round-cap dots) to read apart from the dashed 5,5 trend lines; hollow point = in progress. */
-.tonight-connector {
-  fill: none;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-dasharray: 0 5;
-  pointer-events: none;
-}
-
-.tonight-connector--bedtime {
-  stroke: var(--color-bed);
-}
-
-.tonight-connector--sleep-start {
-  stroke: var(--color-sleep);
-}
-
+   Hollow point = in progress. */
 .data-point-tonight {
   fill: var(--panel);
   stroke-width: 2;
@@ -6715,6 +6692,108 @@ svg {
   stroke: var(--color-sleep);
   stroke-dasharray: 5, 5;
   opacity: 0.8;
+}
+
+/* Dashboard total sleep (dashboard.js, render7DayDurationChart): dots on a zoomed axis.
+   Nap nights (SKP): hollow --color-sleep ring at main sleep, --color-nap dash up to a --color-nap total dot.
+   WASO nights: stripes cut into the dot (.duration-waso-stripe), so they keep the dot's own color.
+   The dashed .usual-line is the Natural average as of each night, not a fitted trend (also on the time charts). */
+.duration-dot {
+  fill: var(--color-sleep);
+  stroke: var(--panel);
+  stroke-width: 2;
+  pointer-events: none;
+}
+
+.duration-dot--nap-total {
+  fill: var(--color-nap);
+}
+
+.duration-dot--main {
+  fill: var(--panel);
+  stroke: var(--color-sleep);
+}
+
+.duration-nap-connector {
+  stroke: var(--color-nap);
+  stroke-width: 2;
+  stroke-dasharray: 3, 3;
+  pointer-events: none;
+}
+
+.usual-line {
+  fill: none;
+  stroke: var(--color-sleep);
+  stroke-width: 2;
+  stroke-dasharray: 5, 5;
+  stroke-linecap: round;
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+/* WASO: stripes cut into the dot in the panel color (pattern in render7DayDurationChart) */
+.duration-waso-stripe {
+  stroke: var(--panel);
+  opacity: 0.6;
+}
+
+.duration-waso-overlay {
+  pointer-events: none;
+}
+
+.usual-line--getup {
+  stroke: var(--color-up);
+}
+
+/* Dashboard 7-day time charts (render7DayTimeGraph): dots only, same size as total sleep.
+   Natural wake: bullseye (ring, panel gap, core) in the same footprint. */
+/* Bed → asleep band (appendSleepLagBand): per-slice gradient bed → asleep; thickness = sleep lag.
+   Opacity on the group so overlapping slice edges don't double up. */
+.sleep-lag-band {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.sleep-lag-band__stop--bed {
+  stop-color: var(--color-bed);
+}
+
+.sleep-lag-band__stop--asleep {
+  stop-color: var(--color-sleep);
+}
+
+.time-dot {
+  stroke: var(--panel);
+  stroke-width: 2;
+  pointer-events: none;
+}
+
+.time-dot--bedtime {
+  fill: var(--color-bed);
+}
+
+.time-dot--sleep-start {
+  fill: var(--color-sleep);
+}
+
+.time-dot--getup,
+.time-dot-natural__ring,
+.time-dot-natural__core {
+  fill: var(--color-up);
+}
+
+.time-dot-natural__gap {
+  fill: var(--panel);
+}
+
+.time-dot-natural circle {
+  pointer-events: none;
+}
+
+.duration-hit-column {
+  fill: transparent;
+  cursor: pointer;
+  pointer-events: all;
 }
 
 /* Dashboard 7-day charts: scroll-in draw (dashboard.js, registerDashboardChartDraw).

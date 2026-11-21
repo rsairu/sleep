@@ -1879,6 +1879,14 @@ const VERCEL_DEPLOY_SHIELDS_PASS_CACHE_KEY = 'sleep-app-vercel-deploy-shields-pa
 const VERCEL_DEPLOY_SHIELDS_PASS_CACHE_MS = 30 * 60 * 1000;
 const SUPABASE_PROJECT_REF_PROD = 'lsaguxfovamihwnicpkk';
 const SUPABASE_PROJECT_REF_DEV = 'pjpzxkyflmzzbfdkujan';
+/** Dev banner 📥 button: dispatches the prod → dev Supabase sync workflow (docs/supabase-dev-sync.md). */
+const GITHUB_REPO_SLUG = 'rsairu/sleep';
+const SUPABASE_SYNC_WORKFLOW_FILE = 'sync-supabase-dev-from-prod-v2.yml';
+const SUPABASE_SYNC_WORKFLOW_DEFAULT_REF = 'master';
+const SUPABASE_SYNC_RUN_KEY = 'sleep-app-dev-supabase-sync-run';
+const SUPABASE_SYNC_POLL_MS = 5000;
+const SUPABASE_SYNC_FIND_TIMEOUT_MS = 2 * 60 * 1000;
+const SUPABASE_SYNC_RUN_TIMEOUT_MS = 15 * 60 * 1000;
 // Dev banner + app-time simulation spec: docs/dev-banner.md
 const DEV_BANNER_OVERRIDE_KEY = 'sleep-app-force-dev-banner';
 const DEV_CLOCK_OVERRIDE_MS_KEY = 'sleep-app-dev-clock-override-ms';
@@ -4421,6 +4429,250 @@ function initDevBannerDbSwitchFlip() {
   requestAnimationFrame(bindWhenReady);
 }
 
+/** Local-only GitHub token for the 📥 prod → dev sync button (local/local-github-dispatch.js, gitignored). */
+function readLocalGithubDispatchConfig() {
+  if (typeof window === 'undefined') return null;
+  const raw = window.__RESTORE_GITHUB_DISPATCH__;
+  if (!raw || typeof raw !== 'object') return null;
+  const token = String(raw.token || '').trim();
+  if (!token) return null;
+  const ref = String(raw.ref || '').trim() || SUPABASE_SYNC_WORKFLOW_DEFAULT_REF;
+  return { token: token, ref: ref };
+}
+
+function devSupabaseSyncGithubFetch(cfg, path, init) {
+  const opts = init || {};
+  const headers = {
+    Accept: 'application/vnd.github+json',
+    Authorization: 'Bearer ' + cfg.token
+  };
+  if (opts.body) headers['Content-Type'] = 'application/json';
+  return fetch('https://api.github.com/repos/' + GITHUB_REPO_SLUG + path, {
+    method: opts.method || 'GET',
+    headers: headers,
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+    credentials: 'omit',
+    cache: 'no-store'
+  }).then(function (r) {
+    if (r.status === 204) return null;
+    if (!r.ok) {
+      const err = new Error('GitHub API HTTP ' + r.status);
+      err.status = r.status;
+      throw err;
+    }
+    return r.json();
+  });
+}
+
+function devSupabaseSyncLatestRunPath() {
+  return '/actions/workflows/' + SUPABASE_SYNC_WORKFLOW_FILE + '/runs?event=workflow_dispatch&per_page=1';
+}
+
+function describeDevSupabaseSyncError(err) {
+  const status = err && err.status;
+  if (status === 401) return 'GitHub token rejected (HTTP 401)';
+  if (status === 403) return 'token lacks Actions write access (HTTP 403)';
+  if (status === 404) return 'token cannot see the repo or workflow (HTTP 404)';
+  if (status === 422) return 'GitHub refused the dispatch for this ref (HTTP 422)';
+  if (status) return 'GitHub API HTTP ' + status;
+  return 'network error';
+}
+
+/** In-flight run, persisted so a reload (e.g. 🔄) resumes tracking: { startedAt, prevTopId, runId, htmlUrl }. */
+function readDevSupabaseSyncRun() {
+  const raw = safeReadStorage(SUPABASE_SYNC_RUN_KEY);
+  if (!raw) return null;
+  try {
+    const o = JSON.parse(raw);
+    if (!o || typeof o !== 'object' || typeof o.startedAt !== 'number') return null;
+    return o;
+  } catch (_) {
+    return null;
+  }
+}
+
+function writeDevSupabaseSyncRun(run) {
+  safeWriteStorage(SUPABASE_SYNC_RUN_KEY, run ? JSON.stringify(run) : '');
+}
+
+/** Survives SPA nav re-renders (module scope); resets on full page load unless a run is persisted. */
+let devSupabaseSyncUi = { tone: 'idle', detail: '', url: '' };
+
+/** Button state for both renderNavBar and live updates. tone: idle | running | success | failure. */
+function getDevSupabaseSyncButtonModel() {
+  const unavailable = 'Please see local-github-dispatch.example.js';
+  if (!readLocalGithubDispatchConfig()) {
+    return {
+      disabled: true,
+      tone: 'idle',
+      icon: '📥',
+      title: unavailable,
+      aria: 'Copy prod into dev unavailable. ' + unavailable
+    };
+  }
+  const ui = devSupabaseSyncUi;
+  if (ui.tone === 'running') {
+    const label =
+      'Copying prod into dev Supabase (GitHub Action: ' + (ui.detail || 'queued') + ').' +
+      (ui.url ? ' Click to open the run.' : '');
+    return { disabled: false, tone: 'running', icon: '⏳', title: label, aria: label };
+  }
+  if (ui.tone === 'success') {
+    const label = 'Prod → dev copy finished. Press 🔄 to load the fresh dev data. Click to copy again.';
+    return { disabled: false, tone: 'success', icon: '✅', title: label, aria: label };
+  }
+  if (ui.tone === 'failure') {
+    const label = 'Prod → dev copy failed: ' + (ui.detail || 'unknown') + '. Click to try again.';
+    return { disabled: false, tone: 'failure', icon: '❌', title: label, aria: label };
+  }
+  const label = 'Copy prod into dev Supabase (runs the GitHub Action)';
+  return { disabled: false, tone: 'idle', icon: '📥', title: label, aria: label };
+}
+
+function applyDevSupabaseSyncButtonUi() {
+  if (typeof document === 'undefined') return;
+  const btn = document.getElementById('nav-dev-banner-supabase-sync-btn');
+  if (!btn) return;
+  const m = getDevSupabaseSyncButtonModel();
+  btn.disabled = m.disabled;
+  btn.title = m.title;
+  btn.setAttribute('aria-label', m.aria);
+  btn.classList.remove(
+    'nav-dev-banner-supabase-sync--running',
+    'nav-dev-banner-supabase-sync--success',
+    'nav-dev-banner-supabase-sync--failure'
+  );
+  if (m.tone !== 'idle') btn.classList.add('nav-dev-banner-supabase-sync--' + m.tone);
+  const icon = btn.querySelector('.nav-dev-banner-cloud-refresh-icon');
+  if (icon) icon.textContent = m.icon;
+}
+
+function setDevSupabaseSyncUi(tone, detail, url) {
+  devSupabaseSyncUi = { tone: tone, detail: detail || '', url: url || '' };
+  applyDevSupabaseSyncButtonUi();
+}
+
+function finishDevSupabaseSync(tone, detail, url) {
+  writeDevSupabaseSyncRun(null);
+  setDevSupabaseSyncUi(tone, detail, url);
+}
+
+function scheduleDevSupabaseSyncPoll() {
+  if (typeof window === 'undefined' || window.__devSupabaseSyncPollTimer) return;
+  window.__devSupabaseSyncPollTimer = setTimeout(function () {
+    window.__devSupabaseSyncPollTimer = null;
+    pollDevSupabaseSyncRun();
+  }, SUPABASE_SYNC_POLL_MS);
+}
+
+/** One poll step: find our run (first run newer than prevTopId), then follow it until completed. */
+function pollDevSupabaseSyncRun() {
+  const cfg = readLocalGithubDispatchConfig();
+  const run = readDevSupabaseSyncRun();
+  if (!cfg || !run) {
+    if (devSupabaseSyncUi.tone === 'running') setDevSupabaseSyncUi('idle');
+    return;
+  }
+  const age = Date.now() - run.startedAt;
+  if (age > SUPABASE_SYNC_RUN_TIMEOUT_MS) {
+    finishDevSupabaseSync('failure', 'stopped tracking after 15 min; check GitHub', run.htmlUrl);
+    return;
+  }
+  const path = run.runId ? '/actions/runs/' + run.runId : devSupabaseSyncLatestRunPath();
+  devSupabaseSyncGithubFetch(cfg, path)
+    .then(function (data) {
+      let ghRun = data;
+      if (!run.runId) {
+        const top = data && data.workflow_runs && data.workflow_runs[0];
+        if (!top || top.id === run.prevTopId) {
+          if (age > SUPABASE_SYNC_FIND_TIMEOUT_MS) {
+            finishDevSupabaseSync('failure', 'dispatched, but no run appeared');
+            return;
+          }
+          setDevSupabaseSyncUi('running', 'waiting for run', '');
+          scheduleDevSupabaseSyncPoll();
+          return;
+        }
+        run.runId = top.id;
+        run.htmlUrl = top.html_url || '';
+        writeDevSupabaseSyncRun(run);
+        ghRun = top;
+      }
+      if (ghRun && ghRun.status === 'completed') {
+        if (ghRun.conclusion === 'success') finishDevSupabaseSync('success', 'success', ghRun.html_url);
+        else finishDevSupabaseSync('failure', ghRun.conclusion || 'unknown', ghRun.html_url);
+        return;
+      }
+      setDevSupabaseSyncUi('running', (ghRun && ghRun.status) || 'queued', (ghRun && ghRun.html_url) || run.htmlUrl);
+      scheduleDevSupabaseSyncPoll();
+    })
+    .catch(function (err) {
+      if (err && err.status) {
+        finishDevSupabaseSync('failure', describeDevSupabaseSyncError(err), run.htmlUrl);
+        return;
+      }
+      // Network blip: keep tracking.
+      scheduleDevSupabaseSyncPoll();
+    });
+}
+
+function startDevSupabaseSync(cfg) {
+  setDevSupabaseSyncUi('running', 'dispatching', '');
+  let prevTopId = null;
+  devSupabaseSyncGithubFetch(cfg, devSupabaseSyncLatestRunPath())
+    .then(function (data) {
+      const top = data && data.workflow_runs && data.workflow_runs[0];
+      prevTopId = top ? top.id : null;
+      return devSupabaseSyncGithubFetch(cfg, '/actions/workflows/' + SUPABASE_SYNC_WORKFLOW_FILE + '/dispatches', {
+        method: 'POST',
+        body: { ref: cfg.ref }
+      });
+    })
+    .then(function () {
+      writeDevSupabaseSyncRun({ startedAt: Date.now(), prevTopId: prevTopId, runId: null, htmlUrl: '' });
+      setDevSupabaseSyncUi('running', 'queued', '');
+      scheduleDevSupabaseSyncPoll();
+    })
+    .catch(function (err) {
+      finishDevSupabaseSync('failure', describeDevSupabaseSyncError(err), '');
+    });
+}
+
+function initDevBannerSupabaseSync() {
+  if (typeof window === 'undefined' || !isDevBuildContext()) return;
+  if (window.__devBannerSupabaseSyncBound) return;
+  window.__devBannerSupabaseSyncBound = true;
+
+  function bindWhenReady() {
+    const btn = document.getElementById('nav-dev-banner-supabase-sync-btn');
+    if (!btn) return;
+    const persisted = readDevSupabaseSyncRun();
+    if (persisted && devSupabaseSyncUi.tone !== 'running') {
+      setDevSupabaseSyncUi('running', 'checking', persisted.htmlUrl || '');
+      pollDevSupabaseSyncRun();
+    }
+    applyDevSupabaseSyncButtonUi();
+
+    btn.addEventListener('click', function () {
+      const cfg = readLocalGithubDispatchConfig();
+      if (!cfg) return;
+      if (devSupabaseSyncUi.tone === 'running') {
+        if (devSupabaseSyncUi.url) window.open(devSupabaseSyncUi.url, '_blank', 'noopener');
+        return;
+      }
+      const ok = window.confirm(
+        'Copy prod into dev Supabase?\n\n' +
+          'This runs the "Sync Supabase dev from prod" GitHub Action. Every Restore table in dev is ' +
+          'replaced with prod’s data and schema, so anything written only to dev is lost.'
+      );
+      if (!ok) return;
+      startDevSupabaseSync(cfg);
+    });
+  }
+
+  requestAnimationFrame(bindWhenReady);
+}
+
 function initDevBannerDrawer() {
   if (typeof window === 'undefined' || !isDevBuildContext()) return;
   if (window.__devBannerDrawerBound) return;
@@ -5117,6 +5369,7 @@ function initDayNightTheme() {
   initDevClockControl();
   initDevBannerCloudRefresh();
   initDevBannerDbSwitchFlip();
+  initDevBannerSupabaseSync();
   initDevBannerDrawer();
   initDevBannerUserSettingsPanel();
   initDevBannerVercelDeployStatus();
@@ -5580,6 +5833,21 @@ function renderNavBar(currentPage) {
     '">' +
     '<span class="nav-dev-banner-db-switch-toggle-icon" aria-hidden="true">🎚️</span>' +
     '</button></div>';
+  const supabaseSyncModel = getDevSupabaseSyncButtonModel();
+  const devBannerSupabaseSyncBtn =
+    '<button type="button" class="nav-dev-banner-cloud-refresh nav-dev-banner-cloud-refresh--icon-only nav-dev-banner-supabase-sync' +
+    (supabaseSyncModel.tone !== 'idle' ? ' nav-dev-banner-supabase-sync--' + supabaseSyncModel.tone : '') +
+    '" id="nav-dev-banner-supabase-sync-btn"' +
+    (supabaseSyncModel.disabled ? ' disabled' : '') +
+    ' title="' +
+    escapeHtmlBannerAttr(supabaseSyncModel.title) +
+    '" aria-label="' +
+    escapeHtmlBannerAttr(supabaseSyncModel.aria) +
+    '">' +
+    '<span class="nav-dev-banner-cloud-refresh-icon" aria-hidden="true">' +
+    escapeHtmlBannerText(supabaseSyncModel.icon) +
+    '</span>' +
+    '</button>';
   const devBannerCloudRow =
     '<div class="nav-dev-banner-cloud-row">' +
     supabaseDashboardBadge +
@@ -5589,6 +5857,7 @@ function renderNavBar(currentPage) {
     ' title="Sync with cloud and reload page" aria-label="Sync with cloud and reload page">' +
     '<span class="nav-dev-banner-cloud-refresh-icon" aria-hidden="true">🔄</span>' +
     '</button>' +
+    devBannerSupabaseSyncBtn +
     '</div>';
   const devBannerLeftInner = devBannerBadgesRow + devBannerCloudRow;
   const devDrawerCollapsed = readDevBannerDrawerCollapsed();

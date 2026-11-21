@@ -32,6 +32,10 @@ That uses `hooks/post-checkout` and `hooks/post-merge`, which invoke `local/stam
 
 Pages load `local-supabase-presets.js`, then `src/routes-data.mjs` (canonical nav routes, ES module + `defer`), then `/sleep-utils.js` so the dev banner can offer a **Dev** / **Prod** toggle and `renderNavBar` stays aligned with the SPA migration route table. The file is **gitignored**; copy `local/local-supabase-presets.example.js` to `local/local-supabase-presets.js` and fill in both project URLs and anon keys. If the file is absent (e.g. production deploy), the script request fails harmlessly and the toggle is hidden. See `docs/dev-banner.md`.
 
+## Local GitHub token for prod → dev sync (optional)
+
+The dev banner's **📥** button runs the *Sync Supabase dev from prod* GitHub Action (`docs/supabase-dev-sync.md`). Copy `local/local-github-dispatch.example.js` to `local/local-github-dispatch.js` (gitignored), paste a fine-grained token scoped to this repo with **Actions: Read and write**, and restart `npm run dev`. Without the file the button stays disabled.
+
 ## Documentation
 
 - Routing, lifecycle, and architecture: [`docs/routing.md`](docs/routing.md), [`docs/lifecycle-contract.md`](docs/lifecycle-contract.md), [`docs/architecture-decisions.md`](docs/architecture-decisions.md).

@@ -236,22 +236,6 @@
           "guidedHeldCell": "🌱 Starts at {min} nights",
           "guidanceHeldNote": "Using your target directly while Restore learns your rhythm ({n} of {total})."
         },
-        "phaseCallout": {
-          "phase": {
-            "initiating": "initiating",
-            "transitioning": "transitioning",
-            "locking_in": "locking in",
-            "on_target": "on target"
-          },
-          "verbNudging": "nudging",
-          "verbHolding": "holding",
-          "dirEarlier": "earlier",
-          "dirLater": "later",
-          "sleepNudgingDetail": "{verb} bedtime {dir} by {delta} toward target {target} (gap {gap}).",
-          "sleepHoldingDetail": "{verb} bedtime at target {target} (gap {gap}).",
-          "wakeNudgingDetail": "{verb} wake {dir} by {delta} toward target {target} (gap {gap}).",
-          "wakeHoldingDetail": "{verb} wake at target {target} (gap {gap})."
-        },
         "sleepDurationFromSleepStartParen": "(from sleep start)",
         "logged": {
           "label": "Logged:",
@@ -627,22 +611,6 @@
           "stageForming": "🌿 形になってきました · {total}夜中{n}夜",
           "guidedHeldCell": "🌱 {min}夜から開始",
           "guidanceHeldNote": "Restoreがあなたのリズムを学習している間は、目標をそのまま使います（{total}夜中{n}夜）。"
-        },
-        "phaseCallout": {
-          "phase": {
-            "initiating": "開始",
-            "transitioning": "移行",
-            "locking_in": "確定",
-            "on_target": "目標どおり"
-          },
-          "verbNudging": "寄せる",
-          "verbHolding": "維持",
-          "dirEarlier": "早める",
-          "dirLater": "遅らせる",
-          "sleepNudgingDetail": "{verb}：就寝を{dir}に{delta}寄せ、目標{target}（差{gap}）。",
-          "sleepHoldingDetail": "{verb}：目標の就寝{target}（差{gap}）。",
-          "wakeNudgingDetail": "{verb}：起床を{dir}に{delta}寄せ、目標{target}（差{gap}）。",
-          "wakeHoldingDetail": "{verb}：目標の起床{target}（差{gap}）。"
         },
         "sleepDurationFromSleepStartParen": "（入眠から）",
         "logged": {

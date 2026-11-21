@@ -207,6 +207,7 @@ async function activatePath(pathname, { replaceHash } = {}) {
     window.__devClockControlBound = false;
     window.__devBannerCloudRefreshBound = false;
     window.__devBannerDbSwitchFlipBound = false;
+    window.__devBannerSupabaseSyncBound = false;
     window.__devBannerDrawerBound = false;
     window.__devBannerUserSettingsBound = false;
   }

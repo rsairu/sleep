@@ -6,10 +6,6 @@
 // Lifecycle (SPA prep): mount / unmount on #dashboard-container — see docs/lifecycle-contract.md
 
 // --- 7-day graph helpers ---
-function regressionDegree(pointCount) {
-  return Math.min(2, Math.max(0, pointCount - 1));
-}
-
 /** For last-7-days charts: most recent day uses two-line "Last" / "night" (see append7DayXAxisTickLabel); else weekday (Mon, …). */
 function get7DayAxisLabel(point, index, total) {
   if (index === total - 1) return null;
@@ -114,11 +110,11 @@ function getResponsiveDashboardChartWidth(container, pointCount) {
   return fallbackWidth;
 }
 
-function timeSeriesLineClass(key) {
-  if (key === 'bedTimeMinutes') return { data: 'data-line bedtime', reg: 'regression-line bedtime-regression', point: 'data-point bedtime' };
-  if (key === 'sleepStartMinutes') return { data: 'data-line sleep-start', reg: 'regression-line sleep-start-regression', point: 'data-point sleep-start' };
-  return { data: 'data-line getup', reg: 'regression-line getup-regression', point: 'data-point getup' };
-}
+/** Point field holding each series' "usual" (Natural average as of that night); bed has none. */
+const TIME_SERIES_USUAL_KEY = {
+  sleepStartMinutes: 'usualSleepStartMinutes',
+  getUpMinutes: 'usualGetUpMinutes'
+};
 
 /** Outside-click handlers for day panel; cleared on dashboard unmount */
 let dashboardDayPanelDocCloses = [];
@@ -147,17 +143,14 @@ function scheduleDashboardChartDayPanelOutsideClose(container) {
 
 // --- 7-day chart draw-in (scroll reveal) ---
 // Each chart starts undrawn and plays once per mount when it first scrolls into view:
-//   time charts — data lines sweep left → right (points pop in as the sweep reaches them);
-//   duration chart — bars rise one by one, left → right;
-//   then the dotted trend line sweeps left → right.
+//   dots pop in left → right as a sweep reaches them (duration chart: nap dashes sweep with them);
+//   then the dashed "usual" lines sweep left → right.
 // Re-renders after that (resize, store refresh, Tonight draft arriving) resume a draw that is still
 // playing, or render the finished chart. prefers-reduced-motion / no IntersectionObserver → static.
 // Observer is per-route state: reset each render, torn down on unmount.
 
 const DASHBOARD_CHART_DRAW = {
   sweepMs: 1000,
-  barMs: 520,
-  barStaggerMs: 70,
   trendGapMs: 150,
   trendMs: 750,
   /** Fraction of the chart that must be on screen before it draws. */
@@ -190,15 +183,12 @@ function chartDrawClamp01(v) {
 function chartDrawEaseInOut(p) {
   return p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
 }
-function chartDrawEaseOut(p) {
-  return 1 - Math.pow(1 - p, 3);
-}
 
 /** Per-render plan: clip layers + points the draw animates. */
 function createDashboardChartDrawPlan(svg) {
   const defs = dashboardSvgEl('defs');
   svg.insertBefore(defs, svg.firstChild);
-  return { svg, defs, sweep: null, trend: null, bars: null, points: [] };
+  return { svg, defs, sweep: null, trend: null, points: [] };
 }
 
 function addDashboardChartClipLayer(plan, parent, className) {
@@ -229,23 +219,6 @@ function addDashboardChartSweepLayer(plan, parent, className, box) {
   return { layer, rect, x0: box.x0, x1: box.x1 };
 }
 
-/** Bars layer; each column gets its own clip rect that grows up from the baseline. */
-function addDashboardChartBarsLayer(plan, parent) {
-  const { clip, layer } = addDashboardChartClipLayer(plan, parent, 'chart-draw-bars');
-  plan.bars = { layer, clip, cols: [] };
-  return layer;
-}
-
-function addDashboardChartBarColumn(plan, x, width, top, base) {
-  const rect = dashboardSvgEl('rect');
-  rect.setAttribute('x', String(x - 1));
-  rect.setAttribute('width', String(width + 2));
-  rect.setAttribute('y', String(top));
-  rect.setAttribute('height', String(Math.max(0, base - top)));
-  plan.bars.clip.appendChild(rect);
-  plan.bars.cols.push({ rect, top, base });
-}
-
 /** Sets every animated element for time t (ms since the draw started). Returns true when finished. */
 function applyDashboardChartDraw(plan, t) {
   const C = DASHBOARD_CHART_DRAW;
@@ -263,15 +236,6 @@ function applyDashboardChartDraw(plan, t) {
     });
     mainEndMs = C.sweepMs;
   }
-  if (plan.bars) {
-    plan.bars.cols.forEach((col, i) => {
-      const p = chartDrawEaseOut(chartDrawClamp01((t - i * C.barStaggerMs) / C.barMs));
-      const h = (col.base - col.top) * p;
-      col.rect.setAttribute('y', String(col.base - h));
-      col.rect.setAttribute('height', String(h));
-    });
-    mainEndMs = Math.max(mainEndMs, Math.max(0, plan.bars.cols.length - 1) * C.barStaggerMs + C.barMs);
-  }
   let endMs = mainEndMs;
   if (plan.trend) {
     const tr = plan.trend;
@@ -285,7 +249,7 @@ function applyDashboardChartDraw(plan, t) {
 
 /** Final state: drop clips (they also block hover/click hit-testing) and point classes. */
 function finishDashboardChartDraw(plan) {
-  [plan.sweep, plan.trend, plan.bars].forEach((l) => {
+  [plan.sweep, plan.trend].forEach((l) => {
     if (l) l.layer.removeAttribute('clip-path');
   });
   plan.defs.remove();
@@ -366,10 +330,64 @@ function registerDashboardChartDraw(drawId, container, plan) {
   getDashboardChartDrawObserver().observe(container);
 }
 
+/** Width (px) of each slice of the bed → asleep band; each slice carries its own gradient. */
+const SLEEP_LAG_BAND_SLICE_PX = 4;
+
+/**
+ * Bed → asleep band on the bed / sleep chart: straight edges through each night's bed and asleep dots,
+ * so its thickness is the sleep lag. The band is cut into thin vertical slices, each with its own
+ * vertical gradient from that slice's bed edge (--color-bed) to its asleep edge (--color-sleep), so the
+ * blend follows each night's lag instead of one gradient across the whole band. Breaks where a night
+ * lacks either time.
+ */
+function appendSleepLagBand(layer, defs, points, xAt, yScale) {
+  const has = (p) => Number.isFinite(p.bedTimeMinutes) && Number.isFinite(p.sleepStartMinutes);
+  const lerp = (u, v, t) => u + (v - u) * t;
+  const band = dashboardSvgEl('g');
+  band.setAttribute('class', 'sleep-lag-band');
+  for (let i = 0; i < points.length - 1; i++) {
+    const a = points[i], b = points[i + 1];
+    if (!has(a) || !has(b)) continue;
+    const xa = xAt(i), xb = xAt(i + 1);
+    const n = Math.max(1, Math.ceil((xb - xa) / SLEEP_LAG_BAND_SLICE_PX));
+    for (let k = 0; k < n; k++) {
+      const t0 = k / n, t1 = (k + 1) / n, tm = (t0 + t1) / 2;
+      const x0 = lerp(xa, xb, t0);
+      const x1 = lerp(xa, xb, t1) + 0.5; // overlap hides anti-aliasing seams (incl. between nights)
+      const bedY = (t) => yScale(lerp(a.bedTimeMinutes, b.bedTimeMinutes, t));
+      const asleepY = (t) => yScale(lerp(a.sleepStartMinutes, b.sleepStartMinutes, t));
+
+      const id = `sleep-lag-band-${++dashboardChartDrawClipSeq}`;
+      const grad = dashboardSvgEl('linearGradient');
+      grad.setAttribute('id', id);
+      grad.setAttribute('gradientUnits', 'userSpaceOnUse');
+      grad.setAttribute('x1', '0'); grad.setAttribute('x2', '0');
+      grad.setAttribute('y1', String(bedY(tm)));
+      grad.setAttribute('y2', String(asleepY(tm)));
+      [['0', 'sleep-lag-band__stop--bed'], ['1', 'sleep-lag-band__stop--asleep']].forEach(([offset, cls]) => {
+        const stop = dashboardSvgEl('stop');
+        stop.setAttribute('offset', offset);
+        stop.setAttribute('class', cls);
+        grad.appendChild(stop);
+      });
+      defs.appendChild(grad);
+
+      const slice = dashboardSvgEl('polygon');
+      slice.setAttribute('points', `${x0},${bedY(t0)} ${x1},${bedY(t1)} ${x1},${asleepY(t1)} ${x0},${asleepY(t0)}`);
+      slice.setAttribute('fill', `url(#${id})`);
+      band.appendChild(slice);
+    }
+  }
+  if (band.childNodes.length) layer.appendChild(band);
+}
+
 /**
  * @param {string[]} seriesKeys subset of bedTimeMinutes, sleepStartMinutes, getUpMinutes
  * @param {object | null} [tonightPoint] from buildTonightPoint — adds a "Tonight" column after "Last night".
- *   Series with a value get a dotted connector + hollow point; it is excluded from the trend fit.
+ *   Series with a value get a hollow point; it has no usual line.
+ * Dots only (no day-to-day line) in centered day columns; bed + asleep together get a bed → asleep band
+ * (appendSleepLagBand); dashed "usual" lines for fell-asleep / wake (TIME_SERIES_USUAL_KEY); natural
+ * wake as a bullseye.
  */
 function render7DayTimeGraph(container, points, seriesKeys, tonightPoint, drawId) {
   if (!points.length) return;
@@ -385,8 +403,12 @@ function render7DayTimeGraph(container, points, seriesKeys, tonightPoint, drawId
   const graphWidth = width - margin.left - margin.right;
   const graphHeight = height - margin.top - margin.bottom;
 
-  // Dynamic Y range: min/max of selected series only (incl. tonight's values), plus 1 hour on each side
+  // Dynamic Y range: selected series (incl. tonight's values and usual lines), plus 1 hour on each side
   const allTimes = points.flatMap(p => keys.map(k => p[k]));
+  points.forEach((p) => keys.forEach((k) => {
+    const usualKey = TIME_SERIES_USUAL_KEY[k];
+    if (usualKey && Number.isFinite(p[usualKey])) allTimes.push(p[usualKey]);
+  }));
   tonightKeys.forEach((k) => allTimes.push(tonight[k]));
   const dataMin = Math.min(...allTimes), dataMax = Math.max(...allTimes);
   const hourPad = 60;
@@ -394,10 +416,11 @@ function render7DayTimeGraph(container, points, seriesKeys, tonightPoint, drawId
   const finalYMax = Math.ceil((dataMax + hourPad) / 60) * 60;
   const range = Math.max(finalYMax - finalYMin, 120);
 
-  const minDate = points[0].date;
-  const maxDate = tonight ? tonight.date : points[points.length - 1].date;
-  const dateRange = maxDate - minDate || 1;
-  const xScale = (date) => ((date - minDate) / dateRange) * graphWidth;
+  // One centered column per night (+ Tonight), same as the duration chart: dots never sit on the axes.
+  const slotCount = points.length + (tonight ? 1 : 0);
+  const dayWidth = graphWidth / Math.max(1, slotCount);
+  const xAt = (index) => dayWidth * (index + 0.5);
+  const tonightX = xAt(points.length);
   const yScale = (minutes) => graphHeight - ((minutes - finalYMin) / range) * graphHeight;
 
   const yTicks = [];
@@ -411,7 +434,7 @@ function render7DayTimeGraph(container, points, seriesKeys, tonightPoint, drawId
   g.setAttribute('transform', `translate(${margin.left},${margin.top})`);
   svg.appendChild(g);
   const drawPlan = createDashboardChartDrawPlan(svg);
-  // Clip boxes: a little past the plot on each side so stroke caps / bullseye masks aren't cut.
+  // Clip boxes: a little past the plot on each side so stroke caps aren't cut.
   const drawPad = 10;
   const drawBox = (x1) => ({ x0: -drawPad, x1: x1 + drawPad, top: -margin.top, height: height });
 
@@ -455,7 +478,7 @@ function render7DayTimeGraph(container, points, seriesKeys, tonightPoint, drawId
   });
 
   points.forEach((point, index) => {
-    const x = xScale(point.date);
+    const x = xAt(index);
     const tickLine = ns('line');
     tickLine.setAttribute('x1', x); tickLine.setAttribute('y1', graphHeight);
     tickLine.setAttribute('x2', x); tickLine.setAttribute('y2', graphHeight + 5);
@@ -464,7 +487,7 @@ function render7DayTimeGraph(container, points, seriesKeys, tonightPoint, drawId
     append7DayXAxisTickLabel(g, ns, x, graphHeight, point, index, points.length);
   });
   if (tonight) {
-    const tx = xScale(tonight.date);
+    const tx = tonightX;
     const tickLine = ns('line');
     tickLine.setAttribute('x1', tx); tickLine.setAttribute('y1', graphHeight);
     tickLine.setAttribute('x2', tx); tickLine.setAttribute('y2', graphHeight + 5);
@@ -473,111 +496,59 @@ function render7DayTimeGraph(container, points, seriesKeys, tonightPoint, drawId
     appendTonightXAxisTickLabel(g, ns, tx, graphHeight, tonightKeys.length > 0);
   }
 
-  const path = (pts, key) => {
-    let d = '';
-    pts.forEach((p, i) => {
-      const x = xScale(p.date), y = yScale(p[key]);
-      d += (i ? ' L ' : 'M ') + x + ' ' + y;
-    });
-    return d;
-  };
-
-  // Lines, Tonight connectors and get-up break masks share one left → right sweep.
+  // Bed → asleep band sweeps in left → right with the dots (which pop in as the sweep reaches them).
   drawPlan.sweep = addDashboardChartSweepLayer(drawPlan, g, 'chart-draw-lines', drawBox(graphWidth));
-  const linesG = drawPlan.sweep.layer;
-
-  keys.forEach((key) => {
-    const cls = timeSeriesLineClass(key);
-    const pathEl = ns('path');
-    pathEl.setAttribute('d', path(points, key));
-    pathEl.setAttribute('class', cls.data);
-    linesG.appendChild(pathEl);
-  });
-
-  // Tonight: dotted connector from last night's point to tonight's (per series that has a value).
-  if (tonight) {
-    const last = points[points.length - 1];
-    tonightKeys.forEach((key) => {
-      if (!Number.isFinite(last[key])) return;
-      const conn = ns('line');
-      conn.setAttribute('x1', xScale(last.date));
-      conn.setAttribute('y1', yScale(last[key]));
-      conn.setAttribute('x2', xScale(tonight.date));
-      conn.setAttribute('y2', yScale(tonight[key]));
-      conn.setAttribute('class', `tonight-connector tonight-connector--${tonightSeriesSuffix(key)}`);
-      linesG.appendChild(conn);
-    });
+  if (keys.includes('bedTimeMinutes') && keys.includes('sleepStartMinutes')) {
+    const bandDefs = ns('defs'); // own defs: drawPlan.defs is removed when the draw finishes
+    svg.insertBefore(bandDefs, svg.firstChild);
+    appendSleepLagBand(drawPlan.sweep.layer, bandDefs, points, xAt, yScale);
   }
 
-  // Match charts page behavior: break get-up line behind no-alarm wake bullseye markers.
-  if (keys.includes('getUpMinutes')) {
-    const breakMasksG = ns('g');
-    breakMasksG.setAttribute('class', 'getup-line-break-masks');
-    points.forEach((point) => {
-      if (!point.naturalWake) return;
-      const mask = ns('circle');
-      mask.setAttribute('cx', String(xScale(point.date)));
-      mask.setAttribute('cy', String(yScale(point.getUpMinutes)));
-      mask.setAttribute('r', '7.5');
-      mask.setAttribute('class', 'getup-break-mask');
-      breakMasksG.appendChild(mask);
-    });
-    linesG.appendChild(breakMasksG);
-  }
-
-  // Dotted trend lines draw after the data (they stop at last night, not Tonight).
+  // "Your usual" lines (Natural fell-asleep / wake as of each night) sit above the band, behind the
+  // dots, and draw after them; they stop at last night. Bed has no recent average, so no line. Gaps where a night is learning.
   drawPlan.trend = addDashboardChartSweepLayer(
-    drawPlan, g, 'chart-draw-trend', drawBox(xScale(points[points.length - 1].date))
+    drawPlan, g, 'chart-draw-trend', drawBox(xAt(points.length - 1))
   );
-  const deg = regressionDegree(points.length);
-  const regPath = (coeffs, key) => {
-    let d = '';
-    points.forEach((p, i) => {
-      const x = xScale(p.date), y = yScale(evaluatePolynomial(coeffs, i));
-      d += (i ? ' L ' : 'M ') + x + ' ' + y;
-    });
-    return d;
-  };
   keys.forEach((key) => {
-    const coeffs = polynomialRegression(points.map((_, i) => i), points.map(p => p[key]), deg);
-    const cls = timeSeriesLineClass(key);
-    const regEl = ns('path');
-    regEl.setAttribute('d', regPath(coeffs, key));
-    regEl.setAttribute('class', cls.reg);
-    regEl.setAttribute('fill', 'none');
-    drawPlan.trend.layer.appendChild(regEl);
+    const usualKey = TIME_SERIES_USUAL_KEY[key];
+    if (!usualKey) return;
+    let d = '';
+    let penDown = false;
+    points.forEach((p, i) => {
+      if (!Number.isFinite(p[usualKey])) { penDown = false; return; }
+      d += (penDown ? ' L ' : ' M ') + xAt(i) + ' ' + yScale(p[usualKey]);
+      penDown = true;
+    });
+    if (!d) return;
+    const usualPath = ns('path');
+    usualPath.setAttribute('d', d.trim());
+    usualPath.setAttribute('class', `usual-line usual-line--${tonightSeriesSuffix(key)}`);
+    drawPlan.trend.layer.appendChild(usualPath);
   });
 
-  points.forEach(p => {
+  const dotR = 9;
+  points.forEach((p, index) => {
     keys.forEach((key) => {
-      const x = xScale(p.date);
+      if (!Number.isFinite(p[key])) return;
+      const x = xAt(index);
       const y = yScale(p[key]);
 
+      // Natural wake: bullseye in the same footprint as a plain dot.
       if (key === 'getUpMinutes' && p.naturalWake) {
         const ng = ns('g');
-        ng.setAttribute('class', 'getup-natural-wake-group');
-
-        const ringOuter = ns('circle');
-        ringOuter.setAttribute('cx', String(x));
-        ringOuter.setAttribute('cy', String(y));
-        ringOuter.setAttribute('r', '7.5');
-        ringOuter.setAttribute('class', 'getup-natural-ring-outer getup-marker--natural');
-
-        const ringInner = ns('circle');
-        ringInner.setAttribute('cx', String(x));
-        ringInner.setAttribute('cy', String(y));
-        ringInner.setAttribute('r', '5.5');
-        ringInner.setAttribute('class', 'getup-natural-ring-inner getup-marker--natural');
-
-        const core = ns('circle');
-        core.setAttribute('cx', String(x));
-        core.setAttribute('cy', String(y));
-        core.setAttribute('r', '3');
-        core.setAttribute('class', 'data-point getup getup-point getup-marker--natural getup-natural-core');
-
-        ng.appendChild(ringOuter);
-        ng.appendChild(ringInner);
-        ng.appendChild(core);
+        ng.setAttribute('class', 'time-dot-natural');
+        [
+          [dotR, 'time-dot-natural__ring'],
+          [dotR - 2.5, 'time-dot-natural__gap'],
+          [dotR - 5, 'time-dot-natural__core']
+        ].forEach(([r, cls]) => {
+          const c = ns('circle');
+          c.setAttribute('cx', String(x));
+          c.setAttribute('cy', String(y));
+          c.setAttribute('r', String(r));
+          c.setAttribute('class', cls);
+          ng.appendChild(c);
+        });
         g.appendChild(ng);
         drawPlan.points.push({ el: ng, x });
         return;
@@ -586,40 +557,32 @@ function render7DayTimeGraph(container, points, seriesKeys, tonightPoint, drawId
       const circle = ns('circle');
       circle.setAttribute('cx', x);
       circle.setAttribute('cy', y);
-      circle.setAttribute('r', 3);
-      if (key === 'getUpMinutes') {
-        circle.setAttribute('class', 'data-point getup getup-point getup-marker--alarm');
-      } else {
-        circle.setAttribute('class', timeSeriesLineClass(key).point);
-      }
+      circle.setAttribute('r', dotR);
+      circle.setAttribute('class', `time-dot time-dot--${tonightSeriesSuffix(key)}`);
       g.appendChild(circle);
       drawPlan.points.push({ el: circle, x });
     });
   });
 
-  // Tonight: hollow points (in progress, not part of the trend fit).
+  // Tonight: hollow points (in progress, no usual line).
   if (tonight) {
     tonightKeys.forEach((key) => {
       const ring = ns('circle');
-      ring.setAttribute('cx', String(xScale(tonight.date)));
+      ring.setAttribute('cx', String(tonightX));
       ring.setAttribute('cy', String(yScale(tonight[key])));
-      ring.setAttribute('r', '4');
+      ring.setAttribute('r', String(dotR - 1));
       ring.setAttribute('class', `data-point-tonight data-point-tonight--${tonightSeriesSuffix(key)}`);
       g.appendChild(ring);
-      drawPlan.points.push({ el: ring, x: xScale(tonight.date) });
+      drawPlan.points.push({ el: ring, x: tonightX });
     });
   }
 
   // Invisible tap/click areas per day: tap a day to show daily values popup (same as charts.js)
-  const slotCount = points.length + (tonight ? 1 : 0);
-  const dayWidth = graphWidth / Math.max(1, slotCount);
-  const tonightLeft = tonight ? xScale(tonight.date) - dayWidth / 2 : graphWidth;
+  const tonightLeft = points.length * dayWidth;
   points.forEach((point, index) => {
-    const x = xScale(point.date);
-    const left = index === 0 ? 0 : x - dayWidth / 2;
-    const w = index === 0 ? dayWidth / 2 + x - left
-      : index === points.length - 1 ? tonightLeft - left
-      : dayWidth;
+    const x = xAt(index);
+    const left = x - dayWidth / 2;
+    const w = dayWidth;
     const dayRect = ns('rect');
     dayRect.setAttribute('x', left);
     dayRect.setAttribute('y', 0);
@@ -687,6 +650,44 @@ function formatTonightChartTitle(tonight, tonightKeys) {
   return `${dashboardT('dashboard.sectionTonight', 'Tonight')} (${dashboardT('dashboard.tonight.logged.inProgress', 'in progress')}): ${parts.join(' · ')}`;
 }
 
+/**
+ * WASO stripes on total-sleep dots, by normalizeFragmentationLevel: pitch / stripe width in px.
+ * Denser with more wake episodes (same mild → severe progression as the bar / timeline textures).
+ */
+const DURATION_WASO_STRIPES = {
+  mild: { pitch: 7, width: 1.5 },
+  moderate: { pitch: 4.5, width: 1.5 },
+  severe: { pitch: 3, width: 1.75 }
+};
+
+/**
+ * Natural (recent-average) values as of a night: the same per-night baseline the deviation flags use
+ * (getDeviationBaseline — the entries before that night). null while learning (fewer than
+ * DEVIATION_MIN_PRIOR_NIGHTS earlier entries), so the charts' usual lines and the flags appear together.
+ * @param {Array<object>} days newest-first, as passed to computeRecentAverages
+ * @param {number} dayIndex the night's index in `days`
+ * @returns {{ sleepDuration: number, sleepStart: number, getUp: number } | null} unrounded minutes;
+ *   sleepStart / getUp on the 7-day chart y axis (normalizeTimeForYAxis)
+ */
+function getUsualBaselineForNight(days, dayIndex) {
+  if (typeof getDeviationBaseline !== 'function' || !Number.isInteger(dayIndex)) return null;
+  const b = getDeviationBaseline(days, dayIndex);
+  if (!b || b.insufficient) return null;
+  const toYAxis = (norm) => (Number.isFinite(norm) ? normalizeTimeForYAxis(modMinutes1440(norm)) : null);
+  return {
+    sleepDuration: Number.isFinite(b.avgSleepDuration) ? b.avgSleepDuration : null,
+    sleepStart: toYAxis(b.avgFellAsleepTime),
+    getUp: toYAxis(b.avgWakeTime)
+  };
+}
+
+/**
+ * Total sleep, last 7 nights. Dots on a zoomed axis: position (not bar length) carries the value, so
+ * cropping the axis does not exaggerate differences. The dashed line is "your usual" — the Natural
+ * average as of each night (point.usualSleepMinutes) — in place of a fitted trend, so one long night
+ * does not swing it. Nap nights (SKP): hollow --color-sleep ring at main sleep, --color-nap dash up to
+ * a --color-nap total dot. WASO nights: stripes in the dot's own color (DURATION_WASO_STRIPES).
+ */
 function render7DayDurationChart(container, points, drawId) {
   if (!points.length) return;
   const margin = { top: 24, right: 40, bottom: 36, left: 48 };
@@ -697,11 +698,19 @@ function render7DayDurationChart(container, points, drawId) {
   const slotWidth = graphWidth / Math.max(1, points.length);
   const xScaleByIndex = (index) => slotWidth * (index + 0.5);
 
-  // Dynamic Y range: min/max sleep duration in 7 days plus 1 hour on each side
-  const allDurations = points.map(p => p.sleepDurationMinutes);
-  const dataMin = Math.min(...allDurations), dataMax = Math.max(...allDurations);
+  const hasNap = (p) => p.napMinutes > 0;
+  const hasUsual = (p) => Number.isFinite(p.usualSleepMinutes);
+
+  // Dynamic Y range over everything drawn (totals, main sleep on nap nights, usual line), plus 1 hour each side
+  const allValues = [];
+  points.forEach((p) => {
+    allValues.push(p.sleepDurationMinutes);
+    if (hasNap(p)) allValues.push(p.mainSleepMinutes);
+    if (hasUsual(p)) allValues.push(p.usualSleepMinutes);
+  });
+  const dataMin = Math.min(...allValues), dataMax = Math.max(...allValues);
   const hourPad = 60;
-  const sleepYMin = Math.floor((dataMin - hourPad) / 60) * 60;
+  const sleepYMin = Math.max(0, Math.floor((dataMin - hourPad) / 60) * 60);
   const sleepYMax = Math.ceil((dataMax + hourPad) / 60) * 60;
   const sleepRange = Math.max(sleepYMax - sleepYMin, 120);
   const sleepYScale = (minutes) => graphHeight - ((minutes - sleepYMin) / sleepRange) * graphHeight;
@@ -761,98 +770,139 @@ function render7DayDurationChart(container, points, drawId) {
     append7DayXAxisTickLabel(g, ns, x, graphHeight, point, index, points.length);
   });
 
-  const tooltip = document.getElementById('tooltip');
-  const barWidth = Math.max(2, slotWidth * 0.72);
-  // Bars rise from the baseline one by one, left → right.
-  const barsG = addDashboardChartBarsLayer(drawPlan, g);
+  const drawPad = 10;
+  const drawBox = (x0, x1) => ({ x0: x0 - drawPad, x1: x1 + drawPad, top: -margin.top, height: height });
+
+  // "Your usual" line sits behind the dots but draws after them. Gaps where a night is still learning.
+  drawPlan.trend = addDashboardChartSweepLayer(
+    drawPlan, g, 'chart-draw-trend', drawBox(xScaleByIndex(0), xScaleByIndex(points.length - 1))
+  );
+  let usualD = '';
+  let penDown = false;
+  points.forEach((p, i) => {
+    if (!hasUsual(p)) { penDown = false; return; }
+    usualD += (penDown ? ' L ' : ' M ') + xScaleByIndex(i) + ' ' + sleepYScale(p.usualSleepMinutes);
+    penDown = true;
+  });
+  if (usualD) {
+    const usualPath = ns('path');
+    usualPath.setAttribute('d', usualD.trim());
+    usualPath.setAttribute('class', 'usual-line usual-line--sleep');
+    drawPlan.trend.layer.appendChild(usualPath);
+  }
+
+  // Nap dashes reveal with a left → right sweep; dots pop in as the sweep reaches them.
+  drawPlan.sweep = addDashboardChartSweepLayer(drawPlan, g, 'chart-draw-lines', drawBox(0, graphWidth));
+  const totalR = 9;
+  const mainR = 8;
+  // WASO: stripes cut into the dot in the panel color, so they take the dot's own color (sleep / nap).
+  // Own <defs> — drawPlan.defs is removed when the draw finishes.
+  const wasoDefs = ns('defs');
+  svg.insertBefore(wasoDefs, svg.firstChild);
+  const wasoPatternIds = {};
+  const wasoPatternId = (level) => {
+    if (wasoPatternIds[level]) return wasoPatternIds[level];
+    const spec = DURATION_WASO_STRIPES[level];
+    if (!spec) return null;
+    const id = `duration-waso-${level}-${++dashboardChartDrawClipSeq}`;
+    const pattern = ns('pattern');
+    pattern.setAttribute('id', id);
+    pattern.setAttribute('patternUnits', 'userSpaceOnUse');
+    pattern.setAttribute('width', String(spec.pitch));
+    pattern.setAttribute('height', String(spec.pitch));
+    pattern.setAttribute('patternTransform', 'rotate(35)');
+    const stripe = ns('line');
+    stripe.setAttribute('x1', '0'); stripe.setAttribute('y1', '0');
+    stripe.setAttribute('x2', '0'); stripe.setAttribute('y2', String(spec.pitch));
+    stripe.setAttribute('stroke-width', String(spec.width));
+    stripe.setAttribute('class', 'duration-waso-stripe');
+    pattern.appendChild(stripe);
+    wasoDefs.appendChild(pattern);
+    wasoPatternIds[level] = id;
+    return id;
+  };
+  const appendWasoStripes = (parent, cx, cy, r, level) => {
+    const id = level ? wasoPatternId(level) : null;
+    if (!id) return;
+    const overlay = ns('circle');
+    overlay.setAttribute('cx', cx); overlay.setAttribute('cy', cy); overlay.setAttribute('r', r - 1);
+    overlay.setAttribute('fill', `url(#${id})`);
+    overlay.setAttribute('class', 'duration-waso-overlay');
+    parent.appendChild(overlay);
+  };
   points.forEach((point, index) => {
     const x = xScaleByIndex(index);
-    const mainSleepBarY = sleepYScale(point.mainSleepMinutes);
-    const columnTopY = point.napMinutes > 0 ? sleepYScale(point.sleepDurationMinutes) : mainSleepBarY;
-    addDashboardChartBarColumn(drawPlan, x - barWidth / 2, barWidth, Math.min(columnTopY, mainSleepBarY) - 1, graphHeight);
-    const mainRect = ns('rect');
-    mainRect.setAttribute('x', x - barWidth / 2);
-    mainRect.setAttribute('y', mainSleepBarY);
-    mainRect.setAttribute('width', barWidth);
-    mainRect.setAttribute('height', graphHeight - mainSleepBarY);
-    mainRect.setAttribute('class', 'sleep-bar');
-    mainRect.style.cursor = 'pointer';
-    mainRect.addEventListener('mouseenter', () => {
+    const totalY = sleepYScale(point.sleepDurationMinutes);
+    if (!hasNap(point)) {
+      const dotG = ns('g');
+      const dot = ns('circle');
+      dot.setAttribute('cx', x); dot.setAttribute('cy', totalY); dot.setAttribute('r', totalR);
+      dot.setAttribute('class', 'duration-dot');
+      dotG.appendChild(dot);
+      appendWasoStripes(dotG, x, totalY, totalR, point.fragmentation);
+      g.appendChild(dotG);
+      drawPlan.points.push({ el: dotG, x });
+      return;
+    }
+    const mainY = sleepYScale(point.mainSleepMinutes);
+    const y1 = mainY - mainR - 1;
+    const y2 = totalY + totalR + 1;
+    if (y1 > y2) {
+      const dash = ns('line');
+      dash.setAttribute('x1', x); dash.setAttribute('y1', y1);
+      dash.setAttribute('x2', x); dash.setAttribute('y2', y2);
+      dash.setAttribute('class', 'duration-nap-connector');
+      drawPlan.sweep.layer.appendChild(dash);
+    }
+    const napG = ns('g');
+    const ring = ns('circle');
+    ring.setAttribute('cx', x); ring.setAttribute('cy', mainY); ring.setAttribute('r', mainR);
+    ring.setAttribute('class', 'duration-dot duration-dot--main');
+    const total = ns('circle');
+    total.setAttribute('cx', x); total.setAttribute('cy', totalY); total.setAttribute('r', totalR);
+    total.setAttribute('class', 'duration-dot duration-dot--nap-total');
+    napG.appendChild(ring);
+    napG.appendChild(total);
+    appendWasoStripes(napG, x, totalY, totalR, point.fragmentation);
+    g.appendChild(napG);
+    drawPlan.points.push({ el: napG, x });
+  });
+
+  // Invisible hover / tap column per night: tooltip on hover, day panel on click.
+  const tooltip = document.getElementById('tooltip');
+  const tooltipText = (point) => {
+    const napText = hasNap(point)
+      ? ` (${formatDuration(point.mainSleepMinutes)} + ${formatDuration(point.napMinutes)} nap)`
+      : '';
+    const usualText = hasUsual(point) ? ` · usual ${formatDuration(Math.round(point.usualSleepMinutes))}` : '';
+    return `${formatSleepDateMonthDay(point.dateString)}: ${formatDuration(point.sleepDurationMinutes)}${napText}${usualText}`;
+  };
+  points.forEach((point, index) => {
+    const x = xScaleByIndex(index);
+    const col = ns('rect');
+    col.setAttribute('x', x - slotWidth / 2);
+    col.setAttribute('y', 0);
+    col.setAttribute('width', slotWidth);
+    col.setAttribute('height', graphHeight);
+    col.setAttribute('class', 'duration-hit-column');
+    col.addEventListener('mouseenter', () => {
       if (!tooltip) return;
-      const napText = point.napMinutes > 0 ? ` (${formatDuration(point.mainSleepMinutes)} + ${formatDuration(point.napMinutes)} nap)` : '';
-      tooltip.textContent = `${formatSleepDateMonthDay(point.dateString)}: ${formatDuration(point.sleepDurationMinutes)}${napText}`;
+      tooltip.textContent = tooltipText(point);
       tooltip.classList.add('visible');
     });
-    mainRect.addEventListener('mousemove', (e) => {
+    col.addEventListener('mousemove', (e) => {
       if (tooltip) {
         tooltip.style.left = (e.clientX + 10) + 'px';
         tooltip.style.top = (e.clientY - 10) + 'px';
       }
     });
-    mainRect.addEventListener('mouseleave', () => { if (tooltip) tooltip.classList.remove('visible'); });
-    mainRect.addEventListener('click', (e) => {
-      const rect = container.getBoundingClientRect();
+    col.addEventListener('mouseleave', () => { if (tooltip) tooltip.classList.remove('visible'); });
+    col.addEventListener('click', (e) => {
       showDayPanel(point, e.clientX, e.clientY);
       scheduleDashboardChartDayPanelOutsideClose(container);
     });
-    barsG.appendChild(mainRect);
-    const mainBarH = graphHeight - mainSleepBarY;
-    appendSvgSleepBarFragmentation(barsG, x - barWidth / 2, mainSleepBarY, barWidth, mainBarH, point.fragmentation);
-    if (point.napMinutes > 0) {
-      const napBarY = sleepYScale(point.sleepDurationMinutes);
-      const napRect = ns('rect');
-      napRect.setAttribute('x', x - barWidth / 2);
-      napRect.setAttribute('y', napBarY);
-      napRect.setAttribute('width', barWidth);
-      napRect.setAttribute('height', mainSleepBarY - napBarY);
-      napRect.setAttribute('class', 'sleep-bar nap-bar');
-      napRect.style.cursor = 'pointer';
-      napRect.addEventListener('mouseenter', () => {
-        if (tooltip) {
-          tooltip.textContent = `${formatSleepDateMonthDay(point.dateString)}: ${formatDuration(point.sleepDurationMinutes)} (${formatDuration(point.mainSleepMinutes)} + ${formatDuration(point.napMinutes)} nap)`;
-          tooltip.classList.add('visible');
-        }
-      });
-      napRect.addEventListener('mousemove', (e) => {
-        if (tooltip) {
-          tooltip.style.left = (e.clientX + 10) + 'px';
-          tooltip.style.top = (e.clientY - 10) + 'px';
-        }
-      });
-        napRect.addEventListener('mouseleave', () => { if (tooltip) tooltip.classList.remove('visible'); });
-        napRect.addEventListener('click', (e) => {
-          showDayPanel(point, e.clientX, e.clientY);
-          scheduleDashboardChartDayPanelOutsideClose(container);
-        });
-        barsG.appendChild(napRect);
-        const napBarH = mainSleepBarY - napBarY;
-        appendSvgSleepBarFragmentation(barsG, x - barWidth / 2, napBarY, barWidth, napBarH, point.fragmentation);
-      }
+    g.appendChild(col);
   });
-
-  const sleepReg = polynomialRegression(
-    points.map((_, i) => i),
-    points.map(p => p.sleepDurationMinutes),
-    regressionDegree(points.length)
-  );
-  let trendD = '';
-  points.forEach((p, i) => {
-    const x = xScaleByIndex(i), y = sleepYScale(evaluatePolynomial(sleepReg, i));
-    trendD += (i ? ' L ' : 'M ') + x + ' ' + y;
-  });
-  // Dotted trend line draws once the bars are up.
-  const drawPad = 10;
-  drawPlan.trend = addDashboardChartSweepLayer(drawPlan, g, 'chart-draw-trend', {
-    x0: xScaleByIndex(0) - drawPad,
-    x1: xScaleByIndex(points.length - 1) + drawPad,
-    top: -margin.top,
-    height: height
-  });
-  const trendPath = ns('path');
-  trendPath.setAttribute('d', trendD);
-  trendPath.setAttribute('class', 'regression-line sleep-trend');
-  trendPath.setAttribute('fill', 'none');
-  drawPlan.trend.layer.appendChild(trendPath);
 
   container.innerHTML = '';
   container.appendChild(svg);
@@ -862,9 +912,16 @@ function render7DayDurationChart(container, points, drawId) {
 function renderDashboard7DayGraphs(days) {
   if (!days || days.length === 0) return;
   const points = buildPoints(days);
+  points.forEach((p, i) => { p.dayIndex = i; }); // index in `days` (newest-first) for per-night baselines
   points.sort((a, b) => a.date - b.date);
   const last7 = points.slice(-7);
   if (last7.length === 0) return;
+  last7.forEach((p) => {
+    const usual = getUsualBaselineForNight(days, p.dayIndex);
+    p.usualSleepMinutes = usual ? usual.sleepDuration : null;
+    p.usualSleepStartMinutes = usual ? usual.sleepStart : null;
+    p.usualGetUpMinutes = usual ? usual.getUp : null;
+  });
   const bedSleepEl = document.getElementById('dashboard-7d-bed-sleep-graph');
   const wakeEl = document.getElementById('dashboard-7d-wake-graph');
   const durationEl = document.getElementById('dashboard-7d-duration-graph');

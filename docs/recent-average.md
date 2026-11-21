@@ -56,6 +56,8 @@ User-facing copy: About → *While Restore learns your rhythm* (`about.tonightLe
 
 `computeRecentAverages(days, { endBeforeIndex: i })` averages the entries **before** `days[i]` (that night excluded). Deviation flags use it through `getDeviationBaseline` (`nightly.js`), which reads the unrounded `exact` means (fell-asleep / wake on the extended axis) and reports learning below `DEVIATION_MIN_PRIOR_NIGHTS` (7) earlier entries. So a flag's "recent average" is the same window and weighting as Natural, anchored one night back.
 
+The dashboard 7-day charts draw the same baseline as dashed "usual" lines: `getUsualBaselineForNight` (`dashboard.js`) reads `avgSleepDuration`, `avgFellAsleepTime` and `avgWakeTime` from `getDeviationBaseline` for each of the last 7 nights, with gaps where a night is still learning. **Total sleep time** gets a duration line; the time charts get fell-asleep and wake lines (bed has no recent average, so no line). So the gap between a night's dot and its line is the deviation its flag judges.
+
 Excluding the night avoids self-inclusion: a night inside its own baseline pulls the baseline toward itself and understates its own deviation — more so with recency weighting, where the newest entry carries ~15%.
 
 ## Tests
