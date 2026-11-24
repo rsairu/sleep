@@ -8,7 +8,8 @@
 
   const LANGUAGE_KEY = 'sleep-app-language';
   const DEFAULT_LANGUAGE = 'en';
-  const LOCALE_DICTIONARY_URL = 'locales.json';
+  // Absolute: the SPA serves nested paths, and the Vercel catch-all rewrite would answer a miss with index.html.
+  const LOCALE_DICTIONARY_URL = '/locales.json';
   const SUPPORTED_LANGUAGES = ['en', 'ja'];
 
   let localeDictionaryCache = null;
