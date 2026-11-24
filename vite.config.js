@@ -22,6 +22,7 @@ const routeScripts = [
 
 const staticCopyTargets = [
   { src: 'data', dest: 'data' },
+  { src: 'locales.json', dest: '.' },
   { src: 'src/styles/theme-toggle.css', dest: '.' },
   { src: 'src/styles/styles.css', dest: '.' },
   ...[...libScripts, ...routeScripts]
