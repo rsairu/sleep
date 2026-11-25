@@ -3571,7 +3571,7 @@ function renderRecentStatPill(metric) {
   } else if (metric.status === 'noAlarmPrevious') {
     text = recentStatsT('dashboard.recentStats.allNaturalBefore', 'all natural wakes the week before');
   } else {
-    // Minutes shown = difference of the two displayed (rounded) values, so "was" + change adds up;
+    // Minutes shown = difference of the two rounded averages, so this week's shown value − change = last week's;
     // the % and color come from the unrounded delta.
     const shownDelta =
       metric.kind === 'clock'
@@ -3599,12 +3599,6 @@ function renderRecentStatPill(metric) {
 
 function renderRecentStatTile(metric) {
   const label = RECENT_STATS_LABELS[metric.id];
-  const prevLine =
-    metric.previous != null && metric.status !== 'insufficient'
-      ? `<div class="recent-stat__prev">${escapeHtmlAttr(
-          recentStatsT('dashboard.recentStats.was', 'was {value}', { value: formatRecentStatValue(metric, metric.previous) })
-        )}</div>`
-      : '';
   let absLine = '';
   if (metric.absoluteSeverity) {
     const hours = metric.absoluteSeverity === 'severe' ? 4 : metric.absoluteSeverity === 'moderate' ? 5 : 6;
@@ -3617,7 +3611,6 @@ function renderRecentStatTile(metric) {
       <div class="recent-stat__label"><span class="recent-stat__chip" aria-hidden="true"></span><span data-i18n="${label.key}">${label.en}</span></div>
       <div class="recent-stat__value">${formatRecentStatValue(metric, metric.current)}</div>
       ${renderRecentStatPill(metric)}
-      ${prevLine}
       ${absLine}
     </div>`;
 }
@@ -3629,13 +3622,18 @@ function renderDashboardRecentStats(days) {
   const m = cmp.metrics;
   const caption = recentStatsT(
     'dashboard.recentStats.caption',
-    'Last {span} days vs the {span} before · {current} / {previous} nights logged',
+    'Last {span} days vs the {span} before · equal-weight averages · {current} / {previous} nights logged',
     { span: cmp.spanDays, current: cmp.currentCount, previous: cmp.previousCount }
   );
   return `
     <div class="dashboard-recent-stats-header">
       <h2 class="dashboard-section-title"><a class="dashboard-section-title__link" href="${restoreMpaHref('tab.stats')}"><span class="dashboard-section-title__emoji" aria-hidden="true">📈</span> <span data-i18n="dashboard.recentStats.title">Recent stats</span></a></h2>
-      <p class="dashboard-recent-stats-caption">${escapeHtmlAttr(caption)}</p>
+      <p class="dashboard-recent-stats-caption">${caption
+        .split(' · ')
+        .map(function (part) {
+          return `<span class="dashboard-recent-stats-caption__part">${escapeHtmlAttr(part)}</span>`;
+        })
+        .join(' · ')}</p>
     </div>
     <section class="dashboard-recent-stats">
       <div class="dashboard-recent-stats__grid">

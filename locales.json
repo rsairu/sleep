@@ -284,7 +284,7 @@
       "emptyLearning": "🌱 Learning: log your first night",
       "recentStats": {
         "title": "Recent stats",
-        "caption": "Last {span} days vs the {span} before · {current} / {previous} nights logged",
+        "caption": "Last {span} days vs the {span} before · equal-weight averages · {current} / {previous} nights logged",
         "bed": "Bed",
         "asleep": "Asleep",
         "wake": "Wake",
@@ -301,7 +301,6 @@
           "shorter": "shorter"
         },
         "noChange": "no change",
-        "was": "was {value}",
         "notEnough": "not enough nights yet",
         "allNatural": "all natural wakes",
         "allNaturalBefore": "all natural wakes the week before",
@@ -685,7 +684,7 @@
       "emptyLearning": "🌱 学習中：最初の夜を記録しましょう",
       "recentStats": {
         "title": "最近の統計",
-        "caption": "直近{span}日間とその前の{span}日間 · 記録 {current} / {previous} 夜",
+        "caption": "直近{span}日間とその前の{span}日間 · 単純平均 · 記録 {current} / {previous} 夜",
         "bed": "ベッド",
         "asleep": "入眠",
         "wake": "起床",
@@ -702,7 +701,6 @@
           "shorter": "短い"
         },
         "noChange": "変化なし",
-        "was": "前週 {value}",
         "notEnough": "まだ記録が足りません",
         "allNatural": "すべて自然な目覚め",
         "allNaturalBefore": "前週はすべて自然な目覚め",

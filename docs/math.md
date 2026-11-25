@@ -174,7 +174,7 @@ Relative and absolute severities combine with `maxSeverity`, the **worse of the 
 
 The dashboard section comparing this week with the week before (`computeRecentStatsComparison`, `nightly.js`).
 
-**Windows.** The anchor is the newest logged night key (the wake date). The current window is that key and the 6 calendar days before it. The previous window is the 7 calendar days before that. Missing nights just shrink a window. The caption shows the counts.
+**Windows.** The caption reads "Last 7 days vs the 7 before · equal-weight averages · n / n nights logged". The anchor is the newest logged night key (the wake date). The current window is that key and the 6 calendar days before it. The previous window is the 7 calendar days before that. Missing nights just shrink a window. The caption shows the counts.
 
 **Minimum.** A window needs `RECENT_STATS_MIN_NIGHTS` = 4 logged nights. If either window has fewer, the tiles show this week's values (when this week has enough) with a neutral "not enough nights yet".
 
@@ -194,7 +194,8 @@ The dashboard section comparing this week with the week before (`computeRecentSt
 Severity = `maxSeverity(blended severity if the direction counts, absolute floor)`. Thresholds are the same 5 / 10 / 19 as flags.
 
 **Display.**
-- The pill's minutes are the difference between the two **displayed** (rounded) values, so "was 23:03" plus "10m later" reads 23:13.
+- Tiles show this week's value and the change only. Last week's value isn't shown; it's this week's minus the change.
+- The pill's minutes are the difference between the two **rounded** averages, so subtracting the change from the shown value gives last week's rounded average exactly.
 - The % is the blended % **rounded down** (`recentStatsDisplayPercent`), so the shown number and the color always agree: "5%" is always at least slight, and "4%" is never colored.
 - Color and severity always come from the unrounded delta.
 
