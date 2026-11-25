@@ -6016,6 +6016,128 @@ html.restore-phase-wallpaper .nav-header-twinkle-layer {
   color: inherit;
 }
 
+/* Dashboard → Recent stats (this week vs the week before). Pill colors = quality ramp (docs/math.md § Recent stats). */
+.dashboard-recent-stats-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  column-gap: var(--space-4);
+}
+
+.dashboard-recent-stats-caption {
+  margin: 0 0 var(--space-3) 0;
+  font-size: 0.8rem;
+  opacity: 0.65;
+}
+
+.dashboard-recent-stats {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+.dashboard-recent-stats__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.recent-stat {
+  background: var(--panel);
+  border-radius: var(--panel-radius);
+  border: 1px solid var(--panel-border-color);
+  box-shadow: var(--panel-shadow);
+  padding: var(--space-3) var(--space-4);
+  min-width: 0;
+}
+
+.recent-stat__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+.recent-stat__chip {
+  width: 4px;
+  height: 0.95em;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.recent-stat--bed .recent-stat__chip,
+.recent-stat--sleepLag .recent-stat__chip {
+  background: var(--color-bed);
+}
+
+.recent-stat--asleep .recent-stat__chip,
+.recent-stat--totalSleep .recent-stat__chip {
+  background: var(--color-sleep);
+}
+
+.recent-stat--wake .recent-stat__chip,
+.recent-stat--wakeLag .recent-stat__chip {
+  background: var(--color-up);
+}
+
+.recent-stat__value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 2px 0 6px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.recent-stat__pill {
+  display: inline-block;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.recent-stat__pill--neutral {
+  background: var(--hover-bg);
+  border: 1px solid var(--panel-border-color);
+  opacity: 0.85;
+}
+
+.recent-stat__pill--slight {
+  background: var(--quality-slight);
+  color: #3b2a05;
+}
+
+.recent-stat__pill--moderate {
+  background: var(--quality-moderate);
+  color: rgba(255, 255, 255, 0.96);
+}
+
+.recent-stat__pill--severe {
+  background: var(--quality-severe);
+  color: rgba(255, 255, 255, 0.96);
+}
+
+.recent-stat__prev,
+.recent-stat__note {
+  margin-top: 6px;
+  font-size: 0.75rem;
+  opacity: 0.6;
+}
+
+@media (max-width: 900px) {
+  .dashboard-recent-stats__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .recent-stat__value {
+    font-size: 1.25rem;
+  }
+}
+
 h1,
 .page-title {
   margin-bottom: var(--space-5);
