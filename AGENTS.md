@@ -44,12 +44,19 @@ When changing `getQuickActionsPhaseFromSharedContext`, `getSharedAppTimeContext`
 
 When changing `recordDateMdForSleepPeriod`, `resolveRecordDateMdForWake`, `nightRowAwaitingWake`, `getNightKeyWakeMinutes`, `getCurrentNightKey`, `resolveOpenNight`, `getOpenNight`, `resolveWakeNightKey`, `getDashboardTonightNightKey`, the open-night constants, or any caller's night key, update the doc's caller table and examples, the night-key / open-night tests in `tests/math-tests.js`, and `tests/quick-actions-scenarios.mjs`. Night saves and night lookups use the natural wake only; schedule timing uses the Tonight basis.
 
+## Math (averages, flags, percentages)
+
+**Applies to:** any change to a formula, threshold, weight, or window in `sleep-utils.js`, `nightly.js`, `stats-aggregates.js`, `stats.js`
+**Spec:** [docs/math.md](docs/math.md) (clock axis, per-night quantities, weighted vs equal averages and where each applies, blended %, flag severity, Recent stats, social lag, guidance pace, constants table)
+
+math.md owns the numbers; feature docs link to it instead of restating formulas. If you change a constant or formula, update its section and **Constants** table, and the matching block in `tests/math-tests.js`. Dashboard Recent stats (`computeRecentStatsComparison`, `RECENT_STATS_*`) is specified only there.
+
 ## Recent averages (Natural sleep / wake)
 
 **Applies to:** any file that needs "your recent average"
-**Spec:** [docs/recent-average.md](docs/recent-average.md) (14 logged entries, 5-entry half-life weights, catch-up, fixed lists vs recent)
+**Spec:** [docs/recent-average.md](docs/recent-average.md) (learning stages, per-night baselines, fixed lists vs recent); weights and formulas in [docs/math.md](docs/math.md) § Averages
 
-Use `computeRecentAverages(days, { endBeforeIndex? })` (or `averageSleepNights(nights)` for an equal-weight fixed list such as a week) from `sleep-utils.js`; deviation flags go through `getDeviationBaseline` (`nightly.js`), which wraps it. Do not slice `days` and re-average by hand — window size and weighting live only in that section (`RECENT_AVERAGE_WINDOW`, `RECENT_AVERAGE_HALF_LIFE`, `recentAverageWeights`). If you change them, update the doc's tables and the recent-average block in `tests/math-tests.js`.
+Use `computeRecentAverages(days, { endBeforeIndex? })` (or `averageSleepNights(nights)` for an equal-weight fixed list such as a week) from `sleep-utils.js`; deviation flags go through `getDeviationBaseline` (`nightly.js`), which wraps it. Do not slice `days` and re-average by hand — window size and weighting live only in that section (`RECENT_AVERAGE_WINDOW`, `RECENT_AVERAGE_HALF_LIFE`, `recentAverageWeights`). If you change them, update [docs/math.md](docs/math.md) § Recent average and the recent-average block in `tests/math-tests.js`.
 
 ## Wake classification and lags
 

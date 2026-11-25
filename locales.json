@@ -281,7 +281,32 @@
       },
       "sectionTonight": "Tonight",
       "sectionSleepQuality": "Sleep quality",
-      "emptyLearning": "🌱 Learning: log your first night"
+      "emptyLearning": "🌱 Learning: log your first night",
+      "recentStats": {
+        "title": "Recent stats",
+        "caption": "Last {span} days vs the {span} before · {current} / {previous} nights logged",
+        "bed": "Bed",
+        "asleep": "Asleep",
+        "wake": "Wake",
+        "totalSleep": "Total sleep",
+        "sleepLag": "Sleep lag",
+        "wakeLag": "Snooze",
+        "delta": "{amount} {direction} · {pct}%",
+        "dir": {
+          "later": "later",
+          "earlier": "earlier",
+          "more": "more",
+          "less": "less",
+          "longer": "longer",
+          "shorter": "shorter"
+        },
+        "noChange": "no change",
+        "was": "was {value}",
+        "notEnough": "not enough nights yet",
+        "allNatural": "all natural wakes",
+        "allNaturalBefore": "all natural wakes the week before",
+        "underHours": "average under {hours}h"
+      }
     },
     "about": {
       "dashboardHints": {
@@ -657,7 +682,32 @@
       },
       "sectionTonight": "今夜",
       "sectionSleepQuality": "睡眠の質",
-      "emptyLearning": "🌱 学習中：最初の夜を記録しましょう"
+      "emptyLearning": "🌱 学習中：最初の夜を記録しましょう",
+      "recentStats": {
+        "title": "最近の統計",
+        "caption": "直近{span}日間とその前の{span}日間 · 記録 {current} / {previous} 夜",
+        "bed": "ベッド",
+        "asleep": "入眠",
+        "wake": "起床",
+        "totalSleep": "総睡眠時間",
+        "sleepLag": "寝つき",
+        "wakeLag": "スヌーズ",
+        "delta": "{amount}{direction} · {pct}%",
+        "dir": {
+          "later": "遅い",
+          "earlier": "早い",
+          "more": "多い",
+          "less": "少ない",
+          "longer": "長い",
+          "shorter": "短い"
+        },
+        "noChange": "変化なし",
+        "was": "前週 {value}",
+        "notEnough": "まだ記録が足りません",
+        "allNatural": "すべて自然な目覚め",
+        "allNaturalBefore": "前週はすべて自然な目覚め",
+        "underHours": "平均{hours}時間未満"
+      }
     },
     "about": {
       "dashboardHints": {

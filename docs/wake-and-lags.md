@@ -2,7 +2,7 @@
 
 Reference for how a morning is classified as a **natural** or **alarm** wake, and how **sleep lag**, **wake lag (snooze)**, and **social lag** are computed. One rule, used by every surface (Charts, Stats, Nightly, Dashboard, quick actions).
 
-Implementation lives in `src/lib/sleep-utils.js` (section "Wake classification and lags"). Do not classify natural wake or compute alarm → wake inline anywhere else.
+Implementation lives in `src/lib/sleep-utils.js` (section "Wake classification and lags"). Do not classify natural wake or compute alarm → wake inline anywhere else. How these per-night values are averaged, compared and colored: [math.md](math.md).
 
 ---
 
@@ -54,7 +54,7 @@ An alarm logged *before* sleep start (e.g. sleep 00:30, alarm 00:10) gets a larg
 | **Sleep lag** | x̄, Σ | Bed → asleep, minutes (wraps midnight). | All nights | `sleepLagMin(day)` |
 | **Wake lag (snooze)** | x̄, Σ | Signed first alarm → wake (above). Negative when you woke before it. Σ is a net total. | Nights with an alarm | `wakeLagMin(day)` / `classifyWake(day).wakeLagMin` |
 | **Natural wake** | % | Share of mornings that are natural wakes. | All nights | `classifyWake(day).natural` |
-| **Social lag** | — | MCTQ social jetlag: `|MSF − MSW|`, mid-sleep on free days vs work days, shortest arc. | Work vs free days | `StatsAggregates.socialLagMinutes` |
+| **Social lag** | — | MCTQ social jetlag: `|MSF − MSW|`, mid-sleep on free days vs work days, shortest arc ([math.md](math.md) § Social lag). | Work vs free days | `StatsAggregates.socialLagMinutes` |
 
 Stats symbols: **x̄** average, **Σ** total for the period, **%** share of mornings.
 
@@ -88,7 +88,7 @@ Out of scope: `calculateLongestUninterrupted` keeps its own alarm normalization.
 |---|---|
 | `src/routes/charts.js` | `buildGraphPagePointsFromDays`: one `classifyWake` per day → `wakeLagMinutes`, `firstAlarm`, `naturalWake`; `sleepLagMin` → `sleepLagMinutes`. Wake lag chart, sleep lag chart, natural-wake bullseye markers. |
 | `src/routes/dashboard.js` | Dashboard chart points: `classifyWake(day).natural` → `naturalWake`. |
-| `src/lib/nightly.js` | Day badge (🌄 / `(⏰-9m)` / ⏰ `+lag`) from `classifyWake`; 🛌 suffix from `sleepLagMin`; averages panel `avgSleepLag`, "Wake lag (avg)" from `avgWakeLag`. |
+| `src/lib/nightly.js` | Day badge (🌄 / `(⏰-9m)` / ⏰ `+lag`) from `classifyWake`; 🛌 suffix from `sleepLagMin`; averages panel `avgSleepLag`, "Wake lag (avg)" from `avgWakeLag`; dashboard Recent stats Sleep lag / Snooze tiles from `exact.sleepLag` / `exact.wakeLag` (`computeRecentStatsComparison`). |
 | `src/routes/quick-actions.js` | Alarm quick action gate: `averages.avgWakeLag != null`. |
 | `src/routes/stats.js` | `calculateMonthlyAverages` → `avgSleepLag`, `avgWakeLag`; `columnExtras` → natural %, `sumSleepLag`, `sumWakeLag`. |
 | `src/lib/stats-aggregates.js` | `socialLagMinutes` only. |

@@ -3655,16 +3655,22 @@ function equalWeights(count) {
  * @param {number[]} [weights] one per night; defaults to equal weights
  * @returns {null | {
  *   sampleSize: number,
+ *   avgBed: number,
  *   avgSleepStart: number,
  *   avgSleepEnd: number,
  *   avgSleepDuration: number,
  *   avgLongestUninterrupted: number,
  *   avgSleepLag: number,
  *   avgWakeLag: number|null,
- *   exact: { sleepStartNorm: number, sleepEndNorm: number, sleepDuration: number }
+ *   exact: {
+ *     bedNorm: number, sleepStartNorm: number, sleepEndNorm: number, sleepDuration: number,
+ *     sleepLag: number, wakeLag: number|null
+ *   }
  * }}
- * `exact` holds the unrounded means — fell-asleep and wake on the extended axis — for comparisons
- * that must not round-trip through clock minutes (deviation-flag baselines).
+ * Bed is not normalized on its own: it is placed on the axis as fell-asleep − sleep lag, so the
+ * average bed is always the average fell-asleep minus the average sleep lag (docs/math.md § Clock axis).
+ * `exact` holds the unrounded means — clock times on the extended axis — for comparisons
+ * that must not round-trip through clock minutes (deviation-flag baselines, Recent stats).
  */
 function averageSleepNights(nights, weights) {
   const list = Array.isArray(nights) ? nights : [];
@@ -3698,8 +3704,10 @@ function averageSleepNights(nights, weights) {
     }
   }
 
+  const bedNorm = (sleepStartSum - sleepLagSum) / wSum;
   return {
     sampleSize: n,
+    avgBed: denormalizeTimeForAveraging(Math.round(bedNorm)),
     avgSleepStart: denormalizeTimeForAveraging(Math.round(sleepStartSum / wSum)),
     avgSleepEnd: denormalizeTimeForAveraging(Math.round(sleepEndSum / wSum)),
     avgSleepDuration: Math.round(durationSum / wSum),
@@ -3707,9 +3715,12 @@ function averageSleepNights(nights, weights) {
     avgSleepLag: Math.round(sleepLagSum / wSum),
     avgWakeLag: wakeLagW > 0 ? Math.round(wakeLagSum / wakeLagW) : null,
     exact: {
+      bedNorm: bedNorm,
       sleepStartNorm: sleepStartSum / wSum,
       sleepEndNorm: sleepEndSum / wSum,
-      sleepDuration: durationSum / wSum
+      sleepDuration: durationSum / wSum,
+      sleepLag: sleepLagSum / wSum,
+      wakeLag: wakeLagW > 0 ? wakeLagSum / wakeLagW : null
     }
   };
 }

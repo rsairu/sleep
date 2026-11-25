@@ -149,6 +149,7 @@ Time is normalized as **minutes from midnight** (0–1440) in logic, with explic
 - Each night is compared with its **baseline**: the recent average of the logged entries *before* it (up to 14, weighted toward the newest; the night itself excluded). See [docs/recent-average.md](docs/recent-average.md).
 - 😴 fell asleep later than baseline · ⌛ shorter than baseline or under 6 / 5 / 4 h · 🌅 wake shifted either way · 👁️ wakeful night (WASO, baseline-independent). Severity tiers come from a blended sleep- / day-relative percentage.
 - Fewer than 7 earlier nights → 🌱 learning (no flags). Dashboard, Nightly, and the Quality heatmap all use these.
+- Formulas, thresholds, and the dashboard **Recent stats** comparison (this week vs the week before): [docs/math.md](docs/math.md).
 
 ### Weekends & holidays
 - `isWeekend()`, `isHoliday()` in `src/lib/sleep-utils.js`; holiday data is `HOLIDAYS_BY_YEAR` in the same file (`{ year: { month: [day, ...] } }`). Optional second arg to `isHoliday()`; defaults to `HOLIDAYS_BY_YEAR`.
@@ -189,6 +190,7 @@ Time is normalized as **minutes from midnight** (0–1440) in logic, with explic
 | `docs/routing.md` | Canonical route mapping and link policy |
 | `docs/lifecycle-contract.md` | Route mount/unmount lifecycle contract |
 | `docs/architecture-decisions.md` | Permanent ADR summary |
+| `docs/math.md` | All formulas: clock axis, averages and weights, blended %, flag severity, Recent stats, guidance pace |
 | `docs/remaining-wake.md` | Remaining wake feature reference and backlog |
 | `docs/supabase-dev-sync.md` | Daily prod → dev Supabase sync (09:17 JST) and migration order |
 

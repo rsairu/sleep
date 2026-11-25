@@ -242,6 +242,145 @@ function computeWorstQualitySeverity(day, recentAverages) {
   return worst || 'none';
 }
 
+// ---------------------------------------------------------------------------
+// Recent stats (dashboard): this calendar week vs the week before.
+// Equal-weight averages per window (averageSleepNights), compared with the flag math above
+// (blendedVariationPercent + severityFromBlendedPercent). Spec: docs/math.md § Recent stats.
+// ---------------------------------------------------------------------------
+
+/** Calendar days per window. */
+const RECENT_STATS_SPAN_DAYS = 7;
+/** Logged nights a window needs before it is compared. */
+const RECENT_STATS_MIN_NIGHTS = 4;
+
+/**
+ * Which direction of change can be colored, per metric (others stay neutral):
+ *   'later' — clock time moving later; 'both' — either way; 'less' — shorter; 'more' — longer.
+ * Mirrors the nightly flags: fell-asleep later-only, wake both ways, duration shorter-only.
+ */
+const RECENT_STATS_METRICS = [
+  { id: 'bed', kind: 'clock', field: 'bedNorm', flagWhen: 'later' },
+  { id: 'asleep', kind: 'clock', field: 'sleepStartNorm', flagWhen: 'later' },
+  { id: 'wake', kind: 'clock', field: 'sleepEndNorm', flagWhen: 'both' },
+  { id: 'totalSleep', kind: 'duration', field: 'sleepDuration', flagWhen: 'less' },
+  { id: 'sleepLag', kind: 'duration', field: 'sleepLag', flagWhen: 'more' },
+  { id: 'wakeLag', kind: 'signedDuration', field: 'wakeLag', flagWhen: 'more' }
+];
+
+/** Logged nights whose night key falls in [startKey, endKey] (ISO keys compare as strings). */
+function daysInSleepKeyRange(days, startKey, endKey) {
+  return days.filter(function (day) {
+    const k = normalizeSleepDateKey(day.date);
+    return k !== '' && k >= startKey && k <= endKey;
+  });
+}
+
+/**
+ * Compare the current window (the newest logged night key and the RECENT_STATS_SPAN_DAYS − 1 days
+ * before it) with the window of the same length right before it.
+ * @param {Array<object>} days newest-first
+ * @param {{ endKey?: string }} [options] endKey overrides the anchor night key (tests)
+ * @returns {null | {
+ *   spanDays: number, endKey: string, currentCount: number, previousCount: number, comparable: boolean,
+ *   metrics: Object<string, {
+ *     id: string, kind: string, current: number|null, previous: number|null,
+ *     delta: number|null, percent: number|null, severity: 'slight'|'moderate'|'severe'|null,
+ *     absoluteSeverity: 'slight'|'moderate'|'severe'|null,
+ *     status: 'ok'|'insufficient'|'noAlarmCurrent'|'noAlarmPrevious'
+ *   }>
+ * }}
+ * current / previous: clock minutes 0–1439 for clock metrics, minutes for durations (wake lag signed).
+ * delta: unrounded current − previous (extended axis for clock times). percent: blended %, unrounded.
+ */
+function computeRecentStatsComparison(days, options) {
+  const list = Array.isArray(days) ? days : [];
+  if (!list.length) return null;
+  const opts = options || {};
+  let endKey = opts.endKey ? normalizeSleepDateKey(opts.endKey) : '';
+  if (!endKey) {
+    for (let i = 0; i < list.length; i++) {
+      const k = normalizeSleepDateKey(list[i].date);
+      if (k && k > endKey) endKey = k;
+    }
+  }
+  if (!endKey) return null;
+
+  const span = RECENT_STATS_SPAN_DAYS;
+  const currentDays = daysInSleepKeyRange(list, addCalendarDaysToSleepDateKey(endKey, -(span - 1)), endKey);
+  const previousDays = daysInSleepKeyRange(
+    list,
+    addCalendarDaysToSleepDateKey(endKey, -(2 * span - 1)),
+    addCalendarDaysToSleepDateKey(endKey, -span)
+  );
+  const cur = currentDays.length >= RECENT_STATS_MIN_NIGHTS ? averageSleepNights(currentDays) : null;
+  const prev = previousDays.length >= RECENT_STATS_MIN_NIGHTS ? averageSleepNights(previousDays) : null;
+  const comparable = Boolean(cur && prev);
+  // Same baseline as a nightly flag: the comparison period's average total sleep.
+  const baselineSleep = prev ? prev.exact.sleepDuration : null;
+
+  const metrics = {};
+  RECENT_STATS_METRICS.forEach(function (m) {
+    const curExact = cur ? cur.exact[m.field] : null;
+    const prevExact = prev ? prev.exact[m.field] : null;
+    const out = {
+      id: m.id,
+      kind: m.kind,
+      current: null,
+      previous: null,
+      delta: null,
+      percent: null,
+      severity: null,
+      absoluteSeverity: null,
+      status: 'ok'
+    };
+    if (cur && curExact != null) {
+      out.current = m.kind === 'clock' ? denormalizeTimeForAveraging(Math.round(curExact)) : Math.round(curExact);
+    }
+    if (prev && prevExact != null) {
+      out.previous = m.kind === 'clock' ? denormalizeTimeForAveraging(Math.round(prevExact)) : Math.round(prevExact);
+    }
+    // Absolute short-sleep floor applies to this week's average whether or not it changed.
+    if (m.id === 'totalSleep' && cur) {
+      out.absoluteSeverity = severityFromAbsoluteTotalSleepMinutes(curExact);
+    }
+
+    if (!comparable) {
+      out.status = 'insufficient';
+      out.severity = out.absoluteSeverity;
+    } else if (curExact == null) {
+      out.status = 'noAlarmCurrent';
+    } else if (prevExact == null) {
+      out.status = 'noAlarmPrevious';
+    } else {
+      const delta = curExact - prevExact;
+      const percent = blendedVariationPercent(Math.abs(delta), baselineSleep);
+      out.delta = delta;
+      out.percent = percent;
+      const counts =
+        m.flagWhen === 'both' ||
+        ((m.flagWhen === 'later' || m.flagWhen === 'more') && delta > 0) ||
+        (m.flagWhen === 'less' && delta < 0);
+      const relative = counts ? severityFromBlendedPercent(percent) : null;
+      out.severity = maxSeverity(relative, out.absoluteSeverity);
+    }
+    metrics[m.id] = out;
+  });
+
+  return {
+    spanDays: span,
+    endKey: endKey,
+    currentCount: currentDays.length,
+    previousCount: previousDays.length,
+    comparable: comparable,
+    metrics: metrics
+  };
+}
+
+/** Displayed % (whole number, rounded down so the number and the color threshold always agree). */
+function recentStatsDisplayPercent(percent) {
+  return percent == null ? null : Math.floor(percent);
+}
+
 /** Prefer explaining whichever source sets combined duration severity (relative vs absolute). */
 function durationDeviationCopy(t) {
   const abs = t.absoluteDurationSeverity;
@@ -3386,6 +3525,128 @@ function initDashboardTonightAdjuster(recentAverages, onChange, getLiveDays, get
 
 // Render dashboard content: projection, recent average, lifetime average, recent nightlies (timeline rows), sleep quality history.
 // Used by dashboard.html; kept here to share calculation/render helpers.
+/** t() with `{name}` placeholders. */
+function recentStatsT(key, fallback, vars) {
+  let s = typeof t === 'function' ? t(key, fallback) : fallback;
+  if (vars) {
+    Object.keys(vars).forEach(function (k) {
+      s = s.split('{' + k + '}').join(String(vars[k]));
+    });
+  }
+  return s;
+}
+
+const RECENT_STATS_LABELS = {
+  bed: { key: 'dashboard.recentStats.bed', en: 'Bed' },
+  asleep: { key: 'dashboard.recentStats.asleep', en: 'Asleep' },
+  wake: { key: 'dashboard.recentStats.wake', en: 'Wake' },
+  totalSleep: { key: 'dashboard.recentStats.totalSleep', en: 'Total sleep' },
+  sleepLag: { key: 'dashboard.recentStats.sleepLag', en: 'Sleep lag' },
+  wakeLag: { key: 'dashboard.recentStats.wakeLag', en: 'Snooze' }
+};
+
+/** Direction words per metric kind: [increase, decrease]. */
+const RECENT_STATS_DIRECTION_WORDS = {
+  bed: ['later', 'earlier'],
+  asleep: ['later', 'earlier'],
+  wake: ['later', 'earlier'],
+  totalSleep: ['more', 'less'],
+  sleepLag: ['longer', 'shorter'],
+  wakeLag: ['longer', 'shorter']
+};
+
+function formatRecentStatValue(metric, value) {
+  if (value == null) return '—';
+  if (metric.kind === 'clock') return formatTime(value);
+  if (metric.kind === 'signedDuration' && value < 0) return '−' + formatDuration(-value);
+  return formatDuration(value);
+}
+
+function renderRecentStatPill(metric) {
+  let text;
+  if (metric.status === 'insufficient') {
+    text = recentStatsT('dashboard.recentStats.notEnough', 'not enough nights yet');
+  } else if (metric.status === 'noAlarmCurrent') {
+    text = recentStatsT('dashboard.recentStats.allNatural', 'all natural wakes');
+  } else if (metric.status === 'noAlarmPrevious') {
+    text = recentStatsT('dashboard.recentStats.allNaturalBefore', 'all natural wakes the week before');
+  } else {
+    // Minutes shown = difference of the two displayed (rounded) values, so "was" + change adds up;
+    // the % and color come from the unrounded delta.
+    const shownDelta =
+      metric.kind === 'clock'
+        ? shortestSignedClockDelta(metric.previous, metric.current)
+        : metric.current - metric.previous;
+    const mins = Math.abs(shownDelta);
+    const pct = recentStatsDisplayPercent(metric.percent);
+    if (mins === 0) {
+      text = recentStatsT('dashboard.recentStats.noChange', 'no change');
+    } else {
+      const words = RECENT_STATS_DIRECTION_WORDS[metric.id];
+      const up = shownDelta > 0;
+      const dirKey = 'dashboard.recentStats.dir.' + (up ? words[0] : words[1]);
+      const dir = recentStatsT(dirKey, up ? words[0] : words[1]);
+      text = recentStatsT('dashboard.recentStats.delta', '{amount} {direction} · {pct}%', {
+        amount: formatDuration(mins),
+        direction: dir,
+        pct: pct
+      });
+    }
+  }
+  const sev = metric.severity || 'neutral';
+  return `<span class="recent-stat__pill recent-stat__pill--${sev}">${escapeHtmlAttr(text)}</span>`;
+}
+
+function renderRecentStatTile(metric) {
+  const label = RECENT_STATS_LABELS[metric.id];
+  const prevLine =
+    metric.previous != null && metric.status !== 'insufficient'
+      ? `<div class="recent-stat__prev">${escapeHtmlAttr(
+          recentStatsT('dashboard.recentStats.was', 'was {value}', { value: formatRecentStatValue(metric, metric.previous) })
+        )}</div>`
+      : '';
+  let absLine = '';
+  if (metric.absoluteSeverity) {
+    const hours = metric.absoluteSeverity === 'severe' ? 4 : metric.absoluteSeverity === 'moderate' ? 5 : 6;
+    absLine = `<div class="recent-stat__note">${escapeHtmlAttr(
+      recentStatsT('dashboard.recentStats.underHours', 'average under {hours}h', { hours: hours })
+    )}</div>`;
+  }
+  return `
+    <div class="recent-stat recent-stat--${metric.id}">
+      <div class="recent-stat__label"><span class="recent-stat__chip" aria-hidden="true"></span><span data-i18n="${label.key}">${label.en}</span></div>
+      <div class="recent-stat__value">${formatRecentStatValue(metric, metric.current)}</div>
+      ${renderRecentStatPill(metric)}
+      ${prevLine}
+      ${absLine}
+    </div>`;
+}
+
+/** Dashboard "Recent stats" section (placed between Recent charts and Recent timelines). */
+function renderDashboardRecentStats(days) {
+  const cmp = computeRecentStatsComparison(days);
+  if (!cmp) return '';
+  const m = cmp.metrics;
+  const caption = recentStatsT(
+    'dashboard.recentStats.caption',
+    'Last {span} days vs the {span} before · {current} / {previous} nights logged',
+    { span: cmp.spanDays, current: cmp.currentCount, previous: cmp.previousCount }
+  );
+  return `
+    <div class="dashboard-recent-stats-header">
+      <h2 class="dashboard-section-title"><a class="dashboard-section-title__link" href="${restoreMpaHref('tab.stats')}"><span class="dashboard-section-title__emoji" aria-hidden="true">📈</span> <span data-i18n="dashboard.recentStats.title">Recent stats</span></a></h2>
+      <p class="dashboard-recent-stats-caption">${escapeHtmlAttr(caption)}</p>
+    </div>
+    <section class="dashboard-recent-stats">
+      <div class="dashboard-recent-stats__grid">
+        ${[m.bed, m.asleep, m.wake, m.totalSleep].map(renderRecentStatTile).join('')}
+      </div>
+      <div class="dashboard-recent-stats__grid dashboard-recent-stats__grid--lags">
+        ${[m.sleepLag, m.wakeLag].map(renderRecentStatTile).join('')}
+      </div>
+    </section>`;
+}
+
 function renderDashboardContent(days) {
   const quickActionsHtml = renderQuickActionsSection();
 
@@ -3455,6 +3716,7 @@ function renderDashboardContent(days) {
         </div>
       </div>
       ${sevenDaySectionHtml}
+      ${renderDashboardRecentStats(days)}
       ${recentNightsHtml}
     </div>
   `;

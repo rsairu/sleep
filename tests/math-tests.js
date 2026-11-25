@@ -558,6 +558,10 @@ async function runTests() {
   expectEqual(ca7.avgLongestUninterrupted, 436, 'averageSleepNights avgLongestUninterrupted');
   expectEqual(ca7.avgSleepLag, 25, 'averageSleepNights avgSleepLag');
   expectEqual(ca7.avgWakeLag, 6, 'averageSleepNights avgWakeLag (alarm nights only)');
+  // Bed = fell-asleep − sleep lag on the extended axis (docs/math.md § Clock axis): (1442.14 − 25) → 1417 = 23:37.
+  expectEqual(ca7.avgBed, 1417, 'averageSleepNights avgBed 23:37 (beds straddle midnight)');
+  expectEqual(Math.round((ca7.exact.sleepStartNorm - ca7.exact.bedNorm) * 1000) / 1000, 25, 'exact bedNorm = sleepStartNorm − exact sleep lag');
+  expectEqual(ca7.exact.wakeLag, 6.25, 'exact wakeLag unrounded (+5 +5 +15 0 over 4 alarm nights)');
   expectEqual(ca7.avgBedToSleepDelay, undefined, 'averageSleepNights old field avgBedToSleepDelay gone');
   expectEqual(ca7.avgFirstAlarmToWake, undefined, 'averageSleepNights old field avgFirstAlarmToWake gone');
   // Recent average (docs/recent-average.md): newest 14 logged entries, weight 0.5^(i/5).
@@ -633,6 +637,53 @@ async function runTests() {
   const lateNight = { date: '2026-11-17', bed: '02:40', sleepStart: '03:00', sleepEnd: '13:00', alarm: [], bathroom: [], WASO: 0 };
   const flagDays = [lateNight].concat(avgFixture);
   expectEqual(JSON.stringify(u.getFlagTypes(lateNight, u.getDeviationBaseline(flagDays, 0))), JSON.stringify(['😴', '🌅']), 'late night flags 😴 and 🌅 against weighted baseline');
+
+  // Recent stats (docs/math.md § Recent stats): last 7 calendar days vs the 7 before, equal weights,
+  // blended % against the previous week's average total sleep; expected values worked by hand.
+  const rsNight = (date, bed, sleepStart, sleepEnd, alarm) => ({ date, bed, sleepStart, sleepEnd, alarm: alarm || [], bathroom: [], WASO: 0 });
+  const rsWeek = (dates, bed, sleepStart, sleepEnd, alarm) => dates.map((d) => rsNight(d, bed, sleepStart, sleepEnd, alarm));
+  const rsPrevDates = ['2026-11-06', '2026-11-05', '2026-11-04', '2026-11-03'];
+  const rsCurDates = ['2026-11-13', '2026-11-12', '2026-11-11', '2026-11-10'];
+  const rsPrev = rsWeek(rsPrevDates, '23:00', '23:20', '07:20', ['07:15']); // 480m sleep, lag 20, snooze +5
+  const rs1 = u.computeRecentStatsComparison(rsWeek(rsCurDates, '23:30', '23:55', '07:20', ['07:15']).concat(rsPrev));
+  expectEqual(rs1.endKey, '2026-11-13', 'recent stats: anchored on the newest night key');
+  expectEqual(`${rs1.currentCount}/${rs1.previousCount}`, '4/4', 'recent stats: calendar windows 11/07–13 and 10/31–11/06');
+  expectEqual(rs1.comparable, true, 'recent stats: 4 nights each → comparable');
+  expectEqual(rs1.metrics.bed.current, 1410, 'recent stats: bed this week 23:30');
+  expectEqual(rs1.metrics.bed.previous, 1380, 'recent stats: bed last week 23:00');
+  // +30m: 0.75·30/480 + 0.25·30/1440 = 4.6875% + 0.5208% = 5.21% → slight
+  expectEqual(Math.round(rs1.metrics.bed.percent * 100) / 100, 5.21, 'recent stats: bed +30m → 5.21% blended');
+  expectEqual(rs1.metrics.bed.severity, 'slight', 'recent stats: bed later past 5% → slight');
+  expectEqual(u.recentStatsDisplayPercent(rs1.metrics.bed.percent), 5, 'recent stats: displayed % rounds down');
+  expectEqual(rs1.metrics.asleep.severity, 'slight', 'recent stats: asleep +35m (6.08%) → slight');
+  expectEqual(rs1.metrics.wake.delta, 0, 'recent stats: wake unchanged');
+  expectEqual(rs1.metrics.wake.severity, null, 'recent stats: unchanged wake neutral');
+  expectEqual(rs1.metrics.totalSleep.delta, -35, 'recent stats: total sleep −35m');
+  expectEqual(rs1.metrics.totalSleep.severity, 'slight', 'recent stats: less sleep past 5% → slight');
+  expectEqual(rs1.metrics.sleepLag.severity, null, 'recent stats: sleep lag +5m (0.87%) neutral');
+  expectEqual(rs1.metrics.wakeLag.current, 5, 'recent stats: snooze average +5m');
+  // Earlier bedtime and more sleep are never colored; wake is colored both ways.
+  const rs2 = u.computeRecentStatsComparison(rsWeek(rsCurDates, '22:00', '22:20', '06:20', ['06:15']).concat(rsPrev));
+  expectEqual(rs2.metrics.bed.severity, null, 'recent stats: bed 1h earlier → neutral');
+  expectEqual(rs2.metrics.asleep.severity, null, 'recent stats: asleep 1h earlier → neutral');
+  // −60m: 0.75·60/480 + 0.25·60/1440 = 9.375% + 1.042% = 10.42% → moderate
+  expectEqual(rs2.metrics.wake.severity, 'moderate', 'recent stats: wake 1h earlier (10.42%) → moderate');
+  expectEqual(rs2.metrics.totalSleep.severity, null, 'recent stats: unchanged total sleep neutral');
+  // Under-6h floor on this week's average applies even with no change; all-natural week has no snooze average.
+  const rsShortPrev = rsWeek(rsPrevDates, '23:10', '23:30', '05:00', ['05:00']);
+  const rs3 = u.computeRecentStatsComparison(rsWeek(rsCurDates, '23:10', '23:30', '05:00').concat(rsShortPrev));
+  expectEqual(rs3.metrics.totalSleep.delta, 0, 'recent stats: 5h30 both weeks');
+  expectEqual(rs3.metrics.totalSleep.absoluteSeverity, 'slight', 'recent stats: average under 6h → slight floor');
+  expectEqual(rs3.metrics.totalSleep.severity, 'slight', 'recent stats: floor colors an unchanged average');
+  expectEqual(rs3.metrics.wakeLag.status, 'noAlarmCurrent', 'recent stats: all natural wakes this week');
+  expectEqual(rs3.metrics.wakeLag.current, null, 'recent stats: no snooze average this week');
+  // Fewer than 4 nights in a window → not compared (fixture: 7 nights this week, 3 the week before).
+  const rs4 = u.computeRecentStatsComparison(avgFixture);
+  expectEqual(`${rs4.currentCount}/${rs4.previousCount}`, '7/3', 'recent stats: fixture windows 7/3');
+  expectEqual(rs4.comparable, false, 'recent stats: 3 nights last week → not comparable');
+  expectEqual(rs4.metrics.asleep.status, 'insufficient', 'recent stats: insufficient status');
+  expectEqual(rs4.metrics.asleep.current, ca7.avgSleepStart, 'recent stats: this week still averaged (= fixed 7-night mean)');
+  expectEqual(u.computeRecentStatsComparison([]), null, 'recent stats: no data → null');
 
   // Learning stages (docs/recent-average.md § Learning stages)
   expectEqual(u.getRecentAverageStage(0), 'empty', 'stage: 0 nights empty');
