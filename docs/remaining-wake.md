@@ -68,99 +68,83 @@ Fallback behavior:
 
 ---
 
-## Phase model and display outputs
+## Display phases
 
-Remaining wake nav uses four display phases:
+`getRemainingWakeDisplayFromBasis` returns one of these phases. In day order, starting with the morning:
 
-- `open` (sun icon)
-- `winding` (sunset icon)
-- `presleep` (bed icon)
-- `sleep` (moon icon; dynamic override)
+| Phase | Icon | Label | Shown when |
+|---|---|---|---|
+| `wakingSoon` | 🌅 | *waking soon* | Dynamic Sleep, in the last `WAKING_SOON_NAV_MINS` (60) minutes before the basis wake |
+| `open` | ☀️ | countdown | `percentRemaining ≥ openMin` |
+| `winding` | 🌇 | countdown | `percentRemaining ≥ windingMin` |
+| `presleep` | 🛏️ | countdown, or *get in bed soon* | below `windingMin`; the soft label in overnight limbo with nothing logged |
+| `sleepSoon` | 🛏️ | *start sleep soon* | bed logged, fell-asleep not yet |
+| `sleep` | 🌙 | *sweet dreams* | Dynamic Sleep, fell-asleep logged |
+| `learning` | 🌱 | *learning your rhythm* | no logged nights (`getLearningRemainingWakeDisplay`) |
+
+`open`, `winding` and `presleep` come from the percentage thresholds. The rest come from what you've logged and are not affected by the sliders. Soft labels (`timeLabelSoft: true`) have no countdown: `percentRemaining` is `0` for *get in bed soon* / *start sleep soon* and `null` for the rest.
+
+The display is resolved in this order:
+
+1. **Dynamic Sleep** (below): `wakingSoon`, then `sleepSoon`, then `sleep`.
+2. **Overnight limbo** without Dynamic Sleep, wake not logged for the night key: *get in bed soon* (`presleep`), or *start sleep soon* (`sleepSoon`) when bed is logged but fell-asleep isn't.
+3. **Countdown**: minutes to the basis sleep time, phase from the thresholds, optional heads-up.
 
 ### Percent-threshold phases (`open` / `winding` / `presleep`)
 
-`getRemainingWakePhase(remainingMins, totalWakeMins)` computes percent remaining:
+`getRemainingWakePhase(remainingMins, totalWakeMins)`: `percentRemaining ≥ openMin` → `open`, `≥ windingMin` → `winding`, else `presleep`. Formula: [math.md § Remaining-wake phase](math.md).
 
-- `percentRemaining >= openMin` -> `open`
-- `percentRemaining >= windingMin` -> `winding`
-- else -> `presleep`
+- Defaults: `openMin = 35`, `windingMin = 15`.
+- Stored values are clamped to integer percent, and `openMin > windingMin` is required.
 
-Defaults:
+### Dynamic Sleep
 
-- `openMin = 35`
-- `windingMin = 15`
+`shouldShowDynamicSleepNavPhase(days, basis, now, nightKey)` is true when all of these hold:
 
-Threshold invariants:
+- Wake is not logged for the night key (`isNightWakeLogged`).
+- Bed or fell-asleep is logged for the night key (`isNightBedOrSleepLogged`: a QA flag, or the loaded row differs from the stub built by `buildStubDayForNightKey`). No wall-clock recency is required, so backfilled rows count.
+- The clock is in **overnight limbo** or the **evening sleep window**:
+  - **Overnight limbo** (`shouldShowGoToBedSoonWakeNav`): from basis sleep up to, not including, basis wake, measured forward around the clock (`forwardClockMinutes`). Works for schedules on either side of midnight (22:30 → 07:00 and 00:36 → 09:30 alike); empty only when sleep and wake are the same minute.
+  - **Evening sleep window** (`inferNavSleepWindowPhase`): `inferSharedSleepContextPhase` returns `sleep`, meaning 120 minutes before through 240 minutes after basis sleep, and not within 105 minutes of basis wake. Constants: [quick-actions.md § Phase and row constants](quick-actions.md#phase-and-row-constants).
 
-- Stored values are clamped to integer percent.
-- `openMin > windingMin` is required.
+Only the night key's row counts. Bed and sleep saves use the same key (`getCurrentNightKey`, natural-wake cutover; see [wake-day-key.md](wake-day-key.md)), so an earlier row still waiting for a wake (a forgotten wake) doesn't count as tonight's bed or sleep. The same holds for `isNightBedLogged` and `isNightSleepOrIntentLoggedNav`.
 
-### Dynamic sleep override (`sleep`)
-
-Before normal remaining-minute math, `getRemainingWakeDisplayFromBasis(...)` checks:
-
-- `shouldShowDynamicSleepNavPhase(days, basis, now, nightMd)`
-
-If true, display returns:
-
-- `phase: "sleep"`
-- `timeLabel: "sweet dreams"`
-- `timeLabelSoft: true`
-- `percentRemaining: null`
-
-Header decor: twinkling stars (`getNavHeaderTwinkleStarsHtml`) on a midnight strip.
+`isDynamicSleepPhase` in `getSharedAppTimeContext` is this flag. Quick actions use it as their first phase branch; see [quick-actions.md](quick-actions.md).
 
 #### Waking soon (`wakingSoon`)
 
-Inside Dynamic Sleep, during the last **`WAKING_SOON_NAV_MINS`** (60) minutes before the basis wake (`basis.avgSleepEnd` — recent average, else the Tonight target: guided when guidance is on, as set when off, else the session slider), the display becomes:
+Inside Dynamic Sleep, when the basis wake is 1–60 minutes away (`forwardClockMinutes(now, basis.avgSleepEnd)`). The basis wake is the recent average, else the Tonight target (guided when guidance is on, as set when off), else the session slider. Takes precedence over `sleepSoon` and `sleep`.
 
-- `phase: "wakingSoon"`, icon 🌅
-- `timeLabel: "waking soon"`
-- `timeLabelSoft: true`
-- `percentRemaining: null`
+- Header decor: `getDawnDecorHtml()` (rising warm glow, faint horizon line, drifting motes) on a midnight-to-dawn strip (`--nav-phase-tint-dawn`).
+- Display only: `isDynamicSleepPhase` stays true, so quick actions keep their sleep-phase set.
 
-This takes precedence over both **sweet dreams** and **start sleep soon**. Header decor is `getDawnDecorHtml()` (rising warm glow, faint horizon line, drifting motes) on a midnight-to-dawn strip (`--nav-phase-tint-dawn`). Display-only: `isDynamicSleepPhase` is unchanged, so quick actions keep their sleep-phase set.
+#### Start sleep soon (`sleepSoon`)
 
-#### Bed / fell-asleep considered “logged” for Dynamic Sleep (nav)
+You're in bed but not asleep yet: bed is logged for the night key (`isNightBedLogged`) and fell-asleep or a sleep intent isn't (`isNightSleepOrIntentLoggedNav`). A sleep intent is the *Sleep in 10 min* quick action.
 
-Dynamic Sleep uses `isNightBedOrSleepLogged` on the night-key row (`nightMd`) only:
+- Reached two ways: inside Dynamic Sleep (outside the waking-soon hour), and in overnight limbo when Dynamic Sleep is off.
+- Label *start sleep soon*, icon 🛏️, `percentRemaining: 0`, no heads-up.
+- Unlike bed, the fell-asleep check has a 12-hour wall-clock window (`isWallClockWithinRecentHoursNav`): a fell-asleep time on the row older than 12 hours reads as not logged, so the display stays on *start sleep soon*. A QA sleep flag always counts.
+- Header: the *start sleep soon* strip `--nav-phase-tint-sleep-soon` (`.nav-wrapper--phase-sleepSoon`, `.nav-remaining-wake-progress--sleepSoon`), a blend of the theme background and `--color-sleep` ([semantic-keyword-palette.md](semantic-keyword-palette.md)).
+- Quick actions treat `sleepSoon` like `presleep`: bedtime actions stay available ([quick-actions.md § Remaining-wake alignment](quick-actions.md#remaining-wake-alignment)).
 
-- QA flags (`readNightQaSleepFlagMap`) for bed or sleep on that wake-day row, **or**
-- The loaded day row differs from the **stub** built by `buildStubDayForNightMd` for bed or `sleepStart` (same idea as `nightRowAwaitingWake`).
+#### Sweet dreams (`sleep`)
 
-Nav does **not** require wall-clock recency here: backfilled or older entries still count so the nav does not stay stuck on **get in bed soon** when the row is genuinely filled in.
+Dynamic Sleep, outside the waking-soon hour, with fell-asleep or a sleep intent logged. Label *sweet dreams*, `percentRemaining: null`. Header decor: twinkling stars (`getNavHeaderTwinkleStarsHtml`) on a midnight strip (`--nav-phase-tint-midnight`).
 
-**One row only:** bed and sleep saves use the same night key as this lookup (`getCurrentNightKey`, natural-wake cutover), so tonight’s bed is always on `nightMd`. An earlier row still awaiting wake (a forgotten wake) does **not** count as tonight’s bed or sleep. The same holds for `isNightBedLogged` and `isNightSleepOrIntentLoggedNav`. (The former evening alignment to today’s row predated the natural-wake key and was removed.)
+### Get in bed soon (soft `presleep`)
 
-**Quick actions are separate:** Dashboard buttons still use stub diff **plus** a **12-hour** wall-clock window where applicable (`docs/quick-actions.md`). Only remaining-wake Dynamic Sleep uses the relaxed nav rules above.
+In overnight limbo when Dynamic Sleep is off (nothing logged for the night key) and wake isn't logged: label *get in bed soon*, phase `getRemainingWakePhase(0, totalWakeMins)` (in practice `presleep`), `percentRemaining: 0`. If bed is logged but fell-asleep isn't, this becomes `sleepSoon` instead.
 
-### "Get in bed soon" / "Start sleep soon" soft states
+### Countdown
 
-See **`docs/remaining-time.md`** for the full split (including Dynamic Sleep vs soft labels). In short: overnight limbo uses **`get in bed soon`** when bed is not logged yet, and **`start sleep soon`** after bed is logged but fell-asleep / sleep intent is not.
-
-**Overnight limbo** (`shouldShowGoToBedSoonWakeNav`) is the sleep → wake interval measured forward around the clock (`forwardClockMinutes`): true from basis sleep up to, not including, basis wake, for schedules on either side of midnight. (It used to be skipped when wake ≥ sleep on the clock, which dropped post-midnight sleepers out of Dynamic Sleep 240 minutes after average sleep.)
-
-If `shouldShowGoToBedSoonWakeNav(...)` is true and wake has not been logged for the current sleep period row, **and** Dynamic Sleep is not active (bed/sleep not treated as logged per the previous section):
-
-- phase is derived from `getRemainingWakePhase(0, totalWakeMins)` (typically `presleep`)
-- label is `"get in bed soon"` (or `"start sleep soon"` when the bed-logged rule from remaining-time applies)
-- `timeLabelSoft: true`
-- `percentRemaining: 0`
-
-### Normal remaining-wake state
-
-Otherwise:
-
-- Remaining minutes are computed to average sleep start.
-- Label is `formatDuration(remainingMins)`.
-- `percentRemaining` drives the progress bar.
-- Optional heads-up comes from `computeRemainingWakePhaseHeadsUp(...)`.
+Otherwise: minutes to the basis sleep time, label `formatDuration(remainingMins)`, `percentRemaining` drives the progress bar, and an optional heads-up comes from `computeRemainingWakePhaseHeadsUp(...)`.
 
 ---
 
 ## Default Log / quick-add wake-day key
 
-`resolveDefaultQuickAddNightDateMd(days)` chooses the latest of `sleep_days` / drafts first, otherwise **`getCurrentNightKey(getAppDate(), days)`** — the cutover on the **natural** recent-average wake ([wake-day-key.md](wake-day-key.md)). It does **not** add an extra calendar day based on nav phase (that previously could advance the default two days ahead in the evening).
+`resolveDefaultQuickAddNightKey(days)` chooses the latest of `sleep_days` / drafts first, otherwise **`getCurrentNightKey(getAppDate(), days)`** — the cutover on the **natural** recent-average wake ([wake-day-key.md](wake-day-key.md)). It does **not** add a calendar day based on nav phase.
 
 ---
 
@@ -174,14 +158,26 @@ Heads-up settings:
 
 Display behavior:
 
-- Only shown in `open` and `winding` phases.
+- Only shown in `open` and `winding` (countdown) phases.
 - Shows next phase icon + minutes (for example, "🌇 in 24m").
-- No heads-up shown in `presleep` or `sleep`.
 
 Wrapper visual blending:
 
 - `updateRemainingWakeNav(...)` toggles `nav-wrapper--rw-heads-up-blend`.
 - Uses CSS variable `--nav-header-mid` based on remaining heads-up proportion.
+
+---
+
+## Phase colors (top banner vs wallpaper)
+
+Where the phase tint shows. User setting: Settings → Look and feel → **Phase colors** (**Top banner** / **Wallpaper (full page)**), also in the dev banner's Phase colors dropdown.
+
+- Storage: `user_settings.phase_wallpaper` (`false` = banner, the default) mirrored to localStorage `sleep-app-phase-wallpaper` (`PHASE_WALLPAPER_KEY`, `'1'` = wallpaper). The old dev-only key `sleep-app-dev-phase-wallpaper` is migrated once (`migratePhaseWallpaperLegacyKey`). Column mapping and migration: [user-data-cloud.md](user-data-cloud.md).
+- `setPhaseWallpaperEnabled(on)` writes the key, re-applies immediately (no reload), syncs `user_settings`, refreshes the dev panel and the Settings control, and dispatches `phase-wallpaper-changed`.
+- `updateRemainingWakeNav()` stores the last display (`lastRemainingWakeNavDisplay`) and calls `applyPhaseWallpaper(display)`. When on, it adds `html.restore-phase-wallpaper` and a fixed `#phase-wallpaper` layer (`z-index: -1`, prepended to `body`) with `phase-wallpaper--phase-<phase>` for every display phase above. During a heads-up it also gets `phase-wallpaper--rw-heads-up-blend` and the `--nav-header-mid` value copied from `.nav-wrapper`, so it uses the same tint variables as the header, stretched over the viewport.
+- Decor: in `sleep` (*sweet dreams*) the layer fills with a 42-star field (`getPhaseWallpaperStarsHtml()`, R2-sequence positions, reusing the `.nav-header-twinkle-star` animation). In `wakingSoon` it shows the dawn decor (`getDawnDecorHtml(16)`). The header's own decor layer is hidden, and the header background and outline go transparent.
+- Wallpaper tints are stronger than the header strip (`--nav-phase-tint-*` redeclared on `.phase-wallpaper`), and `.container` panels become ~82% opaque so the wallpaper shows through slightly.
+- Settings preview (`getPhaseWallpaperPreviewHtml`): five static tiles in day order, **Waking soon → Active → Winding → Pre-sleep → Asleep**. The fill covers a top strip (banner) or the whole tile (wallpaper).
 
 ---
 
@@ -245,12 +241,13 @@ Read/hydrate path:
 | Threshold storage + defaults | `REMAINING_WAKE_THRESHOLDS_KEY`, `DEFAULT_REMAINING_WAKE_OPEN_MIN`, `DEFAULT_REMAINING_WAKE_WINDING_MIN`, `getRemainingWakeThresholds`, `setRemainingWakeThresholds` |
 | Heads-up storage + conversion | `REMAINING_WAKE_PHASE_HEADS_UP_KEY`, `REMAINING_WAKE_PHASE_HEADS_UP_ALLOWED`, `getRemainingWakePhaseHeadsUpMinutes`, `setRemainingWakePhaseHeadsUpMinutes`, slider conversion helpers |
 | Basis selection | `computeRecentWakeBasis`, `getTonightWakePhaseBasisFromDays`, `getEffectiveRemainingWakeBasis`, `getFallbackWakeBasis` |
-| Phase/time inference | `getRemainingWakePhase`, `computeRemainingWakePhaseHeadsUp`, `shouldShowGoToBedSoonWakeNav` |
+| Phase/time inference | `getRemainingWakePhase`, `getRemainingWakeIcon`, `computeRemainingWakePhaseHeadsUp`, `shouldShowGoToBedSoonWakeNav`, `WAKING_SOON_NAV_MINS` |
 | Dynamic sleep logic | `shouldShowDynamicSleepNavPhase`, `isNightBedOrSleepLogged`, `isNightBedLogged`, `isNightSleepOrIntentLoggedNav`, `isNightWakeLogged`, `inferNavSleepWindowPhase` |
-| Display object | `getRemainingWakeDisplayFromBasis`, `getRemainingWakeDisplayFromDays` |
+| Display object | `getRemainingWakeDisplayFromBasis`, `getRemainingWakeDisplayFromDays`, `getLearningRemainingWakeDisplay` |
 | Nav render | `updateRemainingWakeNav`, wrapper phase classes, heads-up blend class |
 | Lifecycle/init | `initRemainingWakeNav`, route config `remainingWake` in `src/spa-app.js` |
-| Default log date | `resolveDefaultQuickAddNightDateMd`, `recordDateMdForSleepPeriod` |
+| Default log date | `resolveDefaultQuickAddNightKey`, `nightKeyForSleepPeriod` |
+| Phase colors (wallpaper) | `getPhaseWallpaperEnabled`, `setPhaseWallpaperEnabled`, `applyPhaseWallpaper`, `getPhaseWallpaperStarsHtml`, `getDawnDecorHtml`, `getPhaseWallpaperPreviewHtml`, `initPhaseWallpaperConfigControls` — `src/lib/sleep-utils.js`; `.phase-wallpaper*`, `html.restore-phase-wallpaper` — `src/styles/styles.css` |
 
 ---
 
@@ -263,6 +260,7 @@ Current code/docs mostly say "Remaining wake time" while product direction is "R
 - Decide canonical naming scope (UI-only rename vs helper/storage/doc rename too).
 - If renaming keys/symbols, define compatibility strategy for localStorage and cloud column names.
 - Update route hashes/anchors only if backwards links are preserved.
+- Settings (`config.remainingWake.intro`, `config.remainingWake.phase.sleepHint`) and About (`#remaining-wake-time`) still describe a single "fourth phase (moon)". The nav now also has *waking soon*, *start sleep soon* and *learning your rhythm*.
 
 ### 2) i18n completion for nav runtime strings
 
@@ -292,11 +290,10 @@ Behavior depends on minute/percent thresholds and dynamic sleep overrides.
 - Add deterministic tests around 35/15 defaults, custom thresholds, and 0/15/30/45/60 heads-up settings.
 - Add boundary tests around wake proximity and sleep-window transitions via shared context helpers.
 
-### 6) Documentation convergence
+### 6) Documentation ownership
 
-Remaining-wake behavior is split across multiple docs (`quick-actions`, `user-data-cloud`, settings/about copy).
+This doc owns the nav display: phases, Dynamic Sleep, soft labels, phase colors. [quick-actions.md](quick-actions.md) owns quick-action phase, button eligibility and save rows, and links here for Dynamic Sleep. [user-data-cloud.md](user-data-cloud.md) owns storage and sync.
 
-- Keep `docs/remaining-wake.md` as canonical and cross-link from related docs.
 - When phase constants or thresholds change, update this doc in the same PR.
 
 ---

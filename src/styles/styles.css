@@ -7660,22 +7660,18 @@ body.page-stats .stats-page-shell .container {
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+/* Quality page: months sit directly on the page (no card fill or frame) in both themes. */
 .quality-page .calendar-month-block {
-  background: #ffffff;
-  color: #0f172a;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-[data-theme="day"] .quality-page .calendar-month-block {
-  background: #ffffff;
-  border: 1px solid var(--grid);
+  background: transparent;
+  color: var(--text);
+  border: none;
 }
 
 .quality-page .calendar-month-block .calendar-month-name,
 .quality-page .calendar-month-block .calendar-month-flag-counter,
 .quality-page .calendar-month-block .calendar-flag-slot,
 .quality-page .calendar-month-block .calendar-weekday-label {
-  color: #0f172a;
+  color: var(--text);
 }
 
 .quality-page .calendar-month-block .calendar-weekday-cells--in-block {
@@ -7700,7 +7696,7 @@ body.page-stats .stats-page-shell .container {
 
 .quality-page .calendar-square.calendar-square--learning {
   background: transparent;
-  border: 1px solid rgba(15, 23, 42, 0.14);
+  border: 1px solid var(--divider-strong);
 }
 
 .quality-page .calendar-square-learning-emoji {
@@ -7726,7 +7722,8 @@ body.page-stats .stats-page-shell .container {
 
 .quality-page .calendar-square.calendar-square--future .calendar-square-day,
 .quality-page .calendar-square.calendar-square--no-data .calendar-square-day {
-  color: rgba(15, 23, 42, 0.72);
+  color: var(--text);
+  opacity: 0.72;
 }
 
 .calendar-month-header {

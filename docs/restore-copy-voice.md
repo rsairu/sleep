@@ -37,8 +37,8 @@ Canonical reference for **tone, constraints, and process** when writing or revis
 
 ## Surfaces and files
 
-- **About** (`about.html`): narrative + feature orientation; deep dives allowed in sections that explain model behavior.
-- **Settings** (`settings.html`): headings, intros, toggle labels, links to About; bias toward **fewer words**.
+- **About** (`src/spa-fragments/about.html`): narrative + feature orientation; deep dives allowed in sections that explain model behavior.
+- **Settings** (`src/spa-fragments/settings.html`): headings, intros, toggle labels, links to About; bias toward **fewer words**.
 - **i18n** (`locales.json`): user-visible strings keyed by paths; any copy change that has a `data-i18n` key must stay **in sync** with the English entries (and consider JP if the key exists there).
 
 When adding or changing strings, preserve **HTML entities**, **attributes**, and **anchor ids** unless a routing or spec change explicitly requires updates elsewhere.
@@ -47,7 +47,7 @@ When adding or changing strings, preserve **HTML entities**, **attributes**, and
 
 ## Design-aligned wording (not literal CSS)
 
-Use `**styles.css`** `:root` and component naming as **tone cues** only: night surfaces, sleep-related accents, quality ramps, optional playful controls (e.g. pace metaphors). Copy should sound like that system: **unhurried, clear, instrument-panel accurate** — not startup hype and not clinical cold.
+Use `src/styles/styles.css` `:root` and component naming as **tone cues** only: night surfaces, sleep-related accents, quality ramps, optional playful controls (e.g. pace metaphors). Copy should sound like that system: **unhurried, clear, instrument-panel accurate** — not startup hype and not clinical cold.
 
 For color semantics tied to sleep events and quality, see `docs/semantic-keyword-palette.md` (SKP) where relevant.
 

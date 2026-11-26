@@ -466,19 +466,19 @@ async function runTests() {
   ];
   const apr8Morning = new Date(2026, 3, 8, 8, 0, 0, 0);
   expectEqual(
-    u.resolveRecordDateMdForWake(apr8Morning, avgWake, wakeDays),
+    u.resolveFallbackWakeNightKey(apr8Morning, avgWake, wakeDays),
     '2026-04-07',
-    'resolveRecordDateMdForWake prefers prior day open night in early-morning band'
+    'resolveFallbackWakeNightKey prefers prior day open night in early-morning band'
   );
   const apr8Afternoon = new Date(2026, 3, 8, 14, 0, 0, 0);
   expectEqual(
-    u.resolveRecordDateMdForWake(apr8Afternoon, avgWake, wakeDays),
+    u.resolveFallbackWakeNightKey(apr8Afternoon, avgWake, wakeDays),
     '2026-04-09',
-    'resolveRecordDateMdForWake uses sleep-period key outside early-morning band'
+    'resolveFallbackWakeNightKey uses sleep-period key outside early-morning band'
   );
 
   // Wake-day cutover (docs/wake-day-key.md): taps up to avg wake + 120 min → today's row; later → tomorrow's.
-  const cut = (mo, d, h, mi) => u.recordDateMdForSleepPeriod(new Date(2026, mo, d, h, mi, 0, 0), 7 * 60);
+  const cut = (mo, d, h, mi) => u.nightKeyForSleepPeriod(new Date(2026, mo, d, h, mi, 0, 0), 7 * 60);
   expectEqual(cut(10, 18, 23, 0), '2026-11-19', 'cutover: 23:00 Nov 18 bed → Nov 19 row');
   expectEqual(cut(10, 19, 2, 0), '2026-11-19', 'cutover: 02:00 Nov 19 bed → Nov 19 row');
   expectEqual(cut(10, 19, 9, 0), '2026-11-19', 'cutover: 09:00 (avg wake + 120) still today (inclusive)');

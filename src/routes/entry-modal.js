@@ -3,7 +3,7 @@
   let quickAddOptions = {};
   let quickAddHostBound = false;
   let quickAddDateLoadSeq = 0;
-  /** Last loaded main times per dateMd for QA flags (bed / sleep / wake) after save. */
+  /** Last loaded main times per dateKey for QA flags (bed / sleep / wake) after save. */
   let quickAddInitialSnapshot = null;
   /** Serialized DOM snapshot after load for log-page dirty detection. */
   let quickAddBaseline = null;
@@ -110,12 +110,12 @@
     const dateInput = document.getElementById('quick-add-date');
     if (!dateInput) return Promise.resolve();
     const days = (quickAddOptions && quickAddOptions.daysForDefaultDate) || [];
-    if (typeof resolveDefaultQuickAddNightDateMd !== 'function') {
+    if (typeof resolveDefaultQuickAddNightKey !== 'function') {
       dateInput.value = quickAddPresetDateInputValue();
       const md = dateInputValueToSleepDateKey(dateInput.value);
       return md ? loadQuickAddFormForDate(md) : Promise.resolve();
     }
-    return resolveDefaultQuickAddNightDateMd(days).then(function (md) {
+    return resolveDefaultQuickAddNightKey(days).then(function (md) {
       if (!md) {
         dateInput.value = quickAddPresetDateInputValue();
         const fb = dateInputValueToSleepDateKey(dateInput.value);
@@ -448,9 +448,9 @@
     return Number.isFinite(m) ? formatTime(m) : null;
   }
 
-  function applyRecordToQuickAddForm(dateMd, record) {
+  function applyRecordToQuickAddForm(dateKey, record) {
     const dateInput = document.getElementById('quick-add-date');
-    if (dateInput && dateMd) dateInput.value = sleepDateKeyToDateInputValue(dateMd);
+    if (dateInput && dateKey) dateInput.value = sleepDateKeyToDateInputValue(dateKey);
 
     const bedEl = document.getElementById('quick-add-bed');
     const sleepEl = document.getElementById('quick-add-sleep');
@@ -469,9 +469,9 @@
       if (waso) waso.value = '0';
       ensureQuickAddLabelChipsRendered();
       syncQuickAddLabelToggles([]);
-      if (dateMd) {
+      if (dateKey) {
         quickAddInitialSnapshot = {
-          dateMd: dateMd,
+          dateKey: dateKey,
           bed: wallClockFromTimeInput(bedEl),
           sleepStart: wallClockFromTimeInput(sleepEl),
           sleepEnd: wallClockFromTimeInput(wakeEl)
@@ -491,9 +491,9 @@
     if (waso) waso.value = String(Number.isFinite(record.WASO) ? Math.max(0, Math.floor(record.WASO)) : 0);
     ensureQuickAddLabelChipsRendered();
     syncQuickAddLabelToggles(labelsFromRecord(record));
-    if (dateMd) {
+    if (dateKey) {
       quickAddInitialSnapshot = {
-        dateMd: dateMd,
+        dateKey: dateKey,
         bed: wallClockFromRecordField(record.bed),
         sleepStart: wallClockFromRecordField(record.sleepStart),
         sleepEnd: wallClockFromRecordField(record.sleepEnd)
@@ -502,22 +502,22 @@
     refreshQuickAddDateContextLabel();
   }
 
-  function loadQuickAddFormForDate(dateMd) {
-    if (!dateMd) return Promise.resolve();
+  function loadQuickAddFormForDate(dateKey) {
+    if (!dateKey) return Promise.resolve();
     const seq = ++quickAddDateLoadSeq;
     return Promise.all([
-      getSleepDayByDate(dateMd).catch(function () { return null; }),
-      getSleepDraftByDate(dateMd).catch(function () { return null; })
+      getSleepDayByDate(dateKey).catch(function () { return null; }),
+      getSleepDraftByDate(dateKey).catch(function () { return null; })
     ]).then(function (results) {
       if (seq !== quickAddDateLoadSeq) return null;
       const canonical = results[0];
       const draft = results[1];
-      applyRecordToQuickAddForm(dateMd, canonical || draft || null);
+      applyRecordToQuickAddForm(dateKey, canonical || draft || null);
       captureQuickAddBaseline();
       return null;
     }).catch(function () {
       if (seq !== quickAddDateLoadSeq) return null;
-      applyRecordToQuickAddForm(dateMd, null);
+      applyRecordToQuickAddForm(dateKey, null);
       captureQuickAddBaseline();
       return null;
     });
@@ -525,7 +525,7 @@
 
   function handleSubmit(event) {
     event.preventDefault();
-    const dateMd = dateInputValueToSleepDateKey(document.getElementById('quick-add-date').value);
+    const dateKey = dateInputValueToSleepDateKey(document.getElementById('quick-add-date').value);
 
     const bedEl = document.getElementById('quick-add-bed');
     const sleepEl = document.getElementById('quick-add-sleep');
@@ -555,7 +555,7 @@
     const wasoRaw = document.getElementById('quick-add-waso').value;
     const wasoTrim = (wasoRaw != null ? String(wasoRaw) : '').trim();
 
-    if (!dateMd) {
+    if (!dateKey) {
       setQuickAddStatus(typeof t === 'function' ? t('log.errorPickDate', 'Pick a valid date.') : 'Pick a valid date.', true);
       return;
     }
@@ -609,20 +609,20 @@
     if (saveBtn) saveBtn.disabled = true;
     setQuickAddStatus('Saving...', false);
 
-    saveDraftAndMaybePromote(dateMd, partial)
+    saveDraftAndMaybePromote(dateKey, partial)
       .then(function () {
         const snap = quickAddInitialSnapshot;
         if (
           snap &&
-          snap.dateMd === dateMd &&
+          snap.dateKey === dateKey &&
           typeof markNightQaSleepFlag === 'function'
         ) {
-          if (bed && bed !== snap.bed) markNightQaSleepFlag(dateMd, 'bed');
-          if (sleepStart && sleepStart !== snap.sleepStart) markNightQaSleepFlag(dateMd, 'sleep');
-          if (sleepEnd && sleepEnd !== snap.sleepEnd) markNightQaSleepFlag(dateMd, 'wake');
+          if (bed && bed !== snap.bed) markNightQaSleepFlag(dateKey, 'bed');
+          if (sleepStart && sleepStart !== snap.sleepStart) markNightQaSleepFlag(dateKey, 'sleep');
+          if (sleepEnd && sleepEnd !== snap.sleepEnd) markNightQaSleepFlag(dateKey, 'wake');
         }
         setQuickAddStatus('Saved.', false);
-        loadQuickAddFormForDate(dateMd);
+        loadQuickAddFormForDate(dateKey);
         if (quickAddOptions && typeof quickAddOptions.onSaved === 'function') {
           return quickAddOptions.onSaved();
         }
@@ -784,9 +784,9 @@
       const t = e.target;
       if (!t || t.id !== 'quick-add-date') return;
       refreshQuickAddDateContextLabel();
-      const dateMd = dateInputValueToSleepDateKey(t.value);
-      if (!dateMd) return;
-      loadQuickAddFormForDate(dateMd);
+      const dateKey = dateInputValueToSleepDateKey(t.value);
+      if (!dateKey) return;
+      loadQuickAddFormForDate(dateKey);
     });
   }
 
@@ -796,11 +796,11 @@
     wireQuickAddForm();
     if (isQuickAddLogPage()) {
       const prefill = tryConsumeLogAlarmPrefill();
-      if (prefill && prefill.alarmAppendNow && prefill.wakeDayMd) {
+      if (prefill && prefill.alarmAppendNow && prefill.wakeDayKey) {
         const md =
           typeof normalizeSleepDateKey === 'function'
-            ? normalizeSleepDateKey(prefill.wakeDayMd)
-            : String(prefill.wakeDayMd || '').trim();
+            ? normalizeSleepDateKey(prefill.wakeDayKey)
+            : String(prefill.wakeDayKey || '').trim();
         if (md) {
           const dateInput = document.getElementById('quick-add-date');
           if (dateInput) dateInput.value = sleepDateKeyToDateInputValue(md);

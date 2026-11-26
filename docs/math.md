@@ -129,14 +129,14 @@ Worked example: 31 minutes against a 7h30m (450m) average:
 | 10 – < 19 | moderate | `--quality-moderate` |
 | ≥ 19 | severe | `--quality-severe` |
 
-Those thresholds in minutes, by average sleep:
+Those thresholds in minutes, by average sleep: the first whole-minute difference that reaches each severity, as `severityFromBlendedPercent(blendedVariationPercent(diff, avgSleep))` computes it. Diffs against a baseline are unrounded, so the exact crossing is up to a minute earlier (6h slight crosses at 22.2m).
 
 | Avg sleep | slight from | moderate from | severe from |
 |---|---|---|---|
-| 6h | 22m | 44m | 1h 24m |
-| 7h | 26m | 51m | 1h 37m |
-| 7h 30m | 27m | 54m | 1h 43m |
-| 8h | 29m | 58m | 1h 49m |
+| 6h | 23m | 45m | 1h 25m |
+| 7h | 26m | 52m | 1h 37m |
+| 7h 30m | 28m | 55m | 1h 44m |
+| 8h | 29m | 58m | 1h 50m |
 | 9h | 32m | 1h 4m | 2h 2m |
 
 Colors come from the six-step quality ramp (`QUALITY_PALETTES`, Meadow or Harbor). Steps 4–6 are slight / moderate / severe. Steps 1–3 (excellent / great / good) are set aside and not used for scoring yet.
