@@ -45,7 +45,9 @@ export default defineConfig({
   publicDir: 'public',
   plugins: [
     viteStaticCopy({
-      targets: staticCopyTargets
+      targets: staticCopyTargets,
+      // Dev only: full-reload open pages when a copied file (styles.css, src/lib, src/routes, locales.json) changes.
+      watch: { reloadPageOnChange: true }
     })
   ]
 });
