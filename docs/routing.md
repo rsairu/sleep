@@ -4,13 +4,13 @@ This document is the canonical routing reference for Restore's SPA runtime.
 
 ## Source of truth
 
-- `routes-data.mjs` defines canonical route metadata and link helpers:
+- `src/routes-data.mjs` defines canonical route metadata and link helpers:
   - `navTabs`
   - `spaPathByTabId`
-  - `spaPathByMpaFile`
-  - `mpaHref(key)`, `spaHref(key)`, `internalNavHref(key)`
+  - `spaHref(key)`, `internalNavHref(key)`
+  - Kept only for compatibility: `spaPathByMpaFile`, `mpaFileBySpaPath`, `mpaHref(key)`. They map the removed MPA `*.html` names (ADR-006). `internalNavHref` falls back to `mpaHref` only when SPA navigation is off, and `src/spa-app.js` uses `spaPathFromMpaFile` to translate any leftover `*.html` link. Don't use them in new code.
 - `src/spa-app.js` is the History API router and route activation runtime.
-- `sleep-utils.js` `renderNavBar()` reads route metadata from `__restoreRoutesData`.
+- `src/lib/sleep-utils.js` `renderNavBar()` reads route metadata from `__restoreRoutesData`.
 
 ## Canonical route table
 

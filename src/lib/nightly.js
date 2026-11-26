@@ -1407,10 +1407,10 @@ function getTonightDashboardLiveSleepRemaining(now, stateWakeClock, committedSle
     typeof getCurrentNightKey === 'function' &&
     typeof isNightSleepOrIntentLoggedNav === 'function'
   ) {
-    const nightMd = getCurrentNightKey(now, days);
+    const nightKey = getCurrentNightKey(now, days);
     const averagesFallback =
       typeof QUICK_ADD_FALLBACK_AVERAGES !== 'undefined' ? QUICK_ADD_FALLBACK_AVERAGES : null;
-    if (nightMd && isNightSleepOrIntentLoggedNav(nightMd, days, now, averagesFallback)) {
+    if (nightKey && isNightSleepOrIntentLoggedNav(nightKey, days, now, averagesFallback)) {
       return { show: false, minutes: 0 };
     }
   }

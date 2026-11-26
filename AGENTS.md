@@ -6,12 +6,12 @@ Conventions for AI coding agents working in this repo. Each section names the fi
 
 When styling or naming anything tied to **bed**, **sleep/asleep**, **wake**, **alarm**, **nap**, etc., follow the Semantic Keyword Palette documented in [docs/semantic-keyword-palette.md](docs/semantic-keyword-palette.md).
 
-- Use the CSS variables listed there (`--color-bed`, `--color-sleep`, `--color-up`, …), defined in `styles.css`, instead of ad-hoc hex for those meanings.
-- For new charts, timelines, or legends, match the same tokens the daily view uses.
+- Use the CSS variables listed there (`--color-bed`, `--color-sleep`, `--color-up`, …), defined in `src/styles/styles.css`, instead of ad-hoc hex for those meanings.
+- For new charts, timelines, or legends, match the same tokens the Nightly view uses.
 
 ## Restore copy and voice
 
-**Applies to:** `about.html`, `settings.html`, `locales.json`
+**Applies to:** `src/spa-fragments/about.html`, `src/spa-fragments/settings.html`, `locales.json`
 **Spec:** [docs/restore-copy-voice.md](docs/restore-copy-voice.md)
 
 - User-facing prose should be calm, direct, plain language; no medical claims or guilt framing.
@@ -23,7 +23,7 @@ When styling or naming anything tied to **bed**, **sleep/asleep**, **wake**, **a
 
 ## Dev banner and app-time controls
 
-**Applies to:** `sleep-utils.js`, `styles.css`, `local/stamp-dev-branch.js`
+**Applies to:** `src/lib/sleep-utils.js`, `src/styles/styles.css`, `local/stamp-dev-branch.js`
 **Spec:** [docs/dev-banner.md](docs/dev-banner.md) (visibility, warnings, drawer behavior, app-time simulation, fixed-layout reserve logic)
 
 When changing any of these, update the doc and its **Keys and constants** table if key names, precedence, or thresholds change:
@@ -42,7 +42,7 @@ When changing `getQuickActionsPhaseFromSharedContext`, `getSharedAppTimeContext`
 **Applies to:** `sleep-utils.js`, `quick-actions.js`, `dashboard.js`, `entry-modal.js`, `nightly.js`
 **Spec:** [docs/wake-day-key.md](docs/wake-day-key.md) (wake-date invariant, vocabulary: night key / saves / lookups / schedule timing, cutover rule, open night, callers)
 
-When changing `recordDateMdForSleepPeriod`, `resolveRecordDateMdForWake`, `nightRowAwaitingWake`, `getNightKeyWakeMinutes`, `getCurrentNightKey`, `resolveOpenNight`, `getOpenNight`, `resolveWakeNightKey`, `getDashboardTonightNightKey`, the open-night constants, or any caller's night key, update the doc's caller table and examples, the night-key / open-night tests in `tests/math-tests.js`, and `tests/quick-actions-scenarios.mjs`. Night saves and night lookups use the natural wake only; schedule timing uses the Tonight basis.
+When changing `nightKeyForSleepPeriod`, `resolveFallbackWakeNightKey`, `nightRowAwaitingWake`, `getNightKeyWakeMinutes`, `getCurrentNightKey`, `resolveOpenNight`, `getOpenNight`, `resolveWakeNightKey`, `getDashboardTonightNightKey`, the open-night constants, or any caller's night key, update the doc's caller table and examples, the night-key / open-night tests in `tests/math-tests.js`, and `tests/quick-actions-scenarios.mjs`. Night saves and night lookups use the natural wake only; schedule timing uses the Tonight basis.
 
 ## Math (averages, flags, percentages)
 

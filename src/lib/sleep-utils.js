@@ -350,9 +350,9 @@ function normalizeTimeStringForSupabase(timeStr) {
   return formatMinutesTo24hString(m);
 }
 
-function emptySleepDayForDate(dateMd) {
+function emptySleepDayForDate(dateKey) {
   return {
-    date: dateMd,
+    date: dateKey,
     bed: null,
     sleepStart: null,
     sleepEnd: null,
@@ -368,9 +368,9 @@ function emptySleepDayForDate(dateMd) {
  * Merge a partial day update onto an existing day (or empty defaults for a new date).
  * Only keys present on `partial` are applied (`'key' in partial`), so omitted keys keep stored values.
  */
-function mergePartialSleepDayForUpsert(existing, dateMd, partial) {
-  const base = existing ? JSON.parse(JSON.stringify(existing)) : emptySleepDayForDate(dateMd);
-  base.date = dateMd;
+function mergePartialSleepDayForUpsert(existing, dateKey, partial) {
+  const base = existing ? JSON.parse(JSON.stringify(existing)) : emptySleepDayForDate(dateKey);
+  base.date = dateKey;
   const fields = ['bed', 'sleepStart', 'sleepEnd', 'bathroom', 'alarm', 'nap', 'WASO', 'labels'];
   for (let i = 0; i < fields.length; i++) {
     const k = fields[i];
@@ -384,10 +384,10 @@ function mapDayToSupabaseRow(day) {
   const alarm = Array.isArray(day.alarm)
     ? sortAlarmsForNight(day.alarm, day.sleepStart).map(normalizeTimeStringForSupabase)
     : [];
-  const dateMd = normalizeSleepDateKey(day.date) || '';
+  const dateKey = normalizeSleepDateKey(day.date) || '';
   return {
     user_id: RESTORE_CLOUD_USER_ID,
-    sleep_date: dateMd || null,
+    sleep_date: dateKey || null,
     bed: normalizeTimeStringForSupabase(day.bed),
     sleep_start: normalizeTimeStringForSupabase(day.sleepStart),
     sleep_end: normalizeTimeStringForSupabase(day.sleepEnd),
@@ -1100,21 +1100,21 @@ function upsertSleepDay(day) {
   });
 }
 
-function getSleepDayByDate(dateMd) {
-  if (!dateMd) return Promise.resolve(null);
+function getSleepDayByDate(dateKey) {
+  if (!dateKey) return Promise.resolve(null);
   return loadSleepData().then(function (data) {
     const days = Array.isArray(data && data.days) ? data.days : [];
     for (let i = 0; i < days.length; i++) {
-      if (days[i].date === dateMd) return days[i];
+      if (days[i].date === dateKey) return days[i];
     }
     return null;
   });
 }
 
-function getSleepDraftByDate(dateMd) {
+function getSleepDraftByDate(dateKey) {
   const config = getSupabaseConfig();
-  if (!config.enabled || !dateMd) return Promise.resolve(null);
-  const iso = normalizeSleepDateKey(dateMd);
+  if (!config.enabled || !dateKey) return Promise.resolve(null);
+  const iso = normalizeSleepDateKey(dateKey);
   if (!iso) return Promise.resolve(null);
   const select = 'user_id,sleep_date,bed,sleep_start,sleep_end,bathroom,alarm,nap_start,nap_end,waso,labels';
   const qIso = encodeURIComponent(iso);
@@ -1301,7 +1301,7 @@ function deleteSleepDraftIfNapOnlyResidual(sleepDateKey, hadSleepDayRow) {
  * @param {Array} days — loaded sleep days (may be empty)
  * @returns {Promise<string>}
  */
-function resolveDefaultQuickAddNightDateMd(days) {
+function resolveDefaultQuickAddNightKey(days) {
   const config = getSupabaseConfig();
   const latestFromLoaded = getLatestSleepDayDateKeyFromLoadedDays(days);
   const latestDayPromise = config.enabled
@@ -1319,15 +1319,15 @@ function resolveDefaultQuickAddNightDateMd(days) {
   });
 }
 
-function upsertSleepDraftPartial(dateMd, partial) {
+function upsertSleepDraftPartial(dateKey, partial) {
   const config = getSupabaseConfig();
   if (!config.enabled) {
     return Promise.reject(new Error('Supabase is not configured. Set URL and anon key in Settings.'));
   }
-  if (!dateMd) {
+  if (!dateKey) {
     return Promise.reject(new Error('Missing date for draft upsert.'));
   }
-  const nightKey = normalizeSleepDateKey(dateMd);
+  const nightKey = normalizeSleepDateKey(dateKey);
   if (!nightKey) {
     return Promise.reject(new Error('Invalid sleep date for draft upsert.'));
   }
@@ -1369,15 +1369,15 @@ function normalizePromoteDraftRpcResult(result, fallbackIso) {
   return { promoted: promoted, result_sleep_date: iso };
 }
 
-function saveDraftAndMaybePromote(dateMd, partial) {
+function saveDraftAndMaybePromote(dateKey, partial) {
   const config = getSupabaseConfig();
   if (!config.enabled) {
     return Promise.reject(new Error('Supabase is not configured. Set URL and anon key in Settings.'));
   }
-  if (!dateMd) {
+  if (!dateKey) {
     return Promise.reject(new Error('Missing date for draft save.'));
   }
-  const key = normalizeSleepDateKey(dateMd);
+  const key = normalizeSleepDateKey(dateKey);
   if (!key) {
     return Promise.reject(new Error('Invalid sleep date for draft save.'));
   }
@@ -3161,14 +3161,14 @@ function readNightQaSleepFlagMap() {
   }
 }
 
-function markNightQaSleepFlag(nightMd, kind) {
-  if (!nightMd || !kind) return;
+function markNightQaSleepFlag(nightKey, kind) {
+  if (!nightKey || !kind) return;
   try {
     const map = readNightQaSleepFlagMap();
-    if (!map[nightMd]) map[nightMd] = {};
-    map[nightMd][kind] = true;
+    if (!map[nightKey]) map[nightKey] = {};
+    map[nightKey][kind] = true;
     if (kind === 'wake') {
-      map[nightMd].wakeAtMs = getAppNowMs();
+      map[nightKey].wakeAtMs = getAppNowMs();
     }
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem(RESTORE_QA_SLEEP_LOGGED_KEY, JSON.stringify(map));
@@ -3176,38 +3176,39 @@ function markNightQaSleepFlag(nightMd, kind) {
   } catch (_e) { /* ignore */ }
 }
 
-function formatMonthDayFromDateForNav(d) {
+/** ISO `YYYY-MM-DD` night key for a local calendar date (docs/wake-day-key.md). */
+function nightKeyFromLocalDate(d) {
   return formatIsoDateFromLocalDate(d);
 }
 
 /**
- * Wake-day key for the night row (evening → next calendar wake-day; early morning stays today).
- * Matches quick-actions recordDateMdForSleep.
+ * ISO night key for the row a new-night event belongs to (evening → next calendar wake-day;
+ * early morning stays today).
  * Wake-day invariant: row `date` is the wake that completes the night.
  * Example: bed at 10 PM previous day or 1 AM same day both belong to the wake-day row.
  * +120 early-morning band: docs/quick-actions.md § Phase and row constants.
  */
-function recordDateMdForSleepPeriod(now, avgWakeMins) {
+function nightKeyForSleepPeriod(now, avgWakeMins) {
   const nowM = now.getHours() * 60 + now.getMinutes();
   const w = modMinutes1440(avgWakeMins);
   if (nowM <= w + 120) {
-    return formatMonthDayFromDateForNav(now);
+    return nightKeyFromLocalDate(now);
   }
   const t = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-  return formatMonthDayFromDateForNav(t);
+  return nightKeyFromLocalDate(t);
 }
 
 /**
  * True when this wake-day row has user bed/sleep data but wake (sleepEnd) is still the stub default
  * and no QA wake flag — i.e. the night is not finalized. Used for wake quick-action date resolution.
  */
-function nightRowAwaitingWake(nightMd, liveDays, averagesFallback) {
-  if (!nightMd) return false;
-  if (isNightWakeLogged(nightMd)) return false;
-  const qa = readNightQaSleepFlagMap()[nightMd];
+function nightRowAwaitingWake(nightKey, liveDays, averagesFallback) {
+  if (!nightKey) return false;
+  if (isNightWakeLogged(nightKey)) return false;
+  const qa = readNightQaSleepFlagMap()[nightKey];
   if (qa && qa.wake) return false;
-  const day = pickDayForNightMdNav(nightMd, liveDays || []);
-  const stub = buildStubDayForNightMd(nightMd, liveDays || [], averagesFallback);
+  const day = pickDayForNightKeyNav(nightKey, liveDays || []);
+  const stub = buildStubDayForNightKey(nightKey, liveDays || [], averagesFallback);
   let hasUserBedSleep = Boolean(qa && (qa.bed || qa.sleep));
   if (day && stub) {
     const bedDiff = String(day.bed || '') !== String(stub.bed || '');
@@ -3225,13 +3226,13 @@ function nightRowAwaitingWake(nightMd, liveDays, averagesFallback) {
 }
 
 /**
- * Wake-day key for persisting sleepEnd / morning alarm: same basis as recordDateMdForSleepPeriod, but if the
+ * Wake-day key for persisting sleepEnd / morning alarm: same basis as nightKeyForSleepPeriod, but if the
  * clock has moved to the next calendar morning while yesterday's wake-day row is still awaiting wake,
  * finalize that row (simulated time / late logging). Otherwise bed and wake would land on different rows.
  * Early-morning band (+120): docs/quick-actions.md § Phase and row constants.
  */
-function resolveRecordDateMdForWake(now, avgWakeMins, liveDays) {
-  const primary = recordDateMdForSleepPeriod(now, avgWakeMins);
+function resolveFallbackWakeNightKey(now, avgWakeMins, liveDays) {
+  const primary = nightKeyForSleepPeriod(now, avgWakeMins);
   const averagesFallback =
     typeof QUICK_ADD_FALLBACK_AVERAGES !== 'undefined' ? QUICK_ADD_FALLBACK_AVERAGES : null;
   const nowM = now.getHours() * 60 + now.getMinutes();
@@ -3241,14 +3242,14 @@ function resolveRecordDateMdForWake(now, avgWakeMins, liveDays) {
     return primary;
   }
   const y = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-  const priorCalMd = formatMonthDayFromDateForNav(y);
-  const priorOpen = nightRowAwaitingWake(priorCalMd, liveDays, averagesFallback);
+  const priorCalKey = nightKeyFromLocalDate(y);
+  const priorOpen = nightRowAwaitingWake(priorCalKey, liveDays, averagesFallback);
   if (!priorOpen) {
     return primary;
   }
   const primaryOpen = nightRowAwaitingWake(primary, liveDays, averagesFallback);
   if (!primaryOpen) {
-    return priorCalMd;
+    return priorCalKey;
   }
   return primary;
 }
@@ -3279,7 +3280,7 @@ function getNightKeyWakeMinutes(days) {
 
 /** Night key for an event logged at `now` (cutover rule on the natural wake). */
 function getCurrentNightKey(now, days) {
-  return recordDateMdForSleepPeriod(now, getNightKeyWakeMinutes(days));
+  return nightKeyForSleepPeriod(now, getNightKeyWakeMinutes(days));
 }
 
 function nightKeyHasClock(value) {
@@ -3387,13 +3388,13 @@ function getOpenNight(days, now) {
 
 /**
  * Night key for wake / alarm saves: the open night when there is one; otherwise the cutover on the
- * natural wake plus the early-morning correction (`resolveRecordDateMdForWake`).
+ * natural wake plus the early-morning correction (`resolveFallbackWakeNightKey`).
  * @returns {Promise<string>}
  */
 function resolveWakeNightKey(days, now) {
   return getOpenNight(days, now).then(function (open) {
     if (open) return open.date;
-    return resolveRecordDateMdForWake(now, getNightKeyWakeMinutes(days), days);
+    return resolveFallbackWakeNightKey(now, getNightKeyWakeMinutes(days), days);
   });
 }
 
@@ -3443,7 +3444,7 @@ function inferNavSleepWindowPhase(now, avgSleepStart, avgSleepEnd) {
   return inferSharedSleepContextPhase(now, avgSleepStart, avgSleepEnd) === 'sleep';
 }
 
-function findDayByDateMd(days, md) {
+function findDayByDateKey(days, md) {
   if (!days || !days.length) return null;
   for (let i = 0; i < days.length; i++) {
     if (days[i].date === md) return days[i];
@@ -3451,14 +3452,14 @@ function findDayByDateMd(days, md) {
   return null;
 }
 
-function pickDayForNightMdNav(nightMd, liveDays) {
-  let d = findDayByDateMd(liveDays, nightMd);
+function pickDayForNightKeyNav(nightKey, liveDays) {
+  let d = findDayByDateKey(liveDays, nightKey);
   if (d) {
     return d;
   }
   const c = readSleepDataLocalCache();
   if (c && c.data && Array.isArray(c.data.days)) {
-    d = findDayByDateMd(c.data.days, nightMd);
+    d = findDayByDateKey(c.data.days, nightKey);
   }
   return d || null;
 }
@@ -3489,7 +3490,7 @@ function isWallClockWithinRecentHoursNav(now, timeStr, hoursBack) {
 /**
  * Stub row for a night md; uses the recent-average basis + days[0] template, or averagesFallback when no logged days.
  */
-function buildStubDayForNightMd(dateMd, days, averagesFallback) {
+function buildStubDayForNightKey(dateKey, days, averagesFallback) {
   const template = days && days.length ? days[0] : null;
   const basis = computeRecentWakeBasis(days);
   const avgS = basis ? basis.avgSleepStart : (averagesFallback ? averagesFallback.avgSleepStart : NaN);
@@ -3499,7 +3500,7 @@ function buildStubDayForNightMd(dateMd, days, averagesFallback) {
   const bed = template ? template.bed : formatTime(modMinutes1440(avgS - 25));
   const se = template ? template.sleepEnd : formatTime(modMinutes1440(avgE));
   return {
-    date: dateMd,
+    date: dateKey,
     bed: bed,
     sleepStart: ss,
     sleepEnd: se,
@@ -3510,18 +3511,18 @@ function buildStubDayForNightMd(dateMd, days, averagesFallback) {
   };
 }
 
-function isNightWakeLogged(nightMd) {
-  const e = readNightQaSleepFlagMap()[nightMd];
+function isNightWakeLogged(nightKey) {
+  const e = readNightQaSleepFlagMap()[nightKey];
   return Boolean(e && e.wake);
 }
 
 /** Wake time logged for this wake-day row: QA flag or sleepEnd differs from stub (no wall-clock window). */
-function wakeLoggedForWakeDayMd(nightMd, liveDays, averagesFallback) {
-  if (!nightMd) return false;
-  if (isNightWakeLogged(nightMd)) return true;
-  const day = pickDayForNightMdNav(nightMd, liveDays);
+function wakeLoggedForNightKey(nightKey, liveDays, averagesFallback) {
+  if (!nightKey) return false;
+  if (isNightWakeLogged(nightKey)) return true;
+  const day = pickDayForNightKeyNav(nightKey, liveDays);
   if (!day) return false;
-  const stub = buildStubDayForNightMd(nightMd, liveDays, averagesFallback);
+  const stub = buildStubDayForNightKey(nightKey, liveDays, averagesFallback);
   if (!stub) return false;
   return String(day.sleepEnd || '') !== String(stub.sleepEnd || '');
 }
@@ -3532,12 +3533,12 @@ function wakeLoggedForWakeDayMd(nightMd, liveDays, averagesFallback) {
  * Callers pass the night key (`getCurrentNightKey`); saves use the same key, so tonight's bed is
  * always on that row. A previous row still awaiting wake (forgotten wake) does not count.
  */
-function isNightBedOrSleepLogged(nightMd, liveDays, averagesFallback) {
-  const qa = readNightQaSleepFlagMap()[nightMd];
+function isNightBedOrSleepLogged(nightKey, liveDays, averagesFallback) {
+  const qa = readNightQaSleepFlagMap()[nightKey];
   if (qa && (qa.bed || qa.sleep)) return true;
-  const day = pickDayForNightMdNav(nightMd, liveDays);
+  const day = pickDayForNightKeyNav(nightKey, liveDays);
   if (!day) return false;
-  const stub = buildStubDayForNightMd(nightMd, liveDays, averagesFallback);
+  const stub = buildStubDayForNightKey(nightKey, liveDays, averagesFallback);
   if (!stub) return false;
   const bedDiff = String(day.bed || '') !== String(stub.bed || '');
   const sleepDiff = String(day.sleepStart || '') !== String(stub.sleepStart || '');
@@ -3545,12 +3546,12 @@ function isNightBedOrSleepLogged(nightMd, liveDays, averagesFallback) {
 }
 
 /** Bed logged only (QA bed flag or non-stub bed) on this wake-day row. */
-function isNightBedLogged(nightMd, liveDays, averagesFallback) {
-  const qa = readNightQaSleepFlagMap()[nightMd];
+function isNightBedLogged(nightKey, liveDays, averagesFallback) {
+  const qa = readNightQaSleepFlagMap()[nightKey];
   if (qa && qa.bed) return true;
-  const day = pickDayForNightMdNav(nightMd, liveDays);
+  const day = pickDayForNightKeyNav(nightKey, liveDays);
   if (!day) return false;
-  const stub = buildStubDayForNightMd(nightMd, liveDays, averagesFallback);
+  const stub = buildStubDayForNightKey(nightKey, liveDays, averagesFallback);
   if (!stub) return false;
   return String(day.bed || '') !== String(stub.bed || '');
 }
@@ -3559,12 +3560,12 @@ function isNightBedLogged(nightMd, liveDays, averagesFallback) {
  * Fell-asleep or sleep intent (e.g. quick-action "Sleep in 10 min") on this wake-day row — same stub
  * + 12h wall-clock idea as dashboard `sleepLoggedForSleepPeriod` in `quick-actions.js`.
  */
-function isNightSleepOrIntentLoggedNav(nightMd, liveDays, now, averagesFallback) {
-  const qa = readNightQaSleepFlagMap()[nightMd];
+function isNightSleepOrIntentLoggedNav(nightKey, liveDays, now, averagesFallback) {
+  const qa = readNightQaSleepFlagMap()[nightKey];
   if (qa && qa.sleep) return true;
-  const day = pickDayForNightMdNav(nightMd, liveDays);
+  const day = pickDayForNightKeyNav(nightKey, liveDays);
   if (!day) return false;
-  const stub = buildStubDayForNightMd(nightMd, liveDays, averagesFallback);
+  const stub = buildStubDayForNightKey(nightKey, liveDays, averagesFallback);
   if (!stub) return false;
   const sleepDiff = String(day.sleepStart || '') !== String(stub.sleepStart || '');
   if (!sleepDiff) return false;
@@ -3574,15 +3575,15 @@ function isNightSleepOrIntentLoggedNav(nightMd, liveDays, now, averagesFallback)
 /**
  * Dynamic "sleep" nav phase: in bed or asleep logged, wake not logged, and clock in overnight limbo or sleep window.
  */
-function shouldShowDynamicSleepNavPhase(days, basis, now, nightMd) {
-  if (!basis || !days || !days.length || !nightMd) return false;
-  const wakeLogged = isNightWakeLogged(nightMd);
+function shouldShowDynamicSleepNavPhase(days, basis, now, nightKey) {
+  if (!basis || !days || !days.length || !nightKey) return false;
+  const wakeLogged = isNightWakeLogged(nightKey);
   if (wakeLogged) {
     return false;
   }
   const averagesFallback =
     typeof QUICK_ADD_FALLBACK_AVERAGES !== 'undefined' ? QUICK_ADD_FALLBACK_AVERAGES : null;
-  const bedOrSleepLogged = isNightBedOrSleepLogged(nightMd, days, averagesFallback);
+  const bedOrSleepLogged = isNightBedOrSleepLogged(nightKey, days, averagesFallback);
   if (!bedOrSleepLogged) {
     return false;
   }
@@ -3802,18 +3803,18 @@ function getFallbackWakeBasis() {
   };
 }
 
-function getWakeDayCandidateMds(now) {
+function getWakeDayCandidateKeys(now) {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
   const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
   return [
-    formatMonthDayFromDateForNav(today),
-    formatMonthDayFromDateForNav(yesterday),
-    formatMonthDayFromDateForNav(tomorrow)
+    nightKeyFromLocalDate(today),
+    nightKeyFromLocalDate(yesterday),
+    nightKeyFromLocalDate(tomorrow)
   ];
 }
 
-function isWakeEventRecentForMd(md, liveDays, now, hoursBack, averagesFallback) {
+function isWakeEventRecentForNightKey(md, liveDays, now, hoursBack, averagesFallback) {
   if (!md) return false;
   const qa = readNightQaSleepFlagMap()[md];
   if (qa && Number.isFinite(qa.wakeAtMs)) {
@@ -3822,9 +3823,9 @@ function isWakeEventRecentForMd(md, liveDays, now, hoursBack, averagesFallback) 
     const hi = nowMs + 45 * 60000;
     if (qa.wakeAtMs >= lo && qa.wakeAtMs <= hi) return true;
   }
-  const day = pickDayForNightMdNav(md, liveDays);
+  const day = pickDayForNightKeyNav(md, liveDays);
   if (!day) return false;
-  const stub = buildStubDayForNightMd(md, liveDays, averagesFallback);
+  const stub = buildStubDayForNightKey(md, liveDays, averagesFallback);
   if (!stub) return false;
   const wakeDiff = String(day.sleepEnd || '') !== String(stub.sleepEnd || '');
   const wakeLogged = Boolean((qa && qa.wake) || wakeDiff);
@@ -3834,9 +3835,9 @@ function isWakeEventRecentForMd(md, liveDays, now, hoursBack, averagesFallback) 
 
 function isRecentWakeInHours(liveDays, now, hoursBack, averagesFallback) {
   if (!now || !Number.isFinite(hoursBack) || hoursBack <= 0) return false;
-  const mdCandidates = getWakeDayCandidateMds(now);
+  const mdCandidates = getWakeDayCandidateKeys(now);
   for (let i = 0; i < mdCandidates.length; i++) {
-    if (isWakeEventRecentForMd(mdCandidates[i], liveDays, now, hoursBack, averagesFallback)) {
+    if (isWakeEventRecentForNightKey(mdCandidates[i], liveDays, now, hoursBack, averagesFallback)) {
       return true;
     }
   }
@@ -3873,11 +3874,11 @@ function getSharedAppTimeContext(days) {
     return null;
   }
   // Night lookup on the natural wake; phase / proximity / quiet window below stay on the scheduled basis.
-  const nightMd = getCurrentNightKey(now, liveDays);
+  const nightKey = getCurrentNightKey(now, liveDays);
   const navDisplay = getRemainingWakeDisplayFromBasis(basis, liveDays);
   const averagesFallback = typeof QUICK_ADD_FALLBACK_AVERAGES !== 'undefined' ? QUICK_ADD_FALLBACK_AVERAGES : null;
   const isDynamicSleepPhase =
-    Boolean(liveDays.length && shouldShowDynamicSleepNavPhase(liveDays, basis, now, nightMd));
+    Boolean(liveDays.length && shouldShowDynamicSleepNavPhase(liveDays, basis, now, nightKey));
   const wakeProximity = isWithinWakeProximity(now, basis.avgSleepEnd);
   const wakeInLast3Hours = isRecentWakeInHours(
     liveDays,
@@ -3894,7 +3895,7 @@ function getSharedAppTimeContext(days) {
   return {
     now,
     basis,
-    nightMd,
+    nightKey,
     navDisplay,
     isDynamicSleepPhase,
     wakeProximity,
@@ -6157,11 +6158,11 @@ function getRemainingWakeDisplayFromBasis(basis, days) {
   const { avgSleepStart, avgSleepEnd, totalWakeMins } = basis;
   const now = getAppDate();
   const nowMins = now.getHours() * 60 + now.getMinutes();
-  const nightMd = getCurrentNightKey(now, days);
+  const nightKey = getCurrentNightKey(now, days);
   const averagesFallback =
     typeof QUICK_ADD_FALLBACK_AVERAGES !== 'undefined' ? QUICK_ADD_FALLBACK_AVERAGES : null;
 
-  if (days && days.length && shouldShowDynamicSleepNavPhase(days, basis, now, nightMd)) {
+  if (days && days.length && shouldShowDynamicSleepNavPhase(days, basis, now, nightKey)) {
     // Last hour before the scheduled wake (average → guided / set target → session slider, via basis).
     const untilWake = forwardClockMinutes(nowMins, avgSleepEnd);
     if (untilWake > 0 && untilWake <= WAKING_SOON_NAV_MINS) {
@@ -6173,8 +6174,8 @@ function getRemainingWakeDisplayFromBasis(basis, days) {
         percentRemaining: null
       };
     }
-    const bedLogged = isNightBedLogged(nightMd, days, averagesFallback);
-    const sleepOrIntentLogged = isNightSleepOrIntentLoggedNav(nightMd, days, now, averagesFallback);
+    const bedLogged = isNightBedLogged(nightKey, days, averagesFallback);
+    const sleepOrIntentLogged = isNightSleepOrIntentLoggedNav(nightKey, days, now, averagesFallback);
     const bedOnlyNeedGoSleep = bedLogged && !sleepOrIntentLogged;
     if (bedOnlyNeedGoSleep) {
       return {
@@ -6195,17 +6196,17 @@ function getRemainingWakeDisplayFromBasis(basis, days) {
   }
 
   if (shouldShowGoToBedSoonWakeNav(nowMins, avgSleepEnd, avgSleepStart)) {
-    if (!(days && days.length && isNightWakeLogged(nightMd))) {
+    if (!(days && days.length && isNightWakeLogged(nightKey))) {
       const phase = getRemainingWakePhase(0, totalWakeMins);
       const icon = getRemainingWakeIcon(phase);
       const bedNav =
         days &&
         days.length &&
-        isNightBedLogged(nightMd, days, averagesFallback);
+        isNightBedLogged(nightKey, days, averagesFallback);
       const sleepOrIntentNav =
         days &&
         days.length &&
-        isNightSleepOrIntentLoggedNav(nightMd, days, now, averagesFallback);
+        isNightSleepOrIntentLoggedNav(nightKey, days, now, averagesFallback);
       const timeLabel =
         bedNav && !sleepOrIntentNav ? 'start sleep soon' : 'get in bed soon';
       const phaseLabel =
@@ -6331,7 +6332,7 @@ function syncPhaseWallpaperConfigControls() {
   }
 }
 
-/** Five static tiles (Active → Waking soon); the fill covers a top strip (banner) or the whole tile (wallpaper). */
+/** Five static tiles in day order (Waking soon → Asleep); the fill covers a top strip (banner) or the whole tile (wallpaper). */
 function getPhaseWallpaperPreviewHtml() {
   const star = function (top, left) {
     return (
@@ -6341,11 +6342,11 @@ function getPhaseWallpaperPreviewHtml() {
     );
   };
   const swatches = [
+    ['wakingSoon', 'config.phaseColors.swatchWaking', 'Waking soon', '<span class="dawn-glow"></span>'],
     ['open', 'config.remainingWake.phase.open', 'Active', ''],
     ['winding', 'config.remainingWake.phase.winding', 'Winding', ''],
     ['presleep', 'config.remainingWake.phase.presleep', 'Pre-sleep', ''],
-    ['sleep', 'config.phaseColors.swatchSleep', 'Asleep', star(14, 16) + star(22, 70) + star(60, 34)],
-    ['wakingSoon', 'config.phaseColors.swatchWaking', 'Waking soon', '<span class="dawn-glow"></span>']
+    ['sleep', 'config.phaseColors.swatchSleep', 'Asleep', star(14, 16) + star(22, 70) + star(60, 34)]
   ];
   return swatches
     .map(function (sw) {
@@ -6553,7 +6554,7 @@ function updateRemainingWakeNav(display) {
         ? rd.internalNavHref('settings.remainingWake')
         : rd && typeof rd.mpaHref === 'function'
           ? rd.mpaHref('settings.remainingWake')
-          : 'settings.html#remaining-wake';
+          : '/settings#remaining-wake';
     slot.innerHTML =
       `<a href="${remainingWakeSettingsHref}" class="nav-remaining-wake-link" title="${ariaEsc}" aria-label="${ariaEsc}"><span class="nav-remaining-wake-main"><span class="nav-remaining-wake-icon" aria-hidden="true">${display.icon}</span><span class="${timeClass}">${display.timeLabel}</span>${headsUpHtml}</span>${progressBar}</a>`;
   }

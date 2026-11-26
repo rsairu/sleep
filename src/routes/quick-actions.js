@@ -5,7 +5,7 @@
 
   let quickActionsIntervalId = null;
   let boundClickHandler = null;
-  let alarmNoneDismissedWakeMd = null;
+  let alarmNoneDismissedWakeKey = null;
 
   function nowClockMinutes(d) {
     return d.getHours() * 60 + d.getMinutes();
@@ -59,33 +59,33 @@
     return inferPhase(now, averages);
   }
 
-  function hasQaBedAndSleepFlags(nightMd) {
-    const e = readNightQaSleepFlagMap()[nightMd];
+  function hasQaBedAndSleepFlags(nightKey) {
+    const e = readNightQaSleepFlagMap()[nightKey];
     return Boolean(e && e.bed && e.sleep);
   }
 
-  function hasQaBedFlag(nightMd) {
-    const e = readNightQaSleepFlagMap()[nightMd];
+  function hasQaBedFlag(nightKey) {
+    const e = readNightQaSleepFlagMap()[nightKey];
     return Boolean(e && e.bed);
   }
 
-  function hasQaSleepFlag(nightMd) {
-    const e = readNightQaSleepFlagMap()[nightMd];
+  function hasQaSleepFlag(nightKey) {
+    const e = readNightQaSleepFlagMap()[nightKey];
     return Boolean(e && e.sleep);
   }
 
-  function pickDayForNightMd(nightMd, liveDays) {
-    return pickDayForNightMdNav(nightMd, liveDays);
+  function pickDayForNightKey(nightKey, liveDays) {
+    return pickDayForNightKeyNav(nightKey, liveDays);
   }
 
   /**
    * Bed already recorded for this sleep-period row (flags or non-stub value within recent hours).
    */
-  function bedLoggedForSleepPeriod(nightMd, liveDays, averages, now) {
-    if (hasQaBedFlag(nightMd)) return true;
-    const day = pickDayForNightMd(nightMd, liveDays);
+  function bedLoggedForSleepPeriod(nightKey, liveDays, averages, now) {
+    if (hasQaBedFlag(nightKey)) return true;
+    const day = pickDayForNightKey(nightKey, liveDays);
     if (!day) return false;
-    const stub = buildStubDayForNightMd(nightMd, liveDays, averages);
+    const stub = buildStubDayForNightKey(nightKey, liveDays, averages);
     if (!stub) return false;
     const bedDiff = String(day.bed || '') !== String(stub.bed || '');
     if (!bedDiff) return false;
@@ -95,11 +95,11 @@
   /**
    * Fell-asleep already recorded for this sleep-period row (flags or non-stub value within recent hours).
    */
-  function sleepLoggedForSleepPeriod(nightMd, liveDays, averages, now) {
-    if (hasQaSleepFlag(nightMd)) return true;
-    const day = pickDayForNightMd(nightMd, liveDays);
+  function sleepLoggedForSleepPeriod(nightKey, liveDays, averages, now) {
+    if (hasQaSleepFlag(nightKey)) return true;
+    const day = pickDayForNightKey(nightKey, liveDays);
     if (!day) return false;
-    const stub = buildStubDayForNightMd(nightMd, liveDays, averages);
+    const stub = buildStubDayForNightKey(nightKey, liveDays, averages);
     if (!stub) return false;
     const sleepDiff = String(day.sleepStart || '') !== String(stub.sleepStart || '');
     if (!sleepDiff) return false;
@@ -110,11 +110,11 @@
    * Bed + fell-asleep already recorded for this sleep-period row (local cache / live days),
    * both differing from stub defaults and within the last 12h, or both via quick actions (flags).
    */
-  function bedAndSleepCompleteForSleepPeriod(nightMd, liveDays, averages, now) {
-    if (hasQaBedAndSleepFlags(nightMd)) return true;
-    const day = pickDayForNightMd(nightMd, liveDays);
+  function bedAndSleepCompleteForSleepPeriod(nightKey, liveDays, averages, now) {
+    if (hasQaBedAndSleepFlags(nightKey)) return true;
+    const day = pickDayForNightKey(nightKey, liveDays);
     if (!day) return false;
-    const stub = buildStubDayForNightMd(nightMd, liveDays, averages);
+    const stub = buildStubDayForNightKey(nightKey, liveDays, averages);
     if (!stub) return false;
     const bedDiff = String(day.bed || '') !== String(stub.bed || '');
     const sleepDiff = String(day.sleepStart || '') !== String(stub.sleepStart || '');
@@ -130,10 +130,13 @@
       const raw = localStorage.getItem(NAP_STORAGE_KEY);
       if (!raw) return null;
       const o = JSON.parse(raw);
-      if (!o || typeof o.dateMd !== 'string' || typeof o.start !== 'string') return null;
-      const iso = normalizeSleepDateKey(o.dateMd);
-      const session = { dateMd: iso || o.dateMd, start: o.start };
-      if (iso && iso !== o.dateMd) {
+      if (!o || typeof o.start !== 'string') return null;
+      // Sessions saved before the night-key rename stored the date as `dateMd`.
+      const storedKey = typeof o.dateKey === 'string' ? o.dateKey : o.dateMd;
+      if (typeof storedKey !== 'string') return null;
+      const iso = normalizeSleepDateKey(storedKey);
+      const session = { dateKey: iso || storedKey, start: o.start };
+      if (iso !== storedKey || typeof o.dateKey !== 'string') {
         try {
           localStorage.setItem(NAP_STORAGE_KEY, JSON.stringify(session));
         } catch (_e2) { /* ignore */ }
@@ -151,27 +154,27 @@
     } catch (_e) { /* ignore */ }
   }
 
-  function findDayByMd(days, md) {
-    return findDayByDateMd(days, md);
+  function findDayByKey(days, md) {
+    return findDayByDateKey(days, md);
   }
 
-  function normalizeDismissalMd(md) {
+  function normalizeDismissalKey(md) {
     return typeof normalizeSleepDateKey === 'function' ? normalizeSleepDateKey(md) || md : md;
   }
 
   function dismissAlarmQuickActionsForWakeDay(md) {
-    alarmNoneDismissedWakeMd = normalizeDismissalMd(md);
+    alarmNoneDismissedWakeKey = normalizeDismissalKey(md);
   }
 
-  function clearStaleAlarmDismissal(currentWakeMd) {
-    const key = normalizeDismissalMd(currentWakeMd);
-    if (alarmNoneDismissedWakeMd && alarmNoneDismissedWakeMd !== key) {
-      alarmNoneDismissedWakeMd = null;
+  function clearStaleAlarmDismissal(currentWakeKey) {
+    const key = normalizeDismissalKey(currentWakeKey);
+    if (alarmNoneDismissedWakeKey && alarmNoneDismissedWakeKey !== key) {
+      alarmNoneDismissedWakeKey = null;
     }
   }
 
   function alarmQuickActionsDismissedForWakeDay(md) {
-    return Boolean(alarmNoneDismissedWakeMd && alarmNoneDismissedWakeMd === normalizeDismissalMd(md));
+    return Boolean(alarmNoneDismissedWakeKey && alarmNoneDismissedWakeKey === normalizeDismissalKey(md));
   }
 
   /** Wake-day row already has alarm times — hide both alarm QAs. */
@@ -196,8 +199,8 @@
     };
   }
 
-  function newStubDay(dateMd, days, averages) {
-    const stub = buildStubDayForNightMd(dateMd, days, averages);
+  function newStubDay(dateKey, days, averages) {
+    const stub = buildStubDayForNightKey(dateKey, days, averages);
     if (stub) return stub;
     const template = days && days.length ? days[0] : null;
     const ss = template
@@ -210,7 +213,7 @@
       ? template.sleepEnd
       : formatTime(modMinutes1440(averages.avgSleepEnd));
     return {
-      date: dateMd,
+      date: dateKey,
       bed: bed,
       sleepStart: ss,
       sleepEnd: se,
@@ -252,8 +255,8 @@
     return false;
   }
 
-  function persistPartial(dateMd, partial, onReload, successToastMessage) {
-    return saveDraftAndMaybePromote(dateMd, partial)
+  function persistPartial(dateKey, partial, onReload, successToastMessage) {
+    return saveDraftAndMaybePromote(dateKey, partial)
       .then(function () {
         if (typeof showAppToast === 'function') showAppToast(successToastMessage);
         if (typeof onReload === 'function') return onReload();
@@ -268,14 +271,14 @@
       });
   }
 
-  function getEditableDayByMd(md, days) {
+  function getEditableDayByNightKey(md, days) {
     return getSleepDraftByDate(md)
       .catch(function () {
         return null;
       })
       .then(function (draft) {
         if (draft) return draft;
-        return findDayByMd(days, md);
+        return findDayByKey(days, md);
       });
   }
 
@@ -301,7 +304,7 @@
     try {
       sessionStorage.setItem(
         LOG_PREFILL_KEY,
-        JSON.stringify({ wakeDayMd: key, alarmAppendNow: true })
+        JSON.stringify({ wakeDayKey: key, alarmAppendNow: true })
       );
     } catch (_e) {
       /* ignore */
@@ -355,7 +358,7 @@
         return open ? open.date : getCurrentNightKey(now, days);
       })
       .then(function (md) {
-        return getEditableDayByMd(md, days).then(function (day) {
+        return getEditableDayByNightKey(md, days).then(function (day) {
           const existingBathroom = day && Array.isArray(day.bathroom) ? day.bathroom : [];
           return persistPartial(
             md,
@@ -377,27 +380,27 @@
   }
 
   /** Calendar wake-day row key (ISO); same localStorage field for offline nap. */
-  function napCalendarMd(now) {
+  function napCalendarKey(now) {
     return formatIsoDateFromLocalDate(now);
   }
 
-  function napActiveFromLoadedDaysAndSession(days, calendarMd) {
-    const day = findDayByMd(days, calendarMd);
+  function napActiveFromLoadedDaysAndSession(days, calendarKey) {
+    const day = findDayByKey(days, calendarKey);
     if (napOpenOnDay(day)) return true;
     const s = readNapSession();
-    return Boolean(s && s.dateMd === calendarMd);
+    return Boolean(s && s.dateKey === calendarKey);
   }
 
   function handleNapStart(days, averages, onReload, now) {
-    const md = napCalendarMd(now);
+    const md = napCalendarKey(now);
     const startStr = formatTimeFromDate(now);
     if (!isSupabaseEnabled()) {
-      writeNapSession({ dateMd: md, start: startStr });
+      writeNapSession({ dateKey: md, start: startStr });
       if (typeof showAppToast === 'function') showAppToast('😴 Nap started');
       return Promise.resolve();
     }
     writeNapSession(null);
-    const existing = findDayByMd(days, md);
+    const existing = findDayByKey(days, md);
     if (existing) {
       const merged = mergePartialSleepDayForUpsert(existing, md, {
         nap: { start: startStr, end: null }
@@ -420,7 +423,7 @@
   }
 
   function handleNapEnd(days, averages, onReload, now) {
-    const md = napCalendarMd(now);
+    const md = napCalendarKey(now);
     const endStr = formatTimeFromDate(now);
     const session = readNapSession();
     if (!isSupabaseEnabled()) {
@@ -428,12 +431,12 @@
       if (typeof showAppToast === 'function') showAppToast('🥱 Nap ended');
       return Promise.resolve();
     }
-    const dayFromTable = findDayByMd(days, md);
+    const dayFromTable = findDayByKey(days, md);
     let resolveSrc;
     if (napOpenOnDay(dayFromTable)) {
       resolveSrc = Promise.resolve({
         startStr: dayFromTable.nap.start,
-        targetMd: dayFromTable.date,
+        targetKey: dayFromTable.date,
         hadSleepDayRow: true
       });
     } else {
@@ -442,16 +445,16 @@
           const key = draft.date || md;
           return {
             startStr: draft.nap.start,
-            targetMd: key,
-            hadSleepDayRow: Boolean(findDayByMd(days, key))
+            targetKey: key,
+            hadSleepDayRow: Boolean(findDayByKey(days, key))
           };
         }
-        if (session && session.dateMd === md) {
-          const key = session.dateMd;
+        if (session && session.dateKey === md) {
+          const key = session.dateKey;
           return {
             startStr: session.start,
-            targetMd: key,
-            hadSleepDayRow: Boolean(findDayByMd(days, key))
+            targetKey: key,
+            hadSleepDayRow: Boolean(findDayByKey(days, key))
           };
         }
         return null;
@@ -465,12 +468,12 @@
       writeNapSession(null);
       const mergeKey =
         typeof normalizeSleepDateKey === 'function'
-          ? normalizeSleepDateKey(src.targetMd) || src.targetMd
-          : src.targetMd;
+          ? normalizeSleepDateKey(src.targetKey) || src.targetKey
+          : src.targetKey;
       const hadSleepDayRow =
         typeof src.hadSleepDayRow === 'boolean'
           ? src.hadSleepDayRow
-          : Boolean(findDayByMd(days, mergeKey));
+          : Boolean(findDayByKey(days, mergeKey));
       return persistPartial(
         mergeKey,
         { nap: { start: src.startStr, end: endStr } },
@@ -583,12 +586,12 @@
       typeof getSharedAppTimeContext === 'function' ? getSharedAppTimeContext(days) : null;
     const now = sharedContext && sharedContext.now ? sharedContext.now : getAppDate();
     const phase = getQuickActionsPhaseFromSharedContext(sharedContext, now, averages);
-    const calendarNapMd = napCalendarMd(now);
-    const napActiveSync = napActiveFromLoadedDaysAndSession(days, calendarNapMd);
+    const calendarNapKey = napCalendarKey(now);
+    const napActiveSync = napActiveFromLoadedDaysAndSession(days, calendarNapKey);
     const showAlarm = averages.avgWakeLag != null;
     // Night lookup (natural-wake cutover). Bed / sleep checks below use it; wake uses the open night.
-    const nightMd = sharedContext && sharedContext.nightMd
-      ? sharedContext.nightMd
+    const nightKey = sharedContext && sharedContext.nightKey
+      ? sharedContext.nightKey
       : getCurrentNightKey(now, days);
     const nightAverages = sharedContext && sharedContext.basis
       ? {
@@ -597,14 +600,14 @@
       }
       : averages;
     const bedLogged =
-      phase === 'sleep' && bedLoggedForSleepPeriod(nightMd, days, nightAverages, now);
+      phase === 'sleep' && bedLoggedForSleepPeriod(nightKey, days, nightAverages, now);
     const sleepLogged =
-      phase === 'sleep' && sleepLoggedForSleepPeriod(nightMd, days, nightAverages, now);
+      phase === 'sleep' && sleepLoggedForSleepPeriod(nightKey, days, nightAverages, now);
     const bedSleepLogged =
-      phase === 'sleep' && bedAndSleepCompleteForSleepPeriod(nightMd, days, nightAverages, now);
+      phase === 'sleep' && bedAndSleepCompleteForSleepPeriod(nightKey, days, nightAverages, now);
     // Wake / alarm target when no night is open: cutover on the natural wake + early-morning correction.
     const naturalWake = getNightKeyWakeMinutes(days);
-    const cutoverWakeMd = resolveRecordDateMdForWake(now, naturalWake, days);
+    const cutoverWakeKey = resolveFallbackWakeNightKey(now, naturalWake, days);
     const averagesFb =
       typeof QUICK_ADD_FALLBACK_AVERAGES !== 'undefined' ? QUICK_ADD_FALLBACK_AVERAGES : null;
     let napStartAllowed = false;
@@ -617,15 +620,15 @@
     }
     /**
      * @param {boolean} napActive
-     * @param {{ wakeMd: string, openNight: object|null, wakeDraft: object|null }} wake
+     * @param {{ wakeKey: string, openNight: object|null, wakeDraft: object|null }} wake
      */
     function paintQuickActionButtons(napActive, wake) {
-      const wakeMd = wake.wakeMd;
-      clearStaleAlarmDismissal(wakeMd);
-      const wakeLoggedForNight = wakeLoggedForWakeDayMd(wakeMd, days, averagesFb);
+      const wakeKey = wake.wakeKey;
+      clearStaleAlarmDismissal(wakeKey);
+      const wakeLoggedForNight = wakeLoggedForNightKey(wakeKey, days, averagesFb);
       const alarmAddr =
-        alarmQuickActionsAddressedForDay(findDayByMd(days, wakeMd)) ||
-        alarmQuickActionsDismissedForWakeDay(wakeMd) ||
+        alarmQuickActionsAddressedForDay(findDayByKey(days, wakeKey)) ||
+        alarmQuickActionsDismissedForWakeDay(wakeKey) ||
         alarmQuickActionsAddressedForDay(wake.wakeDraft);
       const wakeLateNote = Boolean(
         wake.openNight &&
@@ -633,7 +636,7 @@
       );
       // Tonight's draft (e.g. logged on another device or in Log) also counts as bed / sleep logged.
       const tonightDraft =
-        wake.openNight && wake.openNight.draft && wake.openNight.date === normalizeSleepDateKey(nightMd)
+        wake.openNight && wake.openNight.draft && wake.openNight.date === normalizeSleepDateKey(nightKey)
           ? wake.openNight.draft
           : null;
       const draftBed = Boolean(tonightDraft && nightKeyHasClock(tonightDraft.bed));
@@ -656,13 +659,13 @@
       mount.innerHTML = renderButtons(phase, buttonContext);
     }
 
-    const noOpenNight = { wakeMd: cutoverWakeMd, openNight: null, wakeDraft: null };
+    const noOpenNight = { wakeKey: cutoverWakeKey, openNight: null, wakeDraft: null };
     if (!isSupabaseEnabled()) {
       paintQuickActionButtons(napActiveSync, noOpenNight);
       return;
     }
     Promise.all([
-      getSleepDraftByDate(calendarNapMd).catch(function () {
+      getSleepDraftByDate(calendarNapKey).catch(function () {
         return null;
       }),
       getOpenNight(days, now).catch(function () {
@@ -672,15 +675,15 @@
       .then(function (results) {
         const napDraft = results[0];
         const open = results[1];
-        const wakeMd = open ? open.date : cutoverWakeMd;
+        const wakeKey = open ? open.date : cutoverWakeKey;
         const wakeDraftPromise = open
           ? Promise.resolve(open.draft)
-          : getSleepDraftByDate(wakeMd).catch(function () {
+          : getSleepDraftByDate(wakeKey).catch(function () {
             return null;
           });
         return wakeDraftPromise.then(function (wakeDraft) {
           paintQuickActionButtons(napActiveSync || napOpenOnDay(napDraft), {
-            wakeMd: wakeMd,
+            wakeKey: wakeKey,
             openNight: open,
             wakeDraft: wakeDraft
           });

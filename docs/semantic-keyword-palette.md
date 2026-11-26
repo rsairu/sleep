@@ -29,12 +29,12 @@ Related non-keyword UI tokens (`--panel`, `--text`, `--grid`, etc.) live in the 
 
 1. **New UI** that colors bed / sleep / wake (or other keywords above) should use SKP variables in CSS, or `currentColor` / inherited color from a parent that sets `color: var(--color-…)`.
 2. **Avoid hardcoded hex** for those semantics so day/night theme and future palette tweaks stay consistent.
-3. **Charts and timelines** should match the daily view: e.g. timeline `.event.bed` and graph `.data-line.bedtime` both lean on `--color-bed`; sleep bars use `--color-sleep` / `--color-nap` as appropriate.
+3. **Charts and timelines** should match the Nightly view: e.g. timeline `.event.bed` and Charts `.data-line.bedtime` both lean on `--color-bed`; sleep bars use `--color-sleep` / `--color-nap` as appropriate.
 
 ## In this repo
 
-- **Daily timeline**: classes such as `.event.bed`, `.span.sleep`, `.event.up`.
-- **Graph page**: `.data-line.*`, `.data-point.*`, `.sleep-bar`, wake marker rings, dashed trend lines tied to the same variables.
+- **Nightly timeline**: classes such as `.event.bed`, `.span.sleep`, `.event.up`.
+- **Charts page**: `.data-line.*`, `.data-point.*`, `.sleep-bar`, wake marker rings, dashed trend lines tied to the same variables.
 - **Dashboard total sleep**: `.duration-dot` (`--color-sleep`); nap nights use a hollow `.duration-dot--main` ring, a `.duration-nap-connector` dash and a `.duration-dot--nap-total` dot in `--color-nap`; `.usual-line` in `--color-sleep`.
 - **Dashboard Recent stats**: tile chips `.recent-stat__chip` — Bed and Sleep lag `--color-bed`, Asleep and Total sleep `--color-sleep`, Wake and Snooze `--color-up`. Change pills use the quality ramp (`--quality-slight` / `-moderate` / `-severe`), not SKP.
 - **Dashboard time charts**: `.time-dot--bedtime` / `--sleep-start` / `--getup` (`--color-bed` / `--color-sleep` / `--color-up`); natural wake is a `.time-dot-natural` bullseye in `--color-up`; usual lines `.usual-line` (fell-asleep, `--color-sleep`) and `.usual-line--getup` (`--color-up`).

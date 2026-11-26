@@ -8,7 +8,7 @@ Restore is a lightweight sleep tracking web app for logging and visualizing slee
 
 - Add sleep data directly in the app from the Dashboard via Quick Actions.
 - Configure Supabase in `Settings` (`/settings#cloud-sync`) under **Cloud sync**.
-- The top nav now shows a source badge (`☁️ Cloud` or `💾 Local`) so you can see at a glance where data is coming from.
+- The top nav shows a source badge (`☁️ Cloud` or `💾 Local`) so you can see at a glance where data is coming from.
 - If Supabase is not configured (or unreachable), pages read from local `data/sleep-data.json` as fallback.
 - One-time import from JSON to Supabase: create the table with `supabase/schema.sql`, then load rows with your own tool or the Supabase dashboard (no npm script in this repo).
 
@@ -30,7 +30,7 @@ That uses `hooks/post-checkout` and `hooks/post-merge`, which invoke `local/stam
 
 ## Local Supabase presets (optional)
 
-Pages load `local-supabase-presets.js`, then `src/routes-data.mjs` (canonical nav routes, ES module + `defer`), then `/sleep-utils.js` so the dev banner can offer a **Dev** / **Prod** toggle and `renderNavBar` stays aligned with the SPA migration route table. The file is **gitignored**; copy `local/local-supabase-presets.example.js` to `local/local-supabase-presets.js` and fill in both project URLs and anon keys. If the file is absent (e.g. production deploy), the script request fails harmlessly and the toggle is hidden. See `docs/dev-banner.md`.
+`index.html` loads `/local-supabase-presets.js` before `/sleep-utils.js` so the dev banner can offer a **Dev** / **Prod** toggle. `renderNavBar` reads the route table from `src/routes-data.mjs`, which `src/spa-app.js` imports. The file is **gitignored**; copy `local/local-supabase-presets.example.js` to `local/local-supabase-presets.js` and fill in both project URLs and anon keys. If the file is absent (e.g. production deploy), the script request fails harmlessly and the toggle is hidden. See `docs/dev-banner.md`.
 
 ## Local GitHub token for prod → dev sync (optional)
 
@@ -38,9 +38,25 @@ The dev banner's **📥** button runs the *Sync Supabase dev from prod* GitHub A
 
 ## Documentation
 
-- Routing, lifecycle, and architecture: [`docs/routing.md`](docs/routing.md), [`docs/lifecycle-contract.md`](docs/lifecycle-contract.md), [`docs/architecture-decisions.md`](docs/architecture-decisions.md).
-- Remaining wake behavior and backlog: [`docs/remaining-wake.md`](docs/remaining-wake.md).
-- Historical verification notes from the post-migration cleanup (phases 0–3): [`docs/spa-hard-cut-checklist.md`](docs/spa-hard-cut-checklist.md).
+Specs live in `docs/`. [`AGENTS.md`](AGENTS.md) says which doc to update when you change a given file or function.
+
+| Doc | Covers |
+|-----|--------|
+| [`docs/architecture-decisions.md`](docs/architecture-decisions.md) | ADR summary for the SPA architecture |
+| [`docs/routing.md`](docs/routing.md) | Route table, link helpers, link policy |
+| [`docs/lifecycle-contract.md`](docs/lifecycle-contract.md) | Route `mount` / `unmount` contract |
+| [`docs/math.md`](docs/math.md) | All formulas: clock axis, averages and weights, blended %, flag severity, Recent stats, guidance pace |
+| [`docs/recent-average.md`](docs/recent-average.md) | "Your recent average": learning stages, per-night baselines |
+| [`docs/wake-and-lags.md`](docs/wake-and-lags.md) | Natural vs alarm wake, sleep lag, wake lag (snooze), social lag |
+| [`docs/wake-day-key.md`](docs/wake-day-key.md) | Which date a night is saved under; open night |
+| [`docs/quick-actions.md`](docs/quick-actions.md) | Dashboard quick actions: phase, button eligibility, save rows |
+| [`docs/remaining-wake.md`](docs/remaining-wake.md) | Nav remaining-time chip, display phases, phase colors, backlog |
+| [`docs/user-data-cloud.md`](docs/user-data-cloud.md) | Sleep vs preference storage, `user_settings` sync, RLS |
+| [`docs/supabase-dev-sync.md`](docs/supabase-dev-sync.md) | Daily prod → dev Supabase sync (09:17 JST) and migration order |
+| [`docs/dev-banner.md`](docs/dev-banner.md) | Dev banner, simulated app time, local presets |
+| [`docs/semantic-keyword-palette.md`](docs/semantic-keyword-palette.md) | SKP: bed / sleep / wake / nap color tokens |
+| [`docs/restore-copy-voice.md`](docs/restore-copy-voice.md) | Voice and tone for user-facing copy |
+| [`docs/localization.md`](docs/localization.md) | i18n implementation and known gaps |
 
 ## npm scripts
 
@@ -48,6 +64,7 @@ The dev banner's **📥** button runs the *Sync Supabase dev from prod* GitHub A
 - `npm run build` — production build to `dist/` (SPA shell + route fragments + runtime scripts/assets).
 - `npm run preview` — local preview of the `dist/` output.
 - `npm run test:math` — deterministic math and dataset invariant checks (`tests/math-tests.js`).
+- `npm run test:qa` — quick-action render / save scenarios (`tests/quick-actions-scenarios.mjs`).
 
 ## Data on disk
 
@@ -65,7 +82,7 @@ The repo commits `data/.gitkeep` so the `data/` folder exists in fresh clones.
 | **Frontend** | Vanilla HTML5, CSS3, JavaScript (no frameworks) |
 | **Data** | Supabase REST (if configured) with `data/sleep-data.json` fallback |
 | **Charts** | SVG drawn in JS (no chart library) |
-| **Styling** | Single `src/styles/styles.css` with CSS variables (dark theme) |
+| **Styling** | `src/styles/styles.css` with CSS variables (light and dark themes) |
 
 - **Data source:** Supabase `public.sleep_days` (and related tables) when configured; otherwise `data/sleep-data.json` (object with a `days` array). Holiday calendar is in `src/lib/sleep-utils.js` as `HOLIDAYS_BY_YEAR` (year → month → list of holiday days).
 - **Shared logic:** `src/lib/sleep-utils.js` holds time math, date helpers, and `renderNavBar()`. `src/lib/nightly.js` holds dashboard sections, timeline, heatmaps, and Tonight UI. Page-specific scripts: `src/routes/dashboard.js`, `src/routes/entry-modal.js`, `src/routes/quality.js`, `src/routes/charts.js`, `src/routes/stats.js`, etc.
@@ -109,38 +126,43 @@ Time is normalized as **minutes from midnight** (0–1440) in logic, with explic
 
 ## Pages & Responsibilities
 
+Nav tabs: **Dashboard**, **Log**, **Quality**, **Timeline**, **Charts**, **Stats**. **About** and **Settings** are in the menu. Route table: [docs/routing.md](docs/routing.md).
+
 ### 1. Dashboard (`/dashboard`)
-- Loads shared sleep data (Supabase when configured, local JSON fallback).
-- Renders recent/lifetime averages, last few nights as timeline rows, and the **current month** of the sleep-quality calendar heatmap.
-- Uses `renderDashboardContent()`, `renderCalendarHeatmapCurrentMonthOnly()` from `daily.js`; `entry-modal.js` powers **+ Night** and related quick entry.
+- **Quick actions** (Get in bed, Go to sleep, Wake up, naps, alarms), **Tonight** (Natural / Guided / Pace / Target matrix), **Recent stats** (last 7 days vs the 7 before), the current month of the **Sleep quality** calendar, recent nights as timeline rows, and 7-day charts with "usual" lines.
+- `src/routes/dashboard.js` calls `renderDashboardContent()` in `nightly.js`; `quick-actions.js` runs the buttons ([docs/quick-actions.md](docs/quick-actions.md)); `entry-modal.js` powers **+ Night**.
 
-### 2. Sleep Quality (`/quality`)
-- Loads shared sleep data (Supabase when configured, local JSON fallback).
-- Renders the **full** sleep quality history: all months in a calendar heatmap of "flag" days (deviations vs each night's recent baseline).
-- Uses `renderCalendarHeatmapFullHistory()`, `buildFlagCountMap()`, `getLatestDataDate()` from `daily.js`.
+### 2. Log (`/log`)
+- Add or edit one night: bed, sleep, wake, bathroom, alarms, nap, WASO, and emoji notes. Form and quick-add flows live in `src/routes/entry-modal.js`; `src/routes/log.js` mounts the page.
 
-### 3. Daily Timeline (`/timeline`)
-- Timeline from **22:00 previous day** to **24:00 current day** (config in `daily.js`: `TIMELINE_START_MINUTES`, `TIME_TICKS`).
-- Renders **weeks** (expandable), each day as a horizontal bar: bed, sleep, nap, bathroom, alarm, sick, get-up.
-- Week grouping is **Monday–Sunday** (ISO-style); current/previous week start expanded.
+### 3. Quality (`/quality`)
+- Full history calendar heatmap of flag days (deviations vs each night's recent baseline).
+- Uses `renderCalendarHeatmapFullHistory()`, `buildFlagCountMap()`, `getLatestDataDate()` from `nightly.js`.
 
-### 4. Graphs (`/charts`)
-- Loads shared sleep data; no `daily.js`, only `src/lib/sleep-utils.js`.
-- **Line chart:** bed time, fell-asleep time, get-up time over days (Y = time 17:00→17:00 next day); **quadratic regression** (polynomial regression + Gaussian elimination in `graph.js`) for trend lines; toggles to show/hide series.
-- **Bar charts:** sleep duration, wake lag (first alarm → get up), and sleep lag (bed → asleep) per day.
-- All charts are **SVG** drawn in code.
+### 4. Timeline (`/timeline`)
+- Each night as a horizontal bar from **21:00** to **21:00** the next day (`TIMELINE_START_MINUTES`, `TIME_TICKS` in `nightly.js`): bed, sleep, nap, bathroom, alarm, wake.
+- Grouped into expandable **Monday–Sunday** weeks with equal-weight week summaries.
 
-### 5. Stats (`/stats`)
-- **Monthly** stats: total sleep, averages, longest uninterrupted stretch, wake lag, sleep lag, nap stats.
-- Uses `groupDaysByMonth()`, `calculateLongestUninterrupted()`, `classifyWake()`, `wakeLagMin()`, `sleepLagMin()`, `calculateNapDuration()` in `stats.js` (see [docs/wake-and-lags.md](docs/wake-and-lags.md)).
-- Renders comparison vs other months (e.g. "higher/lower than average").
+### 5. Charts (`/charts`)
+- **Bed, asleep, and wake times** over days, with polynomial trend lines (up to quadratic, `polynomialRegression()` in `src/routes/charts.js`) and toggles per series.
+- **Sleep duration**, **wake lag** (first alarm → get up) and **sleep lag** (bed → asleep) per night.
+- All charts are SVG drawn in code; the page loads `charts.js` only (no `nightly.js`).
+
+### 6. Stats (`/stats`)
+- A matrix for a chosen period (past 7 / 30 / 90 days or this year), with **All**, **Work** and **Free** day columns.
+- Sections: **Sleep** (duration, naps, longest / shortest night, uninterrupted, bed and sleep times, sleep lag, mid-sleep, social lag), **Wake** (wake time, natural wake %, wake lag), and **Ultimates** (earliest and latest times).
+- `src/routes/stats.js` with helpers in `src/lib/stats-aggregates.js`; wake and lag rules in [docs/wake-and-lags.md](docs/wake-and-lags.md).
+
+### 7. About (`/about`) and Settings (`/settings`)
+- **About** explains the model: quick actions, Tonight guidance and learning stages, remaining time, flags, night notes, stats.
+- **Settings**: language, clock format, theme, phase colors, palette, Tonight guidance, remaining-time thresholds, in-app tips, and **Cloud sync** (`/settings#cloud-sync`).
 
 ---
 
 ## Important Technical Details
 
 ### Time handling
-- `timeToMinutes()`, `formatTime()`, `formatDuration()` in `src/lib/sleep-utils.js`.
+- `timeToMinutes()`, `formatTime()`, `formatDuration()` in `src/lib/time-utils.js`.
 - Midnight crossing: duration = `sleepEnd - sleepStart` or `sleepEnd + 1440 - sleepStart`.
 - Averages for "evening" times use **normalization** (`normalizeTimeForAveraging`, `normalizeTimeForComparison`) so e.g. 01:00 and 23:00 are combined correctly.
 
@@ -156,8 +178,8 @@ Time is normalized as **minutes from midnight** (0–1440) in logic, with explic
 - Used for styling (e.g. weekend background) and possibly filtering in the UI.
 
 ### UI
-- Shared **nav bar** via `renderNavBar(currentPage)` (Dashboard, Quality, Daily, Graphs, Stats).
-- Dark theme in `src/styles/styles.css` (e.g. `--bg`, `--panel`, `--color-sleep`, `--color-alarm`).
+- Shared **nav bar** via `renderNavBar(currentPage)`: the tabs above, the remaining-time chip ([docs/remaining-wake.md](docs/remaining-wake.md)), and the menu.
+- Light and dark themes in `src/styles/styles.css` (e.g. `--bg`, `--panel`, `--color-sleep`, `--color-alarm`); sleep-domain colors follow the SKP ([docs/semantic-keyword-palette.md](docs/semantic-keyword-palette.md)).
 - Tooltips and day panels for graph hover.
 
 ---
@@ -172,27 +194,32 @@ Time is normalized as **minutes from midnight** (0–1440) in logic, with explic
 | `data/sleep-data.json` | Local fallback dataset (`{ days: [...] }`); gitignored |
 | `data/backup/` | Manual restore exports (e.g. CSV); gitignored |
 | `data/.gitkeep` | Keeps `data/` in version control without committing datasets |
-| `assets/` | Favicons and `icon_512.png` (nav bar icon) |
-| `supabase/schema.sql` | SQL schema for the Supabase `sleep_days` table |
+| `public/assets/` | Favicons and `icon_512.png` (nav bar icon) |
+| `supabase/schema.sql` | SQL schema: `sleep_days`, `sleep_day_drafts`, `user_settings`, `promote_draft_if_complete`, RLS |
 | `hooks/post-checkout`, `hooks/post-merge` | Run `local/stamp-dev-branch.js` after checkout/merge when `core.hooksPath` is `hooks` |
 | `local/dev-git-branch.js` | Generated current git branch for UI (gitignored); copied to `/dev-git-branch.js` at runtime |
 | `local/stamp-dev-branch.js` | Writes `local/dev-git-branch.js` |
 | `src/lib/sleep-utils.js` | Time/date helpers, `calculateTotalSleep()`, `renderNavBar()`, Supabase helpers, `HOLIDAYS_BY_YEAR` |
-| `daily.js` | Timeline rendering, week grouping, dashboard content, deviation logic, heatmap |
+| `src/lib/nightly.js` | Timeline rendering, week grouping, dashboard content, deviation logic, heatmap |
+| `src/lib/time-utils.js` | Clock math: `durationMinutes()`, averaging normalization |
+| `src/lib/i18n.js` | `t()`, locale loading, `data-i18n` application |
+| `src/lib/stats-aggregates.js` | Work / free day split, social lag |
+| `src/routes-data.mjs` | Route metadata and semantic link helpers |
 | `src/routes/dashboard.js` | Fetches data and calls `renderDashboardContent()` |
-| `src/routes/entry-modal.js` | Dashboard **+ Night** modal and quick-add flows |
+| `src/routes/quick-actions.js` | Dashboard quick actions |
+| `src/routes/entry-modal.js` | **+ Night** modal, Log form, and quick-add flows |
+| `src/routes/log.js` | Log page lifecycle |
 | `src/routes/quality.js` | Fetches data and calls `renderCalendarHeatmapFullHistory()` for full history |
 | `src/routes/charts.js` | Fetches data, regression, SVG line/bar charts |
-| `src/routes/stats.js` | Monthly aggregation and stat rendering |
+| `src/routes/stats.js` | Period stats matrix |
+| `src/routes/about.js`, `src/routes/settings.js` | About and Settings lifecycles |
+| `locales.json` | English and Japanese strings |
 | `tests/math-tests.js` | Math and dataset invariant harness (see **Math Regression Checks**) |
+| `tests/quick-actions-scenarios.mjs` | Quick-action scenarios (`npm run test:qa`) |
 | `src/styles/styles.css` | Global styles and CSS variables |
-| `package.json` | npm script: `test:math` |
-| `docs/routing.md` | Canonical route mapping and link policy |
-| `docs/lifecycle-contract.md` | Route mount/unmount lifecycle contract |
-| `docs/architecture-decisions.md` | Permanent ADR summary |
-| `docs/math.md` | All formulas: clock axis, averages and weights, blended %, flag severity, Recent stats, guidance pace |
-| `docs/remaining-wake.md` | Remaining wake feature reference and backlog |
-| `docs/supabase-dev-sync.md` | Daily prod → dev Supabase sync (09:17 JST) and migration order |
+| `supabase/migrations/` | Migrations to apply to dev and prod ([docs/supabase-dev-sync.md](docs/supabase-dev-sync.md)) |
+| `.github/workflows/sync-supabase-dev-from-prod-v2.yml` | Daily prod → dev database sync |
+| `package.json` | npm scripts (see above) |
 
 ---
 
@@ -203,9 +230,13 @@ Use the deterministic math harness to validate rollover/conversion logic after c
 - Run: `npm run test:math` (or `node tests/math-tests.js`).
 - Coverage includes:
   - midnight rollover (`durationMinutes`, projection wrap, modulo minutes)
-  - signed vs positive-only alarm metrics
-  - nap-crossing calculations
-  - averaging normalization around midnight
-  - remaining-wake basis conversions
+  - sleep totals, naps, sleep lag, uninterrupted sleep
+  - wake classification and wake lag (anchored to sleep start)
+  - averaging normalization around midnight, recent-average weights and catch-up
+  - deviation baselines, flags, and Recent stats
+  - remaining-wake basis, overnight limbo, Tonight guidance and matrix phases
+  - night key cutover and open night
+  - Stats column extras and social lag
   - dataset invariants against `data/sleep-data.json`
+- Quick-action rendering and save rows: `npm run test:qa`.
 
